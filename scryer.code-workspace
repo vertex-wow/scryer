@@ -1,0 +1,59 @@
+// vertex.code-workspace
+// exists so:
+// 1) we can disable all extensions in vscode and then enable them on a per-workspace basis (instead of profiles)
+// 2) we can double click the file to open vscode as a convenience (then click reopen in WSL)
+{
+	"folders": [
+		{
+			"path": ".",
+		},
+	],
+	"settings": {
+		"claudeCode.environmentVariables": [
+      		{"name": "NO_COLOR", "value": "1"},
+    	],
+		"claudeCode.initialPermissionMode": "acceptEdits",
+		"chat.tools.terminal.autoApprove": {
+			"timeout": true
+		},
+		"Lua.runtime.version": "Lua 5.1",
+		"Lua.runtime.builtin": {
+			"basic": "disable",
+			"debug": "disable",
+			"io": "disable",
+			"math": "disable",
+			"os": "disable",
+			"package": "disable",
+			"string": "disable",
+			"table": "disable",
+			"utf8": "disable"
+		},
+		"Lua.workspace.library": [
+			"~/.vscode-server/extensions/ketho.wow-api-0.22.3/Annotations/Core"
+		],
+		"Lua.diagnostics.disable": [
+			"ambiguity-1",
+			"cast-local-type",
+			"deprecated",
+			"duplicate-set-field",
+			"inject-field",
+			"lowercase-global",
+			"missing-fields",
+			"missing-parameter",
+			"missing-return",
+			"need-check-nil",
+			"param-type-mismatch",
+			"redundant-parameter",
+			"unbalanced-assignments",
+			"undefined-field",
+			"undefined-global"
+		],
+		"wowAPI.luals.frameXML": false,
+	},
+	"extensions": {
+		"recommendations": [
+			"sumneko.lua",
+			"johnnymorganz.stylua"
+		]
+	},
+}

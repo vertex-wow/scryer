@@ -1,0 +1,52 @@
+_reference/
+_live/
+dev/config.local.sh
+
+# ephemeral task scratchpad — see docs/ for permanent docs
+.plan/*                  
+
+# Build artifacts
+dist/
+build/
+*.zip
+*.tar.gz
+
+# Minified/compiled Lua
+*.min.lua
+
+# Editor/IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+.luarc.json
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Dev dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Lua package managers
+luarocks/
+.luarocks/
+
+# Linting/testing output
+.luacheck-results
+coverage/
+*.gcov
+
+# Temporary files
+*.bak
+*.orig
+*.tmp
+
+# AI
+!.claude/
