@@ -1,0 +1,88 @@
+{
+  "name": "wow-scryer",
+  "displayName": "Scryer",
+  "description": "World of Warcraft Addon Preview",
+  "keywords": [
+    "world of warcraft",
+    "addons",
+    "preview"
+  ],
+  "version": "0.0.1",
+  "publisher": "vertex-wow",
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@10.17.0",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:xml"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "scryer.open",
+        "title": "Open Scryer Preview",
+        "category": "Scryer"
+      }
+    ],
+    "configuration": {
+      "title": "Scryer",
+      "properties": {
+        "scryer.installDir": {
+          "type": "string",
+          "default": "",
+          "description": "Path to your World of Warcraft installation directory (e.g. /path/to/World of Warcraft/_retail_)"
+        },
+        "scryer.extractedAssetsDir": {
+          "type": "string",
+          "default": "",
+          "description": "Path to extracted WoW assets (BLP/TGA converted to PNG). See dev/assets.sh."
+        },
+        "scryer.defaultTarget": {
+          "type": "string",
+          "enum": [
+            "mainline",
+            "mists",
+            "bcc",
+            "classic_era"
+          ],
+          "default": "mainline",
+          "description": "Default WoW version target when no workspace target is configured"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "typecheck": "tsc --noEmit",
+    "ci:install": "pnpm install --frozen-lockfile",
+    "package": "vsce package --no-dependencies",
+    "publish": "vsce publish --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.9.1",
+    "esbuild": "^0.21.5",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.0",
+    "typescript": "^5.5.3"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.4.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@vscode/vsce-sign",
+      "esbuild",
+      "keytar"
+    ]
+  }
+}
