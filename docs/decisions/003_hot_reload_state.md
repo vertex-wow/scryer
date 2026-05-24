@@ -20,13 +20,13 @@ Full Lua sandbox reset is not conservative caution — it is technically require
 
 ## Reframe: "Experience State" vs "Execution State"
 
-The state users *actually notice* resetting is not Lua execution state — it is three categories of display/persistence state that live outside the Lua execution graph:
+The state users _actually notice_ resetting is not Lua execution state — it is three categories of display/persistence state that live outside the Lua execution graph:
 
-| Category | What it is | Where it lives |
-|----------|-----------|---------------|
-| SavedVariables | Addon databases, config | Named Lua globals declared in `## SavedVariables` TOC directive |
-| Frame positions | Where the user dragged movable frames | Renderer-side (CSS position), not Lua semantics |
-| UI visibility | Which panels/tabs are open | `Show()`/`Hide()` state, keyed by stable frame ID |
+| Category        | What it is                            | Where it lives                                                  |
+| --------------- | ------------------------------------- | --------------------------------------------------------------- |
+| SavedVariables  | Addon databases, config               | Named Lua globals declared in `## SavedVariables` TOC directive |
+| Frame positions | Where the user dragged movable frames | Renderer-side (CSS position), not Lua semantics                 |
+| UI visibility   | Which panels/tabs are open            | `Show()`/`Hide()` state, keyed by stable frame ID               |
 
 All three can be safely captured and re-applied across a full Lua sandbox reset.
 
@@ -35,11 +35,12 @@ All three can be safely captured and re-applied across a full Lua sandbox reset.
 **Full Lua sandbox reset as the default, plus selective re-application of experience state.**
 
 ### What is reset
+
 All Lua execution state: globals, closures, LibStub registry, metatables, in-flight `C_Timer` callbacks, event registrations, virtual clock. Non-negotiable for correctness.
 
 ### What is preserved (captured before reset, re-applied after)
 
-1. **SavedVariables:** snapshot the named globals declared in `## SavedVariables` and `## SavedVariablesPerCharacter` before teardown → re-inject into the fresh sandbox's `_G` *before* addon files run. This mirrors exactly what WoW does across `/reload` and sessions, and is the correct semantic.
+1. **SavedVariables:** snapshot the named globals declared in `## SavedVariables` and `## SavedVariablesPerCharacter` before teardown → re-inject into the fresh sandbox's `_G` _before_ addon files run. This mirrors exactly what WoW does across `/reload` and sessions, and is the correct semantic.
 
 2. **Frame positions:** capture current pixel position of any user-moved frame (by stable frame ID) in the renderer → re-apply `SetPoint` overrides after reload. Stable ID = frame `name` attribute or dotted `parentKey` path; skip re-apply if ID is absent or changed.
 

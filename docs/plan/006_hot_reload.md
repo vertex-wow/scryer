@@ -16,15 +16,15 @@ Live-reload the preview on file save with minimal re-work and a clear reloading 
 
 ```ts
 // Coarse: in-editor saves
-vscode.workspace.onDidSaveTextDocument(doc => {
+vscode.workspace.onDidSaveTextDocument((doc) => {
   if (isRelevantFile(doc.uri)) triggerReload(doc.uri);
 });
 
 // Fine: external changes (git checkout, file manager, etc.)
 const watcher = vscode.workspace.createFileSystemWatcher("**/*.{xml,lua,toc}");
-watcher.onDidChange(uri => triggerReload(uri));
-watcher.onDidCreate(uri => triggerReload(uri));   // new file added
-watcher.onDidDelete(uri => triggerFullReload());   // file removed → safe to full reload
+watcher.onDidChange((uri) => triggerReload(uri));
+watcher.onDidCreate((uri) => triggerReload(uri)); // new file added
+watcher.onDidDelete((uri) => triggerFullReload()); // file removed → safe to full reload
 ```
 
 **Debounce** bursts (100–150 ms) to coalesce multi-file saves (e.g. a formatter touching several files at once).
@@ -34,6 +34,7 @@ watcher.onDidDelete(uri => triggerFullReload());   // file removed → safe to f
 The M1 parser builds a dependency graph: `file → Set<files it includes>` and the inverse `file → Set<files that include it>`.
 
 **Affected-file computation:**
+
 1. Start with the changed file.
 2. Collect all files that transitively depend on it (upward in the graph).
 3. Re-parse only those files in TOC load order.
@@ -45,15 +46,16 @@ The M1 parser builds a dependency graph: `file → Set<files it includes>` and t
 
 ## Lua State Reset (Decision / Tradeoff)
 
-| Strategy | Correctness | Speed | Risk |
-|----------|------------|-------|------|
-| **Full sandbox reset** *(recommended default)* | High — deterministic; no stale state | Slower (re-runs TOC from scratch) | None |
-| Partial reset (Lua only, keep frame IR) | Medium — can miss leaked state | Faster | Stale closures, double-registered events |
-| Incremental Lua patch | Low — very hard to do correctly | Fastest | High risk of divergence from real WoW behavior |
+| Strategy                                       | Correctness                          | Speed                             | Risk                                           |
+| ---------------------------------------------- | ------------------------------------ | --------------------------------- | ---------------------------------------------- |
+| **Full sandbox reset** _(recommended default)_ | High — deterministic; no stale state | Slower (re-runs TOC from scratch) | None                                           |
+| Partial reset (Lua only, keep frame IR)        | Medium — can miss leaked state       | Faster                            | Stale closures, double-registered events       |
+| Incremental Lua patch                          | Low — very hard to do correctly      | Fastest                           | High risk of divergence from real WoW behavior |
 
 **Decision: full sandbox reset on any Lua change.** This mirrors what real WoW's `/reload` does. For XML-only changes, skip Lua re-execution (the frame IR update is sufficient).
 
 **Teardown checklist before reset:**
+
 - Cancel all pending `C_Timer` callbacks (clear the virtual timer queue).
 - Unregister all event handlers.
 - Dispose all frame objects (clear the frame registry).

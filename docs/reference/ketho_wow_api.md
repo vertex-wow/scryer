@@ -2,7 +2,7 @@
 
 **License:** MIT  
 **Source:** `_reference/vscode-wow-api/` (read-only)  
-**Purpose:** Editor-time LuaLS extension providing WoW API completions. We reuse its *data corpus* as a bounded, machine-readable source for API availability, event signatures, and the Lua compat shim. We do not duplicate its completion functionality.
+**Purpose:** Editor-time LuaLS extension providing WoW API completions. We reuse its _data corpus_ as a bounded, machine-readable source for API availability, event signatures, and the Lua compat shim. We do not duplicate its completion functionality.
 
 ---
 
@@ -14,13 +14,14 @@
 
 ```ts
 // Flavor bits
-mainline    = 0x1   // Retail / The War Within (current)
-mists       = 0x2   // Mists of Pandaria Classic (current progression)
-bcc         = 0x4   // Burning Crusade Classic
-classic_era = 0x8   // Classic Era (perpetual 1.x)
+mainline = 0x1; // Retail / The War Within (current)
+mists = 0x2; // Mists of Pandaria Classic (current progression)
+bcc = 0x4; // Burning Crusade Classic
+classic_era = 0x8; // Classic Era (perpetual 1.x)
 ```
 
 Usage for API availability:
+
 ```ts
 function isAvailable(apiName: string, flavor: keyof typeof FLAVOR_BITS): boolean {
   const entry = flavorData[apiName];
@@ -47,7 +48,7 @@ Used in M7: a typed TypeScript `fireEvent` helper for the host-side headless tes
 
 ### `src/data/globalapi.ts`
 
-**261 C_* namespace definitions** (the full WoW C API surface). Used at M4 sandbox init to generate the namespace skeleton — iterate all entries, install only those available for the active flavor (via `flavor.ts` mask), stub the rest with "not available in this version" returns.
+**261 C\_\* namespace definitions** (the full WoW C API surface). Used at M4 sandbox init to generate the namespace skeleton — iterate all entries, install only those available for the active flavor (via `flavor.ts` mask), stub the rest with "not available in this version" returns.
 
 ### `src/data/deprecated.ts`
 
@@ -166,10 +167,10 @@ This is the one remaining Lua fidelity risk not covered by the shim.
 
 ## Annotation Scope Decision
 
-| Tree | In scope? | Reason |
-|------|-----------|--------|
-| `Core/Lua/` | Yes | WoW Lua shim (`compat.lua`, `bit.lua`, `basic.lua`) |
-| `Core/Widget/` | Yes | Frame method stubs for M4 |
-| `Core/Events/` | Yes (M7) | Typed event signatures for test runner |
-| `FrameXML/` | No | Blizzard's own addon stubs — not needed |
-| `Annotations/Libraries/` | Partial | LibStub stub needed (M4); others as discovered |
+| Tree                     | In scope? | Reason                                              |
+| ------------------------ | --------- | --------------------------------------------------- |
+| `Core/Lua/`              | Yes       | WoW Lua shim (`compat.lua`, `bit.lua`, `basic.lua`) |
+| `Core/Widget/`           | Yes       | Frame method stubs for M4                           |
+| `Core/Events/`           | Yes (M7)  | Typed event signatures for test runner              |
+| `FrameXML/`              | No        | Blizzard's own addon stubs — not needed             |
+| `Annotations/Libraries/` | Partial   | LibStub stub needed (M4); others as discovered      |

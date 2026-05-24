@@ -41,6 +41,13 @@ Update `docs/` when something is decided or completed:
 
 **Never let a session end with discoveries or decisions only in conversation context.** If it matters beyond this task, it belongs in `docs/`.
 
+## Tooling
+
+- **Package manager: `pnpm` only.** Never use `npm install` or `yarn` — they bypass the `onlyBuiltDependencies` allowlist and `minimum-release-age` security settings.
+- **Building: `pnpm build` (esbuild).** Never use `tsc` to emit JS — it is typecheck-only (`pnpm typecheck` / `tsc --noEmit`).
+- **Tests live in `test/`** (singular). The jest config, tsconfig.test.json, and vscode mock all assume this path.
+- **vscode mock:** Any extension code that imports `vscode` is redirected to `test/__mocks__/vscode.ts` during tests. Expand stubs there as new APIs are needed — do not import the real `vscode` module in unit tests.
+
 ## Commit discipline
 
 - Commit between each milestone completion.

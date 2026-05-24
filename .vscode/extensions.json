@@ -1,8 +1,11 @@
 {
-    "recommendations": [
-        "bierner.markdown-preview-github-styles",
-        "editorconfig.editorconfig",
-        "usernamehw.errorlens",
-        "ketho.wow-api"
-    ]
+  "recommendations": [
+    "bierner.github-markdown-preview",
+    "dbaeumer.vscode-eslint",
+    "editorconfig.editorconfig",
+    "esbenp.prettier-vscode",
+    "ketho.wow-api",
+    "ms-vscode-remote.remote-wsl",
+    "usernamehw.errorlens"
+  ]
 }

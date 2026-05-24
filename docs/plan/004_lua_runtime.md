@@ -17,6 +17,7 @@ Execute addon Lua in a sandbox with WoW API stubs, a frame object model that pro
 The `.toc` file parser is the entry point for loading an addon. It must be implemented here (or alongside M1 as a shared utility — recommended) because it defines the file load order for both XML includes (M1) and Lua execution (M4).
 
 **TOC format:**
+
 ```
 ## Interface: 120000, 50501, 11507
 ## Title: MyAddon |cFF69CCF0by Author|r
@@ -30,6 +31,7 @@ MyAddon.xml
 ```
 
 **Parse rules:**
+
 - Lines starting with `##` are metadata directives (`key: value`).
 - `## Interface:` is comma-separated multi-version (map each to flavor target — see M5).
 - `## SavedVariables` / `## SavedVariablesPerCharacter` declare global tables (stub as empty tables in the sandbox; no persistence initially).
@@ -42,6 +44,7 @@ MyAddon.xml
 Before fully parsing, use a loose check to confirm the file is a WoW TOC: any line `startsWith("##")` AND (lowercased) `includes("interface")` AND `includes(":")`. This mirrors the pattern from `ketho.wow-api/src/extension.ts:hasTocFile()`. Do NOT fully parse every TOC during activation — only on preview open.
 
 **TOC parser output:**
+
 ```ts
 interface TocFile {
   interfaceVersions: number[];
@@ -61,11 +64,11 @@ The parser lives in `src/parser/toc.ts` alongside `src/parser/xml.ts` (M1).
 
 **Key constraint:** WoW uses **Lua 5.1** internally. The workspace already pins `Lua.runtime.version: "Lua 5.1"` (set by `ketho.wow-api` via `src/luals.ts`).
 
-| Option | Lua version | Runtime | Pros | Cons |
-|--------|------------|---------|------|------|
-| **wasmoon** *(recommended primary)* | 5.4 | WASM | Fast; good Node interop; in-host | 5.4 ≠ 5.1 (goto, `//`, bitwise, `table.unpack`, no `setfenv`) |
-| **fengari** *(fallback)* | 5.3 | Pure JS | Runs in webview too; closer to 5.1 | Slower than WASM; also not 5.1 |
-| lua.vm.js | 5.1 | asm.js | True 5.1 | Unmaintained; poor interop |
+| Option                              | Lua version | Runtime | Pros                               | Cons                                                          |
+| ----------------------------------- | ----------- | ------- | ---------------------------------- | ------------------------------------------------------------- |
+| **wasmoon** _(recommended primary)_ | 5.4         | WASM    | Fast; good Node interop; in-host   | 5.4 ≠ 5.1 (goto, `//`, bitwise, `table.unpack`, no `setfenv`) |
+| **fengari** _(fallback)_            | 5.3         | Pure JS | Runs in webview too; closer to 5.1 | Slower than WASM; also not 5.1                                |
+| lua.vm.js                           | 5.1         | asm.js  | True 5.1                           | Unmaintained; poor interop                                    |
 
 **Decision: wasmoon primary** (performance + active maintenance) with an **enumerated 5.1 compatibility shim** (see section below). Use **fengari** only if in-webview Lua becomes necessary.
 
@@ -76,17 +79,25 @@ The parser lives in `src/parser/toc.ts` alongside `src/parser/xml.ts` (M1).
 ```ts
 // ketho disables ALL standard Lua builtins:
 const builtin = {
-  basic: "disable", debug: "disable", io: "disable", math: "disable",
-  os: "disable", package: "disable", string: "disable", table: "disable", utf8: "disable",
+  basic: "disable",
+  debug: "disable",
+  io: "disable",
+  math: "disable",
+  os: "disable",
+  package: "disable",
+  string: "disable",
+  table: "disable",
+  utf8: "disable",
 };
 ```
 
 In our wasmoon/fengari sandbox, remove or replace the corresponding globals before executing any addon code. Then re-provide WoW's versions via the bootstrap sequence below.
 
 **What is re-provided (not the raw Lua stdlib):**
+
 - `string.*` — stock string functions + WoW extensions (`string.trim`, `string.split`, `string.join`, `string.concat`)
 - `table.*` — stock table functions + WoW extensions (`table.wipe`)
-- `math.*` — stock math functions (but the *global* trig aliases use degrees — see shim section)
+- `math.*` — stock math functions (but the _global_ trig aliases use degrees — see shim section)
 - `basic` functions allowed: `select`, `pairs`/`ipairs`, `next`, `type`, `tostring`/`tonumber`, `pcall`/`xpcall`, `error`, `assert`, `setmetatable`/`getmetatable`, `rawget`/`rawset`/`rawequal`, `coroutine`, controlled `print`
 - **Removed entirely:** `io`, `os.execute`/`os.exit`, `package`, `loadfile`/`dofile`, `debug.sethook`
 
@@ -95,18 +106,22 @@ In our wasmoon/fengari sandbox, remove or replace the corresponding globals befo
 The complete shim is **now fully enumerated** from `_reference/vscode-wow-api/Annotations/Core/Lua/`. This converts the former "High severity open-ended risk" into a finite implementation checklist.
 
 ### Source files (read-only reference)
+
 - `Annotations/Core/Lua/compat.lua` — WoW's global alias layer (64 lines)
 - `Annotations/Core/Lua/bit.lua` — WoW's `bit` library
 - `Annotations/Core/Lua/basic.lua` — Lua 5.1 surface delta (header: "added: gcinfo / edited: xpcall, getfenv / removed: dofile, load, loadfile, module, rawlen, warn")
 
 ### Table aliases (from compat.lua)
+
 ```lua
 tinsert = table.insert;  tremove = table.remove;  wipe = table.wipe
 sort = table.sort;  foreach = table.foreach;  foreachi = table.foreachi;  getn = table.getn
 ```
+
 Note: `table.wipe`, `table.foreach`, `table.foreachi`, `table.getn` are WoW extensions — must be provided before compat aliases resolve.
 
 ### String aliases (from compat.lua)
+
 ```lua
 strbyte=string.byte;  strchar=string.char;  strfind=string.find;  format=string.format
 gmatch=string.gmatch;  gsub=string.gsub;  strlen=string.len;  strlower=string.lower
@@ -114,9 +129,11 @@ strmatch=string.match;  strrep=string.rep;  strrev=string.reverse;  strsub=strin
 strupper=string.upper;  strtrim=string.trim;  strsplit=string.split
 strjoin=string.join;  strconcat=string.concat
 ```
+
 Note: `string.trim`, `string.split`, `string.join`, `string.concat` are WoW extensions — must be provided before compat aliases resolve.
 
 ### Math aliases — **CRITICAL: WoW uses degrees, not radians**
+
 ```lua
 -- These globals take and return DEGREES, not radians:
 cos   = function(x) return math.cos(math.rad(x)) end
@@ -131,22 +148,28 @@ abs=math.abs;  ceil=math.ceil;  floor=math.floor;  max=math.max;  min=math.min
 mod=math.fmod;  log10=math.log10;  exp=math.exp;  sqrt=math.sqrt
 PI=math.pi;  random=math.random
 ```
+
 **Providing standard radian trig here would cause silent, incorrect rendering** (wrong rotation angles, wrong radial layouts, wrong cooldown sweeps) with no error message. This must be exact.
 
 ### `bit` library (from bit.lua)
+
 ```lua
 bit.band, bit.bor, bit.bxor, bit.bnot, bit.lshift, bit.rshift, bit.arshift, bit.mod
 ```
+
 wasmoon (Lua 5.4) has no `bit` table — provide it as a Lua table in the bootstrap.
 
 ### Remaining 5.1 gap: `setfenv`/`getfenv`
+
 These were removed in Lua 5.2. WoW's `basic.lua` documents `getfenv` as "edited" (present but modified). Many WoW libs (LibStub, AceAddon, AceEvent) use `setfenv`/`getfenv` for sandboxing module environments. There is no clean emulation in Lua 5.4. Options:
+
 - Best-effort shim using `_ENV` upvalue manipulation (may cover common cases)
 - If wasmoon makes this intractable, evaluate fengari (5.3, closer to 5.1's environment model)
 
 This is the **one remaining genuine open risk** after the compat.lua enumeration. Test against LibStub and AceAddon from `_live/Addons/` early to assess severity.
 
 ### GlobalStrings
+
 Addons use global string constants like `OKAY`, `CANCEL`, `CLOSE`, and `RAID_CLASS_COLORS` that WoW injects into `_G`. Pre-populate from `_reference/vscode-wow-api/src/data/globalstring/enUS.ts` (name→value). This covers `FontString text="GLOBAL_STRING"` and Lua calls like `button:SetText(CLOSE)`. Locale-awareness (12 locales exist) is a future concern; enUS is sufficient for M4.
 
 **Note:** `globals.ts` (47k lines of boolean name map) is NOT useful for the runtime — it's an editor-completions source for undefined-global diagnostics. Do not attempt to ingest it.
@@ -155,27 +178,29 @@ Addons use global string constants like `OKAY`, `CANCEL`, `CLOSE`, and `RAID_CLA
 
 Based on frequency in `_live/Addons/`. **Deprecated functions must still be stubbed** — deprecated-since-10.0 means removed from `mainline` but still present in Classic flavors (bcc/classic_era), and many mainline addons still call them via compat layers.
 
-| API | Stub behavior |
-|-----|--------------|
-| `CreateFrame(type, name, parent, template)` | Returns a frame object proxy; registers by name |
-| `UIParent`, `WorldFrame` | Pre-created frame objects |
-| `GetTime()` | Returns virtual clock time |
-| `date(fmt, time)` | Wraps JS `Date` |
-| `C_Timer.After(seconds, fn)` | Queues `fn` on virtual clock; returns `FunctionContainer` |
-| `C_Timer.NewTicker(interval, fn, iterations)` | Repeating timer; returns `FunctionContainer` |
-| `RegisterEvent` / `UnregisterEvent` | Per-frame event subscription |
-| `LibStub(lib, optional)` | Library registry — must be provided before other libs load |
-| `print(...)` / `DEFAULT_CHAT_FRAME:AddMessage` | → VSCode output channel |
-| `C_*` namespaces (wide, shallow) | Return safe defaults (nil, 0, {}, false) — see below |
-| `IsAddOnLoaded(name)` *(deprecated mainline)* | Returns true for loaded addons |
-| `GetAddOnMetadata(name, key)` *(deprecated mainline)* | Reads from parsed TOC |
-| `UnitAura`/`UnitBuff`/`UnitDebuff` *(deprecated mainline)* | Stub returning nil |
+| API                                                        | Stub behavior                                              |
+| ---------------------------------------------------------- | ---------------------------------------------------------- |
+| `CreateFrame(type, name, parent, template)`                | Returns a frame object proxy; registers by name            |
+| `UIParent`, `WorldFrame`                                   | Pre-created frame objects                                  |
+| `GetTime()`                                                | Returns virtual clock time                                 |
+| `date(fmt, time)`                                          | Wraps JS `Date`                                            |
+| `C_Timer.After(seconds, fn)`                               | Queues `fn` on virtual clock; returns `FunctionContainer`  |
+| `C_Timer.NewTicker(interval, fn, iterations)`              | Repeating timer; returns `FunctionContainer`               |
+| `RegisterEvent` / `UnregisterEvent`                        | Per-frame event subscription                               |
+| `LibStub(lib, optional)`                                   | Library registry — must be provided before other libs load |
+| `print(...)` / `DEFAULT_CHAT_FRAME:AddMessage`             | → VSCode output channel                                    |
+| `C_*` namespaces (wide, shallow)                           | Return safe defaults (nil, 0, {}, false) — see below       |
+| `IsAddOnLoaded(name)` _(deprecated mainline)_              | Returns true for loaded addons                             |
+| `GetAddOnMetadata(name, key)` _(deprecated mainline)_      | Reads from parsed TOC                                      |
+| `UnitAura`/`UnitBuff`/`UnitDebuff` _(deprecated mainline)_ | Stub returning nil                                         |
 
 **`FunctionContainer` return object** — `C_Timer.After` / `C_Timer.NewTicker` (and many other callback-registration APIs) return a `FunctionContainer`. Addons store and call `:Cancel()`:
+
 ```lua
 -- FunctionContainer (from Annotations/Core/Type/FunctionContainer.lua)
 { Cancel(), IsCancelled() -> boolean, Invoke() }
 ```
+
 Omitting this causes nil-method crashes in any addon that cancels its timers.
 
 **Wide shallow stubs:** all 261 `C_*` namespaces from `_reference/vscode-wow-api/src/data/globalapi.ts` should be pre-generated as empty stub tables where every function returns `nil` (with optional debug log). Which specific functions are present per version is controlled by M5's flavor-bit model. See `docs/reference/ketho_wow_api.md` for the data sources.
@@ -185,6 +210,7 @@ Omitting this causes nil-method crashes in any addon that cancels its timers.
 Lua frame objects proxy to IR/render nodes. Mutations push diffs to the webview.
 
 **Core widget methods (all frame types):**
+
 - Size/pos: `GetWidth`/`SetWidth`, `GetHeight`/`SetHeight`, `SetSize(w,h)`, `GetSize()`.
 - Anchors: `SetPoint(point, [relativeTo, relativePoint, x, y])`, `ClearAllPoints()`, `SetAllPoints([frame])`, `GetRect()`.
 - Visibility: `Show()`, `Hide()`, `IsShown()`, `IsVisible()`, `SetShown(bool)`, `SetAlpha(a)`, `GetAlpha()`.
@@ -222,22 +248,23 @@ secureMixin(target, source1, ...)              -- stub ok (secure taint not simu
 ```
 
 When a frame has `mixin="FooMixin"`, after creation:
+
 1. Look up `FooMixin` in `_G` (must be defined before use in TOC load order).
 2. Copy all mixin fields onto the frame's Lua table.
 3. Run `OnLoad` if defined.
 
 ## Script Events
 
-| Event | Trigger |
-|-------|---------|
-| `OnLoad` | After a frame (and all children) are created and mixins applied |
-| `OnShow` / `OnHide` | On `Show()`/`Hide()` call; also on `SetShown` |
-| `OnSizeChanged(w, h)` | On `SetSize`, `SetWidth`, `SetHeight` |
-| `OnClick(button, down)` | From webview `frameEvent` message (user clicks in preview) |
-| `OnEnter` / `OnLeave` | From webview mouse-over events |
-| `OnUpdate(elapsed)` | Throttled tick loop (virtual clock); protect against infinite loops |
-| `OnEvent(event, ...)` | From the event dispatcher. Generic `...` args for M4; typed payloads via `event.ts` deferred to M7. |
-| `OnValueChanged(value, ...)` | StatusBar / Slider value changes |
+| Event                        | Trigger                                                                                             |
+| ---------------------------- | --------------------------------------------------------------------------------------------------- |
+| `OnLoad`                     | After a frame (and all children) are created and mixins applied                                     |
+| `OnShow` / `OnHide`          | On `Show()`/`Hide()` call; also on `SetShown`                                                       |
+| `OnSizeChanged(w, h)`        | On `SetSize`, `SetWidth`, `SetHeight`                                                               |
+| `OnClick(button, down)`      | From webview `frameEvent` message (user clicks in preview)                                          |
+| `OnEnter` / `OnLeave`        | From webview mouse-over events                                                                      |
+| `OnUpdate(elapsed)`          | Throttled tick loop (virtual clock); protect against infinite loops                                 |
+| `OnEvent(event, ...)`        | From the event dispatcher. Generic `...` args for M4; typed payloads via `event.ts` deferred to M7. |
+| `OnValueChanged(value, ...)` | StatusBar / Slider value changes                                                                    |
 
 **Inline scripts** compiled as: `load("return function(self, ...) " .. body .. " end")()(frame, ...)`.
 **`method=`** resolves against the frame's mixin table. **`function=`** resolves against `_G`.
@@ -246,6 +273,7 @@ When a frame has `mixin="FooMixin"`, after creation:
 ## Multi-Version API Differences
 
 The sandbox loads a **flavor profile** (defined in M5) that controls which stubs are present. The flavor model uses bitflags from `_reference/vscode-wow-api/src/data/flavor.ts`:
+
 - `mainline (0x1)` — Retail / The War Within: full `C_*`, `EventRegistry`, intrinsic frames
 - `mists (0x2)` — Mists of Pandaria Classic (current Classic-progression client)
 - `bcc (0x4)` — Burning Crusade Classic

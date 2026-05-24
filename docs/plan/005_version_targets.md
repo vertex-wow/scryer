@@ -12,10 +12,10 @@ ketho.wow-api uses a bitflag system where each API function is mapped to the fla
 
 ```ts
 // flavor bits:
-mainline    = 0x1   // Retail / The War Within (current)
-mists       = 0x2   // Mists of Pandaria Classic (current Classic-progression client)
-bcc         = 0x4   // Burning Crusade Classic
-classic_era = 0x8   // Classic Era (perpetual)
+mainline = 0x1; // Retail / The War Within (current)
+mists = 0x2; // Mists of Pandaria Classic (current Classic-progression client)
+bcc = 0x4; // Burning Crusade Classic
+classic_era = 0x8; // Classic Era (perpetual)
 ```
 
 An API function is available for a target flavor if: `(flavor.data[apiName] & targetBit) !== 0`
@@ -45,13 +45,13 @@ An API function is available for a target flavor if: `(flavor.data[apiName] & ta
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Display name for the status bar |
-| `flavor` | `"mainline"` \| `"mists"` \| `"bcc"` \| `"classic_era"` \| custom | Selects the flavor bitflag for API availability |
-| `interfaceVersion` | number | Primary interface version for TOC validation and asset routing |
-| `wowInstallDir` | string | Optional override for global `scryer.installDir` |
-| `extractedAssetsDir` | string | Optional override for global `scryer.extractedAssetsDir` |
+| Field                | Type                                                              | Description                                                    |
+| -------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------- |
+| `name`               | string                                                            | Display name for the status bar                                |
+| `flavor`             | `"mainline"` \| `"mists"` \| `"bcc"` \| `"classic_era"` \| custom | Selects the flavor bitflag for API availability                |
+| `interfaceVersion`   | number                                                            | Primary interface version for TOC validation and asset routing |
+| `wowInstallDir`      | string                                                            | Optional override for global `scryer.installDir`               |
+| `extractedAssetsDir` | string                                                            | Optional override for global `scryer.extractedAssetsDir`       |
 
 ## API Availability Model
 
@@ -68,20 +68,20 @@ function isAvailable(apiName: string, flavor: keyof typeof FLAVOR_BITS): boolean
 }
 ```
 
-At sandbox init, for a given target flavor, iterate `globalapi.ts` (261 C_* namespaces + top-level globals) and install only the functions available for that flavor. Everything else is absent or returns a "not available in this version" warning stub.
+At sandbox init, for a given target flavor, iterate `globalapi.ts` (261 C\_\* namespaces + top-level globals) and install only the functions available for that flavor. Everything else is absent or returns a "not available in this version" warning stub.
 
-**Note:** `flavor.ts` is a *presence* table only — not behavioral differences. Some APIs exist in all flavors but behave differently (e.g., `GetContainerItemInfo` vs `C_Container.GetContainerItemInfo` semantics). Keep the "wide shallow stub returns nil" fallback for anything not in the table.
+**Note:** `flavor.ts` is a _presence_ table only — not behavioral differences. Some APIs exist in all flavors but behave differently (e.g., `GetContainerItemInfo` vs `C_Container.GetContainerItemInfo` semantics). Keep the "wide shallow stub returns nil" fallback for anything not in the table.
 
 **Deprecated functions:** Functions in `deprecated.ts` (deprecated since 10.0.0) have their `mainline` bit cleared in `flavor.ts` but Classic bits set. They are still stubbed for Classic targets — the flavor model handles this automatically. No separate deprecated list needed.
 
 ## Flavor → Interface Version Mapping
 
-| Flavor | Representative interface versions | Notes |
-|--------|----------------------------------|-------|
-| `mainline` | 110000+ | Increments with each patch |
-| `mists` | ~50500–50599 | MoP Classic (current progression) — will change |
-| `bcc` | ~20504 | Burning Crusade Classic |
-| `classic_era` | 11500–11599 | Perpetual 1.x Classic |
+| Flavor        | Representative interface versions | Notes                                           |
+| ------------- | --------------------------------- | ----------------------------------------------- |
+| `mainline`    | 110000+                           | Increments with each patch                      |
+| `mists`       | ~50500–50599                      | MoP Classic (current progression) — will change |
+| `bcc`         | ~20504                            | Burning Crusade Classic                         |
+| `classic_era` | 11500–11599                       | Perpetual 1.x Classic                           |
 
 TOC validation: if the active target's `interfaceVersion` is not in the TOC's `## Interface:` list → warn + offer to switch target.
 

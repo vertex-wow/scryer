@@ -16,11 +16,11 @@ Resolve and load real WoW textures (file path references and atlas names) into t
 
 WoW's proprietary BLP format is not natively decodable by browsers or Node. Three approaches:
 
-| Option | Pros | Cons |
-|--------|------|------|
-| **(a) blp2png CLI** | Robust external tool; handles edge cases | External binary dep; per-file process spawn; user must install |
-| **(b) pure-JS BLP decoder** *(recommended primary)* | Zero external deps; runs in extension host; no install step | Coverage varies; some BLP variants unsupported |
-| **(c) WASM decoder** | Fast; portable; in-process | Must source/build a reliable one |
+| Option                                              | Pros                                                        | Cons                                                           |
+| --------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
+| **(a) blp2png CLI**                                 | Robust external tool; handles edge cases                    | External binary dep; per-file process spawn; user must install |
+| **(b) pure-JS BLP decoder** _(recommended primary)_ | Zero external deps; runs in extension host; no install step | Coverage varies; some BLP variants unsupported                 |
+| **(c) WASM decoder**                                | Fast; portable; in-process                                  | Must source/build a reliable one                               |
 
 **Decision: (b) pure-JS BLP decoder as primary** (e.g. `blp-parser` or similar npm package). Decode to RGBA buffer → encode PNG via `pngjs`. Use **(a) blp2png CLI as optional fallback** (user-configured path) for unsupported BLP variants.
 
@@ -86,6 +86,7 @@ We do not bundle WoW assets (copyright). Document the workflow and provide helpe
 ## Fallback
 
 When an asset cannot be resolved or decoded:
+
 - Render a colored placeholder rectangle (color hashed from the path/atlas name).
 - Overlay the path as a small label (for identification).
 - Log a single warning per unresolved path to the VSCode output channel with a "configure scryer.extractedAssetsDir" hint.

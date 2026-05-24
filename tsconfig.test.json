@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": ".tsbuild/tests",
+    "rootDir": ".",
+    "composite": true,
+    "declaration": true,
+    "noEmit": false,
+    "types": ["jest", "node"]
+  },
+  "include": ["test"],
+  "references": [{ "path": "./tsconfig.json" }]
+}

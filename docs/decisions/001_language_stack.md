@@ -16,15 +16,19 @@ We needed to choose the primary implementation language for the VSCode extension
 ## Options Considered
 
 ### Pure TypeScript (in-process extension host)
+
 Everything runs in the extension host Node process. No separate subprocess.
 
 ### TypeScript shell + Go subprocess (standalone CLI)
+
 Extension host is a thin TypeScript wrapper; a Go binary handles parsing, Lua execution, and asset decoding over a JSON-RPC stdio channel.
 
 ### TypeScript shell + Python subprocess
+
 Same split as Go, but Python handles the heavy lifting.
 
 ### Lua as host language
+
 Build the runtime engine in Lua, leveraging WoW addon authors' familiarity with the language.
 
 ## Decision
@@ -45,7 +49,7 @@ Go was seriously considered, primarily because `gopher-lua` is a native Lua 5.1 
 
 5. **TypeScript matches the user's existing knowledge**, the VSCode-native model, and the existing scaffold. Two-language debug (can't single-step from TS into Go) is an ongoing friction cost for a vibe-coding workflow.
 
-Lua as a host language was rejected because WoW addon authors know the *WoW sandbox* (CreateFrame, events, mixins), not general-purpose Lua tooling (LuaRocks, LuaSocket, image decode). The host ecosystem is weak, especially for BLP decoding. The contributor-accessibility goal is better served by the Neovim model (see below).
+Lua as a host language was rejected because WoW addon authors know the _WoW sandbox_ (CreateFrame, events, mixins), not general-purpose Lua tooling (LuaRocks, LuaSocket, image decode). The host ecosystem is weak, especially for BLP decoding. The contributor-accessibility goal is better served by the Neovim model (see below).
 
 ## Architecture Adopted
 

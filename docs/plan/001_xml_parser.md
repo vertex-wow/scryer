@@ -37,6 +37,7 @@ Grounded in `UI.xsd` (see `ref_wow_xml_schema.md`):
 The `.toc` parser is a co-deliverable of M1 because the TOC defines the file load order needed to correctly order XML template registration. Lives in `src/parser/toc.ts`.
 
 **TOC format:**
+
 ```
 ## Interface: 120000, 50501, 11507
 ## Title: MyAddon
@@ -47,6 +48,7 @@ Libs\LibStub\LibStub.lua
 Core\Init.lua
 MyAddon.xml
 ```
+
 Rules: `##` lines are metadata directives; non-empty non-`#` lines are ordered file paths (`.lua` or `.xml`); backslash-normalize to forward slash. `## Interface:` is comma-separated multi-version integers. See `004_lua_runtime.md` for the full `TocFile` TypeScript interface.
 
 ## Cross-File References
@@ -58,39 +60,93 @@ Rules: `##` lines are metadata directives; non-empty non-`#` lines are ordered f
 ## IR/AST Design (TypeScript)
 
 ```ts
-type DrawLayer = "BACKGROUND"|"BORDER"|"ARTWORK"|"OVERLAY"|"HIGHLIGHT";
-type FramePoint = "TOPLEFT"|"TOPRIGHT"|"BOTTOMLEFT"|"BOTTOMRIGHT"|"TOP"|"BOTTOM"|"LEFT"|"RIGHT"|"CENTER";
-type FrameStrata = "PARENT"|"BACKGROUND"|"LOW"|"MEDIUM"|"HIGH"|"DIALOG"|"FULLSCREEN"|"FULLSCREEN_DIALOG"|"TOOLTIP"|"BLIZZARD";
-type AlphaMode = "DISABLE"|"BLEND"|"ALPHAKEY"|"ADD"|"MOD";
+type DrawLayer = "BACKGROUND" | "BORDER" | "ARTWORK" | "OVERLAY" | "HIGHLIGHT";
+type FramePoint =
+  | "TOPLEFT"
+  | "TOPRIGHT"
+  | "BOTTOMLEFT"
+  | "BOTTOMRIGHT"
+  | "TOP"
+  | "BOTTOM"
+  | "LEFT"
+  | "RIGHT"
+  | "CENTER";
+type FrameStrata =
+  | "PARENT"
+  | "BACKGROUND"
+  | "LOW"
+  | "MEDIUM"
+  | "HIGH"
+  | "DIALOG"
+  | "FULLSCREEN"
+  | "FULLSCREEN_DIALOG"
+  | "TOOLTIP"
+  | "BLIZZARD";
+type AlphaMode = "DISABLE" | "BLEND" | "ALPHAKEY" | "ADD" | "MOD";
 
 interface Anchor {
   point: FramePoint;
-  relativeTo?: string;      // named frame
-  relativeKey?: string;     // dotted $parent.child path
+  relativeTo?: string; // named frame
+  relativeKey?: string; // dotted $parent.child path
   relativePoint?: FramePoint;
-  x?: number; y?: number;
+  x?: number;
+  y?: number;
 }
 
-interface KeyValue { key: string; value: string; type: "nil"|"boolean"|"number"|"string"|"global"; }
-interface ScriptIR { event: string; inline?: string; method?: string; function?: string; inherit?: "prepend"|"append"|"none"; }
-interface Color { r: number; g: number; b: number; a?: number; }
+interface KeyValue {
+  key: string;
+  value: string;
+  type: "nil" | "boolean" | "number" | "string" | "global";
+}
+interface ScriptIR {
+  event: string;
+  inline?: string;
+  method?: string;
+  function?: string;
+  inherit?: "prepend" | "append" | "none";
+}
+interface Color {
+  r: number;
+  g: number;
+  b: number;
+  a?: number;
+}
 
 interface LayoutFrameBase {
-  kind: "Frame"|"Button"|"CheckButton"|"StatusBar"|"Texture"|"FontString"|"MaskTexture"|"Line";
-  name?: string; parentKey?: string; parentArray?: string;
-  inherits: string[]; mixin: string[]; virtual: boolean;
+  kind:
+    | "Frame"
+    | "Button"
+    | "CheckButton"
+    | "StatusBar"
+    | "Texture"
+    | "FontString"
+    | "MaskTexture"
+    | "Line";
+  name?: string;
+  parentKey?: string;
+  parentArray?: string;
+  inherits: string[];
+  mixin: string[];
+  virtual: boolean;
   size?: { x?: number; y?: number };
-  anchors: Anchor[]; setAllPoints?: boolean;
-  hidden?: boolean; alpha?: number; scale?: number;
+  anchors: Anchor[];
+  setAllPoints?: boolean;
+  hidden?: boolean;
+  alpha?: number;
+  scale?: number;
   keyValues: KeyValue[];
-  sourceFile: string; sourceLine?: number;
+  sourceFile: string;
+  sourceLine?: number;
 }
 
 interface FrameIR extends LayoutFrameBase {
-  kind: "Frame"|"Button"|"CheckButton"|"StatusBar";
+  kind: "Frame" | "Button" | "CheckButton" | "StatusBar";
   parent?: string;
-  frameStrata?: FrameStrata; frameLevel?: number;
-  toplevel?: boolean; movable?: boolean; resizable?: boolean;
+  frameStrata?: FrameStrata;
+  frameLevel?: number;
+  toplevel?: boolean;
+  movable?: boolean;
+  resizable?: boolean;
   enableMouse?: boolean;
   layers: { level: DrawLayer; subLevel: number; objects: RenderObjectIR[] }[];
   children: FrameIR[];
@@ -100,8 +156,10 @@ interface FrameIR extends LayoutFrameBase {
 type RenderObjectIR = TextureIR | FontStringIR;
 
 interface TextureIR extends LayoutFrameBase {
-  kind: "Texture"|"MaskTexture";
-  file?: string; atlas?: string; useAtlasSize?: boolean;
+  kind: "Texture" | "MaskTexture";
+  file?: string;
+  atlas?: string;
+  useAtlasSize?: boolean;
   alphaMode?: AlphaMode;
   texCoords?: { left: number; right: number; top: number; bottom: number };
   color?: Color;
@@ -109,18 +167,19 @@ interface TextureIR extends LayoutFrameBase {
 
 interface FontStringIR extends LayoutFrameBase {
   kind: "FontString";
-  text?: string; inheritsFont?: string;
-  justifyH?: "LEFT"|"CENTER"|"RIGHT";
-  justifyV?: "TOP"|"MIDDLE"|"BOTTOM";
+  text?: string;
+  inheritsFont?: string;
+  justifyH?: "LEFT" | "CENTER" | "RIGHT";
+  justifyV?: "TOP" | "MIDDLE" | "BOTTOM";
   color?: Color;
 }
 
 interface UiDocument {
-  source: string;                     // file path
-  frames: FrameIR[];                  // concrete top-level frames
-  templates: Map<string, FrameIR>;    // virtual frames by name
-  scriptFiles: string[];              // ordered Lua file paths
-  includes: string[];                 // ordered included XML paths
+  source: string; // file path
+  frames: FrameIR[]; // concrete top-level frames
+  templates: Map<string, FrameIR>; // virtual frames by name
+  scriptFiles: string[]; // ordered Lua file paths
+  includes: string[]; // ordered included XML paths
 }
 ```
 
@@ -128,11 +187,11 @@ interface UiDocument {
 
 ### Parser library
 
-| Option | Pros | Cons |
-|--------|------|------|
-| **fast-xml-parser** *(recommended)* | Fast; pure JS; no native deps; configurable; preserves order | Manual mapping from raw object |
-| xml2js | Well-known | Callback API; less control over ordering; heavier |
-| DOMParser | Nice API; standard | Browser-only; needs jsdom in Node (adds native dep) |
+| Option                              | Pros                                                         | Cons                                                |
+| ----------------------------------- | ------------------------------------------------------------ | --------------------------------------------------- |
+| **fast-xml-parser** _(recommended)_ | Fast; pure JS; no native deps; configurable; preserves order | Manual mapping from raw object                      |
+| xml2js                              | Well-known                                                   | Callback API; less control over ordering; heavier   |
+| DOMParser                           | Nice API; standard                                           | Browser-only; needs jsdom in Node (adds native dep) |
 
 **Decision: fast-xml-parser** with `preserveOrder: true`, `ignoreAttributes: false`, `attributeNamePrefix: ""`.
 

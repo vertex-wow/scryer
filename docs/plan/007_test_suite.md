@@ -34,6 +34,7 @@ end)
 ```
 
 **Matchers:**
+
 - `toBe(value)` — strict equality (`==`)
 - `toEqual(value)` — deep equality (table comparison)
 - `toBeNil()` — is nil
@@ -45,6 +46,7 @@ end)
 **Lifecycle hooks:** `beforeEach`, `afterEach`, `beforeAll`, `afterAll`.
 
 **Event helpers (built on M4 dispatcher):**
+
 ```lua
 T.fireEvent("PLAYER_LOGIN")
 T.fireEvent("BAG_UPDATE", 0)
@@ -84,6 +86,7 @@ Headless mode requires the same stubs as M4, minus rendering. Additional require
 ## Reporter
 
 **Default: TAP (Test Anything Protocol)**
+
 ```
 TAP version 13
 1..3
@@ -97,6 +100,7 @@ not ok 3 - Combat: fires PLAYER_REGEN_DISABLED
 ```
 
 **Optional: JSON** (structured, for the VSCode Test Explorer):
+
 ```json
 {
   "suites": [
@@ -104,7 +108,13 @@ not ok 3 - Combat: fires PLAYER_REGEN_DISABLED
       "name": "Inventory",
       "tests": [
         { "name": "counts items correctly", "status": "pass", "duration": 0.002 },
-        { "name": "handles empty bag", "status": "fail", "message": "...", "file": "Tests/Inventory.test.lua", "line": 8 }
+        {
+          "name": "handles empty bag",
+          "status": "fail",
+          "message": "...",
+          "file": "Tests/Inventory.test.lua",
+          "line": 8
+        }
       ]
     }
   ]
@@ -114,6 +124,7 @@ not ok 3 - Combat: fires PLAYER_REGEN_DISABLED
 ## VSCode Test Explorer Integration
 
 Use the `vscode.TestController` API:
+
 - Discover tests by scanning for `## X-Tests` TOC directives and `Tests/*.test.lua` conventions.
 - Run/debug individual tests or entire suites from the Test Explorer tree.
 - Display pass/fail gutters inline in the Lua test files.

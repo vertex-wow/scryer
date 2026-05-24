@@ -1,0 +1,6 @@
+.claude/
+pnpm-lock.yaml
+dist/
+node_modules/
+_reference/
+_live/

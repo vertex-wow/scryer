@@ -17,12 +17,15 @@ Additionally, `dev/assets.sh` already uses GraphicsMagick/ImageMagick as a devel
 ## Options Considered
 
 ### ImageMagick/GraphicsMagick as runtime dependency
+
 Shell out to `magick convert` or `gm convert` for TGA (and potentially BLP) conversion.
 
 ### Pure in-process JS decoders
+
 A pure-JS TGA decoder (~200 lines, zero dependencies) + a pure-JS BLP decoder (e.g., `blp-parser` npm package). Optional user-configured external `blp2png` fallback for exotic BLP variants.
 
 ### CGo/native decoder in a Go subprocess
+
 Decode BLP and TGA using Go libraries with optional CGo for maximum coverage.
 
 ## Decision

@@ -6,10 +6,13 @@ dev/config.local.sh
 .plan/*                  
 
 # Build artifacts
+.tsbuild/
 dist/
 build/
 *.zip
 *.tar.gz
+*.vsix
+*.tsbuildinfo
 
 # Minified/compiled Lua
 *.min.lua
@@ -17,20 +20,37 @@ build/
 # Editor/IDE
 .vscode/*
 !.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
 .idea/
 *.sublime-project
 *.sublime-workspace
 .luarc.json
 
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
 # OS files
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+*:Zone.Identifier
 *.swp
 *.swo
 *~
 
 # Dev dependencies
 node_modules/
+.pnpm/
 package-lock.json
 yarn.lock
 
@@ -40,6 +60,7 @@ luarocks/
 
 # Linting/testing output
 .luacheck-results
+.eslintcache
 coverage/
 *.gcov
 

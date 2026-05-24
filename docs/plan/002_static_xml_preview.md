@@ -24,11 +24,11 @@ Render the M1 IR visually in a VSCode webview using DOM, implementing the WoW an
 
 ## Renderer Choice
 
-| Option | Pros | Cons |
-|--------|------|------|
+| Option                       | Pros                                                         | Cons                                                          |
+| ---------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------- |
 | **DOM (recommended for M2)** | Easy to inspect; free text rendering; CSS z-index for strata | Imperfect blend modes; no real texcoord cropping; approximate |
-| Canvas 2D (later) | Correct atlas cropping; alpha modes; rotation | Must implement text + hit-testing manually |
-| WebGL (much later) | Full fidelity (ADD/MOD blend, masks, shaders) | Heavy; complex |
+| Canvas 2D (later)            | Correct atlas cropping; alpha modes; rotation                | Must implement text + hit-testing manually                    |
+| WebGL (much later)           | Full fidelity (ADD/MOD blend, masks, shaders)                | Heavy; complex                                                |
 
 **Decision: DOM for M2.** Design a `Renderer` interface so a Canvas implementation can slot in later.
 
@@ -82,6 +82,7 @@ Compound z-index: `strataBase[strata] * 1000 + frameLevel`. Apply via CSS `z-ind
 ## Placeholder Textures
 
 When an asset is not yet available (M3 not done):
+
 - Render a colored rectangle (color deterministically hashed from the file/atlas path).
 - Overlay the path as a small semi-transparent label (helps identify what to extract).
 - Log each missing asset once to the output channel.
@@ -109,6 +110,7 @@ When an asset is not yet available (M3 not done):
 ```
 
 **CSP:**
+
 ```
 default-src 'none';
 img-src ${webview.cspSource};

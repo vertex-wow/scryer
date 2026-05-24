@@ -1,6 +1,6 @@
 # Reference — WoW XML Schema & Format
 
-*Derived from inspecting `_reference/wow-ui-source/` and `_live/Addons/`. Read-only reference — do not edit source directories.*
+_Derived from inspecting `_reference/wow-ui-source/` and `_live/Addons/`. Read-only reference — do not edit source directories._
 
 ## Schema Location and Version
 
@@ -12,52 +12,61 @@
 ## Enumerations from XSD
 
 ### FRAMEPOINT (anchor attachment points)
+
 ```
 TOPLEFT  TOPRIGHT  BOTTOMLEFT  BOTTOMRIGHT
 TOP  BOTTOM  LEFT  RIGHT  CENTER
 ```
 
 ### FRAMESTRATA (z-depth bands, low → high)
+
 ```
 PARENT  BACKGROUND  LOW  MEDIUM  HIGH  DIALOG
 FULLSCREEN  FULLSCREEN_DIALOG  TOOLTIP  BLIZZARD
 ```
 
 ### DRAWLAYER (layer order within a frame, back → front)
+
 ```
 BACKGROUND  BORDER  ARTWORK  OVERLAY  HIGHLIGHT
 ```
+
 Each `<Layer>` also has `textureSubLevel` attribute (integer, −8..7).
 
 ### ALPHAMODE (texture blend mode)
+
 ```
 DISABLE  BLEND  ALPHAKEY  ADD  MOD
 ```
+
 Default is `BLEND`. `ADD` is common for glow effects; no direct CSS equivalent (approximated with `screen` mix-blend-mode). `MOD` = multiply.
 
 ### Other enumerations
-| Enum | Values |
-|------|--------|
-| OUTLINETYPE | `NONE, NORMAL, THICK` |
-| JUSTIFYVTYPE | `TOP, MIDDLE, BOTTOM` |
-| JUSTIFYHTYPE | `LEFT, CENTER, RIGHT` |
-| INSERTMODE | `TOP, BOTTOM` |
-| ORIENTATION | `HORIZONTAL, VERTICAL` |
-| WRAPMODE | `CLAMP, REPEAT, CLAMPTOBLACK, CLAMPTOBLACKADDITIVE, CLAMPTOWHITE, MIRROR` |
-| KEYVALUETYPE | `nil, boolean, number, string, global` |
-| ATTRIBUTETYPE | `nil, boolean, number, string` |
-| SCRIPTINHERITTYPE | `prepend, append, none` |
-| SCRIPTINTRINSICORDERTYPE | `precall, postcall, none` |
-| FONTALPHABET | `roman, korean, simplifiedchinese, traditionalchinese, russian` |
-| UITextureSliceMode | `Stretched, Tiled` |
-| StatusBarFillStyle | `Standard, StandardNoRangeFill, Center, Reverse` |
+
+| Enum                     | Values                                                                    |
+| ------------------------ | ------------------------------------------------------------------------- |
+| OUTLINETYPE              | `NONE, NORMAL, THICK`                                                     |
+| JUSTIFYVTYPE             | `TOP, MIDDLE, BOTTOM`                                                     |
+| JUSTIFYHTYPE             | `LEFT, CENTER, RIGHT`                                                     |
+| INSERTMODE               | `TOP, BOTTOM`                                                             |
+| ORIENTATION              | `HORIZONTAL, VERTICAL`                                                    |
+| WRAPMODE                 | `CLAMP, REPEAT, CLAMPTOBLACK, CLAMPTOBLACKADDITIVE, CLAMPTOWHITE, MIRROR` |
+| KEYVALUETYPE             | `nil, boolean, number, string, global`                                    |
+| ATTRIBUTETYPE            | `nil, boolean, number, string`                                            |
+| SCRIPTINHERITTYPE        | `prepend, append, none`                                                   |
+| SCRIPTINTRINSICORDERTYPE | `precall, postcall, none`                                                 |
+| FONTALPHABET             | `roman, korean, simplifiedchinese, traditionalchinese, russian`           |
+| UITextureSliceMode       | `Stretched, Tiled`                                                        |
+| StatusBarFillStyle       | `Standard, StandardNoRangeFill, Center, Reverse`                          |
 
 ## Key Elements and Their Attributes
 
 ### `<Ui>` (root)
+
 Contains `Script`, `Include`, and any frame/render elements at the top level.
 
 ### `<Script>` / `<Include>`
+
 - `<Script file="path\to\File.lua"/>` — external Lua file reference (load in order)
 - `<Script>inline lua code</Script>` — inline (rare; used for addon init)
 - `<Include file="path\to\Other.xml"/>` — include another XML file (templates must be registered before use)
@@ -65,6 +74,7 @@ Contains `Script`, `Include`, and any frame/render elements at the top level.
 ### Frame/LayoutFrame (`FrameAttributes` + `LayoutFrameAttributes`)
 
 **Shared layout attrs:**
+
 - `name` — global name registered in `_G`; `$parent` substring is replaced with parent's name
 - `parentKey` — sets `parent[parentKey] = self` after creation; dotted path dot-notation (e.g. `parentKey="Icon"`)
 - `parentArray` — appends self to `parent[parentArray]` table
@@ -78,6 +88,7 @@ Contains `Script`, `Include`, and any frame/render elements at the top level.
 - `registerForDrag` — e.g. `"LeftButton"`
 
 **Frame-specific attrs:**
+
 - `parent` — explicit parent frame name (defaults to last opened frame or UIParent)
 - `frameStrata` (FRAMESTRATA), `frameLevel` (integer)
 - `toplevel="true"` — appears above its nominal strata siblings
@@ -91,20 +102,25 @@ Contains `Script`, `Include`, and any frame/render elements at the top level.
 `Size`, `Anchors`, `Scripts`, `KeyValues`, `Layers`, `Frames`, `Attributes`, `HitRectInsets`, `ResizeBounds`, `Animations`
 
 ### `<Button>` (extends Frame)
+
 Additional attrs: `text` (initial button text), `registerForClicks` (e.g. `"LeftButtonUp,RightButtonUp"`)
 Additional children:
+
 - `NormalTexture`, `PushedTexture`, `DisabledTexture`, `HighlightTexture` — texture sub-elements
 - `ButtonText` — FontString for button label
 - `NormalFont`, `HighlightFont`, `DisabledFont` — font style references (`style="FontName"`)
 - `PushedTextOffset` — Dimension for text offset when pressed
 
 ### `<CheckButton>` (extends Button)
+
 `checked="true/false"` attr; `CheckedTexture`, `DisabledCheckedTexture` children.
 
 ### `<StatusBar>` (extends Frame)
+
 `minValue`, `maxValue`, `defaultValue` (numbers), `orientation` (ORIENTATION), `reverseFill`, `fillStyle` (StatusBarFillStyle), `drawLayer`, `rotatesTexture`.
 
 ### `<Texture>` (`TextureAttributes`)
+
 - `file="Interface\path\to\texture"` — BLP/TGA path (see Asset section)
 - `atlas="atlas-region-name"` — named atlas region
 - `useAtlasSize="true"` — size frame from atlas region dimensions
@@ -118,6 +134,7 @@ Additional children:
 Child elements: `TexCoords` (left/right/top/bottom 0..1, or 8-corner `Rect`), `TextureSliceMargins`, `TextureSliceMode`, `Color` (r/g/b/a), `Gradient`.
 
 ### `<FontString>` (`FontStringAttributes`)
+
 - `text` — initial text content
 - `font` — font file path
 - `inherits` — parent font object name (e.g. `"GameFontNormal"`, `"Game16Font"`)
@@ -127,6 +144,7 @@ Child elements: `TexCoords` (left/right/top/bottom 0..1, or 8-corner `Rect`), `T
 Children: `FontHeight`, `Color`, `Shadow`.
 
 ### `<Anchor>` (inside `<Anchors>`)
+
 - `point` (FRAMEPOINT, **required**)
 - `relativeKey` — dotted key path from the current frame (e.g. `"$parent"`, `"$parent.Shadow"`)
 - `relativeTo` — global frame name (alternative to `relativeKey`)
@@ -135,17 +153,22 @@ Children: `FontHeight`, `Color`, `Shadow`.
 - Optional child `<Offset>` (Dimension, same as `x`/`y` attrs)
 
 ### `<Size>` / `<Dimension>`
+
 `x` and `y` attrs, or nested `<AbsDimension x="..." y="..."/>`.
 
 ### `<Layer>` (inside `<Layers>`)
+
 `level` (DRAWLAYER, required), `textureSubLevel` (integer −8..7).
 Contains `Texture`, `MaskTexture`, `FontString`, `Line` render objects.
 
 ### `<KeyValue>` (inside `<KeyValues>`)
+
 `key`, `value`, `type` (KEYVALUETYPE). Sets `frame[key] = value` (typed) on the Lua frame object. Used to pass constructor arguments without a separate Lua call.
 
 ### `<Scripts>` and script event elements
+
 Child elements of `Scripts` block are named by event (e.g. `<OnLoad>`, `<OnClick>`). Each `ScriptType` has:
+
 - Inline body text: compiled as `function(self, ...) <body> end`
 - `function="GlobalFunctionName"` — resolves from `_G`
 - `method="MixinMethodName"` — resolves from the frame's mixin table
@@ -174,9 +197,11 @@ Child elements of `Scripts` block are named by event (e.g. `<OnLoad>`, `<OnClick
 ## Asset Path Format
 
 ### File textures
+
 `file="Interface\Buttons\UI-Quickslot-Depress"` — virtual path, backslash-separated, extension usually omitted.
 
 WoW uses **two image formats** in texture paths:
+
 - **BLP** — primary proprietary format for all Blizzard Interface textures. Requires a BLP decoder (see `003_asset_pipeline.md`).
 - **TGA** (Targa) — used by some older Blizzard textures and commonly by addon-bundled art. Much simpler to decode: uncompressed or RLE-compressed RGBA. Many JS libraries handle it (e.g. `tga-js`).
 
@@ -184,13 +209,16 @@ Resolution: if no extension, try `.blp` first then `.tga`. If `.blp` fails to de
 Addon-local textures may be relative: `file="Textures\MyIcon"` → relative to addon dir.
 
 ### Atlas textures
+
 `atlas="atlas-region-name"` + `useAtlasSize="true"` — named region from a sprite sheet.
+
 - Requires an atlas manifest: `{ atlasName → { sheetFile, x, y, width, height } }`.
 - Atlas manifests are version-specific (Retail atlas ≠ Classic atlas).
 
 ## Mixin Attribute
 
 `mixin="FooMixin"` and `secureMixin="FooMixin"`:
+
 - After frame creation, copy all fields from `_G.FooMixin` (or the mixin table) onto the frame.
 - Then run any `OnLoad` script.
 - Multiple mixins comma-separated (applied left-to-right).
@@ -216,7 +244,7 @@ Seen in `_live/Addons/` (bold = high frequency):
 
 **Animation:** OnAnimStarted, OnAnimFinished, OnFinished, OnLoop, OnPlay, OnPause, OnResume, OnStop, OnCooldownDone
 
-*~70 total event types in the XSD.*
+_~70 total event types in the XSD._
 
 ## Observed Patterns in `_live/Addons/`
 
