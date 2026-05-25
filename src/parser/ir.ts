@@ -88,6 +88,7 @@ export interface FrameIR extends LayoutFrameBase {
   frameStrata?: FrameStrata;
   frameLevel?: number;
   toplevel?: boolean;
+  useParentLevel?: boolean;
   movable?: boolean;
   resizable?: boolean;
   enableMouse?: boolean;

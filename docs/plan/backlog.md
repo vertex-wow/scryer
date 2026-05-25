@@ -8,21 +8,16 @@ Cross-cutting items deferred from completed milestones, or tooling debt that doe
 
 **Problem:** The live-fixture tests in `test/parser/toc.test.ts` and `test/parser/xml.test.ts` read directly from `_live/Addons/` and skip in CI (`describeIfLive`). Parser correctness against real addon structure is not verified on every push.
 
-**Plan:** Add `scripts/generate-fixtures.ts`, runnable via `pnpm generate:fixtures`, that:
+**Revised plan:** Use `_reference/wow-cookbook` (our owned, WoW-verified addon examples) instead of generating IR snapshots from `_live/`. Two tiers:
 
-1. Reads source XML/TOC files from `_live/Addons/` (never committed — Blizzard IP).
-2. Runs them through the parser.
-3. Writes the resulting IR as JSON to `test/fixtures/` (committed — our derived data, not Blizzard source).
+1. **Always-run inline tests** — embed short cookbook XML verbatim as template literals in the test file. No filesystem dependency; CI-safe. Good for ExampleFrameBare, ExampleFrameModalDialog, ExampleControlMoveableFrame (all under ~40 lines). These are already added (see `test/parser/xml.test.ts`).
+2. **`describeIfCookbook` tests** — read larger cookbook files from `_reference/wow-cookbook/docs/frames/Addons/` for more thorough integration coverage. Skip gracefully when the symlink is absent (e.g. a fresh clone without the sibling repo). Add as needed when a parser bug is found in a specific cookbook example.
 
-The live-fixture tests then load from `test/fixtures/` instead of `_live/`, removing the CI skip entirely.
+This replaces the generate-fixtures script approach entirely. No derived JSON snapshots to maintain; the cookbook XML is the source of truth.
 
-Constraints:
+Note: `_live/` fixture tests remain as-is for testing against Blizzard-internal templates (DefaultPanelTemplate etc.) that the cookbook depends on but doesn't define.
 
-- Only structured IR (parsed output) goes into `test/fixtures/` — no raw XML/TOC, no textures, no atlas data.
-- Re-run `pnpm generate:fixtures` locally whenever the live addon versions change; commit the updated snapshots.
-- Include a header in each fixture file noting the source addon version/date so drift is detectable.
-
-**Effort:** S — a few hours.
+**Effort:** Done — inline fixtures already added alongside the parser gap tests.
 
 ---
 

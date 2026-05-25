@@ -304,4 +304,318 @@ describe("parseXmlFile — inline XML", () => {
   test("throws on missing Ui root", () => {
     expect(() => parseXmlFile("bad.xml", "<Root/>")).toThrow(/<Ui>/);
   });
+
+  // ── Attribute coverage ────────────────────────────────────────────────────
+
+  test("atlas attribute on Texture", () => {
+    const xml = `
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Frame name="F">
+    <Layers>
+      <Layer level="BORDER">
+        <Texture atlas="RedButton-Expand"/>
+      </Layer>
+    </Layers>
+  </Frame>
+</Ui>`;
+    const doc = parseXmlFile("test.xml", xml);
+    const tex = doc.frames[0].layers[0].objects[0] as TextureIR;
+    expect(tex.atlas).toBe("RedButton-Expand");
+    expect(tex.file).toBeUndefined();
+  });
+
+  test("useAtlasSize on Texture", () => {
+    const xml = `
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Frame name="F">
+    <Layers>
+      <Layer level="ARTWORK">
+        <Texture atlas="chatframe-button-up" useAtlasSize="true"/>
+      </Layer>
+    </Layers>
+  </Frame>
+</Ui>`;
+    const doc = parseXmlFile("test.xml", xml);
+    const tex = doc.frames[0].layers[0].objects[0] as TextureIR;
+    expect(tex.useAtlasSize).toBe(true);
+    expect(tex.atlas).toBe("chatframe-button-up");
+  });
+
+  test("setAllPoints on child Frame element", () => {
+    const xml = `
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Frame name="Outer">
+    <Frames>
+      <Frame inherits="DialogBorderTemplate" setAllPoints="true"/>
+    </Frames>
+  </Frame>
+</Ui>`;
+    const doc = parseXmlFile("test.xml", xml);
+    const child = doc.frames[0].children[0];
+    expect(child.setAllPoints).toBe(true);
+    expect(child.inherits).toContain("DialogBorderTemplate");
+  });
+
+  test("useParentLevel on child Frame element", () => {
+    const xml = `
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Frame name="Outer">
+    <Frames>
+      <Frame inherits="DialogBorderTemplate" useParentLevel="true" setAllPoints="true"/>
+    </Frames>
+  </Frame>
+</Ui>`;
+    const doc = parseXmlFile("test.xml", xml);
+    const child = doc.frames[0].children[0];
+    expect(child.useParentLevel).toBe(true);
+  });
+
+  test("toplevel attribute on concrete frame", () => {
+    const xml = `
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Frame name="Dialog" toplevel="true" frameStrata="DIALOG"/>
+</Ui>`;
+    const doc = parseXmlFile("test.xml", xml);
+    expect(doc.frames[0].toplevel).toBe(true);
+    expect(doc.frames[0].frameStrata).toBe("DIALOG");
+  });
+
+  test("empty script body does not crash and produces a script entry", () => {
+    const xml = `
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Frame name="F">
+    <Scripts>
+      <OnEnter></OnEnter>
+      <OnLeave></OnLeave>
+    </Scripts>
+  </Frame>
+</Ui>`;
+    const doc = parseXmlFile("test.xml", xml);
+    const events = doc.frames[0].scripts.map((s) => s.event);
+    expect(events).toContain("OnEnter");
+    expect(events).toContain("OnLeave");
+    const onEnter = doc.frames[0].scripts.find((s) => s.event === "OnEnter")!;
+    expect(onEnter.inline).toBeUndefined();
+    expect(onEnter.method).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cookbook integration tests — inline XML from verified WoW addons we own.
+// These test real-world patterns end-to-end without any filesystem dependency.
+// ---------------------------------------------------------------------------
+
+// XML content sourced from _reference/wow-cookbook (symlink → ../wow-cookbook).
+// Simplified to remove the XML schema declaration for brevity.
+
+const NS = `xmlns="http://www.blizzard.com/wow/ui/"`;
+
+describe("parseXmlFile — ExampleFrameBare (cookbook)", () => {
+  // Bare frame: two layers, anonymous texture with Color, named FontString
+  const xml = `
+<Ui ${NS}>
+  <Frame name="ExampleFrameBare" parent="UIParent"
+         enableMouse="true" frameStrata="MEDIUM" hidden="true">
+    <Size x="240" y="160"/>
+    <Anchors>
+      <Anchor point="CENTER"/>
+    </Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture setAllPoints="true">
+          <Color r="0" g="0" b="0" a="1"/>
+        </Texture>
+      </Layer>
+      <Layer level="ARTWORK">
+        <FontString name="$parentTitle" inherits="GameFontNormal"
+                    text="Example Bare Frame">
+          <Anchors>
+            <Anchor point="TOP" relativePoint="TOP" y="-16"/>
+          </Anchors>
+        </FontString>
+      </Layer>
+    </Layers>
+  </Frame>
+</Ui>`;
+
+  let doc: ReturnType<typeof parseXmlFile>;
+  beforeAll(() => {
+    doc = parseXmlFile("ExampleFrameBare.xml", xml);
+  });
+
+  test("one concrete frame, no templates", () => {
+    expect(doc.frames).toHaveLength(1);
+    expect(doc.templates.size).toBe(0);
+  });
+
+  test("frame attributes", () => {
+    const f = doc.frames[0];
+    expect(f.name).toBe("ExampleFrameBare");
+    expect(f.parent).toBe("UIParent");
+    expect(f.enableMouse).toBe(true);
+    expect(f.frameStrata).toBe("MEDIUM");
+    expect(f.hidden).toBe(true);
+    expect(f.size).toEqual({ x: 240, y: 160 });
+    expect(f.anchors[0].point).toBe("CENTER");
+  });
+
+  test("BACKGROUND layer: anonymous texture with solid black color", () => {
+    const bg = doc.frames[0].layers.find((l) => l.level === "BACKGROUND")!;
+    expect(bg).toBeDefined();
+    const tex = bg.objects[0] as TextureIR;
+    expect(tex.kind).toBe("Texture");
+    expect(tex.setAllPoints).toBe(true);
+    expect(tex.color).toEqual({ r: 0, g: 0, b: 0, a: 1 });
+    expect(tex.name).toBeUndefined();
+  });
+
+  test("ARTWORK layer: named FontString with anchor offset", () => {
+    const art = doc.frames[0].layers.find((l) => l.level === "ARTWORK")!;
+    expect(art).toBeDefined();
+    const fs = art.objects[0];
+    expect(fs.kind).toBe("FontString");
+    expect(fs.name).toBe("$parentTitle");
+    expect(fs.anchors[0]).toMatchObject({ point: "TOP", relativePoint: "TOP", y: -16 });
+  });
+});
+
+describe("parseXmlFile — ExampleFrameModalDialog (cookbook)", () => {
+  // Modal dialog: toplevel, DIALOG strata, anonymous child Frame with
+  // useParentLevel + setAllPoints (the border chrome pattern).
+  const xml = `
+<Ui ${NS}>
+  <Frame name="ExampleFrameModalDialog" parent="UIParent"
+         toplevel="true" enableMouse="true"
+         frameStrata="DIALOG" hidden="true">
+    <Size x="240" y="160"/>
+    <Anchors>
+      <Anchor point="CENTER"/>
+    </Anchors>
+    <Frames>
+      <Frame inherits="DialogBorderTemplate" useParentLevel="true" setAllPoints="true"/>
+    </Frames>
+    <Layers>
+      <Layer level="ARTWORK">
+        <FontString name="$parentTitle" inherits="GameFontNormal"
+                    text="Example Modal Dialog">
+          <Anchors>
+            <Anchor point="TOP" relativePoint="TOP" y="-24"/>
+          </Anchors>
+        </FontString>
+      </Layer>
+    </Layers>
+  </Frame>
+</Ui>`;
+
+  let doc: ReturnType<typeof parseXmlFile>;
+  beforeAll(() => {
+    doc = parseXmlFile("ExampleFrameModalDialog.xml", xml);
+  });
+
+  test("toplevel and DIALOG strata", () => {
+    const f = doc.frames[0];
+    expect(f.toplevel).toBe(true);
+    expect(f.frameStrata).toBe("DIALOG");
+  });
+
+  test("anonymous border-chrome child Frame: useParentLevel + setAllPoints", () => {
+    const child = doc.frames[0].children[0];
+    expect(child.inherits).toContain("DialogBorderTemplate");
+    expect(child.useParentLevel).toBe(true);
+    expect(child.setAllPoints).toBe(true);
+    expect(child.name).toBeUndefined();
+    expect(child.virtual).toBe(false);
+  });
+});
+
+describe("parseXmlFile — ExampleControlMoveableFrame (cookbook)", () => {
+  // Inline scripts combined with template inheritance and movable attribute.
+  const xml = `
+<Ui ${NS}>
+  <Frame name="ExampleControlMoveableFrame" parent="UIParent"
+         toplevel="true" enableMouse="true" movable="true"
+         frameStrata="MEDIUM" hidden="true"
+         inherits="DefaultPanelTemplate">
+    <Size x="380" y="260"/>
+    <Anchors>
+      <Anchor point="CENTER"/>
+    </Anchors>
+    <Scripts>
+      <OnDragStart>self:StartMoving()</OnDragStart>
+      <OnDragStop>self:StopMovingOrSizing()</OnDragStop>
+    </Scripts>
+  </Frame>
+</Ui>`;
+
+  let doc: ReturnType<typeof parseXmlFile>;
+  beforeAll(() => {
+    doc = parseXmlFile("ExampleControlMoveableFrame.xml", xml);
+  });
+
+  test("frame is concrete, movable, inherits DefaultPanelTemplate", () => {
+    const f = doc.frames[0];
+    expect(f.virtual).toBe(false);
+    expect(f.movable).toBe(true);
+    expect(f.inherits).toContain("DefaultPanelTemplate");
+  });
+
+  test("inline drag scripts", () => {
+    const f = doc.frames[0];
+    const start = f.scripts.find((s) => s.event === "OnDragStart")!;
+    const stop = f.scripts.find((s) => s.event === "OnDragStop")!;
+    expect(start.inline).toContain("StartMoving");
+    expect(stop.inline).toContain("StopMovingOrSizing");
+  });
+});
+
+// describeIfCookbook — reads files from the _reference/wow-cookbook symlink.
+// Skipped when the sibling repo is absent (e.g. fresh clone in CI without it).
+const COOKBOOK = path.join(__dirname, "../../_reference/wow-cookbook/docs/frames/Addons");
+const describeIfCookbook = fs.existsSync(COOKBOOK) ? describe : describe.skip;
+
+describeIfCookbook("parseXmlFile — ExampleControlBottomTabs (cookbook file)", () => {
+  let doc: ReturnType<typeof parseXmlFile>;
+
+  beforeAll(() => {
+    const content = fs.readFileSync(
+      path.join(COOKBOOK, "ExampleControlBottomTabs__Vertex/ExampleControlBottomTabs.xml"),
+      "utf8",
+    );
+    doc = parseXmlFile("ExampleControlBottomTabs.xml", content);
+  });
+
+  test("one virtual template, one concrete frame", () => {
+    expect(doc.templates.size).toBe(1);
+    expect(doc.templates.has("ExampleControlBottomTabsTabTemplate")).toBe(true);
+    expect(doc.frames).toHaveLength(1);
+    expect(doc.frames[0].name).toBe("ExampleControlBottomTabs");
+  });
+
+  test("virtual tab template: mixin + method scripts", () => {
+    const tmpl = doc.templates.get("ExampleControlBottomTabsTabTemplate")!;
+    expect(tmpl.mixin).toContain("ExampleControlBottomTabsMixin");
+    const events = tmpl.scripts.map((s) => s.event);
+    expect(events).toContain("OnShow");
+    expect(events).toContain("OnClick");
+    expect(tmpl.scripts.find((s) => s.event === "OnShow")!.method).toBe("OnShow");
+  });
+
+  test("concrete frame: tabs use relativeKey chaining", () => {
+    const f = doc.frames[0];
+    const betaTab = f.children.find((c) => c.parentKey === "BetaTab");
+    expect(betaTab).toBeDefined();
+    expect(betaTab!.anchors[0].relativeKey).toBe("$parent.AlphaTab");
+    expect(betaTab!.anchors[0].point).toBe("LEFT");
+    expect(betaTab!.anchors[0].relativePoint).toBe("RIGHT");
+  });
+
+  test("panels have TOPLEFT+BOTTOMRIGHT fill anchors and are hidden", () => {
+    const f = doc.frames[0];
+    const alphaPanel = f.children.find((c) => c.parentKey === "AlphaPanel");
+    expect(alphaPanel).toBeDefined();
+    expect(alphaPanel!.hidden).toBe(true);
+    const points = alphaPanel!.anchors.map((a) => a.point);
+    expect(points).toContain("TOPLEFT");
+    expect(points).toContain("BOTTOMRIGHT");
+  });
 });

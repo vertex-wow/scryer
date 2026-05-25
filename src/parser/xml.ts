@@ -475,6 +475,8 @@ function parseFrame(node: RawNode, sourceFile: string): FrameIR {
   if (frameLevel !== undefined) frame.frameLevel = frameLevel;
   const toplevel = boolAttr(a, "toplevel");
   if (toplevel !== undefined) frame.toplevel = toplevel;
+  const useParentLevel = boolAttr(a, "useParentLevel");
+  if (useParentLevel !== undefined) frame.useParentLevel = useParentLevel;
   const movable = boolAttr(a, "movable");
   if (movable !== undefined) frame.movable = movable;
   const resizable = boolAttr(a, "resizable");
