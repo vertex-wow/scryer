@@ -139,3 +139,34 @@ script-src 'nonce-<random>';
 ## Rough Effort
 
 **M** — 1–2 weeks.
+
+---
+
+## Implementation Notes (2026-05-24)
+
+### What was built
+
+| File                          | Role                                                          |
+| ----------------------------- | ------------------------------------------------------------- |
+| `src/protocol.ts`             | `HostMessage` / `WebviewMessage` / `Viewport` types           |
+| `src/panel.ts`                | `ScryerPanel`: WebviewPanel lifecycle, HTML shell, parse→post |
+| `src/extension.ts`            | Registers `scryer.open` command                               |
+| `src/webview/layout.ts`       | Anchor/layout engine (pure math, see ADR 005)                 |
+| `src/webview/strata.ts`       | `frameZ` / `layerZ` for CSS z-index                           |
+| `src/webview/placeholder.ts`  | Deterministic HSL color hash; `makePlaceholder` div           |
+| `src/webview/renderer.ts`     | DOM renderer: frames, layers, textures, fontstrings           |
+| `src/webview/main.ts`         | Webview entry: message listener, `acquireVsCodeApi`           |
+| `test/webview/layout.test.ts` | 31 unit tests for point math and full layout                  |
+
+esbuild updated with a second entry point: `src/webview/main.ts` → `dist/webview.js` (browser IIFE). `"DOM"` added to tsconfig lib.
+
+### Deviations from plan
+
+- **Layout engine uses pure math, not DOM measurements.** The plan noted layout "needs DOM measurements for font metrics" — deferred. M2 computes all rects from IR data only. Font size is approximated as `height * 0.75`. DOM measurements for font metrics can be added in a later pass.
+- **No `Renderer` interface abstraction yet.** The plan called for one so Canvas could slot in later. Skipped: no Canvas implementation exists to inform the interface shape. Add when Canvas is being implemented.
+- **`relativeKey` (`$parent.Shadow`) not implemented.** Anchor targets via dotted key paths fall back to the viewport. Flagged for a follow-up before M3.
+- **Message protocol uses `FrameIR[]` directly** rather than a separate `RenderTreeNode` type. The IR is already fully resolved by the host, so an intermediate type adds no value.
+
+### Layout algorithm
+
+Iterative layout (up to 64 passes) replaces the "topological sort" discussed in the plan. See ADR 005 for rationale.

@@ -26,6 +26,20 @@ Constraints:
 
 ---
 
+## `relativeKey` anchor targets unimplemented (deferred from M2)
+
+**Problem:** WoW anchors support `relativeKey="$parent.SomeChild"` — a dotted path resolved from the current frame's parent. The M2 layout engine (`src/webview/layout.ts`) does not implement this; any anchor with a `relativeKey` silently falls back to the viewport rect, producing incorrect positioning for frames that use this pattern.
+
+**Plan:** In `resolveTarget`, add a branch for `anchor.relativeKey`:
+
+1. Parse the key path (split on `.`, expand `$parent` to the actual parent frame name).
+2. Walk the frame registry using the expanded path segments.
+3. Return the resolved target's rect, or fall back with a logged warning if unresolvable.
+
+**Effort:** S — a few hours. Can be done as a standalone PR before M3 or alongside M3's anchor-target work.
+
+---
+
 ## tsconfig solution-style refactor (IDE tooling debt)
 
 **Problem:** `tsconfig.json` includes a `"references"` entry to `tsconfig.test.json` intending VS Code to use the test config for `test/` files. In practice the language server falls back to the root config, which lacks `types: ["jest","node"]`, so Jest/Node globals appear unresolved in the IDE. No CI impact — typecheck uses `tsconfig.build.json` which excludes test files.

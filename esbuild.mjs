@@ -19,11 +19,24 @@ const extensionCtx = await esbuild.context({
   target: "node20",
 });
 
+// Webview bundle (browser IIFE, no Node/vscode APIs)
+const webviewCtx = await esbuild.context({
+  ...shared,
+  entryPoints: ["src/webview/main.ts"],
+  outfile: "dist/webview.js",
+  format: "iife",
+  platform: "browser",
+  target: "es2022",
+});
+
 if (watch) {
   await extensionCtx.watch();
+  await webviewCtx.watch();
   console.log("Watching...");
 } else {
   await extensionCtx.rebuild();
   await extensionCtx.dispose();
+  await webviewCtx.rebuild();
+  await webviewCtx.dispose();
   console.log("Build complete.");
 }
