@@ -104,7 +104,7 @@ type RectMap = Map<FrameIR, Rect>;
 function collectNames(frames: FrameIR[], registry: FrameRegistry): void {
   for (const frame of frames) {
     if (frame.name) registry.set(frame.name.toLowerCase(), frame);
-    collectNames(frame.children, registry);
+    if (frame.children) collectNames(frame.children, registry);
   }
 }
 
@@ -112,7 +112,7 @@ function collectNames(frames: FrameIR[], registry: FrameRegistry): void {
 function collectAll(frames: FrameIR[], out: FrameIR[]): void {
   for (const f of frames) {
     out.push(f);
-    collectAll(f.children, out);
+    if (f.children) collectAll(f.children, out);
   }
 }
 
@@ -194,7 +194,7 @@ export function layoutAll(frames: FrameIR[], viewport: { w: number; h: number })
   function buildParents(children: FrameIR[], parent: FrameIR | null): void {
     for (const f of children) {
       parentMap.set(f, parent);
-      buildParents(f.children, f);
+      if (f.children) buildParents(f.children, f);
     }
   }
   buildParents(frames, null);

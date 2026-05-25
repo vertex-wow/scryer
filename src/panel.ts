@@ -108,11 +108,13 @@ export class ScryerPanel {
   <title>Scryer Preview</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{background:#1a1a1a;display:flex;justify-content:center;align-items:flex-start;padding:8px;overflow:auto}
+    body{background:#1a1a1a;display:flex;flex-direction:column;align-items:flex-start;padding:8px;overflow:auto}
     #viewport{position:relative}
+    #debug{font:11px monospace;color:#888;padding:4px 0;white-space:pre-wrap}
   </style>
 </head>
 <body>
+  <div id="debug">script not yet loaded</div>
   <div id="viewport"></div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>

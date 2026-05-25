@@ -41,9 +41,33 @@
       {
         "command": "scryer.open",
         "title": "Open Scryer Preview",
-        "category": "Scryer"
+        "category": "Scryer",
+        "icon": "$(open-preview)"
       }
     ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "scryer.open",
+          "when": "editorLangId == xml",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "scryer.open",
+          "when": "editorLangId == xml",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "scryer.open",
+          "when": "resourceExtname == .xml",
+          "group": "navigation"
+        }
+      ]
+    },
     "configuration": {
       "title": "Scryer",
       "properties": {

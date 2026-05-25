@@ -48,7 +48,7 @@ function renderTexture(tex: TextureIR, rect: Rect): HTMLElement {
   }
 
   // Suppress if hidden
-  if (tex.hidden) el.style.display = "none";
+  if (tex.hidden) el.style.opacity = "0.4";
   if (tex.alpha !== undefined) el.style.opacity = String(tex.alpha);
 
   // Size: use the texture's own rect if it has anchors/size, otherwise fill parent
@@ -113,7 +113,7 @@ function renderFontString(fs: FontStringIR, rect: Rect): HTMLElement {
     el.style.inset = "";
   }
 
-  if (fs.hidden) el.style.display = "none";
+  if (fs.hidden) el.style.opacity = "0.4";
 
   return el;
 }
@@ -138,7 +138,8 @@ function renderFrame(
 
   applyRect(el, frameRect, parentRect);
 
-  if (frame.hidden) el.style.display = "none";
+  // hidden=true means the frame starts hidden in-game, but we always show it in preview
+  if (frame.hidden) el.style.outline = "1px dashed rgba(255,255,100,0.4)";
   if (frame.alpha !== undefined) el.style.opacity = String(frame.alpha);
 
   // Render layers (back → front)
