@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request_target' && github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_COLOR: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install Tools & Dependencies
+        uses: ./.github/actions/install
+
+      - name: Type check & format check
+        run: pnpm check
+
+      - name: Run unit tests
+        run: pnpm test
+
+      - name: Build extension
+        run: pnpm build

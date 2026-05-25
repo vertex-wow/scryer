@@ -1,0 +1,82 @@
+name: "Bug report"
+description: Report something that isn't working correctly in Scryer
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Briefly describe the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the steps to reproduce the issue.
+      placeholder: |
+        1. Open an addon XML file
+        2. Run "Open Scryer Preview"
+        3. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Paste any error output or screenshots here.
+
+  - type: dropdown
+    id: wow_target
+    attributes:
+      label: WoW version target
+      description: Which version are you targeting in your addon?
+      options:
+        - mainline
+        - mists
+        - bcc
+        - classic_era
+        - Not sure / not relevant
+    validations:
+      required: true
+
+  - type: dropdown
+    id: content_type
+    attributes:
+      label: Content type
+      description: What kind of file were you previewing when the bug occurred?
+      options:
+        - XML (frame definition)
+        - Lua
+        - Both / other
+        - Not sure / not relevant
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Scryer version
+      placeholder: "e.g. 0.1.0 (shown in the Extensions panel)"
+    validations:
+      required: true
+
+  - type: input
+    id: vscode
+    attributes:
+      label: VS Code version
+      placeholder: "e.g. 1.90.0"
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "e.g. Windows 11, Ubuntu 24.04, macOS 14"
