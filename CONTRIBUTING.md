@@ -47,3 +47,14 @@ authors license their own work however they choose.
 - Match the existing code style (TypeScript strict, no unnecessary comments).
 - Update `docs/` if your change affects architecture, scope, or documented
   decisions — see `CLAUDE.md` for documentation conventions.
+
+## Environment Setup
+
+fnm + Node 24.16
+
+```
+curl -fsSL https://fnm.vercel.app/install | bash
+source /home/goldilocks/.bashrc
+fnm install 24.16.0
+fnm use
+```
