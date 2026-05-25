@@ -53,17 +53,17 @@
           "group": "navigation"
         }
       ],
-      "editor/context": [
+      "editor/title/context": [
         {
           "command": "scryer.open",
-          "when": "editorLangId == xml",
-          "group": "navigation"
+          "when": "resourceLangId == xml",
+          "group": "1_open"
         }
       ],
       "explorer/context": [
         {
           "command": "scryer.open",
-          "when": "resourceExtname == .xml",
+          "when": "resourceLangId == xml",
           "group": "navigation"
         }
       ]

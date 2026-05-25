@@ -170,3 +170,23 @@ esbuild updated with a second entry point: `src/webview/main.ts` → `dist/webvi
 ### Layout algorithm
 
 Iterative layout (up to 64 passes) replaces the "topological sort" discussed in the plan. See ADR 005 for rationale.
+
+---
+
+## Post-M2 fixes and enhancements (2026-05-25)
+
+### Layout crash on render objects
+
+`layoutAll` was being called with individual `TextureIR`/`FontStringIR` objects cast to `FrameIR` (in `renderer.ts` when computing layer-object rects). Those types have no `children` field, so the recursive helpers `collectNames`, `collectAll`, and `buildParents` all recursed into `undefined` and threw `TypeError: frames is not iterable`. Fixed by guarding all three call sites with `if (f.children)` before recursing.
+
+### Hidden frames shown in preview
+
+Frames, textures, and fontstrings with `hidden="true"` were previously set to `display:none`, making them invisible in the preview. Preview mode now always shows them: hidden frames get a faint yellow dashed outline to signal "starts hidden in-game"; hidden textures/fontstrings render at 0.4 opacity. This matches the intent of a previewer — the XML author needs to see the layout regardless of initial game state.
+
+### Context menu integration
+
+`editor/context` (body right-click) was replaced with `editor/title/context` (tab right-click, group `1_open`) — this is the menu location that markdown's "Open Preview" uses and the one users expect. `explorer/context` was updated to use `resourceLangId == xml` instead of `resourceExtname == .xml` for consistency with VS Code conventions. The `scryer.open` command handler was also updated to accept an optional `vscode.Uri` argument so menu invocations (which pass the URI directly) work without requiring an active editor.
+
+### Webview debug status bar
+
+A small `#debug` div was added to the webview HTML that surfaces pipeline status ("script loaded", "render received — N frame(s)", "render error: ..."). Useful for diagnosing failures without opening webview developer tools.
