@@ -7,8 +7,10 @@ set -euo pipefail
 # SVGs it outputs a PNG (useful for README screenshots etc).
 # Usage: ./dev/assets.sh
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+readonly PROJECT_ROOT
 
 if ! command -v rsvg-convert &> /dev/null; then
     echo "Error: Required tool 'rsvg-convert' not found. Install with:" >&2
