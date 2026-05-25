@@ -3,6 +3,7 @@ import * as path from "path";
 import { parseToc } from "../../src/parser/toc";
 
 const LIVE = path.join(__dirname, "../../_live/Addons");
+const describeIfLive = fs.existsSync(LIVE) ? describe : describe.skip;
 
 describe("parseToc", () => {
   test("parses Interface versions as integers", () => {
@@ -62,8 +63,10 @@ describe("parseToc", () => {
     expect(toc.interfaceVersions).toEqual([120000]);
     expect(toc.files).toEqual(["Foo.lua", "Bar.lua"]);
   });
+});
 
-  test("AddonFactory.toc — real fixture", () => {
+describeIfLive("parseToc — real fixtures (requires _live/)", () => {
+  test("AddonFactory.toc", () => {
     const content = fs.readFileSync(path.join(LIVE, "AddonFactory/AddonFactory.toc"), "utf8");
     const toc = parseToc(content);
     expect(toc.interfaceVersions).toEqual([120000, 50501, 11507]);
@@ -72,7 +75,7 @@ describe("parseToc", () => {
     expect(toc.files[0]).toBe("Libs/LibStub/LibStub.lua");
   });
 
-  test("ExampleControlButton.toc — real fixture", () => {
+  test("ExampleControlButton.toc", () => {
     const content = fs.readFileSync(
       path.join(LIVE, "ExampleControlButton__Vertex/ExampleControlButton__Vertex.toc"),
       "utf8",

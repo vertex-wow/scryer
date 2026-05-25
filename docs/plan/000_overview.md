@@ -8,15 +8,16 @@ End state: open any addon folder, pick a version target (Mainline/MoP Classic/Cl
 
 ## Milestone Table
 
-| #   | Name                   | Status                   | Description                                             | Effort | Depends on |
-| --- | ---------------------- | ------------------------ | ------------------------------------------------------- | ------ | ---------- |
-| 1   | WoW XML Parser         | ✅ Complete (2026-05-24) | Parse `.xml` → typed IR; resolve templates/inheritance  | M      | —          |
-| 2   | Static XML Preview     | ⬜ Next                  | Render IR in a DOM webview with WoW anchor layout       | M      | 1          |
-| 3   | Asset Pipeline         | ⬜ Pending               | BLP→PNG conversion, path/atlas resolution, cache        | M      | 2          |
-| 4   | Lua Shim Runtime       | ⬜ Pending               | Sandboxed Lua exec + WoW API stubs + frame object model | M      | 1, 2       |
-| 5   | Multi-Version Targets  | ⬜ Pending               | Selectable Classic/Cata/Retail API profiles             | S–M    | 4          |
-| 6   | Hot Reload _(stretch)_ | ⬜ Pending               | Re-parse/re-run on save with minimal repaint            | M      | 2, 4       |
-| 7   | Test Suite _(stretch)_ | ⬜ Pending               | Headless addon test runner + reporter                   | M      | 4          |
+| #   | Name                      | Status                   | Description                                             | Effort | Depends on |
+| --- | ------------------------- | ------------------------ | ------------------------------------------------------- | ------ | ---------- |
+| —   | **[Backlog](backlog.md)** | 📋 2 items               | Outstanding tasks deferred from completed milestones    | —      | —          |
+| 1   | WoW XML Parser            | ✅ Complete (2026-05-24) | Parse `.xml` → typed IR; resolve templates/inheritance  | M      | —          |
+| 2   | Static XML Preview        | ⬜ Next                  | Render IR in a DOM webview with WoW anchor layout       | M      | 1          |
+| 3   | Asset Pipeline            | ⬜ Pending               | BLP→PNG conversion, path/atlas resolution, cache        | M      | 2          |
+| 4   | Lua Shim Runtime          | ⬜ Pending               | Sandboxed Lua exec + WoW API stubs + frame object model | M      | 1, 2       |
+| 5   | Multi-Version Targets     | ⬜ Pending               | Selectable Classic/Cata/Retail API profiles             | S–M    | 4          |
+| 6   | Hot Reload _(stretch)_    | ⬜ Pending               | Re-parse/re-run on save with minimal repaint            | M      | 2, 4       |
+| 7   | Test Suite _(stretch)_    | ⬜ Pending               | Headless addon test runner + reporter                   | M      | 4          |
 
 ## Recommended Tech Stack
 
@@ -85,3 +86,5 @@ End state: open any addon folder, pick a version target (Mainline/MoP Classic/Cl
 **Open questions:**
 
 - Custom editor provider vs side WebviewPanel — which gives better UX first?
+
+**Known tooling debt:** see [backlog.md](backlog.md).

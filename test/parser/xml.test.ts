@@ -4,6 +4,7 @@ import { parseXmlFile } from "../../src/parser/xml";
 import type { FrameIR, TextureIR } from "../../src/parser/ir";
 
 const LIVE = path.join(__dirname, "../../_live/Addons");
+const describeIfLive = fs.existsSync(LIVE) ? describe : describe.skip;
 
 function readFixture(rel: string): string {
   return fs.readFileSync(path.join(LIVE, rel), "utf8");
@@ -13,7 +14,7 @@ function readFixture(rel: string): string {
 // Button.xml — small, single virtual template
 // ---------------------------------------------------------------------------
 
-describe("parseXmlFile — AddonFactory/Templates/Button.xml", () => {
+describeIfLive("parseXmlFile — AddonFactory/Templates/Button.xml", () => {
   let doc: ReturnType<typeof parseXmlFile>;
 
   beforeAll(() => {
@@ -90,7 +91,7 @@ describe("parseXmlFile — AddonFactory/Templates/Button.xml", () => {
 // ExampleControlButton.xml — comprehensive: virtuals, concrete, anchors, layers
 // ---------------------------------------------------------------------------
 
-describe("parseXmlFile — ExampleControlButton__Vertex/ExampleControlButton.xml", () => {
+describeIfLive("parseXmlFile — ExampleControlButton__Vertex/ExampleControlButton.xml", () => {
   let doc: ReturnType<typeof parseXmlFile>;
 
   beforeAll(() => {
