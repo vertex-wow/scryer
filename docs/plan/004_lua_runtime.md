@@ -12,6 +12,42 @@ Execute addon Lua in a sandbox with WoW API stubs, a frame object model that pro
 4. Parse `.toc`, load `Script`/files in order; fire `OnLoad` after frame creation.
 5. Bridge webview input events (clicks/enter/leave) to Lua script handlers.
 
+## Entry Point — "Open Scryer Live View"
+
+The live view is entered from a `.toc` file, not an individual XML or Lua file. The `.toc` defines the addon boundary and load order — it is the natural unit of execution.
+
+**Command:** `scryer.openLive` — "Open Scryer Live View"
+
+**Trigger:** right-click context menu on a `.toc` file tab, mirroring the existing `scryer.open` ("Open Scryer Preview") pattern used for XML files. Also appears in the Explorer context menu.
+
+```jsonc
+// package.json contributions (additions for M4)
+"commands": [
+  { "command": "scryer.openLive", "title": "Open Scryer Live View", "category": "Scryer", "icon": "$(run)" }
+],
+"menus": {
+  "editor/title/context": [
+    { "command": "scryer.openLive", "when": "resourceExtname == .toc", "group": "1_open" }
+  ],
+  "explorer/context": [
+    { "command": "scryer.openLive", "when": "resourceExtname == .toc", "group": "navigation" }
+  ]
+}
+```
+
+**Note on `.toc` language registration:** VSCode has no built-in language ID for `.toc` files. Two options:
+
+- `resourceExtname == .toc` in `when` clauses — simple, no language contribution needed.
+- Contribute a `toc` language in `package.json` (grammars, file associations) — enables `resourceLangId == toc`, plus potential syntax highlighting.
+
+For M4, `resourceExtname` is sufficient. A proper language contribution can follow.
+
+**What happens on open:**
+
+1. Parse the `.toc` to get file load order.
+2. Execute the full Lua + XML load sequence (see TOC Load Order below).
+3. Open a new `ScryerLivePanel` webview (distinct from `ScryerPanel` — the live panel receives frame diffs via the object model, not a single parsed IR dump).
+
 ## TOC File Parser
 
 The `.toc` file parser is the entry point for loading an addon. It must be implemented here (or alongside M1 as a shared utility — recommended) because it defines the file load order for both XML includes (M1) and Lua execution (M4).
