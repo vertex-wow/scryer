@@ -79,7 +79,17 @@
         "scryer.extractedAssetsDir": {
           "type": "string",
           "default": "",
-          "description": "Path to extracted WoW assets (BLP/TGA converted to PNG). See dev/assets.sh."
+          "description": "Path to extracted WoW assets (BLP/TGA/PNG). Primary source for texture resolution. See dev/assets.sh."
+        },
+        "scryer.assetCacheDir": {
+          "type": "string",
+          "default": "",
+          "description": "Directory for cached PNG textures converted from BLP. Defaults to .scryer-cache/ in the workspace folder."
+        },
+        "scryer.blp2pngPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path to a blp2png CLI binary used as fallback for unsupported BLP variants."
         },
         "scryer.defaultTarget": {
           "type": "string",
@@ -113,6 +123,7 @@
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.14.0",
+    "@types/pngjs": "^6.0.5",
     "@types/vscode": "^1.90.0",
     "@vscode/vsce": "^3.9.1",
     "esbuild": "^0.21.5",
@@ -128,7 +139,9 @@
     "typescript-eslint": "^8.59.3"
   },
   "dependencies": {
-    "fast-xml-parser": "^4.4.0"
+    "fast-xml-parser": "^4.4.0",
+    "js-blp": "^1.0.5",
+    "pngjs": "^7.0.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

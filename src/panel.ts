@@ -1,4 +1,6 @@
+import * as path from "path";
 import * as vscode from "vscode";
+import { AssetService } from "./assets/index.js";
 import { parseXmlFile } from "./parser/index.js";
 import { resolveInheritance } from "./parser/inherit.js";
 import type { HostMessage, Viewport } from "./protocol.js";
@@ -17,13 +19,17 @@ export class ScryerPanel {
 
   private readonly panel: vscode.WebviewPanel;
   private readonly output: vscode.OutputChannel;
+  private readonly context: vscode.ExtensionContext;
   private disposables: vscode.Disposable[] = [];
-  private pendingUri: vscode.Uri | undefined;
+  private assets: AssetService;
 
   static create(context: vscode.ExtensionContext, uri: vscode.Uri): ScryerPanel {
     const column = vscode.window.activeTextEditor
       ? vscode.ViewColumn.Beside
       : vscode.ViewColumn.One;
+
+    const output = vscode.window.createOutputChannel("Scryer");
+    const assets = AssetService.fromConfig(context, output);
 
     const panel = vscode.window.createWebviewPanel(
       ScryerPanel.viewType,
@@ -31,22 +37,29 @@ export class ScryerPanel {
       column,
       {
         enableScripts: true,
-        localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, "dist")],
+        localResourceRoots: [
+          vscode.Uri.joinPath(context.extensionUri, "dist"),
+          ...assets.webviewResourceRoots(),
+        ],
         retainContextWhenHidden: true,
       },
     );
 
-    return new ScryerPanel(panel, context, uri);
+    return new ScryerPanel(panel, context, uri, output, assets);
   }
 
   private constructor(
     panel: vscode.WebviewPanel,
     context: vscode.ExtensionContext,
     uri: vscode.Uri,
+    output: vscode.OutputChannel,
+    assets: AssetService,
   ) {
     this.panel = panel;
-    this.output = vscode.window.createOutputChannel("Scryer");
-    this.panel.webview.html = this.buildHtml(context);
+    this.context = context;
+    this.output = output;
+    this.assets = assets;
+    this.panel.webview.html = this.buildHtml();
 
     this.panel.webview.onDidReceiveMessage(
       (message: unknown) => this.handleWebviewMessage(message, uri),
@@ -55,14 +68,48 @@ export class ScryerPanel {
     );
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+
+    // Re-resolve assets when config changes (new extractedAssetsDir etc.)
+    vscode.workspace.onDidChangeConfiguration(
+      (e) => {
+        if (e.affectsConfiguration("scryer")) {
+          this.assets = AssetService.fromConfig(this.context, this.output);
+        }
+      },
+      null,
+      this.disposables,
+    );
   }
 
   private handleWebviewMessage(message: unknown, uri: vscode.Uri): void {
     if (typeof message !== "object" || !message) return;
-    const msg = message as { type: string };
-    if (msg.type === "ready") {
-      void this.renderFile(uri);
+    const msg = message as { type: string; path?: string; atlas?: string };
+
+    switch (msg.type) {
+      case "ready":
+        void this.renderFile(uri);
+        break;
+
+      case "requestAsset":
+        if (msg.path) {
+          void this.resolveAndSendAsset(msg.path, path.dirname(uri.fsPath));
+        }
+        break;
     }
+  }
+
+  private async resolveAndSendAsset(rawPath: string, addonDir: string): Promise<void> {
+    const absPath = await this.assets.resolveToAbsPath(rawPath, addonDir);
+    if (!absPath) {
+      this.output.appendLine(
+        `[Scryer] Asset not found: ${rawPath} — configure scryer.extractedAssetsDir to load real textures.`,
+      );
+      return;
+    }
+
+    const uri = this.panel.webview.asWebviewUri(vscode.Uri.file(absPath)).toString();
+    const msg: HostMessage = { type: "assetResolved", path: rawPath, uri };
+    void this.panel.webview.postMessage(msg);
   }
 
   async renderFile(uri: vscode.Uri): Promise<void> {
@@ -86,11 +133,11 @@ export class ScryerPanel {
     }
   }
 
-  private buildHtml(context: vscode.ExtensionContext): string {
+  private buildHtml(): string {
     const webview = this.panel.webview;
     const nonce = getNonce();
     const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, "dist", "webview.js"),
+      vscode.Uri.joinPath(this.context.extensionUri, "dist", "webview.js"),
     );
     const csp = [
       `default-src 'none'`,

@@ -35,6 +35,74 @@ Note: `_live/` fixture tests remain as-is for testing against Blizzard-internal 
 
 ---
 
+## TGA texture decode (deferred from M3)
+
+**Problem:** TGA (Targa) textures are used by many addon-bundled images. M3 logs a warning and shows a labeled placeholder for `.tga` files; it does not decode them.
+
+**Plan:**
+
+1. Pick a pure-JS TGA decoder (e.g. `tga-js` on npm, or a small custom reader — the format is simple: uncompressed or RLE-compressed, fixed header).
+2. Decode TGA → RGBA buffer, then encode to PNG via `pngjs` (same pipeline as BLP).
+3. **Critical:** respect the TGA image-origin descriptor byte (bit 5 of byte 17). If set, the image data is top-to-bottom; if clear, it is bottom-to-top. `dev/assets.sh` stores TGAs with the flip applied and the bit set correctly — the decoder must read it to avoid upside-down textures.
+4. Cache in `.scryer-cache/` using the same SHA1 key scheme as BLP.
+5. Add tests against a small known-good TGA fixture (bottom-to-top + top-to-bottom variants).
+
+**Effort:** S — ~2–4 hours once a TGA library is selected.
+
+---
+
+## dev/extract.sh — WoW asset extraction for contributors (deferred from M3)
+
+**Problem:** M3's asset pipeline is infrastructure without a usable path to get assets onto disk. There is no script to extract WoW Interface textures into `scryer.extractedAssetsDir`, making M3 untestable for contributors who haven't done this manually.
+
+**Plan:**
+
+Create `dev/extract.sh` (alongside `dev/assets.sh`) that wraps the WoW.export CLI to pull a minimal set of Interface textures into a local dir:
+
+1. Read `WOW_DIR` from `dev/config.local.sh` (already established pattern).
+2. Check for WoW.export CLI (`wowexport` or similar) and print install instructions if missing.
+3. Extract a known-useful slice of Interface textures (e.g. `Interface/Buttons/`, `Interface/Common/`) into `$PROJECT_ROOT/.wow-assets/` (gitignored).
+4. Print the path and remind the dev to set `scryer.extractedAssetsDir` in `.vscode/settings.json`.
+
+WoW.export exports PNG directly, so no BLP decode is needed for contributor testing — this also exercises the PNG-direct-serve path (the fast path in `AssetService`).
+
+Add `.wow-assets/` to `.gitignore`. Document usage in `dev/config.sh.example`.
+
+**Notes:**
+
+- WoW.export: cross-platform GUI + CLI, outputs PNG. Install: `https://github.com/Marlamin/WoWExport`
+- Retail assets live in CASC archives inside the WoW install dir — WoW.export handles the CASC layer.
+- Classic/Classic Era may have loose files; a simpler `rsync` or `cp` from `$WOW_DIR/Interface/` suffices for those flavors.
+
+**Effort:** S — a few hours. Script + gitignore + config example docs.
+
+---
+
+## In-app asset setup guidance for end users (deferred from M3)
+
+**Problem:** When a user opens a WoW XML file with Scryer and has no `scryer.extractedAssetsDir` configured, all textures show as colored placeholders with no explanation. There is nothing in the UI telling them how to get real textures.
+
+**Plan:**
+
+On first render (or when asset requests return nothing for every texture in the file), show a one-time notification:
+
+```
+Scryer: No extracted assets configured.
+To see real WoW textures, set scryer.extractedAssetsDir to a folder of
+extracted WoW assets (PNG/BLP). [Open Settings] [Learn More]
+```
+
+- "Open Settings" → `vscode.commands.executeCommand('workbench.action.openSettings', 'scryer.extractedAssetsDir')`.
+- "Learn More" → link to a docs page or the README section on extraction.
+- Show once per workspace (persist seen-flag in `context.workspaceState`), not on every open.
+- Do not show if `scryer.extractedAssetsDir` is already set.
+
+The output channel already logs per-path warnings; this is a higher-visibility one-time prompt, not a repeated nag.
+
+**Effort:** S — ~1–2 hours. Notification logic in `panel.ts` + `workspaceState` flag.
+
+---
+
 ## tsconfig solution-style refactor (IDE tooling debt)
 
 **Problem:** `tsconfig.json` includes a `"references"` entry to `tsconfig.test.json` intending VS Code to use the test config for `test/` files. In practice the language server falls back to the root config, which lacks `types: ["jest","node"]`, so Jest/Node globals appear unresolved in the IDE. No CI impact — typecheck uses `tsconfig.build.json` which excludes test files.

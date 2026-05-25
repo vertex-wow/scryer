@@ -8,6 +8,9 @@ dev/config.local.sh
 # Build artifacts
 .tsbuild/
 dist/
+
+# Scryer asset cache (on-demand BLP→PNG conversions)
+.scryer-cache/
 build/
 *.zip
 *.tar.gz

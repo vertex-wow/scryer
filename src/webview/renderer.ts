@@ -34,9 +34,15 @@ function renderTexture(tex: TextureIR, rect: Rect): HTMLElement {
 
   if (tex.color) {
     el.style.background = cssColor(tex.color);
-  } else if (tex.file || tex.atlas) {
-    const path = tex.file ?? tex.atlas ?? "";
-    el.appendChild(makePlaceholder(path));
+  } else if (tex.file) {
+    el.dataset.assetPath = tex.file;
+    const ph = makePlaceholder(tex.file);
+    ph.dataset.placeholder = "1";
+    el.appendChild(ph);
+  } else if (tex.atlas) {
+    // Atlas resolution deferred (requires manifest); show labeled placeholder
+    el.dataset.atlasName = tex.atlas;
+    el.appendChild(makePlaceholder(tex.atlas, `[atlas] ${tex.atlas}`));
   } else {
     // No file or color — transparent slot; still show a faint outline
     el.style.outline = "1px dashed rgba(255,255,255,0.15)";

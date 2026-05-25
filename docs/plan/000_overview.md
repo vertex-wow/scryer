@@ -10,10 +10,10 @@ End state: open any addon folder, pick a version target (Mainline/MoP Classic/Cl
 
 | #   | Name                      | Status                   | Description                                             | Effort | Depends on |
 | --- | ------------------------- | ------------------------ | ------------------------------------------------------- | ------ | ---------- |
-| —   | **[Backlog](backlog.md)** | 📋 3 items               | Outstanding tasks deferred from completed milestones    | —      | —          |
+| —   | **[Backlog](backlog.md)** | 📋 6 items               | Outstanding tasks deferred from completed milestones    | —      | —          |
 | 1   | WoW XML Parser            | ✅ Complete (2026-05-24) | Parse `.xml` → typed IR; resolve templates/inheritance  | M      | —          |
 | 2   | Static XML Preview        | ✅ Complete (2026-05-24) | Render IR in a DOM webview with WoW anchor layout       | M      | 1          |
-| 3   | Asset Pipeline            | ⬜ Pending               | BLP→PNG conversion, path/atlas resolution, cache        | M      | 2          |
+| 3   | Asset Pipeline            | ✅ Complete (2026-05-25) | BLP→PNG conversion, path/atlas resolution, cache        | M      | 2          |
 | 4   | Lua Shim Runtime          | ⬜ Pending               | Sandboxed Lua exec + WoW API stubs + frame object model | M      | 1, 2       |
 | 5   | Multi-Version Targets     | ⬜ Pending               | Selectable Classic/Cata/Retail API profiles             | S–M    | 4          |
 | 6   | Hot Reload _(stretch)_    | ⬜ Pending               | Re-parse/re-run on save with minimal repaint            | M      | 2, 4       |
@@ -29,7 +29,7 @@ End state: open any addon folder, pick a version target (Mainline/MoP Classic/Cl
 | Lua interpreter | wasmoon (primary)        | WASM Lua 5.4; good Node perf; + 5.1 compat shim                |
 | Lua fallback    | fengari                  | Pure JS Lua 5.3; runs in webview sandbox if needed             |
 | UI renderer     | DOM (M2), Canvas (later) | DOM = easy debug/inspect; Canvas = atlas slicing fidelity      |
-| BLP decoder     | node-blp (pure JS)       | Zero external binary; CLI blp2png as optional fallback         |
+| BLP decoder     | js-blp 1.0.5 (pure JS)   | Zero external binary; CLI blp2png as optional fallback         |
 
 **Lua version note:** WoW uses Lua 5.1 internally (confirmed by `.vscode/extensions.json` pinning `ketho.wow-api` + workspace `Lua.runtime.version: "Lua 5.1"`). Neither wasmoon (5.4) nor fengari (5.3) is a perfect match. A 5.1 compatibility shim (`unpack`, `setfenv`/`getfenv`, `math.mod`, etc.) is required.
 
