@@ -92,6 +92,16 @@ If the project ever attracts commercial contributions or the proprietary
 tier becomes financially meaningful, the right upgrade is a DCO check + a
 brief explicit grant statement in the commit trailer format, not a full CLA.
 
+## Succession intent
+
+This project is designed to outlive the author's active involvement — extended absence or permanent departure is planned, not an edge case. The licensing structure reflects that intent:
+
+The **AGPLv3 path is permanent and unconditional**. Any future maintainer who continues the project under AGPL may run it, modify it, distribute it, and sustain themselves around it — via sponsorships, Patreon, paid support, hosted services, or any other model — provided the AGPL source-sharing obligations are met. That latitude is deliberate. A community successor should not be stranded by a license structure that depended on the original author being reachable.
+
+The **proprietary commercial path is personal and non-transferable**. Only the original author can grant a license to use this software outside AGPL's terms. That authority does not pass to forks, maintainers, or successors. In practice, this path ends when active involvement ends. Any future fork not explicitly licensed by the original author operates under AGPLv3 — that is the intended outcome, not a gap.
+
+**Why no Commons Clause:** Commons Clause was considered and rejected specifically because it would contradict this succession goal. CC's commercial prohibition has no carve-out for a future maintainer sustaining themselves — and with the proprietary-license path gone, there would be no one to grant an exception. Adding CC would hand a future maintainer a project with a permanent ceiling on how they could support themselves. AGPL alone is the right instrument: its source-sharing requirement provides sufficient friction against closed commercial exploitation without foreclosing the open paths a successor needs.
+
 ## Consequences
 
 - `LICENSE` contains AGPL-3.0 text (GitHub detects and displays correctly)
