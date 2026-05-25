@@ -1,0 +1,9 @@
+// Used by build and typecheck scripts — clears references to avoid circular
+// reference errors that would occur if tsc followed tsconfig.json's IDE-only
+// reference to tsconfig.test.json.
+{
+  "extends": "./tsconfig.json",
+  "references": [],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test"]
+}
