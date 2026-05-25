@@ -134,6 +134,7 @@ function renderFrame(
   parentRect: Rect,
   rectMap: Map<FrameIR, Rect>,
   viewportRect: Rect,
+  isTopLevel = false,
 ): HTMLElement {
   const el = document.createElement("div");
   el.dataset.name = frame.name ?? "";
@@ -144,8 +145,9 @@ function renderFrame(
 
   applyRect(el, frameRect, parentRect);
 
-  // hidden=true means the frame starts hidden in-game, but we always show it in preview
-  if (frame.hidden) el.style.outline = "1px dashed rgba(255,255,100,0.4)";
+  // Top-level hidden frames are the preview subject — show them normally.
+  // Child hidden frames are conditional overlays — dim them so layout is visible but reads inactive.
+  if (frame.hidden && !isTopLevel) el.style.opacity = "0.4";
   if (frame.alpha !== undefined) el.style.opacity = String(frame.alpha);
 
   // Render layers (back → front)
@@ -224,7 +226,9 @@ export function renderFrames(frames: FrameIR[], viewport: Viewport): HTMLElement
     `width:${viewport.w}px`,
     `height:${viewport.h}px`,
     "overflow:hidden",
-    "background:#000",
+    "background-color:#555",
+    "background-image:repeating-conic-gradient(#444 0% 25%,#666 0% 50%)",
+    "background-size:128px 128px",
   ].join(";");
 
   const viewportRect: Rect = { left: 0, top: 0, width: viewport.w, height: viewport.h };
@@ -235,7 +239,7 @@ export function renderFrames(frames: FrameIR[], viewport: Viewport): HTMLElement
 
   for (const frame of renderable) {
     const rect = rectMap.get(frame) ?? viewportRect;
-    container.appendChild(renderFrame(frame, rect, viewportRect, rectMap, viewportRect));
+    container.appendChild(renderFrame(frame, rect, viewportRect, rectMap, viewportRect, true));
   }
 
   return container;
