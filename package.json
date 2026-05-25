@@ -74,7 +74,7 @@
   "scripts": {
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests",
     "typecheck": "tsc --noEmit -p tsconfig.build.json",
     "dev": "node esbuild.mjs --watch",
     "lint": "eslint src/",
