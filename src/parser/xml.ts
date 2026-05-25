@@ -114,7 +114,7 @@ const FRAME_TAGS = new Set([
   "ItemButton",
 ]);
 
-const RENDER_TAGS = new Set(["Texture", "MaskTexture", "FontString"]);
+const _RENDER_TAGS = new Set(["Texture", "MaskTexture", "FontString"]);
 
 const BUTTON_TEXTURE_TAGS: Record<
   string,

@@ -24,11 +24,9 @@
       "package": "disable",
       "string": "disable",
       "table": "disable",
-      "utf8": "disable"
+      "utf8": "disable",
     },
-    "Lua.workspace.library": [
-      "~/.vscode-server/extensions/ketho.wow-api-0.22.3/Annotations/Core"
-    ],
+    "Lua.workspace.library": ["~/.vscode-server/extensions/ketho.wow-api-0.22.3/Annotations/Core"],
     "Lua.diagnostics.disable": [
       "ambiguity-1",
       "cast-local-type",
@@ -44,7 +42,7 @@
       "redundant-parameter",
       "unbalanced-assignments",
       "undefined-field",
-      "undefined-global"
+      "undefined-global",
     ],
     "wowAPI.luals.frameXML": false,
   },
