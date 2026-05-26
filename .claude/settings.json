@@ -54,6 +54,8 @@
     "Skill(caveman-commit:*)",
     "Bash(sed:*)",
     "Bash(awk:*)",
+    "Bash(git add:*)",
+    "Bash(git commit:*)",
     "Bash(git -C:*)"
   ],
   "defaultMode": "acceptEdits"

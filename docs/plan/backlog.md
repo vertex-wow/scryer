@@ -51,7 +51,9 @@ Note: `_live/` fixture tests remain as-is for testing against Blizzard-internal 
 2. Walk the frame registry using the expanded path segments.
 3. Return the resolved target's rect, or fall back with a logged warning if unresolvable.
 
-**Effort:** S — a few hours. Can be done as a standalone PR before M3 or alongside M3's anchor-target work.
+**Effort:** S — a few hours.
+
+**Status:** Unscheduled. Blocks correct rendering of button middle-fill textures in `UIMenuButtonStretchTemplate` and similar multi-piece Blizzard widgets. Schedule before or alongside M4.
 
 ---
 

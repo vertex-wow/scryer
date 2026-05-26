@@ -246,6 +246,34 @@ describe("resolveInheritance — unknown template", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Anonymous frames — no false cycle detection
+// ---------------------------------------------------------------------------
+
+describe("resolveInheritance — anonymous frames do not trigger cycle detection", () => {
+  test("two anonymous frames inheriting the same template do not warn", () => {
+    const xml = `
+<Ui ${UI_NS}>
+  <Frame name="T" virtual="true">
+    <Size x="10" y="10"/>
+    <Frames>
+      <Frame/>
+    </Frames>
+  </Frame>
+  <Frame name="Parent">
+    <Frames>
+      <Frame inherits="T"/>
+      <Frame inherits="T"/>
+    </Frames>
+  </Frame>
+</Ui>`;
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    singleDoc(xml);
+    expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining("Circular"));
+    warnSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // $parent name expansion
 // ---------------------------------------------------------------------------
 

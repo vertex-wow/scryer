@@ -239,13 +239,15 @@ function resolveFrame(
 
   if (frame.inherits.length === 0) return frame;
 
-  // Detect cycles
-  const frameName = frame.name ?? "<anonymous>";
-  if (resolving.has(frameName)) {
-    console.warn(`[scryer] Circular template inheritance detected at "${frameName}"`);
-    return frame;
+  // Only named frames can form cycles (anonymous frames have no referenceable identity).
+  const frameName = frame.name;
+  if (frameName) {
+    if (resolving.has(frameName)) {
+      console.warn(`[scryer] Circular template inheritance detected at "${frameName}"`);
+      return frame;
+    }
+    resolving.add(frameName);
   }
-  resolving.add(frameName);
 
   // Build merged template base: apply templates left-to-right so that later templates
   // in the list override earlier ones for scalar conflicts (WoW merge semantics).
@@ -280,7 +282,7 @@ function resolveFrame(
     }
   }
 
-  resolving.delete(frameName);
+  if (frameName) resolving.delete(frameName);
 
   if (templateBase === null) return frame;
 

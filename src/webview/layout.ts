@@ -128,7 +128,8 @@ function resolveTarget(
   registry: FrameRegistry,
 ): Rect | undefined {
   const relativeTo = anchor.relativeTo;
-  if (!relativeTo || relativeTo === UI_PARENT) return viewportRect;
+  if (!relativeTo) return parentRect; // no relativeTo → relative to parent (WoW default)
+  if (relativeTo === UI_PARENT) return viewportRect;
 
   // Named target
   const target = registry.get(relativeTo.toLowerCase());

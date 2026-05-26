@@ -235,7 +235,7 @@ describe("layoutAll", () => {
     expect(bRect).toEqual({ left: 100, top: 50, width: 80, height: 40 });
   });
 
-  test("child frame resolved relative to parent absolute rect", () => {
+  test("child frame with no relativeTo anchors to parent, not viewport", () => {
     const parent = makeFrame({
       name: "Parent",
       anchors: [makeAnchor({ point: "TOPLEFT", relativePoint: "TOPLEFT", x: 200, y: -100 })],
@@ -250,8 +250,40 @@ describe("layoutAll", () => {
 
     const map = layoutAll([parent], vp);
     // parent: left=200, top=100, w=400, h=300
-    // child anchors to UIParent (no relativeTo), so: left=0, top=0, w=50, h=50
+    // child has no relativeTo → anchors to parent TOPLEFT (WoW default), not viewport
+    const childRect = map.get(child)!;
+    expect(childRect).toEqual({ left: 200, top: 100, width: 50, height: 50 });
+  });
+
+  test("child frame with explicit relativeTo=UIParent anchors to viewport", () => {
+    const parent = makeFrame({
+      name: "Parent",
+      anchors: [makeAnchor({ point: "TOPLEFT", relativePoint: "TOPLEFT", x: 200, y: -100 })],
+      size: { x: 400, y: 300 },
+    });
+    const child = makeFrame({
+      name: "Child",
+      anchors: [makeAnchor({ point: "TOPLEFT", relativePoint: "TOPLEFT", relativeTo: "UIParent" })],
+      size: { x: 50, y: 50 },
+    });
+    parent.children = [child];
+
+    const map = layoutAll([parent], vp);
+    // child explicitly anchors to UIParent → positions against viewport
     const childRect = map.get(child)!;
     expect(childRect).toEqual({ left: 0, top: 0, width: 50, height: 50 });
+  });
+
+  test("child setAllPoints with no anchors fills parent", () => {
+    const parent = makeFrame({
+      name: "Parent",
+      anchors: [makeAnchor({ point: "TOPLEFT", relativePoint: "TOPLEFT", x: 100, y: -50 })],
+      size: { x: 300, y: 200 },
+    });
+    const child = makeFrame({ name: "Child", setAllPoints: true });
+    parent.children = [child];
+
+    const map = layoutAll([parent], vp);
+    expect(map.get(child)).toEqual({ left: 100, top: 50, width: 300, height: 200 });
   });
 });
