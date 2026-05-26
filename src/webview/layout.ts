@@ -117,22 +117,44 @@ function collectAll(frames: FrameIR[], out: FrameIR[]): void {
 }
 
 /**
+ * Expand a relativeKey path into a registry lookup key.
+ * "$parent.MinimalTab" with parentName "MyFrame" → "MyFrameMinimalTab"
+ * Mirrors how name="$parentMinimalTab" is expanded in inherit.ts.
+ */
+function expandRelativeKey(key: string, parentName: string): string {
+  return key.replace(/\$parent/gi, parentName).replace(/\./g, "");
+}
+
+/**
  * Resolve the anchor target rect. Returns undefined if the target hasn't been
  * laid out yet (caller should retry later).
  */
 function resolveTarget(
   anchor: Anchor,
+  parentName: string,
   parentRect: Rect,
   viewportRect: Rect,
   rectMap: RectMap,
   registry: FrameRegistry,
 ): Rect | undefined {
+  // relativeKey: dotted path resolved from parent (e.g. "$parent.SomeChild")
+  if (anchor.relativeKey) {
+    const key = expandRelativeKey(anchor.relativeKey, parentName);
+    const target = registry.get(key.toLowerCase());
+    if (!target) return viewportRect; // unresolvable → fall back to viewport
+    return rectMap.get(target); // undefined if not yet laid out
+  }
+
   const relativeTo = anchor.relativeTo;
   if (!relativeTo) return parentRect; // no relativeTo → relative to parent (WoW default)
   if (relativeTo === UI_PARENT) return viewportRect;
+  if (/^\$parent$/i.test(relativeTo)) return parentRect; // explicit $parent → same as no relativeTo
 
-  // Named target
-  const target = registry.get(relativeTo.toLowerCase());
+  // Named target (expand any $parent prefix then look up)
+  const expanded = /\$parent/i.test(relativeTo)
+    ? expandRelativeKey(relativeTo, parentName)
+    : relativeTo;
+  const target = registry.get(expanded.toLowerCase());
   if (!target) return viewportRect; // unresolvable name → fall back to viewport
   return rectMap.get(target); // undefined if not yet laid out
 }
@@ -143,6 +165,7 @@ function resolveTarget(
  */
 function tryLayout(
   frame: FrameIR,
+  parentName: string,
   parentRect: Rect,
   viewportRect: Rect,
   rectMap: RectMap,
@@ -153,22 +176,27 @@ function tryLayout(
 
   // setAllPoints: match first anchor's target exactly (or parent if no target)
   if (frame.setAllPoints) {
-    const anchor: Anchor = { point: "TOPLEFT", relativeTo: frame.anchors[0]?.relativeTo };
-    const target = resolveTarget(anchor, parentRect, viewportRect, rectMap, registry);
+    const firstAnchor = frame.anchors[0];
+    const anchor: Anchor = {
+      point: "TOPLEFT",
+      relativeTo: firstAnchor?.relativeTo,
+      relativeKey: firstAnchor?.relativeKey,
+    };
+    const target = resolveTarget(anchor, parentName, parentRect, viewportRect, rectMap, registry);
     return target;
   }
 
   const anchors = frame.anchors;
 
   if (anchors.length >= 2) {
-    const t1 = resolveTarget(anchors[0], parentRect, viewportRect, rectMap, registry);
-    const t2 = resolveTarget(anchors[1], parentRect, viewportRect, rectMap, registry);
+    const t1 = resolveTarget(anchors[0], parentName, parentRect, viewportRect, rectMap, registry);
+    const t2 = resolveTarget(anchors[1], parentName, parentRect, viewportRect, rectMap, registry);
     if (!t1 || !t2) return undefined;
     return layoutByTwoAnchors(anchors[0], t1, anchors[1], t2, w, h);
   }
 
   if (anchors.length === 1) {
-    const t = resolveTarget(anchors[0], parentRect, viewportRect, rectMap, registry);
+    const t = resolveTarget(anchors[0], parentName, parentRect, viewportRect, rectMap, registry);
     if (!t) return undefined;
     return layoutByOneAnchor(anchors[0], t, w ?? 0, h ?? 0);
   }
@@ -208,10 +236,11 @@ export function layoutAll(frames: FrameIR[], viewport: { w: number; h: number })
       if (rectMap.has(frame)) continue;
 
       const parent = parentMap.get(frame) ?? null;
+      const parentName = parent?.name ?? "";
       const parentRect = parent ? rectMap.get(parent) : viewportRect;
       if (!parentRect) continue; // parent not resolved yet
 
-      const rect = tryLayout(frame, parentRect, viewportRect, rectMap, registry);
+      const rect = tryLayout(frame, parentName, parentRect, viewportRect, rectMap, registry);
       if (rect) {
         rectMap.set(frame, rect);
         changed = true;

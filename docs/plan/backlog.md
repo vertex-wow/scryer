@@ -41,19 +41,15 @@ Note: `_live/` fixture tests remain as-is for testing against Blizzard-internal 
 
 ---
 
-## `relativeKey` anchor targets unimplemented (deferred from M2)
+## `relativeKey` anchor targets (deferred from M2)
 
-**Problem:** WoW anchors support `relativeKey="$parent.SomeChild"` — a dotted path resolved from the current frame's parent. The M2 layout engine (`src/webview/layout.ts`) does not implement this; any anchor with a `relativeKey` silently falls back to the viewport rect, producing incorrect positioning for frames that use this pattern.
+**Status: Done** (2026-05-26)
 
-**Plan:** In `resolveTarget`, add a branch for `anchor.relativeKey`:
+**What was built:**
 
-1. Parse the key path (split on `.`, expand `$parent` to the actual parent frame name).
-2. Walk the frame registry using the expanded path segments.
-3. Return the resolved target's rect, or fall back with a logged warning if unresolvable.
+`src/webview/layout.ts` — `resolveTarget` now handles `anchor.relativeKey` before falling through to `relativeTo`. The key expansion mirrors WoW's `$parent`-substitution convention used in frame `name` attributes: `"$parent.MinimalTab"` with parent `"MyFrame"` → `"MyFrameMinimalTab"` (replace `$parent`, strip dots, look up in the name registry). Also fixed: `relativeTo="$parent"` (explicit reference to the parent frame) now correctly returns the parent rect instead of falling back to the viewport.
 
-**Effort:** S — a few hours.
-
-**Status:** Unscheduled. Blocks correct rendering of button middle-fill textures in `UIMenuButtonStretchTemplate` and similar multi-piece Blizzard widgets. Schedule before or alongside M4.
+Three tests added in `test/webview/layout.test.ts`: sibling resolution via `$parent.Key`, unresolvable key falls back to viewport, and `relativeTo="$parent"` equivalence.
 
 ---
 

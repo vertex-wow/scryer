@@ -286,4 +286,79 @@ describe("layoutAll", () => {
     const map = layoutAll([parent], vp);
     expect(map.get(child)).toEqual({ left: 100, top: 50, width: 300, height: 200 });
   });
+
+  // relativeKey: "$parent.Key" expands to parent's name + Key, matching sibling's $parentKey name
+  test("relativeKey resolves sibling via $parent.Key", () => {
+    // Mirrors:
+    //   <Frame name="Panel"> ... size 400x300, at (100, 50)
+    //     <Button name="$parentButtonA" parentKey="ButtonA"> ... size 80x30, at parent TOPLEFT
+    //     <Button name="$parentButtonB" parentKey="ButtonB">
+    //       <Anchor point="LEFT" relativeKey="$parent.ButtonA" relativePoint="RIGHT" x="5"/>
+    //       size 60x30
+    // After $parent expansion: Panel, PanelButtonA, PanelButtonB
+    const panel = makeFrame({
+      name: "Panel",
+      anchors: [makeAnchor({ point: "TOPLEFT", relativePoint: "TOPLEFT", x: 100, y: -50 })],
+      size: { x: 400, y: 300 },
+    });
+    const buttonA = makeFrame({
+      name: "PanelButtonA",
+      anchors: [makeAnchor({ point: "TOPLEFT", relativePoint: "TOPLEFT" })],
+      size: { x: 80, y: 30 },
+    });
+    const buttonB = makeFrame({
+      name: "PanelButtonB",
+      anchors: [
+        makeAnchor({ point: "LEFT", relativePoint: "RIGHT", relativeKey: "$parent.ButtonA", x: 5 }),
+      ],
+      size: { x: 60, y: 30 },
+    });
+    panel.children = [buttonA, buttonB];
+
+    const map = layoutAll([panel], vp);
+    // panel: left=100, top=50, w=400, h=300
+    // buttonA: TOPLEFT→panel TOPLEFT → left=100, top=50, w=80, h=30
+    // buttonB: LEFT→RIGHT of buttonA + x=5 → anchorX=100+80+5=185, anchorY=50+15=65
+    //          selfFraction[LEFT]=(0,0.5) → left=185-0=185, top=65-0.5*30=50
+    const aRect = map.get(buttonA)!;
+    const bRect = map.get(buttonB)!;
+    expect(aRect).toEqual({ left: 100, top: 50, width: 80, height: 30 });
+    expect(bRect).toEqual({ left: 185, top: 50, width: 60, height: 30 });
+  });
+
+  test("relativeKey falls back to viewport for unresolvable key", () => {
+    const parent = makeFrame({
+      name: "Parent",
+      anchors: [makeAnchor({ point: "TOPLEFT" })],
+      size: { x: 200, y: 100 },
+    });
+    const child = makeFrame({
+      name: "Child",
+      anchors: [makeAnchor({ point: "TOPLEFT", relativeKey: "$parent.DoesNotExist" })],
+      size: { x: 50, y: 50 },
+    });
+    parent.children = [child];
+
+    const map = layoutAll([parent], vp);
+    // unresolvable → falls back to viewport TOPLEFT
+    expect(map.get(child)).toEqual({ left: 0, top: 0, width: 50, height: 50 });
+  });
+
+  test('relativeTo="$parent" anchors to parent rect', () => {
+    const parent = makeFrame({
+      name: "Parent",
+      anchors: [makeAnchor({ point: "TOPLEFT", x: 200, y: -100 })],
+      size: { x: 300, y: 200 },
+    });
+    const child = makeFrame({
+      name: "Child",
+      anchors: [makeAnchor({ point: "TOPLEFT", relativeTo: "$parent" })],
+      size: { x: 50, y: 50 },
+    });
+    parent.children = [child];
+
+    const map = layoutAll([parent], vp);
+    // $parent → parent rect → child TOPLEFT at parent TOPLEFT (200, 100)
+    expect(map.get(child)).toEqual({ left: 200, top: 100, width: 50, height: 50 });
+  });
 });
