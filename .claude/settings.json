@@ -1,11 +1,60 @@
 {
+  "env": {
+    "DISABLE_TELEMETRY": "1"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
+      "Bash(cat:*)",
+      "Bash(cd:*)",
+      "Bash(chmod:*)",
+      "Bash(gh api *)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh release:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(git branch:*)",
+      "Bash(git diff:*)",
+      "Bash(git fetch:*)",
+      "Bash(git log:*)",
+      "Bash(git pull:*)",
+      "Bash(git show:*)",
+      "Bash(git stash:*)",
+      "Bash(git status:*)",
+      "Bash(grep:*)",
+      "Bash(head:*)",
+      "Bash(ls:*)",
+      "Bash(tail:*)",
+      "Edit",
+      "Grep",
+      "Read",
+      "Task",
+      "WebFetch",
+      "WebSearch",
+      "Read(//tmp/**)",
+      "Bash(sort:*)",
       "Bash(pnpm test *)",
       "Bash(pnpm typecheck *)",
       "Bash(rustydemon-cli *)",
       "Bash(~/.cargo/bin/rustydemon-cli *)",
-      "Bash(pnpm build *)"
+      "Bash(cargo search *)",
+      "Bash(pnpm build *)",
+      "Bash(shellcheck:*)"      
     ]
-  }
+  },
+  "deny": [],
+  "ask": [
+    "Skill(caveman-commit)",
+    "Skill(caveman-commit:*)",
+    "Bash(sed:*)",
+    "Bash(awk:*)",
+    "Bash(git -C:*)"
+  ],
+  "defaultMode": "acceptEdits"
 }

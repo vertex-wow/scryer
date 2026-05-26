@@ -10,9 +10,46 @@ const ADDON_NAMES = ["Blizzard_SharedXML", "Blizzard_FrameXML"];
 // TOC filename suffixes to probe, in preference order.
 const TOC_SUFFIXES = ["_Mainline.toc", ".toc"];
 
+/**
+ * Resolve a relative path against a base directory with case-insensitive component
+ * matching. Extraction tools (e.g. rustydemon-cli on Linux) lower-case all output
+ * paths even though WoW XML and TOC files reference them in their original mixed case.
+ * Each component is matched to an actual directory entry when possible; unmatched
+ * components are kept as-is so missing-file detection still works correctly.
+ */
+function resolveCI(base: string, relPath: string): string {
+  const parts = relPath.replace(/\\/g, "/").split("/").filter(Boolean);
+  let current = base;
+  for (const part of parts) {
+    const exact = path.join(current, part);
+    try {
+      fs.accessSync(exact);
+      current = exact;
+      continue;
+    } catch {
+      /* fall through to case-insensitive scan */
+    }
+    const lpart = part.toLowerCase();
+    let matched = false;
+    try {
+      for (const entry of fs.readdirSync(current)) {
+        if (entry.toLowerCase() === lpart) {
+          current = path.join(current, entry);
+          matched = true;
+          break;
+        }
+      }
+    } catch {
+      /* directory unreadable — keep exact path */
+    }
+    if (!matched) current = exact;
+  }
+  return current;
+}
+
 function findTocPath(addonDir: string, addonName: string): string | null {
   for (const suffix of TOC_SUFFIXES) {
-    const p = path.join(addonDir, `${addonName}${suffix}`);
+    const p = resolveCI(addonDir, `${addonName}${suffix}`);
     try {
       fs.accessSync(p, fs.constants.R_OK);
       return p;
@@ -43,7 +80,7 @@ function tocXmlFiles(tocPath: string): string[] {
   const toc = parseToc(content);
   return toc.files
     .filter((f) => f.toLowerCase().endsWith(".xml"))
-    .map((f) => path.join(addonDir, f));
+    .map((f) => resolveCI(addonDir, f));
 }
 
 /**
@@ -82,7 +119,7 @@ function loadXmlIntoRegistry(
 
   const baseDir = path.dirname(abs);
   for (const inc of doc.includes) {
-    loadXmlIntoRegistry(path.resolve(baseDir, inc), registry, visited, incomplete);
+    loadXmlIntoRegistry(resolveCI(baseDir, inc), registry, visited, incomplete);
   }
 }
 
@@ -182,7 +219,7 @@ export function discoverBlizzardPaths(extractedAssetsDir: string, addonsDir: str
       const addonDir = path.dirname(abs);
       for (const f of toc.files) {
         if (f.toLowerCase().endsWith(".xml")) {
-          probe(path.join(addonDir, f));
+          probe(resolveCI(addonDir, f));
         }
       }
     }
@@ -202,18 +239,18 @@ export function discoverBlizzardPaths(extractedAssetsDir: string, addonsDir: str
       }
       const xmlDir = path.dirname(abs);
       for (const inc of doc.includes) {
-        probe(path.resolve(xmlDir, inc));
+        probe(resolveCI(xmlDir, inc));
       }
     }
   }
 
   for (const addonName of ADDON_NAMES) {
-    const addonDir = path.join(addonsDir, addonName);
+    const addonDir = resolveCI(addonsDir, addonName);
     // Use the first suffix that exists on disk; if none exist, request the preferred one.
-    const existing = TOC_SUFFIXES.map((s) => path.join(addonDir, `${addonName}${s}`)).find(
+    const existing = TOC_SUFFIXES.map((s) => resolveCI(addonDir, `${addonName}${s}`)).find(
       fileReadable,
     );
-    probe(existing ?? path.join(addonDir, `${addonName}${TOC_SUFFIXES[0]}`));
+    probe(existing ?? resolveCI(addonDir, `${addonName}${TOC_SUFFIXES[0]}`));
   }
 
   return missing;
@@ -241,7 +278,7 @@ export function loadBlizzardRegistry(addonsDir: string, cacheDir: string): Map<s
   const stamp: Record<string, number> = {};
 
   for (const addonName of ADDON_NAMES) {
-    const addonDir = path.join(addonsDir, addonName);
+    const addonDir = resolveCI(addonsDir, addonName);
     const tocPath = findTocPath(addonDir, addonName);
     if (tocPath) {
       tocPaths.set(addonName, tocPath);

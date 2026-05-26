@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { blpToPng } from "./blp.js";
@@ -10,6 +11,24 @@ import {
 } from "../parser/blizzard-registry.js";
 import { clearResolutionMemo, resolveTexturePath } from "./resolver.js";
 import type { FrameIR } from "../parser/ir.js";
+
+/** Resolve the Interface/AddOns path case-insensitively (extraction tools may lowercase it). */
+function resolveAddonsDir(extractedAssetsDir: string): string {
+  const candidates = [
+    path.join(extractedAssetsDir, "Interface", "AddOns"),
+    path.join(extractedAssetsDir, "interface", "addons"),
+  ];
+  return (
+    candidates.find((d) => {
+      try {
+        fs.statSync(d);
+        return true;
+      } catch {
+        return false;
+      }
+    }) ?? candidates[0]
+  );
+}
 
 export interface AssetServiceOptions {
   extractedAssetsDir: string;
@@ -41,6 +60,14 @@ export class AssetService {
     this.inflight.clear();
     this.blizzardFilesEnsured = false;
     clearRegistryCache(this.opts.cacheDir);
+  }
+
+  /** Lighter invalidation for post-texture-extraction retries: clears the resolution memo
+   * so newly extracted files are picked up, but leaves the Blizzard registry cache and
+   * blizzardFilesEnsured intact so addon extraction is not re-triggered. */
+  invalidateTextures(): void {
+    clearResolutionMemo();
+    this.inflight.clear();
   }
 
   /**
@@ -114,7 +141,7 @@ export class AssetService {
     if (this.blizzardFilesEnsured || !this.opts.extractedAssetsDir) return false;
     this.blizzardFilesEnsured = true; // set early to prevent concurrent calls
 
-    const addonsDir = path.join(this.opts.extractedAssetsDir, "Interface", "AddOns");
+    const addonsDir = resolveAddonsDir(this.opts.extractedAssetsDir);
     const before = discoverBlizzardPaths(this.opts.extractedAssetsDir, addonsDir);
     if (before.length === 0) return false;
 
@@ -141,7 +168,7 @@ export class AssetService {
    */
   loadBlizzardTemplates(): Map<string, FrameIR> {
     if (!this.opts.extractedAssetsDir) return new Map();
-    const addonsDir = path.join(this.opts.extractedAssetsDir, "Interface", "AddOns");
+    const addonsDir = resolveAddonsDir(this.opts.extractedAssetsDir);
     return loadBlizzardRegistry(addonsDir, this.opts.cacheDir);
   }
 

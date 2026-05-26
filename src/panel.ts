@@ -35,6 +35,9 @@ export class ScryerPanel {
   // True once the Blizzard addon extraction attempt has finished for this asset service
   // instance; prevents the "pending fetches" label from flickering on every re-render.
   private blizzardExtractionDone = false;
+  // Paths already attempted for extraction; prevents re-queuing on subsequent re-renders
+  // when extraction produced no result (e.g. file not in CASC data store).
+  private extractionTriedPaths = new Set<string>();
 
   static create(context: vscode.ExtensionContext, uri: vscode.Uri): ScryerPanel {
     const column = vscode.window.activeTextEditor
@@ -88,6 +91,7 @@ export class ScryerPanel {
         if (e.affectsConfiguration("scryer")) {
           this.assets = AssetService.fromConfig(this.context, this.output);
           this.blizzardExtractionDone = false;
+          this.extractionTriedPaths.clear();
         }
       },
       null,
@@ -118,7 +122,7 @@ export class ScryerPanel {
       this.output.appendLine(
         `[Scryer] Asset not found: ${rawPath} — configure scryer.extractedAssetsDir to load real textures.`,
       );
-      if (!this.retryInProgress) {
+      if (!this.retryInProgress && !this.extractionTriedPaths.has(rawPath)) {
         this.missingPaths.set(rawPath, addonDir);
         this.scheduleMissingExtract();
       }
@@ -144,7 +148,9 @@ export class ScryerPanel {
     if (batch.size === 0) return;
 
     await this.assets.extractMissing(Array.from(batch.keys()));
-    this.assets.invalidate();
+    // Use lightweight invalidation: picks up newly extracted files without resetting
+    // blizzardFilesEnsured or the registry cache, preventing a re-extraction loop.
+    this.assets.invalidateTextures();
 
     this.retryInProgress = true;
     try {
@@ -153,6 +159,8 @@ export class ScryerPanel {
       );
     } finally {
       this.retryInProgress = false;
+      // Mark all attempted paths so future re-renders don't re-queue them.
+      for (const rawPath of batch.keys()) this.extractionTriedPaths.add(rawPath);
     }
   }
 
