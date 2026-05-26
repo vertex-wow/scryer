@@ -6,14 +6,15 @@ This project is dual-licensed: publicly under the GNU Affero General Public
 License v3.0 (AGPL-3.0-only), and privately under a proprietary commercial
 license available from the copyright holder (see LICENSE-COMMERCIAL).
 
-**By submitting a pull request or patch, you license your contribution under
-the MIT License**, granting the copyright holder (Vertex Industries) the right
-to incorporate your work into both the AGPL-licensed public release and any
-proprietary commercial release. You retain copyright over your own
-contribution; you are not assigning copyright, only granting a broad license.
+**Anything you post to this repository — pull requests, patches, issues,
+comments, or attachments — you license under the MIT License**, granting the
+copyright holder (Vertex Industries) the right to incorporate your work into
+both the AGPL-licensed public release and any proprietary commercial release.
+You retain copyright over your own contribution; you are not assigning
+copyright, only granting a broad license.
 
 This is intentionally lightweight — no CLA signature required. Two things are
-required:
+required for pull requests:
 
 1. **Sign off your commits** with `git commit -s`. This appends
    `Signed-off-by: Your Name <email>` to the commit message using your
@@ -22,10 +23,6 @@ required:
 
 2. **Check the license box** in the pull request template, acknowledging that
    your contribution is licensed under MIT as described above.
-
-If you submit a patch outside of a PR (e.g. via issue attachment), include
-`Signed-off-by: Your Name <email>` and the line
-`I license this contribution under the MIT License` in your message.
 
 ### Why MIT for contributions?
 
@@ -47,6 +44,10 @@ authors license their own work however they choose.
 - Match the existing code style (TypeScript strict, no unnecessary comments).
 - Update `docs/` if your change affects architecture, scope, or documented
   decisions — see `CLAUDE.md` for documentation conventions.
+
+## Questions
+
+Open an issue if anything here is unclear. The goal is a sustainable project, not legal gotchas.
 
 ## Environment Setup
 
