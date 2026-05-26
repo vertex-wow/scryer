@@ -6,31 +6,21 @@ Cross-cutting items deferred from completed milestones, or tooling debt that doe
 
 ## Blizzard FrameXML template corpus loading (pre-M4)
 
-**Problem:** `panel.ts` calls `resolveInheritance([doc])` with an empty Blizzard registry, so any frame that `inherits` a Blizzard-defined template (e.g. `NineSlicePanelTemplate`, `DefaultPanelTemplate`, `BasicFrameTemplate`) silently gets no template content applied. The resolver logs `Unknown template "…"` to the console and continues; the rendered frame is missing all template-contributed textures and children.
+**Status: Done** (2026-05-26)
 
-Confirmed broken by `.plan/test_tooltip.xml` — the child frame `inherits="NineSlicePanelTemplate"` renders with no nine-slice borders.
+**What was built:**
 
-**Two-part limitation:**
+`src/parser/blizzard-registry.ts` — `loadBlizzardRegistry(addonsDir, cacheDir)` scans `Blizzard_SharedXML` and `Blizzard_FrameXML` via their TOC files, following `<Include>` chains to collect all virtual frame definitions into a `Map<string, FrameIR>`. Result is serialised to `.scryer-cache/blizzard-registry.json` and validated against TOC file mtimes on every call (fast on cache hit: 4 stat/read ops).
 
-1. **Templates not loaded** — fixable by parsing the relevant FrameXML files from the user's extracted Blizzard addon directory and passing them as `blizzardRegistry` to `resolveInheritance`. `Interface/AddOns/Blizzard_SharedXML/` is the right starting point; it contains `SharedUIPanelTemplates.xml`, `SecureUIPanelTemplates.xml`, etc.
+`src/parser/collect-textures.ts` — `collectTexturePaths(frames)` walks the resolved frame tree (layers, button textures, children) and returns every distinct `TextureIR.file` path.
 
-2. **Code-driven templates** — `NineSlicePanelTemplate` inherits `NineSliceCodeTemplate`, which has no XML textures; the nine-slice pieces are set entirely by Lua mixin code reading `layoutType`/`layoutTextureKit` key values. Loading the template corpus fixes part 1, but code-driven templates still require M4 (Lua runtime) to render correctly.
+`AssetService.loadBlizzardTemplates()` — convenience wrapper that computes the addons dir from `scryer.extractedAssetsDir/Interface/AddOns/` and delegates to `loadBlizzardRegistry`.
 
-**Plan:** Load a subset of FrameXML templates at extension startup (or lazily on first render). Parse each file with `parseXmlFile` and collect all virtual frames into the blizzard registry before calling `resolveInheritance`.
+`panel.ts` `renderFile` — loads the registry before each `resolveInheritance` call so all Blizzard templates are available, then calls `collectTexturePaths` and pre-queues every texture for `resolveAndSendAsset` so extraction and resolution begins immediately (proactive rather than waiting for per-texture webview requests).
 
-Source of truth for the XML files is the user's extracted addon directory — populated by the extraction backlog item below (`Extract Blizzard Interface addon files`). The extension looks for this under `scryer.extractedAssetsDir/Interface/AddOns/` (same output root that `extract.sh` already uses). `_reference/wow-ui-source/` is read-only reference material for a single extracted flavor and must not be used as a runtime source — it won't exist for retail, classic, or classic_era depending on the machine.
+**Discovery strategy:** TOC-driven rather than hand-curated. `Blizzard_SharedXML` and `Blizzard_FrameXML` TOC files enumerate all XML files; the loader follows `<Include>` directives recursively to catch flavour-specific subdirectory files (e.g. `Mainline/SharedUIPanelTemplates.xml`). Missing or unparseable files are silently skipped (handles flavour differences between retail/classic/classic_era extractions).
 
-Template files to load first (hand-curated; avoids dependency-ordering problem):
-
-- `Blizzard_SharedXML/SharedUIPanelTemplates.xml` (NineSlicePanelTemplate, InsetFrameTemplate, etc.)
-- `Blizzard_SharedXML/SecureUIPanelTemplates.xml`
-- `Blizzard_SharedXML/SharedTemplates.xml` (if present)
-
-**Dependency:** Requires `Extract Blizzard Interface addon files` (see below) so the XML files are available locally. Until then this item is blocked for end users (the `_reference/` symlink can stand in locally for development).
-
-**Effort:** S–M — parsing is trivial (reuse existing parser); the tricky parts are handling inter-template dependencies across files and deciding which files to load. A fixed hand-curated list avoids dependency ordering for now.
-
-**Note:** This does not fix code-driven templates like NineSlice. Those remain broken until M4.
+**Remaining limitation:** Code-driven templates (`NineSlicePanelTemplate` → `NineSliceCodeTemplate`) have no XML textures; nine-slice borders still require M4 (Lua runtime) to render correctly. All purely XML-defined templates (DefaultPanelTemplate, InsetFrameTemplate, BasicFrameTemplate, etc.) now render correctly.
 
 ---
 
@@ -201,6 +191,34 @@ Retail uses TVFS (introduced in 8.2); Classic uses the older flat-root format. B
 - `--paths-file` is unaffected (targeted mode ignores `--type`).
 
 **Note:** This unblocks the `Blizzard FrameXML template corpus loading` item — the XML files are now available at `.wow-assets/Interface/AddOns/`. Long-term, once the in-process CASC reader lands, this extraction can happen on demand automatically.
+
+---
+
+## Extraction benchmarks
+
+**Problem:** We have no measured baseline for how long texture extraction, addon extraction, or combined extraction takes at different concurrency levels. Without this, default settings for extension options (e.g. worker pool size, batch size) are guesses, and we have no way to detect regressions or improvements when the extraction implementation changes.
+
+**Goal:** Write a benchmark suite that exercises `AssetService.extractMissing` (texture paths) and the Blizzard addon extraction path at N concurrent requests, for N ∈ {1, 2, 5, 10, 50, 100}. Results inform the default extension settings and serve as a longitudinal regression signal.
+
+**Plan:**
+
+Three benchmark scenarios:
+
+1. **Texture-only** — feed N distinct texture paths through `extractMissing`; measure wall time from call to all results resolved.
+2. **Addon-only** — feed N distinct addon XML/Lua/TOC paths through the same pipeline (or the interface extraction path directly); measure end-to-end.
+3. **Combined** — mix of texture and addon paths, N total; measure combined throughput.
+
+For each scenario, run N = 1, 2, 5, 10, 50, 100 and record median + p95 wall time (run each N at least 5 times, drop outliers). Output a simple table to stdout and write a JSON results file so runs can be compared across commits.
+
+Use real on-disk fixtures (`.wow-assets/` or a small dedicated benchmark corpus) rather than mocks — the point is to measure actual I/O and decode time, not mock overhead.
+
+**Why this matters:**
+
+- Informs the default for any concurrency/batch-size extension settings before they ship.
+- Detects if a future extraction implementation change (e.g. the in-process CASC reader) is faster or slower than the current shell-script path.
+- Gives concrete numbers when evaluating the preload scope tiers (see [[configurable-preload-scope]]).
+
+**Effort:** S — the pipeline already exists; this is scripting N-at-a-time calls and timing them. Main work is choosing a fixture corpus that is stable and representative.
 
 ---
 
