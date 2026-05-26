@@ -56,7 +56,10 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         viewport!.innerHTML = "";
         const root = renderFrames(msg.frames, msg.viewport);
         viewport!.appendChild(root);
-        dbg(`rendered ${msg.frames.length} frame(s) OK`);
+        let suffix = " OK";
+        if (msg.extractionPending) suffix = ` — ${msg.warnings} pending`;
+        else if (msg.warnings > 0) suffix = ` — ${msg.warnings} warning(s)`;
+        dbg(`rendered ${msg.frames.length} frame(s)${suffix}`);
         requestRenderedAssets();
       } catch (e) {
         dbg(`render error: ${String(e)}`);

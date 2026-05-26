@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { AssetService } from "./assets/index.js";
 import { parseXmlFile } from "./parser/index.js";
 import { resolveInheritance } from "./parser/inherit.js";
+import { collectTexturePaths } from "./parser/collect-textures.js";
 import type { HostMessage, Viewport } from "./protocol.js";
 
 function getNonce(): string {
@@ -31,6 +32,9 @@ export class ScryerPanel {
   // Set while the extract-and-retry pass is running; suppresses re-queuing failed retries.
   private retryInProgress = false;
   private extractDebounce: ReturnType<typeof setTimeout> | undefined;
+  // True once the Blizzard addon extraction attempt has finished for this asset service
+  // instance; prevents the "pending fetches" label from flickering on every re-render.
+  private blizzardExtractionDone = false;
 
   static create(context: vscode.ExtensionContext, uri: vscode.Uri): ScryerPanel {
     const column = vscode.window.activeTextEditor
@@ -83,6 +87,7 @@ export class ScryerPanel {
       (e) => {
         if (e.affectsConfiguration("scryer")) {
           this.assets = AssetService.fromConfig(this.context, this.output);
+          this.blizzardExtractionDone = false;
         }
       },
       null,
@@ -163,16 +168,45 @@ export class ScryerPanel {
       const bytes = await vscode.workspace.fs.readFile(uri);
       const content = Buffer.from(bytes).toString("utf-8");
       const doc = parseXmlFile(uri.fsPath, content);
-      const [resolved] = resolveInheritance([doc]);
+
+      // Kick off Blizzard addon file extraction if needed, but don't block the render.
+      // On the first attempt, always re-render when done: if extraction succeeded,
+      // templates will be available; if it failed, the status needs to flip from
+      // "pending fetches" to "warning(s)". Subsequent renders skip this entirely.
+      const isFirstExtraction = !this.blizzardExtractionDone;
+      if (isFirstExtraction) {
+        void this.assets.ensureBlizzardFiles().then((extracted) => {
+          this.blizzardExtractionDone = true;
+          if (extracted) this.assets.invalidate();
+          void this.renderFile(uri);
+        });
+      }
+
+      // Load Blizzard template registry (disk-cached; fast after first parse).
+      const blizzardRegistry = this.assets.loadBlizzardTemplates();
+      const warns = { count: 0 };
+      const [resolved] = resolveInheritance([doc], blizzardRegistry, warns, isFirstExtraction);
       if (!resolved) return;
+
+      const renderFrames = resolved.frames.filter((f) => !f.virtual);
 
       const msg: HostMessage = {
         type: "render",
-        frames: resolved.frames.filter((f) => !f.virtual),
+        frames: renderFrames,
         viewport: DEFAULT_VIEWPORT,
+        warnings: warns.count,
+        extractionPending: isFirstExtraction && warns.count > 0,
       };
 
       void this.panel.webview.postMessage(msg);
+
+      // Proactively queue all texture paths found in the resolved frame tree.
+      // This triggers extraction for the full inheritance stack up-front rather
+      // than waiting for the webview to request them one at a time.
+      const addonDir = path.dirname(uri.fsPath);
+      for (const rawPath of collectTexturePaths(renderFrames)) {
+        void this.resolveAndSendAsset(rawPath, addonDir);
+      }
     } catch (err) {
       this.output.appendLine(`[Scryer] Error rendering ${uri.fsPath}: ${String(err)}`);
       this.output.show(true);

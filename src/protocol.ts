@@ -7,8 +7,20 @@ export interface Viewport {
 
 // Extension host → webview
 export type HostMessage =
-  | { type: "render"; frames: FrameIR[]; viewport: Viewport }
-  | { type: "reload"; frames: FrameIR[]; viewport: Viewport }
+  | {
+      type: "render";
+      frames: FrameIR[];
+      viewport: Viewport;
+      warnings: number;
+      extractionPending: boolean;
+    }
+  | {
+      type: "reload";
+      frames: FrameIR[];
+      viewport: Viewport;
+      warnings: number;
+      extractionPending: boolean;
+    }
   | { type: "assetResolved"; path: string; uri: string };
 
 // Webview → extension host

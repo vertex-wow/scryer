@@ -229,9 +229,13 @@ function resolveFrame(
   frame: FrameIR,
   registry: Map<string, FrameIR>,
   resolving: Set<string>,
+  warnings?: { count: number },
+  pending = false,
 ): FrameIR {
   // Recursively resolve children first (bottom-up)
-  frame.children = frame.children.map((c) => resolveFrame(c, registry, resolving));
+  frame.children = frame.children.map((c) =>
+    resolveFrame(c, registry, resolving, warnings, pending),
+  );
 
   if (frame.inherits.length === 0) return frame;
 
@@ -249,10 +253,25 @@ function resolveFrame(
   for (const templateName of frame.inherits) {
     const tmpl = registry.get(templateName);
     if (!tmpl) {
-      console.warn(`[scryer] Unknown template "${templateName}" referenced by "${frameName}"`);
+      if (pending) {
+        console.log(
+          `[scryer] Template "${templateName}" not found (referenced by "${frameName}") — queued for extraction`,
+        );
+      } else {
+        console.warn(
+          `[scryer] Template "${templateName}" not found (referenced by "${frameName}")`,
+        );
+      }
+      if (warnings) warnings.count++;
       continue;
     }
-    const resolvedTmpl = resolveFrame(cloneFrame(tmpl), registry, new Set(resolving));
+    const resolvedTmpl = resolveFrame(
+      cloneFrame(tmpl),
+      registry,
+      new Set(resolving),
+      warnings,
+      pending,
+    );
     if (templateBase === null) {
       templateBase = resolvedTmpl;
     } else {
@@ -278,6 +297,8 @@ function resolveFrame(
 export function resolveInheritance(
   docs: UiDocument[],
   blizzardRegistry: Map<string, FrameIR> = new Map(),
+  warnings?: { count: number },
+  pending = false,
 ): UiDocument[] {
   // Build global template registry: blizzard first, then user docs in order
   const registry = new Map<string, FrameIR>(blizzardRegistry);
@@ -289,7 +310,7 @@ export function resolveInheritance(
 
   return docs.map((doc) => {
     const resolvedFrames = doc.frames.map((f) => {
-      const resolved = resolveFrame(cloneFrame(f), registry, new Set());
+      const resolved = resolveFrame(cloneFrame(f), registry, new Set(), warnings, pending);
       // Expand $parent in top-level frames (parent name is empty string — no substitution)
       resolveFrameName(resolved, "");
       return resolved;
@@ -297,7 +318,7 @@ export function resolveInheritance(
 
     const resolvedTemplates = new Map<string, FrameIR>();
     for (const [name, tmpl] of doc.templates) {
-      const resolved = resolveFrame(cloneFrame(tmpl), registry, new Set());
+      const resolved = resolveFrame(cloneFrame(tmpl), registry, new Set(), warnings, pending);
       resolvedTemplates.set(name, resolved);
     }
 

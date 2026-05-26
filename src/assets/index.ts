@@ -2,8 +2,14 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { blpToPng } from "./blp.js";
 import { cacheKey, getCachedPath, writeCached } from "./cache.js";
-import { shellExtractMissing } from "./extractor.js";
+import { shellExtractInterface, shellExtractMissing } from "./extractor.js";
+import {
+  clearRegistryCache,
+  discoverBlizzardPaths,
+  loadBlizzardRegistry,
+} from "../parser/blizzard-registry.js";
 import { clearResolutionMemo, resolveTexturePath } from "./resolver.js";
+import type { FrameIR } from "../parser/ir.js";
 
 export interface AssetServiceOptions {
   extractedAssetsDir: string;
@@ -22,6 +28,8 @@ export class AssetService {
   private readonly opts: AssetServiceOptions;
   /** In-flight promises keyed by rawPath to avoid duplicate concurrent decodes. */
   private readonly inflight = new Map<string, Promise<string | null>>();
+  /** Set once the Blizzard addon file discovery+extraction pass has run. Cleared by invalidate(). */
+  private blizzardFilesEnsured = false;
 
   constructor(opts: AssetServiceOptions) {
     this.opts = opts;
@@ -31,6 +39,8 @@ export class AssetService {
   invalidate(): void {
     clearResolutionMemo();
     this.inflight.clear();
+    this.blizzardFilesEnsured = false;
+    clearRegistryCache(this.opts.cacheDir);
   }
 
   /**
@@ -83,6 +93,56 @@ export class AssetService {
       this.opts.output.appendLine(`[Scryer] BLP decode failed for ${rawPath}: ${String(err)}`);
       return null;
     }
+  }
+
+  /**
+   * Ensure the Blizzard addon XML/TOC files needed for template resolution are present
+   * under extractedAssetsDir. Uses the same extraction pipeline as textures.
+   *
+   * Runs a discover → extract → discover loop (max 5 rounds) so that <Include>
+   * dependencies that were only reachable once their parent files arrived are also
+   * pulled in. Skips silently when extractedAssetsDir is unset or no extract script
+   * is found. Subsequent calls within the same AssetService lifetime are no-ops;
+   * call invalidate() to force a re-check (e.g. after a config change).
+   */
+  /**
+   * Returns true if files were newly extracted (caller should invalidate and re-render).
+   * Returns false if nothing was missing, nothing could be extracted, or extraction
+   * produced no new files — so the caller does not loop.
+   */
+  async ensureBlizzardFiles(): Promise<boolean> {
+    if (this.blizzardFilesEnsured || !this.opts.extractedAssetsDir) return false;
+    this.blizzardFilesEnsured = true; // set early to prevent concurrent calls
+
+    const addonsDir = path.join(this.opts.extractedAssetsDir, "Interface", "AddOns");
+    const before = discoverBlizzardPaths(this.opts.extractedAssetsDir, addonsDir);
+    if (before.length === 0) return false;
+
+    this.opts.output.appendLine(
+      `[Scryer] Blizzard addon files: ${before.length} missing — extracting all addon interface files…`,
+    );
+    await shellExtractInterface({
+      flavor: this.opts.flavor,
+      extractScriptPath: this.opts.extractScriptPath,
+      output: this.opts.output,
+    });
+
+    // Re-check: only signal re-render if extraction actually produced new files.
+    // If it didn't (no script, failed extraction, etc.) we stop here rather than loop.
+    const after = discoverBlizzardPaths(this.opts.extractedAssetsDir, addonsDir);
+    return after.length < before.length;
+  }
+
+  /**
+   * Load the Blizzard virtual template registry from the extracted addons directory.
+   * Parses Blizzard_SharedXML and Blizzard_FrameXML via their TOC files, following
+   * <Include> chains. Result is disk-cached and invalidated by TOC file mtime.
+   * Returns an empty map if extractedAssetsDir is not configured or addons are absent.
+   */
+  loadBlizzardTemplates(): Map<string, FrameIR> {
+    if (!this.opts.extractedAssetsDir) return new Map();
+    const addonsDir = path.join(this.opts.extractedAssetsDir, "Interface", "AddOns");
+    return loadBlizzardRegistry(addonsDir, this.opts.cacheDir);
   }
 
   /**

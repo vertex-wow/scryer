@@ -4,7 +4,8 @@
       "Bash(pnpm test *)",
       "Bash(pnpm typecheck *)",
       "Bash(rustydemon-cli *)",
-      "Bash(~/.cargo/bin/rustydemon-cli *)"
+      "Bash(~/.cargo/bin/rustydemon-cli *)",
+      "Bash(pnpm build *)"
     ]
   }
 }

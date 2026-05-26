@@ -224,13 +224,22 @@ describe("resolveInheritance — multi-inheritance", () => {
 // ---------------------------------------------------------------------------
 
 describe("resolveInheritance — unknown template", () => {
-  test("does not crash on missing template; logs warning", () => {
-    const xml = `
-<Ui ${UI_NS}>
-  <Frame name="C" inherits="NonExistentTemplate"/>
-</Ui>`;
+  test("logs at console.log level when extraction is pending", () => {
+    const xml = `<Ui ${UI_NS}><Frame name="C" inherits="NonExistentTemplate"/></Ui>`;
+    const logSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const warns = { count: 0 };
+    resolveInheritance([parseXmlFile("test.xml", xml)], new Map(), warns, true);
+    expect(warns.count).toBe(1);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("NonExistentTemplate"));
+    logSpy.mockRestore();
+  });
+
+  test("logs at console.warn level after extraction has run", () => {
+    const xml = `<Ui ${UI_NS}><Frame name="C" inherits="NonExistentTemplate"/></Ui>`;
     const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
-    expect(() => singleDoc(xml)).not.toThrow();
+    const warns = { count: 0 };
+    resolveInheritance([parseXmlFile("test.xml", xml)], new Map(), warns, false);
+    expect(warns.count).toBe(1);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("NonExistentTemplate"));
     warnSpy.mockRestore();
   });

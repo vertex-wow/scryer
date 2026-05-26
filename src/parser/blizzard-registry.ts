@@ -1,0 +1,285 @@
+import * as fs from "fs";
+import * as path from "path";
+import type { FrameIR } from "./ir.js";
+import { parseToc } from "./toc.js";
+import { parseXmlFile } from "./xml.js";
+
+// Addons to scan, in dependency order (base templates first).
+const ADDON_NAMES = ["Blizzard_SharedXML", "Blizzard_FrameXML"];
+
+// TOC filename suffixes to probe, in preference order.
+const TOC_SUFFIXES = ["_Mainline.toc", ".toc"];
+
+function findTocPath(addonDir: string, addonName: string): string | null {
+  for (const suffix of TOC_SUFFIXES) {
+    const p = path.join(addonDir, `${addonName}${suffix}`);
+    try {
+      fs.accessSync(p, fs.constants.R_OK);
+      return p;
+    } catch {
+      // try next suffix
+    }
+  }
+  return null;
+}
+
+function readMtime(filePath: string): number {
+  try {
+    return fs.statSync(filePath).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
+/** Extract only XML file paths from a TOC, resolved to absolute paths. */
+function tocXmlFiles(tocPath: string): string[] {
+  const addonDir = path.dirname(tocPath);
+  let content: string;
+  try {
+    content = fs.readFileSync(tocPath, "utf-8");
+  } catch {
+    return [];
+  }
+  const toc = parseToc(content);
+  return toc.files
+    .filter((f) => f.toLowerCase().endsWith(".xml"))
+    .map((f) => path.join(addonDir, f));
+}
+
+/**
+ * Parse one XML file into the registry and follow its <Include> chain.
+ * Silently skips files that are missing or fail to parse (flavor-specific files
+ * absent on this machine, or non-standard XML).
+ */
+function loadXmlIntoRegistry(
+  xmlPath: string,
+  registry: Map<string, FrameIR>,
+  visited: Set<string>,
+  incomplete: { value: boolean },
+): void {
+  const abs = path.resolve(xmlPath);
+  if (visited.has(abs)) return;
+  visited.add(abs);
+
+  let content: string;
+  try {
+    content = fs.readFileSync(abs, "utf-8");
+  } catch {
+    incomplete.value = true;
+    return;
+  }
+
+  let doc;
+  try {
+    doc = parseXmlFile(abs, content);
+  } catch {
+    return;
+  }
+
+  for (const [name, frame] of doc.templates) {
+    registry.set(name, frame);
+  }
+
+  const baseDir = path.dirname(abs);
+  for (const inc of doc.includes) {
+    loadXmlIntoRegistry(path.resolve(baseDir, inc), registry, visited, incomplete);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Disk cache
+// ---------------------------------------------------------------------------
+
+const CACHE_FILE = "blizzard-registry.json";
+
+interface RegistryCache {
+  /** TOC absolute paths → mtime stamps used to detect stale cache. */
+  stamp: Record<string, number>;
+  entries: [string, FrameIR][];
+}
+
+function readRegistryCache(cacheDir: string): RegistryCache | null {
+  try {
+    const raw = fs.readFileSync(path.join(cacheDir, CACHE_FILE), "utf-8");
+    return JSON.parse(raw) as RegistryCache;
+  } catch {
+    return null;
+  }
+}
+
+function writeRegistryCache(cacheDir: string, data: RegistryCache): void {
+  try {
+    fs.mkdirSync(cacheDir, { recursive: true });
+    fs.writeFileSync(path.join(cacheDir, CACHE_FILE), JSON.stringify(data));
+  } catch {
+    // Cache write failure is non-fatal; we'll just re-parse next time.
+  }
+}
+
+export function clearRegistryCache(cacheDir: string): void {
+  try {
+    fs.unlinkSync(path.join(cacheDir, CACHE_FILE));
+  } catch {
+    // Missing cache is fine.
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dependency discovery
+// ---------------------------------------------------------------------------
+
+function fileReadable(absPath: string): boolean {
+  try {
+    fs.accessSync(absPath, fs.constants.R_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Walk the TOC → XML → <Include> dependency graph starting from the two Blizzard
+ * addon roots. Returns WoW-relative paths (e.g. `Interface/AddOns/Blizzard_SharedXML/…`)
+ * for every file that is needed but not yet present under `extractedAssetsDir`.
+ *
+ * Designed to be called repeatedly: each call reads only what is already on disk,
+ * so after extracting the returned paths the caller can invoke again to discover
+ * any new includes that were only reachable once their parent files arrived.
+ *
+ * @param extractedAssetsDir  Root of the local extraction (parent of `Interface/`).
+ * @param addonsDir           Absolute path to `extractedAssetsDir/Interface/AddOns/`.
+ */
+export function discoverBlizzardPaths(extractedAssetsDir: string, addonsDir: string): string[] {
+  if (!extractedAssetsDir || !addonsDir) return [];
+
+  const missing: string[] = [];
+  const visited = new Set<string>(); // abs paths already handled this call
+
+  function toWowPath(abs: string): string {
+    return path.relative(extractedAssetsDir, abs).replace(/\\/g, "/");
+  }
+
+  function probe(absPath: string): void {
+    const abs = path.resolve(absPath);
+    if (visited.has(abs)) return;
+    visited.add(abs);
+
+    if (!fileReadable(abs)) {
+      missing.push(toWowPath(abs));
+      return;
+    }
+
+    const ext = path.extname(abs).toLowerCase();
+
+    if (ext === ".toc") {
+      let content: string;
+      try {
+        content = fs.readFileSync(abs, "utf-8");
+      } catch {
+        return;
+      }
+      const toc = parseToc(content);
+      const addonDir = path.dirname(abs);
+      for (const f of toc.files) {
+        if (f.toLowerCase().endsWith(".xml")) {
+          probe(path.join(addonDir, f));
+        }
+      }
+    }
+
+    if (ext === ".xml") {
+      let content: string;
+      try {
+        content = fs.readFileSync(abs, "utf-8");
+      } catch {
+        return;
+      }
+      let doc;
+      try {
+        doc = parseXmlFile(abs, content);
+      } catch {
+        return;
+      }
+      const xmlDir = path.dirname(abs);
+      for (const inc of doc.includes) {
+        probe(path.resolve(xmlDir, inc));
+      }
+    }
+  }
+
+  for (const addonName of ADDON_NAMES) {
+    const addonDir = path.join(addonsDir, addonName);
+    // Use the first suffix that exists on disk; if none exist, request the preferred one.
+    const existing = TOC_SUFFIXES.map((s) => path.join(addonDir, `${addonName}${s}`)).find(
+      fileReadable,
+    );
+    probe(existing ?? path.join(addonDir, `${addonName}${TOC_SUFFIXES[0]}`));
+  }
+
+  return missing;
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Load the Blizzard virtual template registry from an extracted addons directory.
+ *
+ * Scans Blizzard_SharedXML and Blizzard_FrameXML via their TOC files, following
+ * <Include> chains to collect all virtual frame definitions. Result is cached to
+ * `cacheDir/blizzard-registry.json` and invalidated when TOC file mtimes change.
+ *
+ * @param addonsDir  Absolute path to the extracted `Interface/AddOns/` directory.
+ * @param cacheDir   Absolute path to the Scryer cache directory.
+ */
+export function loadBlizzardRegistry(addonsDir: string, cacheDir: string): Map<string, FrameIR> {
+  if (!addonsDir) return new Map();
+
+  // Locate TOC files and compute the current mtime stamp.
+  const tocPaths = new Map<string, string>(); // addonName → absolute TOC path
+  const stamp: Record<string, number> = {};
+
+  for (const addonName of ADDON_NAMES) {
+    const addonDir = path.join(addonsDir, addonName);
+    const tocPath = findTocPath(addonDir, addonName);
+    if (tocPath) {
+      tocPaths.set(addonName, tocPath);
+      stamp[tocPath] = readMtime(tocPath);
+    }
+  }
+
+  if (tocPaths.size === 0) return new Map();
+
+  // Check disk cache — valid if stamp matches exactly.
+  const cached = readRegistryCache(cacheDir);
+  if (cached) {
+    const keys = Object.keys(stamp);
+    const ckeys = Object.keys(cached.stamp);
+    if (keys.length === ckeys.length && keys.every((k) => cached.stamp[k] === stamp[k])) {
+      return new Map(cached.entries);
+    }
+  }
+
+  // Cache miss (or stale) — parse from disk.
+  console.log(`[scryer] Parsing Blizzard template corpus from ${addonsDir}…`);
+  const registry = new Map<string, FrameIR>();
+  const visited = new Set<string>();
+  const incomplete = { value: false };
+
+  for (const addonName of ADDON_NAMES) {
+    const tocPath = tocPaths.get(addonName);
+    if (!tocPath) continue;
+    for (const xmlFile of tocXmlFiles(tocPath)) {
+      loadXmlIntoRegistry(xmlFile, registry, visited, incomplete);
+    }
+  }
+
+  console.log(`[scryer] Blizzard registry: ${registry.size} templates loaded.`);
+  // Don't cache partial results — if any XML files were missing, skip the write so
+  // the next load re-parses once the extraction has delivered more files.
+  if (!incomplete.value) {
+    writeRegistryCache(cacheDir, { stamp, entries: Array.from(registry.entries()) });
+  }
+  return registry;
+}

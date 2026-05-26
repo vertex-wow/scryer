@@ -11,14 +11,15 @@ export interface ExtractorOptions {
 }
 
 /**
- * Normalize a WoW-relative texture path for the paths file:
+ * Normalize a WoW-relative path for the paths file:
  * - backslashes → forward slashes
- * - no extension → append .blp (WoW XML paths often omit the extension; BLP is the
- *   default, and the community listfile uses explicit .blp entries)
+ * - no extension → append .blp (WoW XML texture references conventionally omit
+ *   the extension; BLP is the default and community listfile uses explicit .blp entries)
+ * - any existing extension → kept as-is (handles XML/TOC/LUA interface files)
  */
 function normalizeForExtraction(rawPath: string): string {
   const slashed = rawPath.replace(/\\/g, "/");
-  return /\.(blp|tga|png)$/i.test(slashed) ? slashed : slashed + ".blp";
+  return /\.\w+$/i.test(slashed) ? slashed : slashed + ".blp";
 }
 
 /**
@@ -43,7 +44,7 @@ export async function shellExtractMissing(paths: string[], opts: ExtractorOption
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: `Scryer: extracting ${paths.length} texture${paths.length === 1 ? "" : "s"}…`,
+        title: `Scryer: extracting ${paths.length} file${paths.length === 1 ? "" : "s"}…`,
         cancellable: false,
       },
       () => spawnExtract(scriptPath, tmpFile, opts),
@@ -64,6 +65,45 @@ function spawnExtract(
     const flavor = opts.flavor || "retail";
     opts.output.appendLine(`[Scryer] Spawning: ${scriptPath} ${flavor} --paths-file ${pathsFile}`);
     const proc = cp.spawn(scriptPath, [flavor, "--paths-file", pathsFile], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    proc.stdout?.on("data", (d: Buffer) => opts.output.append(String(d)));
+    proc.stderr?.on("data", (d: Buffer) => opts.output.append(String(d)));
+    proc.on("error", reject);
+    proc.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`extract.sh exited with code ${code}`));
+    });
+  });
+}
+
+/**
+ * Extract all Blizzard addon interface files via a single glob-based --type interface call.
+ * Much faster than per-file --paths-file for the initial Blizzard corpus extraction.
+ */
+export async function shellExtractInterface(opts: ExtractorOptions): Promise<void> {
+  const scriptPath = resolveScriptPath(opts.extractScriptPath);
+  if (!scriptPath) return;
+
+  try {
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Scryer: extracting Blizzard addon files…",
+        cancellable: false,
+      },
+      () => spawnExtractInterface(scriptPath, opts),
+    );
+  } catch (err) {
+    opts.output.appendLine(`[Scryer] Interface extraction failed: ${String(err)}`);
+  }
+}
+
+function spawnExtractInterface(scriptPath: string, opts: ExtractorOptions): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const flavor = opts.flavor || "retail";
+    opts.output.appendLine(`[Scryer] Spawning: ${scriptPath} ${flavor} --type interface`);
+    const proc = cp.spawn(scriptPath, [flavor, "--type", "interface"], {
       stdio: ["ignore", "pipe", "pipe"],
     });
     proc.stdout?.on("data", (d: Buffer) => opts.output.append(String(d)));
