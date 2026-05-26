@@ -18,6 +18,27 @@ readonly CONFIG="$SCRIPT_DIR/config.local.sh"
 readonly OUT_DIR="$PROJECT_ROOT/.wow-assets"
 
 FLAVOR="${1:-retail}"
+PATHS_FILE=""
+
+shift || true # consume flavor arg (or no-op if no args given)
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --paths-file)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --paths-file requires an argument" >&2
+                exit 1
+            fi
+            PATHS_FILE="$2"
+            shift 2
+            ;;
+        *)
+            echo "Error: Unknown argument: $1" >&2
+            echo "Usage: $0 [retail|classic|classic_era] [--paths-file <file>]" >&2
+            exit 1
+            ;;
+    esac
+done
 
 # ---------------------------------------------------------------------------
 # Config
@@ -154,31 +175,50 @@ extract_retail_rustydemon_cli() {
 
     mkdir -p "$OUT_DIR"
 
-    echo "Extracting retail Interface textures via rustydemon-cli..."
-    echo "  Source: $WOW_DIR"
-    echo "  Output: $OUT_DIR"
-    echo ""
+    if [[ -n "$PATHS_FILE" ]]; then
+        echo "Targeted retail extraction via rustydemon-cli..."
+        echo "  Source: $WOW_DIR"
+        echo "  Output: $OUT_DIR"
+        echo "  Paths:  $PATHS_FILE"
+        echo ""
 
-    # A minimal set of Interface paths useful for addon preview testing.
-    # Extend this list if you need additional texture families.
-    local -a PATHS=(
-        "Interface/Buttons/**"
-        "Interface/Common/**"
-        "Interface/DialogFrame/**"
-        "Interface/FrameGeneral/**"
-        "Interface/Icons/**"
-        "Interface/Tooltips/**"
-    )
+        while IFS= read -r iface_path || [[ -n "$iface_path" ]]; do
+            [[ -z "$iface_path" ]] && continue
+            echo "  Extracting $iface_path..."
+            rustydemon-cli export \
+                -a "$WOW_DIR" \
+                -p "$iface_path" \
+                -l "$listfile" \
+                -o "$OUT_DIR" \
+                2>&1 | sed 's/^/    /'
+        done < "$PATHS_FILE"
+    else
+        echo "Extracting retail Interface textures via rustydemon-cli..."
+        echo "  Source: $WOW_DIR"
+        echo "  Output: $OUT_DIR"
+        echo ""
 
-    for iface_path in "${PATHS[@]}"; do
-        echo "  Extracting $iface_path..."
-        rustydemon-cli export \
-            -a "$WOW_DIR" \
-            -p "$iface_path" \
-            -l "$listfile" \
-            -o "$OUT_DIR" \
-            2>&1 | sed 's/^/    /'
-    done
+        # A minimal set of Interface paths useful for addon preview testing.
+        # Extend this list if you need additional texture families.
+        local -a PATHS=(
+            "Interface/Buttons/**"
+            "Interface/Common/**"
+            "Interface/DialogFrame/**"
+            "Interface/FrameGeneral/**"
+            "Interface/Icons/**"
+            "Interface/Tooltips/**"
+        )
+
+        for iface_path in "${PATHS[@]}"; do
+            echo "  Extracting $iface_path..."
+            rustydemon-cli export \
+                -a "$WOW_DIR" \
+                -p "$iface_path" \
+                -l "$listfile" \
+                -o "$OUT_DIR" \
+                2>&1 | sed 's/^/    /'
+        done
+    fi
 
     print_done
 }
@@ -202,18 +242,53 @@ extract_loose() {
 
     mkdir -p "$OUT_DIR"
 
-    echo "Copying Classic Interface textures..."
-    echo "  Source: $src"
-    echo "  Output: $OUT_DIR"
-    echo ""
+    if [[ -n "$PATHS_FILE" ]]; then
+        echo "Targeted Classic extraction..."
+        echo "  Source: $src"
+        echo "  Output: $OUT_DIR"
+        echo "  Paths:  $PATHS_FILE"
+        echo ""
 
-    rsync -a --info=progress2 \
-        --include="*/" \
-        --include="*.png" \
-        --include="*.blp" \
-        --include="*.tga" \
-        --exclude="*" \
-        "$src/" "$OUT_DIR/"
+        local count=0
+        while IFS= read -r iface_path || [[ -n "$iface_path" ]]; do
+            [[ -z "$iface_path" ]] && continue
+
+            # Strip leading Interface/ prefix (case-insensitive) — $src is already the Interface/ dir.
+            local rel_path
+            rel_path="$(echo "$iface_path" | sed 's|^[Ii]nterface/||')"
+
+            # Find the file case-insensitively to handle Linux vs Windows casing.
+            local found
+            found="$(find "$src" -ipath "*/$rel_path" 2>/dev/null | head -1)"
+
+            if [[ -z "$found" ]]; then
+                echo "  Not found: $rel_path (skipping)"
+                continue
+            fi
+
+            local dest_file="$OUT_DIR/$rel_path"
+            mkdir -p "$(dirname "$dest_file")"
+            cp "$found" "$dest_file"
+            echo "  Copied $rel_path"
+            count=$((count + 1))
+        done < "$PATHS_FILE"
+
+        echo ""
+        echo "Copied $count file(s)."
+    else
+        echo "Copying Classic Interface textures..."
+        echo "  Source: $src"
+        echo "  Output: $OUT_DIR"
+        echo ""
+
+        rsync -a --info=progress2 \
+            --include="*/" \
+            --include="*.png" \
+            --include="*.blp" \
+            --include="*.tga" \
+            --exclude="*" \
+            "$src/" "$OUT_DIR/"
+    fi
 
     print_done
 }

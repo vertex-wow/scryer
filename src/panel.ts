@@ -14,6 +14,9 @@ function getNonce(): string {
 
 const DEFAULT_VIEWPORT: Viewport = { w: 1280, h: 720 };
 
+// How long after the last unresolved-asset report to wait before triggering extraction.
+const EXTRACT_DEBOUNCE_MS = 300;
+
 export class ScryerPanel {
   static readonly viewType = "scryer.preview";
 
@@ -22,6 +25,12 @@ export class ScryerPanel {
   private readonly context: vscode.ExtensionContext;
   private disposables: vscode.Disposable[] = [];
   private assets: AssetService;
+
+  // rawPath → addonDir for textures that could not be resolved in the current render cycle.
+  private missingPaths = new Map<string, string>();
+  // Set while the extract-and-retry pass is running; suppresses re-queuing failed retries.
+  private retryInProgress = false;
+  private extractDebounce: ReturnType<typeof setTimeout> | undefined;
 
   static create(context: vscode.ExtensionContext, uri: vscode.Uri): ScryerPanel {
     const column = vscode.window.activeTextEditor
@@ -104,6 +113,10 @@ export class ScryerPanel {
       this.output.appendLine(
         `[Scryer] Asset not found: ${rawPath} — configure scryer.extractedAssetsDir to load real textures.`,
       );
+      if (!this.retryInProgress) {
+        this.missingPaths.set(rawPath, addonDir);
+        this.scheduleMissingExtract();
+      }
       return;
     }
 
@@ -112,7 +125,40 @@ export class ScryerPanel {
     void this.panel.webview.postMessage(msg);
   }
 
+  private scheduleMissingExtract(): void {
+    if (this.extractDebounce !== undefined) clearTimeout(this.extractDebounce);
+    this.extractDebounce = setTimeout(() => {
+      this.extractDebounce = undefined;
+      void this.runExtractAndRetry();
+    }, EXTRACT_DEBOUNCE_MS);
+  }
+
+  private async runExtractAndRetry(): Promise<void> {
+    const batch = new Map(this.missingPaths);
+    this.missingPaths.clear();
+    if (batch.size === 0) return;
+
+    await this.assets.extractMissing(Array.from(batch.keys()));
+    this.assets.invalidate();
+
+    this.retryInProgress = true;
+    try {
+      await Promise.all(
+        Array.from(batch).map(([rawPath, addonDir]) => this.resolveAndSendAsset(rawPath, addonDir)),
+      );
+    } finally {
+      this.retryInProgress = false;
+    }
+  }
+
   async renderFile(uri: vscode.Uri): Promise<void> {
+    // Reset missing-path state for the new render cycle.
+    if (this.extractDebounce !== undefined) {
+      clearTimeout(this.extractDebounce);
+      this.extractDebounce = undefined;
+    }
+    this.missingPaths.clear();
+
     try {
       const bytes = await vscode.workspace.fs.readFile(uri);
       const content = Buffer.from(bytes).toString("utf-8");
@@ -169,6 +215,9 @@ export class ScryerPanel {
   }
 
   dispose(): void {
+    if (this.extractDebounce !== undefined) {
+      clearTimeout(this.extractDebounce);
+    }
     this.output.dispose();
     this.panel.dispose();
     for (const d of this.disposables) d.dispose();

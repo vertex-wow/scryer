@@ -2,12 +2,15 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { blpToPng } from "./blp.js";
 import { cacheKey, getCachedPath, writeCached } from "./cache.js";
+import { shellExtractMissing } from "./extractor.js";
 import { clearResolutionMemo, resolveTexturePath } from "./resolver.js";
 
 export interface AssetServiceOptions {
   extractedAssetsDir: string;
   installDir: string;
   cacheDir: string;
+  flavor: string;
+  extractScriptPath: string;
   output: vscode.OutputChannel;
 }
 
@@ -83,6 +86,23 @@ export class AssetService {
   }
 
   /**
+   * Extract a specific set of WoW-relative texture paths via the configured extractor.
+   * Skips silently if no extraction script is found.
+   * The caller should call invalidate() after this returns so the resolver
+   * picks up newly written files.
+   *
+   * Implementation lives in extractor.ts and will be replaced by the in-JS CASC
+   * reader (see backlog: "In-process JavaScript CASC reader").
+   */
+  extractMissing(paths: string[]): Promise<void> {
+    return shellExtractMissing(paths, {
+      flavor: this.opts.flavor,
+      extractScriptPath: this.opts.extractScriptPath,
+      output: this.opts.output,
+    });
+  }
+
+  /**
    * Build the set of URI roots that the webview must be allowed to load from.
    * The cache dir always needs to be included; extractedAssetsDir is included so
    * PNG files there can be served directly without copying.
@@ -106,7 +126,16 @@ export class AssetService {
     const extractedAssetsDir = cfg.get<string>("extractedAssetsDir") ?? "";
     const installDir = cfg.get<string>("installDir") ?? "";
     const cacheDir = cfg.get<string>("assetCacheDir") || path.join(wsFolder, ".scryer-cache");
+    const flavor = cfg.get<string>("flavor") || "retail";
+    const extractScriptPath = cfg.get<string>("extractScriptPath") ?? "";
 
-    return new AssetService({ extractedAssetsDir, installDir, cacheDir, output });
+    return new AssetService({
+      extractedAssetsDir,
+      installDir,
+      cacheDir,
+      flavor,
+      extractScriptPath,
+      output,
+    });
   }
 }

@@ -101,6 +101,21 @@
           ],
           "default": "mainline",
           "description": "Default WoW version target when no workspace target is configured"
+        },
+        "scryer.flavor": {
+          "type": "string",
+          "enum": [
+            "retail",
+            "classic",
+            "classic_era"
+          ],
+          "default": "retail",
+          "description": "WoW flavor passed to dev/extract.sh for on-demand texture extraction (retail | classic | classic_era)"
+        },
+        "scryer.extractScriptPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the extraction script. Defaults to dev/extract.sh in the workspace root. Leave empty for auto-detection."
         }
       }
     }
