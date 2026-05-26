@@ -1,0 +1,24 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+
+  <!--
+    direct_texture.xml
+    Tests direct texture loading via a WoW-relative file path with no inheritance.
+    Isolates the asset resolution pipeline: path normalisation, BLP decode, and cache.
+    Requires scryer.extractedAssetsDir with Interface\Buttons extracted
+    (./dev/extract.sh retail -&#45;type textures).
+
+    ✓  ARTWORK: Interface\Buttons\UI-CheckBox-Check  (BLP → PNG decode + cache)
+  -->
+  <Frame name="TextureTestFrame" parent="UIParent" frameStrata="MEDIUM">
+    <Size x="64" y="64"/>
+    <Anchors>
+      <Anchor point="CENTER"/>
+    </Anchors>
+    <Layers>
+      <Layer level="ARTWORK">
+        <Texture setAllPoints="true" file="Interface\Buttons\UI-CheckBox-Check"/>
+      </Layer>
+    </Layers>
+  </Frame>
+
+</Ui>

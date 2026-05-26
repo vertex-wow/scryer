@@ -1,5 +1,14 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
 
+  <!--
+    simple_frame.xml
+    Baseline smoke test: no textures, no inheritance, no external assets.
+    Verifies the core XML parser and layout engine work independently of
+    the asset pipeline.
+
+    ✓  BACKGROUND: solid color texture (Color r/g/b/a — no file to extract)
+    ✓  ARTWORK: FontString with inline text and gold color
+  -->
   <Frame name="TestFrame" parent="UIParent" frameStrata="MEDIUM">
     <Size x="300" y="200"/>
     <Anchors>

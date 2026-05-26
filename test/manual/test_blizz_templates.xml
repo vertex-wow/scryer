@@ -1,0 +1,87 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+   https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/FrameXML/UI.xsd">
+
+  <!--
+    test_blizz_templates.xml
+    Tests Blizzard template inheritance: XML-defined textures resolve and extract.
+    Requires scryer.extractedAssetsDir pointing to a retail extraction with
+    ./dev/extract.sh retail -&#45;type textures (or -&#45;type all).
+
+    Rendering status per inherited template:
+
+    DefaultPanelTemplate (→ DefaultPanelBaseTemplate):
+      ✓  BACKGROUND: Interface\FrameGeneral\UI-Background-Rock    (tiled rock fill)
+      ✗  BACKGROUND: _UI-Frame-TopTileStreaks                      (atlas-only, no file path)
+      ✗  Frames > NineSlice (NineSlicePanelTemplate)              (code-driven — needs M4)
+      ✓  Frames > TitleContainer > TitleText FontString            (text label, no font yet)
+
+    InsetFrameTemplate:
+      ✓  BACKGROUND: Interface\FrameGeneral\UI-Background-Marble  (tiled marble fill)
+      ✗  Frames > NineSlice (NineSlicePanelTemplate)              (code-driven — needs M4)
+
+    UIPanelGoldButtonTemplate:
+      ✓  BACKGROUND Left  (Interface\Buttons\UI-DialogBox-goldbutton-up-left)
+      ✓  BACKGROUND Right (Interface\Buttons\UI-DialogBox-goldbutton-up-right)
+      ✗  BACKGROUND Middle (relativeKey anchors — needs relativeKey impl)
+
+    UIMenuButtonStretchTemplate:
+      ✓  BACKGROUND corners × 4  (Interface\Buttons\UI-Silver-Button-Up, sliced TexCoords)
+      ✗  BACKGROUND middles × 5  (relativeKey anchors — needs relativeKey impl)
+  -->
+
+  <!-- Panel: rock background from DefaultPanelTemplate, marble inset content area -->
+  <Frame name="ExampleBlizzPanel" inherits="DefaultPanelTemplate" parent="UIParent">
+    <Size x="400" y="360"/>
+    <Anchors>
+      <Anchor point="CENTER" x="-220" y="0"/>
+    </Anchors>
+    <Frames>
+      <!-- Marble content inset from InsetFrameTemplate -->
+      <Frame parentKey="MyInset" inherits="InsetFrameTemplate">
+        <Anchors>
+          <Anchor point="TOPLEFT" x="10" y="-32"/>
+          <Anchor point="BOTTOMRIGHT" x="-10" y="52"/>
+        </Anchors>
+      </Frame>
+      <!-- Two gold buttons at the bottom; Left+Right pieces render, Middle needs relativeKey -->
+      <Button inherits="UIPanelGoldButtonTemplate">
+        <Size x="120" y="32"/>
+        <Anchors>
+          <Anchor point="BOTTOMRIGHT" x="-30" y="14"/>
+        </Anchors>
+      </Button>
+      <Button inherits="UIPanelGoldButtonTemplate">
+        <Size x="120" y="32"/>
+        <Anchors>
+          <Anchor point="BOTTOMLEFT" x="30" y="14"/>
+        </Anchors>
+      </Button>
+    </Frames>
+  </Frame>
+
+  <!--
+    Standalone UIMenuButtonStretchTemplate button.
+    Four corner textures (12×6 px each) render at their fixed anchors from UI-Silver-Button-Up.
+    Five middle-fill textures use relativeKey and will be mispositioned until relativeKey lands.
+  -->
+  <Button name="ExampleSilverBtn" inherits="UIMenuButtonStretchTemplate" parent="UIParent">
+    <Size x="160" y="26"/>
+    <Anchors>
+      <Anchor point="CENTER" x="220" y="60"/>
+    </Anchors>
+  </Button>
+
+  <!--
+    Standalone InsetFrameTemplate: simplest possible case.
+    One setAllPoints marble texture, fully renders with no moving parts.
+  -->
+  <Frame name="ExampleInset" inherits="InsetFrameTemplate" parent="UIParent">
+    <Size x="200" y="120"/>
+    <Anchors>
+      <Anchor point="CENTER" x="220" y="-80"/>
+    </Anchors>
+  </Frame>
+
+</Ui>
