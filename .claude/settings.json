@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(pnpm test *)",
-      "Bash(pnpm typecheck *)"
+      "Bash(pnpm typecheck *)",
+      "Bash(rustydemon-cli *)",
+      "Bash(~/.cargo/bin/rustydemon-cli *)"
     ]
   }
 }

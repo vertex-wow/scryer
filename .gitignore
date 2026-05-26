@@ -1,6 +1,7 @@
 _reference/
 _live/
 dev/config.local.sh
+dev/listfile.csv
 
 # ephemeral task scratchpad — see docs/ for permanent docs
 .plan/*                  
@@ -11,6 +12,9 @@ dist/
 
 # Scryer asset cache (on-demand BLP→PNG conversions)
 .scryer-cache/
+
+# Extracted WoW Interface textures (dev/extract.sh output)
+.wow-assets/
 build/
 *.zip
 *.tar.gz

@@ -1,3 +1,11 @@
 # Copy this to config.local.sh and update with your local paths
 WOW_DIR="/path/to/your/World of Warcraft/"
 WOW_ACCOUNT="youraccouontname"
+
+# Optional: pin the rustydemon-cli binary path for dev/extract.sh.
+# When set, this path is used directly instead of auto-detecting from PATH.
+# Useful on Windows where adding things to PATH is annoying.
+#CASC_TOOL="/path/to/rustydemon-cli"
+
+# After running dev/extract.sh, add this to .vscode/settings.json:
+#   "scryer.extractedAssetsDir": "/path/to/wow-addon-preview/.wow-assets"

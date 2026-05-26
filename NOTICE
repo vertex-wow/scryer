@@ -1,0 +1,8 @@
+## CASC References
+
+- [wow.export](https://github.com/Kruithne/wow.export) by Kruithne, MIT. Javascript GUI for WoW CASC archives in a "batteries included" system.
+- [CascLib](https://github.com/ladislav-zezula/CascLib) by Ladislav Zezula, MIT. C Library and a great reference implementation of CASC, BLTE, encoding, manifests, MNDX/MARR, more.
+- [SereniaBLPLib](https://github.com/WoW-Tools/SereniaBLPLib) by Xalcon, MIT. C# library for BLP texture parsing and DXT decompression.
+- [TACTLib](https://github.com/overtools/TACTLib) by the Overtools team, MIT. C# CASC implementation with good TVFS and static-container implementations.
+- [wowdev.wiki](https://wowdev.wiki/CASC) documenting CASC/TACT formats and community listfiles.
+- [casc-extractor](https://github.com/Xerrion/casc-extractor) by Xerrion, MIT. Rust CLI and library for WoW CASC archives.
