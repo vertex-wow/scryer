@@ -4,6 +4,34 @@ Cross-cutting items deferred from completed milestones, or tooling debt that doe
 
 ---
 
+## Blizzard FrameXML template corpus loading (pre-M4)
+
+**Problem:** `panel.ts` calls `resolveInheritance([doc])` with an empty Blizzard registry, so any frame that `inherits` a Blizzard-defined template (e.g. `NineSlicePanelTemplate`, `DefaultPanelTemplate`, `BasicFrameTemplate`) silently gets no template content applied. The resolver logs `Unknown template "…"` to the console and continues; the rendered frame is missing all template-contributed textures and children.
+
+Confirmed broken by `.plan/test_tooltip.xml` — the child frame `inherits="NineSlicePanelTemplate"` renders with no nine-slice borders.
+
+**Two-part limitation:**
+
+1. **Templates not loaded** — fixable by parsing the relevant FrameXML files from `_reference/wow-ui-source/` and passing them as `blizzardRegistry` to `resolveInheritance`. `_reference/wow-ui-source/Interface/AddOns/Blizzard_SharedXML/` is the right starting point; it contains `SharedUIPanelTemplates.xml`, `SecureUIPanelTemplates.xml`, etc.
+
+2. **Code-driven templates** — `NineSlicePanelTemplate` inherits `NineSliceCodeTemplate`, which has no XML textures; the nine-slice pieces are set entirely by Lua mixin code reading `layoutType`/`layoutTextureKit` key values. Loading the template corpus fixes part 1, but code-driven templates still require M4 (Lua runtime) to render correctly.
+
+**Plan:** Load a subset of FrameXML templates from `_reference/wow-ui-source/` at extension startup (or lazily on first render). Parse each file with `parseXmlFile` and collect all virtual frames into the blizzard registry before calling `resolveInheritance`. The relevant file list can be seeded from the addon load order in `ui-toc-list.txt` — but a hand-curated list of the most common template files is sufficient for now (SharedXML is the priority).
+
+Template files to load first:
+
+- `Blizzard_SharedXML/SharedUIPanelTemplates.xml` (NineSlicePanelTemplate, InsetFrameTemplate, etc.)
+- `Blizzard_SharedXML/SecureUIPanelTemplates.xml`
+- `Blizzard_SharedXML/SharedTemplates.xml` (if present)
+
+Path: resolve relative to the `_reference/wow-ui-source/Interface/AddOns/` symlink — or configurable via `scryer.blizzardSourceDir`.
+
+**Effort:** S–M — parsing the files is trivial (reuse existing parser); the tricky part is handling inter-template dependencies (templates that inherit other templates across files) and deciding which files to load. A fixed hand-curated list avoids the dependency ordering problem for now.
+
+**Note:** This does not fix code-driven templates like NineSlice. Those remain broken until M4.
+
+---
+
 ## CI-safe committed fixtures (deferred from M1)
 
 **Problem:** The live-fixture tests in `test/parser/toc.test.ts` and `test/parser/xml.test.ts` read directly from `_live/Addons/` and skip in CI (`describeIfLive`). Parser correctness against real addon structure is not verified on every push.
@@ -94,49 +122,23 @@ The output channel already logs per-path warnings; this is a higher-visibility o
 
 ## On-demand texture extraction from the preview (deferred from M3)
 
-**Problem:** When the preview renders a file that references textures not yet in `extractedAssetsDir`, those textures show as colored placeholders. The user must manually run `dev/extract.sh` upfront and know which texture families to extract — there is no way to extract just what a specific file needs, and no automatic trigger from the preview itself.
+**Status: Done** (2026-05-26)
 
-**Plan:**
+**What was built:**
 
-Two parts: extend `dev/extract.sh` to accept a list of specific paths, and add an on-demand extraction flow in the extension.
-
-### 1. `dev/extract.sh` — targeted extraction mode
-
-Add a `--paths-file <file>` flag (alongside the existing flavor arg):
+`dev/extract.sh` now accepts `--paths-file <file>` as a second argument alongside the flavor:
 
 ```bash
 ./dev/extract.sh retail --paths-file /tmp/scryer-missing.txt
 ```
 
-Where `scryer-missing.txt` is a newline-delimited list of WoW-relative texture paths (e.g. `Interface/Buttons/UI-CheckBox-Check.blp`).
+`scryer-missing.txt` is a newline-delimited list of WoW-relative texture paths. Retail loops each path through `rustydemon-cli export` individually. Classic uses `find -ipath` + `cp` to handle filesystem case differences. Full-slice extraction (no `--paths-file`) is unchanged.
 
-- **Retail (rustydemon-cli):** pass each path directly to `rustydemon-cli export` instead of the glob patterns. rustydemon-cli already accepts individual paths; this is a loop over the list.
-- **Classic/loose:** convert each path to its absolute source path and `rsync`/`cp` it individually.
-- If `--paths-file` is absent, fall back to the existing full-slice glob extraction (no behaviour change for current callers).
+The extension side (`AssetService.extractMissing(paths)`) writes the temp file, spawns the script with a VSCode progress notification, and awaits exit. `ScryerPanel` debounces unresolved `requestAsset` messages (300 ms), calls `extractMissing`, invalidates the resolver memo, then re-fires resolution for each missing path. A `retryInProgress` flag prevents the retry pass from scheduling another extraction loop on still-missing assets.
 
-### 2. Extension — pool missing textures and invoke extract.sh
+Config additions: `scryer.flavor` (`retail`/`classic`/`classic_era`, default `retail`) and `scryer.extractScriptPath` (empty = auto-detect `<wsFolder>/dev/extract.sh`). Extension skips extraction silently if the script is not found.
 
-The extraction call must be encapsulated in a single function on `AssetService` (e.g. `extractMissing(paths: string[]): Promise<void>`) that takes the texture list and handles everything internally — writing the temp file, spawning the script, and waiting for exit. The rest of the extension only calls this function; it never touches the script directly. This keeps the extraction mechanism swappable: if we later want to call a native API, a different tool, or an in-process CASC reader instead of the shell script, only this one function changes.
-
-In `AssetService._resolve`, when `resolveTexturePath` returns null (asset not found on disk), record the unresolved path in a pending set rather than immediately returning null.
-
-After the render cycle completes (all `requestAsset` messages processed), if the pending set is non-empty:
-
-1. Call `assetService.extractMissing(pendingPaths)`.
-2. Inside `extractMissing`: write paths to a temp file, spawn `dev/extract.sh <flavor> --paths-file <tempfile>`, show a VSCode progress notification ("Scryer: extracting N textures…"), and await exit.
-3. On return: call `assetService.invalidate()` to clear the resolution memo, then re-send `requestAsset` for the previously-missing paths. Assets that resolved will now load; those that still fail (wrong flavor, not in listfile, etc.) fall back to placeholder as before.
-4. Read flavor from a new `scryer.flavor` config (`retail`/`classic`/`classic_era`, default `retail`). Auto-detect script path as `<workspaceFolder>/dev/extract.sh`; skip silently if not found so the extension still works in projects without a `dev/` tree.
-
-**Config additions:**
-
-```jsonc
-"scryer.flavor": "retail",           // retail | classic | classic_era
-"scryer.extractScriptPath": ""       // default: auto-detected dev/extract.sh
-```
-
-**What this replaces:** the existing "In-app asset setup guidance" backlog item becomes less urgent if on-demand extraction works — the user sees real textures on first open rather than a one-time notification.
-
-**Effort:** M — extract.sh changes are S; the extension pooling + spawn + invalidate + retry loop is the bulk of the work.
+**Effort:** M — within estimate.
 
 ---
 
@@ -176,6 +178,74 @@ Full source for all of the following is checked into `_reference/` (read-only):
 Retail uses TVFS (introduced in 8.2); Classic uses the older flat-root format. Both must be supported if we want to cover all three flavor targets.
 
 **Effort:** L — CASC is a multi-layer format (build info → encoding → root → index → BLTE). wow.export is a strong prior art reference that de-risks most of the format work, but this is still the largest single item on the backlog.
+
+---
+
+## Extract Blizzard addon Lua files from user's WoW installation
+
+**Problem:** When resolving frame inheritance, Blizzard addon Lua files are not available. Many templates and mixins are implemented entirely in Lua (e.g. `NineSliceCodeTemplate`, mixin functions set via `Mixin()`), meaning the extension cannot understand code-driven inheritance chains without access to the actual Lua source from the user's WoW install.
+
+**Goal:** Extract Lua files from the Blizzard addon directories in the user's WoW installation so they can be indexed and referenced for inheritance resolution in a future Lua runtime milestone.
+
+**Plan:**
+
+- Extend `dev/extract.sh` (or add a companion script) to also extract `*.lua` files from the Blizzard addon directories (e.g. `Interface/AddOns/Blizzard_SharedXML/`, `Interface/AddOns/Blizzard_FrameXML/`).
+- For retail (CASC), this means adding Lua paths to the extraction pass via `rustydemon-cli`.
+- For classic (loose files), these Lua files already exist on disk under `$WOW_DIR/_classic_/Interface/AddOns/` and can be `rsync`'d directly.
+- Output directory: `.wow-assets/Interface/AddOns/` (same root as textures, already gitignored).
+- Once the in-process CASC reader is implemented (see above), this extraction can happen automatically on demand, the same way textures do.
+
+**Why this is needed:** M4 (Lua runtime) will need to evaluate mixin code to correctly render code-driven templates. Having the source files available locally is a prerequisite for that work.
+
+**Effort:** XS–S — the extraction pipeline already exists; this is adding Lua file paths to an existing pass. The harder dependency is the in-process CASC reader and M4 Lua runtime.
+
+---
+
+## Preload workspace textures at startup
+
+**Problem:** When a WoW XML file is first opened, textures are resolved and decoded on-demand as the webview requests them. This means the first render is slow — each texture causes a round-trip from webview → extension → disk/cache → decode → response before it appears.
+
+**Goal:** Scan the workspace (and any configured `scryer.extractedAssetsDir`) at extension startup and pre-warm the asset cache so textures are already decoded when the first preview renders.
+
+**Plan:**
+
+1. At extension activation, glob `scryer.extractedAssetsDir` for all BLP and TGA files (PNG files are already fast, but can be indexed too).
+2. Decode each file through the existing `AssetService` pipeline (BLP→PNG, TGA→PNG) and populate the in-memory cache.
+3. Run this preload in the background (don't block activation); use a VSCode progress notification or output channel message to indicate it is happening.
+4. Limit concurrency to avoid pegging the CPU (e.g. a queue of 4–8 parallel decode workers).
+5. Persist the decoded PNG bytes to `.scryer-cache/` (already done per-file on first decode) so subsequent sessions benefit from disk cache even without a full re-scan.
+
+**Stretch:** Watch `scryer.extractedAssetsDir` for new files (VSCode `FileSystemWatcher`) and decode them as they arrive, so a fresh extraction populates the cache incrementally.
+
+**Effort:** S — the decode pipeline already exists; this is parallelizing it over a directory listing at startup. The main complexity is worker concurrency and not blocking the extension host.
+
+---
+
+## Configurable preload scope setting
+
+**Problem:** A single preload strategy doesn't fit all users. A contributor working on one addon wants fast previews for their workspace textures only. A power user with a full extraction wants everything pre-warmed. There's no way to express this preference today.
+
+**Goal:** Add a `scryer.preloadScope` dropdown setting with graduated tiers so the user controls how aggressively Scryer pre-warms the asset cache at startup.
+
+**Proposed tiers (`scryer.preloadScope` enum):**
+
+| Value         | Label            | Behavior                                                                                         |
+| ------------- | ---------------- | ------------------------------------------------------------------------------------------------ |
+| `"none"`      | Disabled         | No preload — decode on demand only (current default behavior)                                    |
+| `"workspace"` | Workspace only   | Scan textures referenced in XML files found in the current workspace                             |
+| `"extracted"` | Extracted assets | Preload everything already present in `scryer.extractedAssetsDir`                                |
+| `"full"`      | Full extraction  | Trigger extraction of all known Interface textures from the WoW install, then preload the result |
+
+Default: `"extracted"` — preload whatever is already on disk, no auto-extraction triggered.
+
+**Notes:**
+
+- `"workspace"` scope requires parsing open XML files to collect texture paths before decoding — a lighter scan than indexing the whole asset dir.
+- `"full"` is only available when `scryer.installDir` is set; the setting should be grayed out or warn if the install dir is missing. This tier depends on the in-process CASC reader (see [[in-process-casc-reader]]) to be practical for end users.
+- The preload worker pool (concurrency, progress notification) is shared with the parent preload task — this is just a scope gate on top of that work.
+- All tiers still respect `.scryer-cache/` — already-decoded files are served from disk cache without re-decoding.
+
+**Effort:** XS–S — the dropdown is a one-line `package.json` contribution; the `"workspace"` XML-scan path is the only novel logic. `"full"` scope is a stretch goal gated on the CASC reader milestone.
 
 ---
 
