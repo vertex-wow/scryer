@@ -96,14 +96,16 @@ VSCode settings (all four now contributed via `package.json`):
 
 Atlas textures currently render as labeled colored placeholders (`[atlas] <name>`). Full implementation depends on M5 (version targets and per-build manifests).
 
-## Extraction Tooling (Documented, Not Bundled)
+## Extraction Tooling
 
-We do not bundle WoW assets (copyright). Document the workflow and provide helper scripts:
+We do not bundle WoW assets (copyright). `dev/extract.sh` is the primary contributor workflow:
 
-- **WoW.export** (Marlamin) — GUI/CLI to bulk-extract BLP and atlas data from CASC.
-- **CASCExplorer** — browse and extract individual files from CASC storage.
-- **Marlamin's community listfile** — maps CASC file IDs to virtual paths (needed for proper resolution).
-- Extend `dev/assets.sh` with a documented extraction recipe per game flavor.
+- **`dev/extract.sh`** (shipped 2026-05-26) — reads `WOW_DIR` from `dev/config.local.sh`, accepts `retail`/`classic`/`classic_era` flavor arg, extracts a minimal Interface texture slice into `.wow-assets/` (gitignored).
+  - **Retail:** `rustydemon-cli` (Rust CASC extractor); auto-downloads Marlamin community listfile. Outputs BLP — exercises the BLP→PNG decode path.
+  - **Classic/Classic Era:** `rsync` from loose `$WOW_DIR/_classic_/Interface/` files.
+  - `CASC_TOOL` override in `dev/config.local.sh` for non-PATH installs (e.g. Windows).
+- **CASCExplorer** — alternative GUI for browsing and extracting individual files from CASC.
+- **WoW.export** (Marlamin) — GUI/CLI alternative that outputs PNG directly; useful if rustydemon-cli is unavailable.
 
 ## Local Cache
 
