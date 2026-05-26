@@ -299,6 +299,44 @@ Default: `"extracted"` — preload whatever is already on disk, no auto-extracti
 
 ---
 
+## Output channel logging and `scryer.logLevel` setting
+
+**Problem:** Unknown-template warnings from `resolveInheritance` are currently silent — they disappear into the void. Users have no way to know why a frame renders incorrectly, and there is no way to get verbose diagnostic output when debugging a new addon or a fresh extraction.
+
+**Plan:** Two changes, independent but shipped together:
+
+### 1. Route unknown-template warnings to the Output channel (no setting needed)
+
+`inherit.ts` is a pure module with no VSCode dependency. The clean approach is to add an optional `warn` callback to `resolveInheritance`:
+
+```ts
+resolveInheritance(frames, registry, { warn?: (msg: string) => void })
+```
+
+`panel.ts` passes `this.output.appendLine` as the callback. Unknown-template hits, missing parent chains, and any other resolution failures get surfaced to the user immediately in the Output panel. No toggle needed — these are always user-relevant errors, not developer-only noise.
+
+### 2. `scryer.logLevel` enum setting
+
+Rather than a boolean debug flag, expose a three-value enum:
+
+| Value       | Behavior                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------- |
+| `"off"`     | No output channel messages at all                                                                             |
+| `"warn"`    | Unknown templates, missing assets, resolution failures (default — what most users want)                       |
+| `"verbose"` | Everything in `"warn"` plus: corpus load counts, per-render texture counts, resolved template chain per frame |
+
+Default: `"warn"`. VSCode renders enum settings as a dropdown, so this is nicer than a boolean. `"verbose"` is the diagnostic mode for contributors and bug reporters.
+
+**Implementation notes:**
+
+- The `warn` callback approach keeps `inherit.ts` testable without mocking VSCode.
+- `panel.ts` reads `scryer.logLevel` on each render call (no need to watch for changes — it's a per-render read).
+- Log level `"off"` passes `undefined` as the warn callback; `"warn"` and `"verbose"` both pass `this.output.appendLine`, with verbose paths doing additional `appendLine` calls for corpus stats and template chains.
+
+**Effort:** S — three-file change for the warn routing (`inherit.ts`, `panel.ts`, `package.json`). The log level setting and verbose paths add another hour.
+
+---
+
 ## tsconfig solution-style refactor (IDE tooling debt)
 
 **Problem:** `tsconfig.json` includes a `"references"` entry to `tsconfig.test.json` intending VS Code to use the test config for `test/` files. In practice the language server falls back to the root config, which lacks `types: ["jest","node"]`, so Jest/Node globals appear unresolved in the IDE. No CI impact — typecheck uses `tsconfig.build.json` which excludes test files.
