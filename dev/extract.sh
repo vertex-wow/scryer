@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Extract a minimal set of WoW Interface textures into .wow-assets/ for local
-# development and testing. Sets you up so scryer.extractedAssetsDir can point
-# at the result.
+# Extract WoW Interface files into .wow-assets/ for local development and testing.
+# Sets you up so scryer.extractedAssetsDir can point at the result.
 #
 # Retail: auto-detects an installed CASC extraction tool (see CASC_TOOLS below).
 # Classic/Classic Era: copies loose files from $WOW_DIR/_classic_/Interface/.
 #
-# Usage: ./dev/extract.sh [classic|classic_era|retail(default)]
+# Usage: ./dev/extract.sh [classic|classic_era|retail(default)] [--type textures|interface|all] [--paths-file <file>]
+#
+#   --type textures   Extract Interface texture files (BLP/PNG/TGA). Default.
+#   --type interface  Extract Blizzard addon code (Lua/XML/TOC) from Interface/AddOns/.
+#   --type all        Extract both textures and addon code.
+#   --paths-file      Targeted extraction: a newline-delimited list of specific paths.
+#                     Overrides the default path set; --type is ignored.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
@@ -19,6 +24,7 @@ readonly OUT_DIR="$PROJECT_ROOT/.wow-assets"
 
 FLAVOR="${1:-retail}"
 PATHS_FILE=""
+TYPE="textures"
 
 shift || true # consume flavor arg (or no-op if no args given)
 
@@ -32,9 +38,24 @@ while [[ $# -gt 0 ]]; do
             PATHS_FILE="$2"
             shift 2
             ;;
+        --type)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --type requires an argument" >&2
+                exit 1
+            fi
+            case "$2" in
+                textures|interface|all) ;;
+                *)
+                    echo "Error: --type must be textures, interface, or all" >&2
+                    exit 1
+                    ;;
+            esac
+            TYPE="$2"
+            shift 2
+            ;;
         *)
             echo "Error: Unknown argument: $1" >&2
-            echo "Usage: $0 [retail|classic|classic_era] [--paths-file <file>]" >&2
+            echo "Usage: $0 [retail|classic|classic_era] [--type textures|interface|all] [--paths-file <file>]" >&2
             exit 1
             ;;
     esac
@@ -193,14 +214,8 @@ extract_retail_rustydemon_cli() {
                 2>&1 | sed 's/^/    /'
         done < "$PATHS_FILE"
     else
-        echo "Extracting retail Interface textures via rustydemon-cli..."
-        echo "  Source: $WOW_DIR"
-        echo "  Output: $OUT_DIR"
-        echo ""
-
-        # A minimal set of Interface paths useful for addon preview testing.
-        # Extend this list if you need additional texture families.
-        local -a PATHS=(
+        # A minimal set of Interface texture paths for addon preview testing.
+        local -a TEXTURE_PATHS=(
             "Interface/Buttons/**"
             "Interface/Common/**"
             "Interface/DialogFrame/**"
@@ -208,6 +223,25 @@ extract_retail_rustydemon_cli() {
             "Interface/Icons/**"
             "Interface/Tooltips/**"
         )
+
+        # Blizzard addon directories needed for template corpus and Lua mixin resolution.
+        local -a INTERFACE_PATHS=(
+            "Interface/AddOns/Blizzard_SharedXML/**"
+            "Interface/AddOns/Blizzard_FrameXML/**"
+        )
+
+        local -a PATHS=()
+        if [[ "$TYPE" == "textures" || "$TYPE" == "all" ]]; then
+            PATHS+=("${TEXTURE_PATHS[@]}")
+        fi
+        if [[ "$TYPE" == "interface" || "$TYPE" == "all" ]]; then
+            PATHS+=("${INTERFACE_PATHS[@]}")
+        fi
+
+        echo "Extracting retail Interface ($TYPE) via rustydemon-cli..."
+        echo "  Source: $WOW_DIR"
+        echo "  Output: $OUT_DIR"
+        echo ""
 
         for iface_path in "${PATHS[@]}"; do
             echo "  Extracting $iface_path..."
@@ -276,16 +310,21 @@ extract_loose() {
         echo ""
         echo "Copied $count file(s)."
     else
-        echo "Copying Classic Interface textures..."
+        echo "Copying Classic Interface ($TYPE)..."
         echo "  Source: $src"
         echo "  Output: $OUT_DIR"
         echo ""
 
+        local -a includes=("--include=*/")
+        if [[ "$TYPE" == "textures" || "$TYPE" == "all" ]]; then
+            includes+=("--include=*.png" "--include=*.blp" "--include=*.tga")
+        fi
+        if [[ "$TYPE" == "interface" || "$TYPE" == "all" ]]; then
+            includes+=("--include=*.lua" "--include=*.xml" "--include=*.toc")
+        fi
+
         rsync -a --info=progress2 \
-            --include="*/" \
-            --include="*.png" \
-            --include="*.blp" \
-            --include="*.tga" \
+            "${includes[@]}" \
             --exclude="*" \
             "$src/" "$OUT_DIR/"
     fi

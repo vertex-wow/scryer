@@ -185,13 +185,9 @@ Retail uses TVFS (introduced in 8.2); Classic uses the older flat-root format. B
 
 ## Extract Blizzard Interface addon files from user's WoW installation
 
-**Problem:** The extension cannot resolve Blizzard-defined templates or understand code-driven inheritance chains without access to the XML, Lua, and TOC files from the user's WoW install. `_reference/wow-ui-source/` is an externally maintained, read-only snapshot of one flavor — it is not a reliable runtime source and does not exist for retail, classic, or classic_era on arbitrary machines.
+**Status: Done** (2026-05-26)
 
-**Goal:** Extract `.lua`, `.xml`, and `.toc` files from the Blizzard addon directories in the user's WoW installation into `.wow-assets/Interface/AddOns/` (same output root as textures, already gitignored).
-
-**Plan:**
-
-Extend `dev/extract.sh` with a `--type` (or subcommand) argument so a single script handles both textures and addon code. Both modes use the same `rustydemon-cli` invocation pattern and the same `dev/config.local.sh` config — the only difference is the path list and file-type filter passed to the tool.
+**What was built:** `dev/extract.sh` now accepts `--type textures|interface|all` (default: `textures`):
 
 ```
 ./dev/extract.sh retail --type textures   # current behaviour (default)
@@ -199,18 +195,12 @@ Extend `dev/extract.sh` with a `--type` (or subcommand) argument so a single scr
 ./dev/extract.sh retail --type all        # both
 ```
 
-- **Retail (CASC):** `--type interface` adds `Interface/AddOns/Blizzard_SharedXML/**`, `Interface/AddOns/Blizzard_FrameXML/**`, etc. to the `rustydemon-cli` pass. `.lua`/`.xml`/`.toc` files sit in the CASC archive alongside textures and extract identically.
-- **Classic / Classic Era (loose files):** Extend the `rsync` call with `--include="*.lua" --include="*.xml" --include="*.toc"` when `--type interface` or `--type all` is active.
+- **Retail (CASC):** `--type interface` passes `Interface/AddOns/Blizzard_SharedXML/**` and `Interface/AddOns/Blizzard_FrameXML/**` to `rustydemon-cli`. `.lua`/`.xml`/`.toc` files extract identically to textures.
+- **Classic / Classic Era (loose files):** The rsync call gains `--include=*.lua`, `--include=*.xml`, `--include=*.toc` filter when `--type interface` or `--type all` is active.
 - Output: `.wow-assets/Interface/AddOns/<AddonName>/` — matching the WoW install layout, same output root as textures.
+- `--paths-file` is unaffected (targeted mode ignores `--type`).
 
-Long-term, once the in-process CASC reader is implemented, this extraction can happen automatically on demand — the same way texture extraction works today.
-
-**Why this is needed:**
-
-- The `Blizzard FrameXML template corpus loading` item above is blocked on this — the XML files must be available locally.
-- M4 (Lua runtime) will need Lua source to evaluate mixin code for code-driven templates.
-
-**Effort:** XS–S — the extraction pipeline already exists for all three flavors; this is adding file-type coverage to each path. The harder dependency is the in-process CASC reader and M4 Lua runtime.
+**Note:** This unblocks the `Blizzard FrameXML template corpus loading` item — the XML files are now available at `.wow-assets/Interface/AddOns/`. Long-term, once the in-process CASC reader lands, this extraction can happen on demand automatically.
 
 ---
 
