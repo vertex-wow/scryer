@@ -12,21 +12,23 @@ Confirmed broken by `.plan/test_tooltip.xml` — the child frame `inherits="Nine
 
 **Two-part limitation:**
 
-1. **Templates not loaded** — fixable by parsing the relevant FrameXML files from `_reference/wow-ui-source/` and passing them as `blizzardRegistry` to `resolveInheritance`. `_reference/wow-ui-source/Interface/AddOns/Blizzard_SharedXML/` is the right starting point; it contains `SharedUIPanelTemplates.xml`, `SecureUIPanelTemplates.xml`, etc.
+1. **Templates not loaded** — fixable by parsing the relevant FrameXML files from the user's extracted Blizzard addon directory and passing them as `blizzardRegistry` to `resolveInheritance`. `Interface/AddOns/Blizzard_SharedXML/` is the right starting point; it contains `SharedUIPanelTemplates.xml`, `SecureUIPanelTemplates.xml`, etc.
 
 2. **Code-driven templates** — `NineSlicePanelTemplate` inherits `NineSliceCodeTemplate`, which has no XML textures; the nine-slice pieces are set entirely by Lua mixin code reading `layoutType`/`layoutTextureKit` key values. Loading the template corpus fixes part 1, but code-driven templates still require M4 (Lua runtime) to render correctly.
 
-**Plan:** Load a subset of FrameXML templates from `_reference/wow-ui-source/` at extension startup (or lazily on first render). Parse each file with `parseXmlFile` and collect all virtual frames into the blizzard registry before calling `resolveInheritance`. The relevant file list can be seeded from the addon load order in `ui-toc-list.txt` — but a hand-curated list of the most common template files is sufficient for now (SharedXML is the priority).
+**Plan:** Load a subset of FrameXML templates at extension startup (or lazily on first render). Parse each file with `parseXmlFile` and collect all virtual frames into the blizzard registry before calling `resolveInheritance`.
 
-Template files to load first:
+Source of truth for the XML files is the user's extracted addon directory — populated by the extraction backlog item below (`Extract Blizzard Interface addon files`). The extension looks for this under `scryer.extractedAssetsDir/Interface/AddOns/` (same output root that `extract.sh` already uses). `_reference/wow-ui-source/` is read-only reference material for a single extracted flavor and must not be used as a runtime source — it won't exist for retail, classic, or classic_era depending on the machine.
+
+Template files to load first (hand-curated; avoids dependency-ordering problem):
 
 - `Blizzard_SharedXML/SharedUIPanelTemplates.xml` (NineSlicePanelTemplate, InsetFrameTemplate, etc.)
 - `Blizzard_SharedXML/SecureUIPanelTemplates.xml`
 - `Blizzard_SharedXML/SharedTemplates.xml` (if present)
 
-Path: resolve relative to the `_reference/wow-ui-source/Interface/AddOns/` symlink — or configurable via `scryer.blizzardSourceDir`.
+**Dependency:** Requires `Extract Blizzard Interface addon files` (see below) so the XML files are available locally. Until then this item is blocked for end users (the `_reference/` symlink can stand in locally for development).
 
-**Effort:** S–M — parsing the files is trivial (reuse existing parser); the tricky part is handling inter-template dependencies (templates that inherit other templates across files) and deciding which files to load. A fixed hand-curated list avoids the dependency ordering problem for now.
+**Effort:** S–M — parsing is trivial (reuse existing parser); the tricky parts are handling inter-template dependencies across files and deciding which files to load. A fixed hand-curated list avoids dependency ordering for now.
 
 **Note:** This does not fix code-driven templates like NineSlice. Those remain broken until M4.
 
@@ -181,23 +183,63 @@ Retail uses TVFS (introduced in 8.2); Classic uses the older flat-root format. B
 
 ---
 
-## Extract Blizzard addon Lua files from user's WoW installation
+## Extract Blizzard Interface addon files from user's WoW installation
 
-**Problem:** When resolving frame inheritance, Blizzard addon Lua files are not available. Many templates and mixins are implemented entirely in Lua (e.g. `NineSliceCodeTemplate`, mixin functions set via `Mixin()`), meaning the extension cannot understand code-driven inheritance chains without access to the actual Lua source from the user's WoW install.
+**Problem:** The extension cannot resolve Blizzard-defined templates or understand code-driven inheritance chains without access to the XML, Lua, and TOC files from the user's WoW install. `_reference/wow-ui-source/` is an externally maintained, read-only snapshot of one flavor — it is not a reliable runtime source and does not exist for retail, classic, or classic_era on arbitrary machines.
 
-**Goal:** Extract Lua files from the Blizzard addon directories in the user's WoW installation so they can be indexed and referenced for inheritance resolution in a future Lua runtime milestone.
+**Goal:** Extract `.lua`, `.xml`, and `.toc` files from the Blizzard addon directories in the user's WoW installation into `.wow-assets/Interface/AddOns/` (same output root as textures, already gitignored).
 
 **Plan:**
 
-- Extend `dev/extract.sh` (or add a companion script) to also extract `*.lua` files from the Blizzard addon directories (e.g. `Interface/AddOns/Blizzard_SharedXML/`, `Interface/AddOns/Blizzard_FrameXML/`).
-- For retail (CASC), this means adding Lua paths to the extraction pass via `rustydemon-cli`.
-- For classic (loose files), these Lua files already exist on disk under `$WOW_DIR/_classic_/Interface/AddOns/` and can be `rsync`'d directly.
-- Output directory: `.wow-assets/Interface/AddOns/` (same root as textures, already gitignored).
-- Once the in-process CASC reader is implemented (see above), this extraction can happen automatically on demand, the same way textures do.
+Extend `dev/extract.sh` with a `--type` (or subcommand) argument so a single script handles both textures and addon code. Both modes use the same `rustydemon-cli` invocation pattern and the same `dev/config.local.sh` config — the only difference is the path list and file-type filter passed to the tool.
 
-**Why this is needed:** M4 (Lua runtime) will need to evaluate mixin code to correctly render code-driven templates. Having the source files available locally is a prerequisite for that work.
+```
+./dev/extract.sh retail --type textures   # current behaviour (default)
+./dev/extract.sh retail --type interface  # new: extracts Interface/AddOns/**
+./dev/extract.sh retail --type all        # both
+```
 
-**Effort:** XS–S — the extraction pipeline already exists; this is adding Lua file paths to an existing pass. The harder dependency is the in-process CASC reader and M4 Lua runtime.
+- **Retail (CASC):** `--type interface` adds `Interface/AddOns/Blizzard_SharedXML/**`, `Interface/AddOns/Blizzard_FrameXML/**`, etc. to the `rustydemon-cli` pass. `.lua`/`.xml`/`.toc` files sit in the CASC archive alongside textures and extract identically.
+- **Classic / Classic Era (loose files):** Extend the `rsync` call with `--include="*.lua" --include="*.xml" --include="*.toc"` when `--type interface` or `--type all` is active.
+- Output: `.wow-assets/Interface/AddOns/<AddonName>/` — matching the WoW install layout, same output root as textures.
+
+Long-term, once the in-process CASC reader is implemented, this extraction can happen automatically on demand — the same way texture extraction works today.
+
+**Why this is needed:**
+
+- The `Blizzard FrameXML template corpus loading` item above is blocked on this — the XML files must be available locally.
+- M4 (Lua runtime) will need Lua source to evaluate mixin code for code-driven templates.
+
+**Effort:** XS–S — the extraction pipeline already exists for all three flavors; this is adding file-type coverage to each path. The harder dependency is the in-process CASC reader and M4 Lua runtime.
+
+---
+
+## WoW build version tracking and cache invalidation
+
+**Problem:** WoW is updated automatically by the Battle.net launcher. After a game update, previously extracted files in `.wow-assets/` and `.scryer-cache/` may be stale — textures or addon code that changed in the patch will not match what the extension is serving. The user has no signal that their extract is out of date, and there is no mechanism to invalidate the cache on update.
+
+**Goal:** Detect when the WoW install has been updated since the last extraction and prompt the user to re-extract (or invalidate the cache automatically).
+
+**Plan:**
+
+WoW writes a `.build.info` file at the root of the install directory (e.g. `$WOW_DIR/.build.info`). It is rewritten by the Battle.net launcher on every patch.
+
+Three viable detection approaches (pick simplest that works):
+
+- **Version string:** Parse the `BuildText` field from `.build.info` (e.g. `11.1.7.60000`) and store it in a stamp file after extraction. Compare on startup — if changed, prompt re-extraction.
+- **`.build.info` mtime:** Store the mtime of `.build.info` at extraction time. On startup, `stat` the file and compare. No parsing needed.
+- **Data file mtime/size:** `stat` the actual CASC archive files (retail: `_retail_/Data/*.idx` or the data archives themselves; classic: the loose files under `Interface/`) and store their aggregate mtime or size. This catches ninja patches — silent background updates that modify game data without bumping the version string or touching `.build.info`.
+
+Either way:
+
+1. After a successful extraction, write the stamp (version string or mtime) to `.wow-assets/.build-stamp`.
+2. At extension startup (or on first preview render), compare the current `.build.info` against the stamp.
+3. If they differ, surface a notification: _"Your WoW install was updated. Re-run extraction to get current Blizzard addon files and textures."_ with a button to trigger re-extraction.
+4. If `scryer.installDir` is not configured, skip silently.
+
+The stamp file lives in `.wow-assets/` (gitignored) alongside the extracted files — wiping and re-extracting naturally refreshes it.
+
+**Effort:** XS — a stat or single-field text parse, one file write, and a VSCode notification.
 
 ---
 
