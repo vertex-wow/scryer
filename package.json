@@ -94,7 +94,12 @@
         "scryer.installDir": {
           "type": "string",
           "default": "",
-          "description": "Path to your World of Warcraft installation directory (e.g. /path/to/World of Warcraft/_retail_). Used as a fallback texture search root for Classic loose files."
+          "description": "Path to your World of Warcraft root directory — the folder containing _retail_/, _classic_/, and .build.info (e.g. /path/to/World of Warcraft). Used for build-version detection (automatic cache invalidation on game updates) and as a loose-file texture fallback for Classic. The active flavor's subdirectory is derived automatically from scryer.flavor."
+        },
+        "scryer.cascToolPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the CASC extraction tool binary (e.g. rustydemon-cli). Passed to the extraction script via --casc-tool. If empty, the tool is auto-detected from PATH."
         },
         "scryer.blp2pngPath": {
           "type": "string",

@@ -7,15 +7,18 @@ set -euo pipefail
 # Retail: auto-detects an installed CASC extraction tool (see CASC_TOOLS below).
 # Classic/Classic Era: copies loose files from $WOW_DIR/_classic_/Interface/.
 #
-# Usage: ./dev/extract.sh [classic|classic_era|retail(default)] [--out-dir <dir>] [--type textures|interface|all] [--paths-file <file>]
+# Usage: ./dev/extract.sh [classic|classic_era|retail(default)] [--out-dir <dir>] [--type textures|interface|all] [--paths-file <file>] [--wow-dir <path>] [--casc-tool <path>]
 #
-#   --out-dir <dir>   Output root (default: .wow-assets/ beside the project). The extension
-#                     passes <cacheRoot>/source here automatically; manual runs use the default.
-#   --type textures   Extract Interface texture files (BLP/PNG/TGA). Default.
-#   --type interface  Extract Blizzard addon code (Lua/XML/TOC) from Interface/AddOns/.
-#   --type all        Extract both textures and addon code.
-#   --paths-file      Targeted extraction: a newline-delimited list of specific paths.
-#                     Overrides the default path set; --type is ignored.
+#   --out-dir <dir>     Output root (default: .wow-assets/ beside the project). The extension
+#                       passes <cacheRoot>/source here automatically; manual runs use the default.
+#   --type textures     Extract Interface texture files (BLP/PNG/TGA). Default.
+#   --type interface    Extract Blizzard addon code (Lua/XML/TOC) from Interface/AddOns/.
+#   --type all          Extract both textures and addon code.
+#   --paths-file        Targeted extraction: a newline-delimited list of specific paths.
+#                       Overrides the default path set; --type is ignored.
+#   --wow-dir <path>    WoW root directory. Overrides WOW_DIR from config.local.sh.
+#                       When provided, config.local.sh is not required.
+#   --casc-tool <path>  Path to the CASC extraction binary. Overrides CASC_TOOL from config.local.sh.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
@@ -27,6 +30,8 @@ FLAVOR="${1:-retail}"
 OUT_DIR="$PROJECT_ROOT/.wow-assets"
 PATHS_FILE=""
 TYPE="textures"
+WOW_DIR_ARG=""
+CASC_TOOL_ARG=""
 
 shift || true # consume flavor arg (or no-op if no args given)
 
@@ -63,9 +68,25 @@ while [[ $# -gt 0 ]]; do
             TYPE="$2"
             shift 2
             ;;
+        --wow-dir)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --wow-dir requires an argument" >&2
+                exit 1
+            fi
+            WOW_DIR_ARG="$2"
+            shift 2
+            ;;
+        --casc-tool)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --casc-tool requires an argument" >&2
+                exit 1
+            fi
+            CASC_TOOL_ARG="$2"
+            shift 2
+            ;;
         *)
             echo "Error: Unknown argument: $1" >&2
-            echo "Usage: $0 [retail|classic|classic_era] [--out-dir <dir>] [--type textures|interface|all] [--paths-file <file>]" >&2
+            echo "Usage: $0 [retail|classic|classic_era] [--out-dir <dir>] [--type textures|interface|all] [--paths-file <file>] [--wow-dir <path>] [--casc-tool <path>]" >&2
             exit 1
             ;;
     esac
@@ -75,17 +96,24 @@ done
 # Config
 # ---------------------------------------------------------------------------
 
-if [[ ! -f "$CONFIG" ]]; then
+# Source config.local.sh if it exists (picks up WOW_DIR, WOW_ACCOUNT, CASC_TOOL for
+# manual runs). Not required when --wow-dir and --casc-tool are provided by the caller.
+if [[ -f "$CONFIG" ]]; then
+    # shellcheck source=dev/config.local.sh
+    source "$CONFIG"
+elif [[ -z "$WOW_DIR_ARG" ]]; then
     echo "Error: $CONFIG not found." >&2
-    echo "  Copy dev/config.sh.example → dev/config.local.sh and fill in WOW_DIR." >&2
+    echo "  Copy dev/config.sh.example → dev/config.local.sh and fill in WOW_DIR," >&2
+    echo "  or pass --wow-dir <path> directly." >&2
     exit 1
 fi
 
-# shellcheck source=dev/config.local.sh
-source "$CONFIG"
+# CLI args take precedence over config file values.
+[[ -n "$WOW_DIR_ARG" ]] && WOW_DIR="$WOW_DIR_ARG"
+[[ -n "$CASC_TOOL_ARG" ]] && CASC_TOOL="$CASC_TOOL_ARG"
 
 if [[ -z "${WOW_DIR:-}" ]]; then
-    echo "Error: WOW_DIR is not set in $CONFIG" >&2
+    echo "Error: WOW_DIR is not set. Set it in $CONFIG or pass --wow-dir <path>." >&2
     exit 1
 fi
 
@@ -280,7 +308,7 @@ extract_loose() {
         echo "Error: Interface directory not found at:" >&2
         echo "  $src" >&2
         echo "" >&2
-        echo "  Check that WOW_DIR in $CONFIG points at the root WoW folder" >&2
+        echo "  Check that WOW_DIR points at the root WoW folder" >&2
         echo "  (the one that contains _classic_/ and _retail_/)." >&2
         exit 1
     fi

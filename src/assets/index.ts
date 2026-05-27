@@ -11,6 +11,13 @@ import {
   discoverBlizzardPaths,
   loadBlizzardRegistry,
 } from "../parser/blizzard-registry.js";
+import {
+  clearFlavorCache,
+  flavorSubdir,
+  readBuildStamp,
+  readBuildText,
+  writeBuildStamp,
+} from "./build-info.js";
 import { clearResolutionMemo, resolveTexturePath } from "./resolver.js";
 import { collectTexturePaths } from "../parser/collect-textures.js";
 import type { FrameIR } from "../parser/ir.js";
@@ -46,18 +53,22 @@ function resolveAddonsDir(sourceDir: string): string {
 }
 
 export interface AssetServiceOptions {
-  /** <cacheRoot>/source — parent of Interface/; raw WoW assets, expensive to regenerate. */
+  /** <cacheRoot>/<flavor>/source — parent of Interface/; raw WoW assets, expensive to regenerate. */
   sourceDir: string;
-  /** <cacheRoot>/derived/textures — BLP→PNG conversions, always safe to delete. */
+  /** <cacheRoot>/<flavor>/derived/textures — BLP→PNG conversions, always safe to delete. */
   texturesConvDir: string;
-  /** <cacheRoot>/derived/registry — parsed Blizzard template registry JSON, always safe to delete. */
+  /** <cacheRoot>/<flavor>/derived/registry — parsed Blizzard template registry JSON, always safe to delete. */
   registryDir: string;
-  /** WoW installation directory — Classic loose-file fallback; independent of cacheRoot. */
+  /** WoW root directory (contains _retail_/, _classic_/, .build.info). Used for build-version detection. */
   installDir: string;
-  /** Root of the unified cache tree; used as the single webview resource root. */
+  /** <installDir>/<flavorSubdir> — loose-file texture fallback search root for the active flavor. */
+  installFlavorDir: string;
+  /** Root of the unified cache tree; parent of all flavor subdirectories. */
   cacheRoot: string;
   flavor: string;
   extractScriptPath: string;
+  /** Path to the CASC extraction tool binary (e.g. rustydemon-cli). Empty = auto-detect from PATH. */
+  cascToolPath: string;
   output: vscode.LogOutputChannel;
   logLevel: vscode.LogLevel;
 }
@@ -109,6 +120,36 @@ export class AssetService {
   }
 
   /**
+   * Compare the WoW install's current BuildText against the on-disk stamp for the active
+   * flavor. If they differ (or the stamp is absent), delete the flavor's entire cache
+   * subtree so the next extraction starts clean. Silent no-op when installDir is unset or
+   * .build.info is unreadable (avoids destroying a valid cache on uncertainty).
+   */
+  checkBuildVersion(): void {
+    if (!this.opts.installDir) return;
+    const current = readBuildText(this.opts.installDir, this.opts.flavor);
+    if (!current) return;
+    const stamped = readBuildStamp(this.opts.cacheRoot, this.opts.flavor);
+    if (stamped === current) return;
+    clearFlavorCache(this.opts.cacheRoot, this.opts.flavor);
+    this.invalidate();
+    try {
+      this.opts.output.info(
+        `[Scryer] WoW build changed (${stamped ?? "none"} → ${current}); cleared ${this.opts.flavor} cache.`,
+      );
+    } catch {
+      /* channel disposed */
+    }
+  }
+
+  /** Write the current .build.info BuildText as the flavor stamp after a successful extraction. */
+  private writeBuildStampIfConfigured(): void {
+    if (!this.opts.installDir) return;
+    const current = readBuildText(this.opts.installDir, this.opts.flavor);
+    if (current) writeBuildStamp(this.opts.cacheRoot, this.opts.flavor, current);
+  }
+
+  /**
    * Resolve rawPath to an absolute PNG path on disk.
    * Returns null if the asset cannot be found or decoded.
    * addonDir is the directory of the XML file being previewed (for addon-local textures).
@@ -128,7 +169,7 @@ export class AssetService {
   }
 
   private get searchDirs(): string[] {
-    return [this.opts.sourceDir, this.opts.installDir].filter(Boolean);
+    return [this.opts.sourceDir, this.opts.installFlavorDir].filter(Boolean);
   }
 
   private async _resolve(rawPath: string, addonDir?: string): Promise<string | null> {
@@ -201,9 +242,12 @@ export class AssetService {
       flavor: this.opts.flavor,
       outDir: this.opts.sourceDir,
       extractScriptPath: this.opts.extractScriptPath,
+      wowDir: this.opts.installDir,
+      cascToolPath: this.opts.cascToolPath,
       output: this.opts.output,
       logLevel: this.opts.logLevel,
     });
+    this.writeBuildStampIfConfigured();
 
     // Re-check: only signal re-render if extraction actually produced new files.
     // If it didn't (no script, failed extraction, etc.) we stop here rather than loop.
@@ -249,25 +293,28 @@ export class AssetService {
    * Implementation lives in extractor.ts and will be replaced by the in-JS CASC
    * reader (see backlog: "In-process JavaScript CASC reader").
    */
-  extractMissing(paths: string[]): Promise<void> {
-    return shellExtractMissing(paths, {
+  async extractMissing(paths: string[]): Promise<void> {
+    await shellExtractMissing(paths, {
       flavor: this.opts.flavor,
       outDir: this.opts.sourceDir,
       extractScriptPath: this.opts.extractScriptPath,
+      wowDir: this.opts.installDir,
+      cascToolPath: this.opts.cascToolPath,
       output: this.opts.output,
       logLevel: this.opts.logLevel,
     });
+    this.writeBuildStampIfConfigured();
   }
 
   /**
    * Build the set of URI roots that the webview must be allowed to load from.
-   * cacheRoot covers both source/ (raw PNG/TGA served directly) and derived/textures/
-   * (BLP→PNG conversions) in one root. installDir is independent (Classic loose files).
+   * cacheRoot covers all flavor subtrees (source/ and derived/textures/).
+   * installFlavorDir is the loose-file root for Classic installations.
    */
   webviewResourceRoots(): vscode.Uri[] {
     const roots: vscode.Uri[] = [vscode.Uri.file(this.opts.cacheRoot)];
-    if (this.opts.installDir) {
-      roots.push(vscode.Uri.file(this.opts.installDir));
+    if (this.opts.installFlavorDir) {
+      roots.push(vscode.Uri.file(this.opts.installFlavorDir));
     }
     return roots;
   }
@@ -291,16 +338,22 @@ export class AssetService {
     const installDir = cfg.get<string>("installDir") ?? "";
     const flavor = cfg.get<string>("flavor") || "retail";
     const extractScriptPath = cfg.get<string>("extractScriptPath") ?? "";
+    const cascToolPath = cfg.get<string>("cascToolPath") ?? "";
     const logLevel = parseLogLevel(cfg.get<string>("logLevel") ?? "warning");
 
+    const flavorRoot = path.join(cacheRoot, flavor);
+    const installFlavorDir = installDir ? path.join(installDir, flavorSubdir(flavor)) : "";
+
     return new AssetService({
-      sourceDir: path.join(cacheRoot, "source"),
-      texturesConvDir: path.join(cacheRoot, "derived", "textures"),
-      registryDir: path.join(cacheRoot, "derived", "registry"),
+      sourceDir: path.join(flavorRoot, "source"),
+      texturesConvDir: path.join(flavorRoot, "derived", "textures"),
+      registryDir: path.join(flavorRoot, "derived", "registry"),
       installDir,
+      installFlavorDir,
       cacheRoot,
       flavor,
       extractScriptPath,
+      cascToolPath,
       output,
       logLevel,
     });

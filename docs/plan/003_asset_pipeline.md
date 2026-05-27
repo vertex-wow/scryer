@@ -81,18 +81,32 @@ VSCode settings contributed via `package.json`:
 ```jsonc
 "scryer.cacheLocation": "global", // "global" (globalStorageUri, default) | "workspace" | "custom"
 "scryer.cacheDir": "",            // path when cacheLocation=custom; ignored otherwise
-"scryer.installDir": "",          // WoW install dir — Classic loose-file fallback
+"scryer.installDir": "",          // WoW root dir — contains _retail_/, _classic_/, .build.info
+"scryer.flavor": "retail",        // active flavor: retail | classic | classic_era
+"scryer.cascToolPath": "",        // optional: pin CASC extraction binary (e.g. rustydemon-cli)
 "scryer.blp2pngPath": ""          // optional: path to blp2png binary (not yet wired)
 ```
 
-The resolved `cacheRoot` contains:
+`scryer.installDir` is the WoW **root** (the folder containing `_retail_/`, `_classic_/`, and `.build.info`). The flavor subdirectory (`_retail_`, `_classic_`, `_classic_era_`) is derived automatically from `scryer.flavor`.
+
+The resolved `cacheRoot` is partitioned by flavor so retail and classic caches are fully isolated:
 
 ```
 <cacheRoot>/
-  source/Interface/...     raw WoW assets (extracted BLP/PNG/TGA/Lua/XML) — expensive to regenerate
-  derived/textures/        BLP→PNG conversions — safe to delete, rebuilt on demand
-  derived/registry/        parsed Blizzard template registry JSON — safe to delete
+  retail/
+    source/Interface/...     raw WoW assets — expensive to regenerate
+    derived/textures/        BLP→PNG conversions — safe to delete, rebuilt on demand
+    derived/registry/        parsed Blizzard template registry JSON — safe to delete
+    .build-stamp             BuildText from .build.info at last extraction (e.g. "11.1.7.60000")
+  classic/
+    source/...
+    derived/...
+    .build-stamp
+  classic_era/
+    ...
 ```
+
+On extension startup, `AssetService.checkBuildVersion()` reads `<installDir>/.build.info`, parses the `Version` field for the active flavor's product key (`wow`, `wow_classic`, `wow_classic_era`), and compares it against `.build-stamp`. If they differ, the entire `<cacheRoot>/<flavor>/` subtree is deleted silently and a message is written to the Scryer output channel. After each successful extraction, the current `BuildText` is written back to `.build-stamp`.
 
 Default cacheRoot (`"global"`) is `context.globalStorageUri.fsPath`, shared across workspaces so the GB-scale asset tree is not duplicated per project. `"workspace"` uses `.scryer-cache/` inside the workspace folder (gitignored).
 
@@ -111,19 +125,25 @@ Atlas textures currently render as labeled colored placeholders (`[atlas] <name>
 
 We do not bundle WoW assets (copyright). `dev/extract.sh` is the primary contributor workflow:
 
-- **`dev/extract.sh`** (shipped 2026-05-26) — reads `WOW_DIR` from `dev/config.local.sh`, accepts `retail`/`classic`/`classic_era` flavor arg, extracts a minimal Interface texture slice into `.wow-assets/` (gitignored).
+- **`dev/extract.sh`** — accepts `retail`/`classic`/`classic_era` flavor arg plus:
+  - `--out-dir <path>` — output root (default: `.wow-assets/`; the extension passes `<cacheRoot>/<flavor>/source` automatically)
+  - `--wow-dir <path>` — WoW root, overrides `WOW_DIR` from `config.local.sh`; not required when called from the extension
+  - `--casc-tool <path>` — CASC binary path, overrides `CASC_TOOL` from config; not required when called from the extension
+  - `--type textures|interface|all` — what to extract
+  - `--paths-file <file>` — targeted extraction (newline-delimited WoW-relative paths)
   - **Retail:** `rustydemon-cli` (Rust CASC extractor); auto-downloads Marlamin community listfile. Outputs BLP — exercises the BLP→PNG decode path.
   - **Classic/Classic Era:** `rsync` from loose `$WOW_DIR/_classic_/Interface/` files.
-  - `CASC_TOOL` override in `dev/config.local.sh` for non-PATH installs (e.g. Windows).
+  - `dev/config.local.sh` is only required for `links.sh` and manual `extract.sh` runs without `--wow-dir`. The extension passes `scryer.installDir` and `scryer.cascToolPath` as CLI args automatically.
 - **CASCExplorer** — alternative GUI for browsing and extracting individual files from CASC.
 - **WoW.export** (Marlamin) — GUI/CLI alternative that outputs PNG directly; useful if rustydemon-cli is unavailable.
 
 ## Local Cache
 
-- Cache root: `<cacheRoot>/derived/textures/` for BLP→PNG conversions; `<cacheRoot>/source/` for raw extracted assets.
-- Key: SHA1 of the resolved source path + mtime + size (invalidates on file change).
+- Cache is partitioned by flavor: `<cacheRoot>/<flavor>/source/` for raw assets, `<cacheRoot>/<flavor>/derived/textures/` for BLP→PNG conversions, `<cacheRoot>/<flavor>/derived/registry/` for the Blizzard template registry.
+- Per-file key: SHA1 of the resolved source path + mtime + size (invalidates on file change).
 - File: `<sha1>.png` (decoded/converted texture).
 - PNG/TGA/BLP files in `source/` are served directly; only BLP→PNG conversions are written to `derived/textures/`.
+- `.build-stamp` under `<cacheRoot>/<flavor>/` records the `BuildText` from `.build.info` at last extraction; used by `checkBuildVersion()` to detect WoW patches and auto-wipe the stale flavor subtree.
 - `.scryer-cache/` in the workspace is gitignored (used when `cacheLocation = "workspace"`).
 
 ## Fallback

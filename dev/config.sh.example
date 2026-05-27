@@ -1,11 +1,22 @@
-# Copy this to config.local.sh and update with your local paths
+# dev/config.sh.example — copy to config.local.sh and fill in your local paths.
+#
+# Scripts that still read this file:
+#   links.sh   — requires WOW_DIR and WOW_ACCOUNT (sets up _live/ symlinks)
+#   extract.sh — uses WOW_DIR and CASC_TOOL as fallbacks for manual runs;
+#                NOT required when extract.sh is invoked by the extension
+#                (the extension passes --wow-dir and --casc-tool automatically
+#                from scryer.installDir and scryer.cascToolPath).
+
+# Root of your WoW installation — the folder containing _retail_/, _classic_/, .build.info.
+# Required by links.sh. Optional for extract.sh when called via the extension.
 WOW_DIR="/path/to/your/World of Warcraft/"
-WOW_ACCOUNT="youraccouontname"
+
+# Your Battle.net account name (the folder under WTF/Account/).
+# Required by links.sh to set up the WTF-Account symlink.
+WOW_ACCOUNT="youraccountname"
 
 # Optional: pin the rustydemon-cli binary path for dev/extract.sh.
 # When set, this path is used directly instead of auto-detecting from PATH.
 # Useful on Windows where adding things to PATH is annoying.
+# The extension uses scryer.cascToolPath instead of this variable.
 #CASC_TOOL="/path/to/rustydemon-cli"
-
-# After running dev/extract.sh, add this to .vscode/settings.json:
-#   "scryer.extractedAssetsDir": "/path/to/wow-addon-preview/.wow-assets"

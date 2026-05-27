@@ -8,6 +8,10 @@ export interface ExtractorOptions {
   flavor: string;
   outDir: string;
   extractScriptPath: string;
+  /** WoW root directory passed as --wow-dir to the extraction script. */
+  wowDir?: string;
+  /** Path to the CASC tool binary passed as --casc-tool to the extraction script. */
+  cascToolPath?: string;
   output: vscode.LogOutputChannel;
   logLevel: vscode.LogLevel;
 }
@@ -65,7 +69,15 @@ function spawnExtract(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const flavor = opts.flavor || "retail";
-    const args = [flavor, "--out-dir", opts.outDir, "--paths-file", pathsFile];
+    const args = [
+      flavor,
+      "--out-dir",
+      opts.outDir,
+      "--paths-file",
+      pathsFile,
+      ...(opts.wowDir ? ["--wow-dir", opts.wowDir] : []),
+      ...(opts.cascToolPath ? ["--casc-tool", opts.cascToolPath] : []),
+    ];
     safeLog(opts.output, "debug", `[Scryer] Spawning: ${scriptPath} ${args.join(" ")}`);
     const proc = cp.spawn(scriptPath, args, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -107,7 +119,15 @@ export async function shellExtractInterface(opts: ExtractorOptions): Promise<voi
 function spawnExtractInterface(scriptPath: string, opts: ExtractorOptions): Promise<void> {
   return new Promise((resolve, reject) => {
     const flavor = opts.flavor || "retail";
-    const args = [flavor, "--out-dir", opts.outDir, "--type", "interface"];
+    const args = [
+      flavor,
+      "--out-dir",
+      opts.outDir,
+      "--type",
+      "interface",
+      ...(opts.wowDir ? ["--wow-dir", opts.wowDir] : []),
+      ...(opts.cascToolPath ? ["--casc-tool", opts.cascToolPath] : []),
+    ];
     safeLog(opts.output, "debug", `[Scryer] Spawning: ${scriptPath} ${args.join(" ")}`);
     const proc = cp.spawn(scriptPath, args, {
       stdio: ["ignore", "pipe", "pipe"],

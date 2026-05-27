@@ -234,30 +234,23 @@ N is clamped to available fixtures (no cycling). When fewer fixtures are on disk
 
 ## WoW build version tracking and cache invalidation
 
-**Problem:** WoW is updated automatically by the Battle.net launcher. After a game update, previously extracted files in `<cacheRoot>/source/` and `<cacheRoot>/derived/` may be stale — textures or addon code that changed in the patch will not match what the extension is serving. The user has no signal that their extract is out of date, and there is no mechanism to invalidate the cache on update.
+**Status: Done** (2026-05-27)
 
-**Goal:** Detect when the WoW install has been updated since the last extraction and prompt the user to re-extract (or invalidate the cache automatically).
+**What was built:**
 
-**Plan:**
+`src/assets/build-info.ts` — pure-fs module exporting `FLAVOR_INFO` (flavor → `{ product, subdir }` map), `parseBuildInfo` (pipe-delimited `.build.info` parser accepting `Version` or `BuildText` column), `readBuildText`, `readBuildStamp`, `writeBuildStamp`, `clearFlavorCache`, and `flavorSubdir`/`flavorProduct` helpers.
 
-WoW writes a `.build.info` file at the root of the install directory (e.g. `$WOW_DIR/.build.info`). It is rewritten by the Battle.net launcher on every patch.
+**Cache layout changed to per-flavor:** `<cacheRoot>/<flavor>/source/`, `<cacheRoot>/<flavor>/derived/textures/`, `<cacheRoot>/<flavor>/derived/registry/`. This ensures retail and classic caches are fully isolated — a retail patch wipes only `<cacheRoot>/retail/` and leaves classic untouched.
 
-Three viable detection approaches (pick simplest that works):
+**`AssetService.checkBuildVersion()`** — called synchronously at startup in `extension.ts` before the prewarm block. Reads `.build.info` from `scryer.installDir`, compares `BuildText` for the configured flavor against `<cacheRoot>/<flavor>/.build-stamp`. On mismatch: deletes the flavor cache subtree, calls `invalidate()`, logs to the output channel. No-op when `installDir` is unset or `.build.info` is unreadable (no cache wipe on uncertainty).
 
-- **Version string:** Parse the `BuildText` field from `.build.info` (e.g. `11.1.7.60000`) and store it in a stamp file after extraction. Compare on startup — if changed, prompt re-extraction.
-- **`.build.info` mtime:** Store the mtime of `.build.info` at extraction time. On startup, `stat` the file and compare. No parsing needed.
-- **Data file mtime/size:** `stat` the actual CASC archive files (retail: `_retail_/Data/*.idx` or the data archives themselves; classic: the loose files under `Interface/`) and store their aggregate mtime or size. This catches ninja patches — silent background updates that modify game data without bumping the version string or touching `.build.info`.
+**Stamp written after extraction** — `writeBuildStampIfConfigured()` called after `extractMissing` and `ensureBlizzardFiles` succeed.
 
-Either way:
+**`scryer.installDir` is now the WoW root** (not the flavor subdir). `fromConfig` derives `installFlavorDir = path.join(installDir, flavorSubdir(flavor))` for loose-file searches and webview resource roots. `scryer.cascToolPath` setting added for pinning the CASC tool binary.
 
-1. After a successful extraction, write the stamp (version string or mtime) to `<cacheRoot>/source/.build-stamp`.
-2. At extension startup (or on first preview render), compare the current `.build.info` against the stamp.
-3. If they differ, surface a notification: _"Your WoW install was updated. Re-run extraction to get current Blizzard addon files and textures."_ with a button to trigger re-extraction.
-4. If `scryer.installDir` is not configured, skip silently.
+**`dev/extract.sh`** now accepts `--wow-dir <path>` and `--casc-tool <path>`, making `config.local.sh` optional when called from the extension. `dev/config.sh.example` and `dev/config.local.sh` updated with header comments listing which scripts still require the config file (`links.sh`).
 
-The stamp file lives in `<cacheRoot>/source/` alongside the extracted files — wiping and re-extracting naturally refreshes it.
-
-**Effort:** XS — a stat or single-field text parse, one file write, and a VSCode notification.
+**Tests:** `test/assets/build-info.test.ts` — 27 tests covering parser edge cases, round-trip stamp read/write, per-flavor isolation, and null-safety.
 
 ---
 

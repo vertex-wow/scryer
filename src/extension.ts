@@ -10,6 +10,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Scryer", { log: true });
   context.subscriptions.push(output);
   const assets = AssetService.fromConfig(context, output);
+  assets.checkBuildVersion();
 
   const cmd = vscode.commands.registerCommand("scryer.open", (uri?: vscode.Uri) => {
     const resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
