@@ -225,17 +225,21 @@ function resolveFrameName(frame: FrameIR, parentName: string): void {
   }
 }
 
+interface ResolveOpts {
+  warnings?: { count: number };
+  pending?: boolean;
+  warn?: (msg: string) => void;
+}
+
 function resolveFrame(
   frame: FrameIR,
   registry: Map<string, FrameIR>,
   resolving: Set<string>,
-  warnings?: { count: number },
-  pending = false,
+  opts: ResolveOpts = {},
 ): FrameIR {
+  const { warnings, pending = false, warn } = opts;
   // Recursively resolve children first (bottom-up)
-  frame.children = frame.children.map((c) =>
-    resolveFrame(c, registry, resolving, warnings, pending),
-  );
+  frame.children = frame.children.map((c) => resolveFrame(c, registry, resolving, opts));
 
   if (frame.inherits.length === 0) return frame;
 
@@ -243,7 +247,7 @@ function resolveFrame(
   const frameName = frame.name;
   if (frameName) {
     if (resolving.has(frameName)) {
-      console.warn(`[scryer] Circular template inheritance detected at "${frameName}"`);
+      warn?.(`[scryer] Circular template inheritance detected at "${frameName}"`);
       return frame;
     }
     resolving.add(frameName);
@@ -256,24 +260,18 @@ function resolveFrame(
     const tmpl = registry.get(templateName);
     if (!tmpl) {
       if (pending) {
-        console.log(
-          `[scryer] Template "${templateName}" not found (referenced by "${frameName}") — queued for extraction`,
+        warn?.(
+          `[scryer] Template "${templateName}" not found (referenced by "${frameName ?? "<anonymous>"}") — queued for extraction`,
         );
       } else {
-        console.warn(
-          `[scryer] Template "${templateName}" not found (referenced by "${frameName}")`,
+        warn?.(
+          `[scryer] Template "${templateName}" not found (referenced by "${frameName ?? "<anonymous>"}") — unknown template`,
         );
       }
       if (warnings) warnings.count++;
       continue;
     }
-    const resolvedTmpl = resolveFrame(
-      cloneFrame(tmpl),
-      registry,
-      new Set(resolving),
-      warnings,
-      pending,
-    );
+    const resolvedTmpl = resolveFrame(cloneFrame(tmpl), registry, new Set(resolving), opts);
     if (templateBase === null) {
       templateBase = resolvedTmpl;
     } else {
@@ -299,8 +297,7 @@ function resolveFrame(
 export function resolveInheritance(
   docs: UiDocument[],
   blizzardRegistry: Map<string, FrameIR> = new Map(),
-  warnings?: { count: number },
-  pending = false,
+  opts: ResolveOpts = {},
 ): UiDocument[] {
   // Build global template registry: blizzard first, then user docs in order
   const registry = new Map<string, FrameIR>(blizzardRegistry);
@@ -312,7 +309,7 @@ export function resolveInheritance(
 
   return docs.map((doc) => {
     const resolvedFrames = doc.frames.map((f) => {
-      const resolved = resolveFrame(cloneFrame(f), registry, new Set(), warnings, pending);
+      const resolved = resolveFrame(cloneFrame(f), registry, new Set(), opts);
       // Expand $parent in top-level frames (parent name is empty string — no substitution)
       resolveFrameName(resolved, "");
       return resolved;
@@ -320,7 +317,7 @@ export function resolveInheritance(
 
     const resolvedTemplates = new Map<string, FrameIR>();
     for (const [name, tmpl] of doc.templates) {
-      const resolved = resolveFrame(cloneFrame(tmpl), registry, new Set(), warnings, pending);
+      const resolved = resolveFrame(cloneFrame(tmpl), registry, new Set(), opts);
       resolvedTemplates.set(name, resolved);
     }
 

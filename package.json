@@ -116,6 +116,27 @@
           "type": "string",
           "default": "",
           "description": "Path to the extraction script. Defaults to dev/extract.sh in the workspace root. Leave empty for auto-detection."
+        },
+        "scryer.logLevel": {
+          "type": "string",
+          "enum": [
+            "off",
+            "trace",
+            "debug",
+            "info",
+            "warning",
+            "error"
+          ],
+          "enumDescriptions": [
+            "No output",
+            "All messages including trace-level diagnostics",
+            "Debug and above: verbose diagnostics, corpus stats, template chains",
+            "Info and above",
+            "Warnings and above: unknown templates, missing assets, resolution failures (default)",
+            "Errors only"
+          ],
+          "default": "warning",
+          "description": "Controls how much diagnostic output Scryer writes to the Output channel"
         }
       }
     }

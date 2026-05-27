@@ -311,39 +311,22 @@ Default: `"extracted"` — preload whatever is already on disk, no auto-extracti
 
 ## Output channel logging and `scryer.logLevel` setting
 
-**Problem:** Unknown-template warnings from `resolveInheritance` are currently silent — they disappear into the void. Users have no way to know why a frame renders incorrectly, and there is no way to get verbose diagnostic output when debugging a new addon or a fresh extraction.
+**Status: Done** (2026-05-26)
 
-**Plan:** Two changes, independent but shipped together:
+**What was built:**
 
-### 1. Route unknown-template warnings to the Output channel (no setting needed)
+`src/parser/inherit.ts` — `resolveInheritance` now accepts an options object `{ warnings?, pending?, warn? }` as its third parameter (replaces the old positional `warnings` + `pending` args). All `console.warn`/`console.log` calls removed; messages are routed through the optional `warn?: (msg: string) => void` callback instead. This keeps `inherit.ts` a pure module with no VSCode dependency and makes it fully testable without mocking.
 
-`inherit.ts` is a pure module with no VSCode dependency. The clean approach is to add an optional `warn` callback to `resolveInheritance`:
+`package.json` — Added `scryer.logLevel` enum setting (`"off"` / `"warn"` / `"verbose"`, default `"warn"`).
 
-```ts
-resolveInheritance(frames, registry, { warn?: (msg: string) => void })
-```
+`src/panel.ts` — Switched to `vscode.LogOutputChannel` (`createOutputChannel("Scryer", { log: true })`). Two helpers: `logLevel()` reads `scryer.logLevel` and returns the matching `vscode.LogLevel` enum value; `isEnabled(messageLevel)` returns true when the current level is not `Off` and is ≤ `messageLevel`. All output calls use the typed channel methods (`output.warn`, `output.debug`, `output.error`) gated on `isEnabled`:
 
-`panel.ts` passes `this.output.appendLine` as the callback. Unknown-template hits, missing parent chains, and any other resolution failures get surfaced to the user immediately in the Output panel. No toggle needed — these are always user-relevant errors, not developer-only noise.
+- `Warning` and above: unknown-template and asset-not-found messages via the `warnCb` passed to `resolveInheritance`, and direct `output.warn()` for missing assets.
+- `Debug` and above: Blizzard registry size, per-render frame/texture counts, and per-frame template chains.
+- `Error`: render errors (also calls `output.show(true)` to surface the panel).
+- `Off`: nothing written.
 
-### 2. `scryer.logLevel` enum setting
-
-Rather than a boolean debug flag, expose a three-value enum:
-
-| Value       | Behavior                                                                                                      |
-| ----------- | ------------------------------------------------------------------------------------------------------------- |
-| `"off"`     | No output channel messages at all                                                                             |
-| `"warn"`    | Unknown templates, missing assets, resolution failures (default — what most users want)                       |
-| `"verbose"` | Everything in `"warn"` plus: corpus load counts, per-render texture counts, resolved template chain per frame |
-
-Default: `"warn"`. VSCode renders enum settings as a dropdown, so this is nicer than a boolean. `"verbose"` is the diagnostic mode for contributors and bug reporters.
-
-**Implementation notes:**
-
-- The `warn` callback approach keeps `inherit.ts` testable without mocking VSCode.
-- `panel.ts` reads `scryer.logLevel` on each render call (no need to watch for changes — it's a per-render read).
-- Log level `"off"` passes `undefined` as the warn callback; `"warn"` and `"verbose"` both pass `this.output.appendLine`, with verbose paths doing additional `appendLine` calls for corpus stats and template chains.
-
-**Effort:** S — three-file change for the warn routing (`inherit.ts`, `panel.ts`, `package.json`). The log level setting and verbose paths add another hour.
+`test/parser/inherit.test.ts` — "unknown template" tests updated to use the new options-object API and assert on the warn callback messages rather than console spies.
 
 ---
 

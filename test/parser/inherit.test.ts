@@ -224,24 +224,32 @@ describe("resolveInheritance — multi-inheritance", () => {
 // ---------------------------------------------------------------------------
 
 describe("resolveInheritance — unknown template", () => {
-  test("logs at console.log level when extraction is pending", () => {
+  test("calls warn callback with pending message when extraction is pending", () => {
     const xml = `<Ui ${UI_NS}><Frame name="C" inherits="NonExistentTemplate"/></Ui>`;
-    const logSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const messages: string[] = [];
     const warns = { count: 0 };
-    resolveInheritance([parseXmlFile("test.xml", xml)], new Map(), warns, true);
+    resolveInheritance([parseXmlFile("test.xml", xml)], new Map(), {
+      warnings: warns,
+      pending: true,
+      warn: (msg) => messages.push(msg),
+    });
     expect(warns.count).toBe(1);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("NonExistentTemplate"));
-    logSpy.mockRestore();
+    expect(messages.some((m) => m.includes("NonExistentTemplate"))).toBe(true);
+    expect(messages.some((m) => m.includes("queued for extraction"))).toBe(true);
   });
 
-  test("logs at console.warn level after extraction has run", () => {
+  test("calls warn callback with warning message after extraction has run", () => {
     const xml = `<Ui ${UI_NS}><Frame name="C" inherits="NonExistentTemplate"/></Ui>`;
-    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    const messages: string[] = [];
     const warns = { count: 0 };
-    resolveInheritance([parseXmlFile("test.xml", xml)], new Map(), warns, false);
+    resolveInheritance([parseXmlFile("test.xml", xml)], new Map(), {
+      warnings: warns,
+      pending: false,
+      warn: (msg) => messages.push(msg),
+    });
     expect(warns.count).toBe(1);
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("NonExistentTemplate"));
-    warnSpy.mockRestore();
+    expect(messages.some((m) => m.includes("NonExistentTemplate"))).toBe(true);
+    expect(messages.some((m) => m.includes("unknown template"))).toBe(true);
   });
 });
 

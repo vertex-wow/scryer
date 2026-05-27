@@ -22,7 +22,7 @@ export class ScryerPanel {
   static readonly viewType = "scryer.preview";
 
   private readonly panel: vscode.WebviewPanel;
-  private readonly output: vscode.OutputChannel;
+  private readonly output: vscode.LogOutputChannel;
   private readonly context: vscode.ExtensionContext;
   private disposables: vscode.Disposable[] = [];
   private assets: AssetService;
@@ -44,7 +44,7 @@ export class ScryerPanel {
       ? vscode.ViewColumn.Beside
       : vscode.ViewColumn.One;
 
-    const output = vscode.window.createOutputChannel("Scryer");
+    const output = vscode.window.createOutputChannel("Scryer", { log: true });
     const assets = AssetService.fromConfig(context, output);
 
     const panel = vscode.window.createWebviewPanel(
@@ -68,7 +68,7 @@ export class ScryerPanel {
     panel: vscode.WebviewPanel,
     context: vscode.ExtensionContext,
     uri: vscode.Uri,
-    output: vscode.OutputChannel,
+    output: vscode.LogOutputChannel,
     assets: AssetService,
   ) {
     this.panel = panel;
@@ -116,12 +116,32 @@ export class ScryerPanel {
     }
   }
 
+  private logLevel(): vscode.LogLevel {
+    const s = vscode.workspace.getConfiguration("scryer").get<string>("logLevel") ?? "warning";
+    const map: Record<string, vscode.LogLevel> = {
+      off: vscode.LogLevel.Off,
+      trace: vscode.LogLevel.Trace,
+      debug: vscode.LogLevel.Debug,
+      info: vscode.LogLevel.Info,
+      warning: vscode.LogLevel.Warning,
+      error: vscode.LogLevel.Error,
+    };
+    return map[s] ?? vscode.LogLevel.Warning;
+  }
+
+  private isEnabled(messageLevel: vscode.LogLevel): boolean {
+    const l = this.logLevel();
+    return l !== vscode.LogLevel.Off && l <= messageLevel;
+  }
+
   private async resolveAndSendAsset(rawPath: string, addonDir: string): Promise<void> {
     const absPath = await this.assets.resolveToAbsPath(rawPath, addonDir);
     if (!absPath) {
-      this.output.appendLine(
-        `[Scryer] Asset not found: ${rawPath} — configure scryer.extractedAssetsDir to load real textures.`,
-      );
+      if (this.isEnabled(vscode.LogLevel.Warning)) {
+        this.output.warn(
+          `Asset not found: ${rawPath} — configure scryer.extractedAssetsDir to load real textures.`,
+        );
+      }
       if (!this.retryInProgress && !this.extractionTriedPaths.has(rawPath)) {
         this.missingPaths.set(rawPath, addonDir);
         this.scheduleMissingExtract();
@@ -192,11 +212,36 @@ export class ScryerPanel {
 
       // Load Blizzard template registry (disk-cached; fast after first parse).
       const blizzardRegistry = this.assets.loadBlizzardTemplates();
+      if (this.isEnabled(vscode.LogLevel.Debug)) {
+        this.output.debug(`Blizzard registry: ${blizzardRegistry.size} templates`);
+      }
+
+      const warnCb = this.isEnabled(vscode.LogLevel.Warning)
+        ? (msg: string) => this.output.warn(msg)
+        : undefined;
+
       const warns = { count: 0 };
-      const [resolved] = resolveInheritance([doc], blizzardRegistry, warns, isFirstExtraction);
+      const [resolved] = resolveInheritance([doc], blizzardRegistry, {
+        warnings: warns,
+        pending: isFirstExtraction,
+        warn: warnCb,
+      });
       if (!resolved) return;
 
       const renderFrames = resolved.frames.filter((f) => !f.virtual);
+      const addonDir = path.dirname(uri.fsPath);
+      const texturePaths = collectTexturePaths(renderFrames);
+
+      if (this.isEnabled(vscode.LogLevel.Debug)) {
+        this.output.debug(`Render: ${renderFrames.length} frames, ${texturePaths.length} textures`);
+        for (const frame of renderFrames) {
+          if (frame.templateChain.length > 0) {
+            this.output.debug(
+              `  ${frame.name ?? "<anonymous>"}: inherits [${frame.templateChain.filter(Boolean).join(" → ")}]`,
+            );
+          }
+        }
+      }
 
       const msg: HostMessage = {
         type: "render",
@@ -211,13 +256,14 @@ export class ScryerPanel {
       // Proactively queue all texture paths found in the resolved frame tree.
       // This triggers extraction for the full inheritance stack up-front rather
       // than waiting for the webview to request them one at a time.
-      const addonDir = path.dirname(uri.fsPath);
-      for (const rawPath of collectTexturePaths(renderFrames)) {
+      for (const rawPath of texturePaths) {
         void this.resolveAndSendAsset(rawPath, addonDir);
       }
     } catch (err) {
-      this.output.appendLine(`[Scryer] Error rendering ${uri.fsPath}: ${String(err)}`);
-      this.output.show(true);
+      if (this.isEnabled(vscode.LogLevel.Error)) {
+        this.output.error(`Error rendering ${uri.fsPath}: ${String(err)}`);
+        this.output.show(true);
+      }
     }
   }
 
