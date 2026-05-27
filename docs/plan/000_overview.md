@@ -8,16 +8,32 @@ End state: open any addon folder, pick a version target (Mainline/MoP Classic/Cl
 
 ## Milestone Table
 
-| #   | Name                      | Status                   | Description                                             | Effort | Depends on |
-| --- | ------------------------- | ------------------------ | ------------------------------------------------------- | ------ | ---------- |
-| —   | **[Backlog](backlog.md)** | 📋 6 items               | Outstanding tasks deferred from completed milestones    | —      | —          |
-| 1   | WoW XML Parser            | ✅ Complete (2026-05-24) | Parse `.xml` → typed IR; resolve templates/inheritance  | M      | —          |
-| 2   | Static XML Preview        | ✅ Complete (2026-05-24) | Render IR in a DOM webview with WoW anchor layout       | M      | 1          |
-| 3   | Asset Pipeline            | ✅ Complete (2026-05-25) | BLP→PNG conversion, path/atlas resolution, cache        | M      | 2          |
-| 4   | Lua Shim Runtime          | ⬜ Pending               | Sandboxed Lua exec + WoW API stubs + frame object model | M      | 1, 2       |
-| 5   | Multi-Version Targets     | ⬜ Pending               | Selectable Classic/Cata/Retail API profiles             | S–M    | 4          |
-| 6   | Hot Reload _(stretch)_    | ⬜ Pending               | Re-parse/re-run on save with minimal repaint            | M      | 2, 4       |
-| 7   | Test Suite _(stretch)_    | ⬜ Pending               | Headless addon test runner + reporter                   | M      | 4          |
+Backlog items (↳) are deferred tasks attached to the milestone after which they were scheduled or completed. See [backlog.md](backlog.md) for full detail on each.
+
+| #   | Name                                                                                                                 | Status                   | Description                                              | Effort | Depends on |
+| --- | -------------------------------------------------------------------------------------------------------------------- | ------------------------ | -------------------------------------------------------- | ------ | ---------- |
+| 1   | WoW XML Parser                                                                                                       | ✅ Complete (2026-05-24) | Parse `.xml` → typed IR; resolve templates/inheritance   | M      | —          |
+| ↳   | [CI-safe committed fixtures](backlog.md#ci-safe-committed-fixtures-deferred-from-m1)                                 | ✅ Done                  | Replace live-fixture tests with inline cookbook fixtures | Done   | —          |
+| 2   | Static XML Preview                                                                                                   | ✅ Complete (2026-05-24) | Render IR in a DOM webview with WoW anchor layout        | M      | 1          |
+| ↳   | [relativeKey anchor resolution](backlog.md#relativekey-anchor-targets-deferred-from-m2)                              | ✅ Done (2026-05-26)     | Resolve `$parent.Key` anchors in the layout engine       | Done   | —          |
+| 3   | Asset Pipeline                                                                                                       | ✅ Complete (2026-05-25) | BLP→PNG conversion, path/atlas resolution, cache         | M      | 2          |
+| ↳   | [dev/extract.sh contributor script](backlog.md#devextractsh--wow-asset-extraction-for-contributors-deferred-from-m3) | ✅ Done (2026-05-26)     | Shell script for extracting WoW textures + addon files   | Done   | —          |
+| ↳   | [On-demand texture extraction](backlog.md#on-demand-texture-extraction-from-the-preview-deferred-from-m3)            | ✅ Done (2026-05-26)     | Extract missing textures on demand from preview panel    | Done   | —          |
+| ↳   | [Extract Blizzard addon files](backlog.md#extract-blizzard-interface-addon-files-from-users-wow-installation)        | ✅ Done (2026-05-26)     | `--type interface` for Blizzard SharedXML/FrameXML       | Done   | —          |
+| ↳   | [Blizzard FrameXML corpus loading](backlog.md#blizzard-framexml-template-corpus-loading-pre-m4)                      | ✅ Done (2026-05-26)     | Load Blizzard template registry from extracted addons    | Done   | —          |
+| 4   | Lua Shim Runtime                                                                                                     | ⬜ Pending               | Sandboxed Lua exec + WoW API stubs + frame object model  | M      | 1, 2       |
+| 5   | Multi-Version Targets                                                                                                | ⬜ Pending               | Selectable Classic/Cata/Retail API profiles              | S–M    | 4          |
+| 6   | Hot Reload _(stretch)_                                                                                               | ⬜ Pending               | Re-parse/re-run on save with minimal repaint             | M      | 2, 4       |
+| 7   | Test Suite _(stretch)_                                                                                               | ⬜ Pending               | Headless addon test runner + reporter                    | M      | 4          |
+| ↳   | [TGA texture decode](backlog.md#tga-texture-decode-deferred-from-m3)                                                 | 📋 Pending               | Decode `.tga` textures via pure-JS decoder               | S      | —          |
+| ↳   | [In-app asset setup guidance](backlog.md#in-app-asset-setup-guidance-for-end-users-deferred-from-m3)                 | 📋 Pending               | One-time notification when no assets are configured      | S      | —          |
+| ↳   | [Output channel logging + logLevel](backlog.md#output-channel-logging-and-scryer.loglevel-setting)                   | 📋 Pending               | Route warnings to output panel; add `scryer.logLevel`    | S      | —          |
+| ↳   | [In-process CASC reader](backlog.md#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli)             | 📋 Pending               | Read WoW CASC archives in-process, no external binary    | L      | —          |
+| ↳   | [WoW build version tracking](backlog.md#wow-build-version-tracking-and-cache-invalidation)                           | 📋 Pending               | Detect WoW patches; prompt re-extraction on update       | XS     | —          |
+| ↳   | [Preload workspace textures](backlog.md#preload-workspace-textures-at-startup)                                       | 📋 Pending               | Pre-warm asset cache at extension startup                | S      | —          |
+| ↳   | [Configurable preload scope](backlog.md#configurable-preload-scope-setting)                                          | 📋 Pending               | `scryer.preloadScope` enum to control preload depth      | XS–S   | —          |
+| ↳   | [Extraction benchmarks](backlog.md#extraction-benchmarks)                                                            | 📋 Pending               | Benchmark extraction pipeline at varying concurrency     | S      | —          |
+| ↳   | [tsconfig solution-style refactor](backlog.md#tsconfig-solution-style-refactor-ide-tooling-debt)                     | 📋 Pending               | Fix IDE type resolution for test files                   | XS     | —          |
 
 ## Recommended Tech Stack
 
