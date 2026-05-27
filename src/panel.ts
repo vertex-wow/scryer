@@ -4,6 +4,7 @@ import { AssetService } from "./assets/index.js";
 import { parseXmlFile } from "./parser/index.js";
 import { resolveInheritance } from "./parser/inherit.js";
 import { collectTexturePaths } from "./parser/collect-textures.js";
+import type { FrameIR } from "./parser/ir.js";
 import type { HostMessage, Viewport } from "./protocol.js";
 
 function getNonce(): string {
@@ -38,6 +39,8 @@ export class ScryerPanel {
   // True once the Blizzard addon extraction attempt has finished for this asset service
   // instance; prevents the "pending fetches" label from flickering on every re-render.
   private blizzardExtractionDone = false;
+  // True once the workspace-wide texture pre-warm has been kicked off for this panel.
+  private workspacePrewarmDone = false;
   // Paths already attempted for extraction; prevents re-queuing on subsequent re-renders
   // when extraction produced no result (e.g. file not in CASC data store).
   private extractionTriedPaths = new Set<string>();
@@ -94,6 +97,7 @@ export class ScryerPanel {
         if (e.affectsConfiguration("scryer")) {
           this.assets = AssetService.fromConfig(this.context, this.output);
           this.blizzardExtractionDone = false;
+          this.workspacePrewarmDone = false;
           this.extractionTriedPaths.clear();
         }
       },
@@ -297,10 +301,43 @@ export class ScryerPanel {
           void this.resolveAndSendAsset(rawPath, addonDir);
         }
       }
+
+      // "workspace" extends the pre-warm to every WoW XML file in the workspace.
+      // Kicked off once per panel lifetime so re-renders don't repeat the scan.
+      if (preloadMode === "workspace" && !this.workspacePrewarmDone) {
+        this.workspacePrewarmDone = true;
+        void this.prewarmWorkspace(uri, blizzardRegistry);
+      }
     } catch (err) {
       if (this.isEnabled(vscode.LogLevel.Error)) {
         this.output.error(`Error rendering ${uri.fsPath}: ${String(err)}`);
         this.output.show(true);
+      }
+    }
+  }
+
+  private async prewarmWorkspace(
+    currentUri: vscode.Uri,
+    blizzardRegistry: Map<string, FrameIR>,
+  ): Promise<void> {
+    const xmlFiles = await vscode.workspace.findFiles("**/*.xml");
+    for (const xmlUri of xmlFiles) {
+      if (xmlUri.toString() === currentUri.toString()) continue; // already rendered
+      try {
+        const bytes = await vscode.workspace.fs.readFile(xmlUri);
+        const content = Buffer.from(bytes).toString("utf-8");
+        const doc = parseXmlFile(xmlUri.fsPath, content);
+        const [resolved] = resolveInheritance([doc], blizzardRegistry, {
+          warnings: { count: 0 },
+        });
+        if (!resolved) continue;
+        const frames = resolved.frames.filter((f) => !f.virtual);
+        const addonDir = path.dirname(xmlUri.fsPath);
+        for (const rawPath of collectTexturePaths(frames)) {
+          void this.resolveAndSendAsset(rawPath, addonDir);
+        }
+      } catch {
+        // Not a WoW addon XML file; skip silently
       }
     }
   }

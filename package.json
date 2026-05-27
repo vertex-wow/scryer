@@ -169,7 +169,7 @@
             "Resolve and decode textures only when the webview requests them",
             "Pre-warm textures in the currently saved file; tiny <2ms each, large <4s each",
             "Same as saved-file but reads unsaved buffer contents; updates live as you type",
-            "Pre-warm textures for all WoW XML files in the workspace; tiny <2ms each, large <4s each (not yet implemented)"
+            "Pre-warm textures for all WoW XML files in the workspace; tiny <2ms each, large <4s each"
           ],
           "default": "on-demand",
           "description": "How eagerly Scryer pre-warms texture assets for the addon currently being previewed"
