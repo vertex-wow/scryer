@@ -40,7 +40,7 @@
     "commands": [
       {
         "command": "scryer.open",
-        "title": "Open Scryer Preview",
+        "title": "Open WoW Preview",
         "category": "Scryer",
         "icon": "$(open-preview)"
       }
