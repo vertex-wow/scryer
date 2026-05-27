@@ -53,16 +53,16 @@ Benchmarks in this project exist to answer **concrete architectural decisions**,
 
 The table below maps each pipeline stage to its code location, cost driver, and current understanding. **Bold** rows are the ones that matter most to the decision questions in §1.
 
-| Stage                  | Module                                | Cost driver                        | Bottleneck?                           | Notes                                                                                      |
-| ---------------------- | ------------------------------------- | ---------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------ |
-| CASC open              | `rustydemon-cli` (subprocess)         | Process start + CASC storage mount | **Unknown — measure this**            | Current impl launches one process per file group; see §3 open question                     |
-| CASC per-file extract  | `rustydemon-cli`                      | BLTE decompress + disk write       | Unknown (depends on open cost)        |                                                                                            |
-| Addon file read        | `fs.promises.readFile`                | Pure I/O                           | No                                    | Confirmed: 0–18 ms for N=100 files                                                         |
-| **BLP DXT decompress** | **`js-blp` `getPixels(0)`**           | **CPU: DXT block decode**          | **Yes — dominant for large textures** | Rock (513 KB): 3 908 ms. Marble (44 KB): 79 ms. Buttons: 0.2–2.3 ms.                       |
-| PNG zlib compress      | `pngjs` `PNG.sync.write`              | CPU: zlib at default level         | Secondary                             | Rock: 88 ms (2% of total). Marble: 6 ms. Buttons: < 1.5 ms.                                |
-| Cache write            | `writeCached`, `fs.writeFileSync`     | I/O                                | No                                    | Rock: 1.3 ms. Trivial.                                                                     |
-| Cache hit              | `getCachedPath`, `fs.accessSync`      | I/O: single stat                   | No                                    | Confirmed: ~2 ms for 11 cached files; effectively free.                                    |
-| Path resolution        | `resolveTexturePath`, `fs.accessSync` | I/O: probes × candidates           | No                                    | Confirmed: 0.07–0.16 ms for 11 paths cold; 0.00–0.01 ms warm (14–90× memoization speedup). |
+| Stage                  | Module                                | Cost driver                             | Bottleneck?                                 | Notes                                                                                      |
+| ---------------------- | ------------------------------------- | --------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| **CASC open**          | `rustydemon-cli` (subprocess)         | **CPU: listfile parse (2.17M entries)** | **Yes for per-file use — batch everything** | First call: ~32.7 s. Warm page cache: ~25.3 s. Per-file approach for 102 textures = 47 min |
+| CASC per-file extract  | `rustydemon-cli`                      | BLTE decompress + disk write            | No — fast once open                         | 3,650 files in 5.2 s with j=8 (0.001 s/file); 2,982 texture files in 6.1 s                 |
+| Addon file read        | `fs.promises.readFile`                | Pure I/O                                | No                                          | Confirmed: 0–18 ms for N=100 files                                                         |
+| **BLP DXT decompress** | **`js-blp` `getPixels(0)`**           | **CPU: DXT block decode**               | **Yes — dominant for large textures**       | Rock (513 KB): 3 908 ms. Marble (44 KB): 79 ms. Buttons: 0.2–2.3 ms.                       |
+| PNG zlib compress      | `pngjs` `PNG.sync.write`              | CPU: zlib at default level              | Secondary                                   | Rock: 88 ms (2% of total). Marble: 6 ms. Buttons: < 1.5 ms.                                |
+| Cache write            | `writeCached`, `fs.writeFileSync`     | I/O                                     | No                                          | Rock: 1.3 ms. Trivial.                                                                     |
+| Cache hit              | `getCachedPath`, `fs.accessSync`      | I/O: single stat                        | No                                          | Confirmed: ~2 ms for 11 cached files; effectively free.                                    |
+| Path resolution        | `resolveTexturePath`, `fs.accessSync` | I/O: probes × candidates                | No                                          | Confirmed: 0.07–0.16 ms for 11 paths cold; 0.00–0.01 ms warm (14–90× memoization speedup). |
 
 ### Initial baseline (2026-05-27, AMD Ryzen 5 3600X 12-core, 16 GB RAM, Node v24.16.0, WSL2, corpus hash `6eb95a2c`)
 
@@ -110,6 +110,53 @@ Not a bottleneck at any realistic scale.
 
 **Key implication:** Blizzard addon text files can be walked and read freely at startup. The only cost that matters is BLP decode time, and that is dominated by a handful of large background/environment textures. The preload strategy should treat button/icon textures (< 10 KB) as free to eager-load and large background textures (> 100 KB) as candidates for lazy or background-priority loading.
 
+### Blizzard Interface texture corpus measurements (2026-05-27)
+
+**Context:** The Blizzard registry (SharedXML + FrameXML) references textures in the main `Interface/` tree (not inside `Interface/AddOns/`). This section records what it costs to extract and convert those textures.
+
+**Texture count (SharedXML + FrameXML registry):**
+
+- Templates loaded: **355**
+- Unique texture paths: **102** (spanning 23 distinct parent directories)
+- Registry scan: 124 ms (warm cache)
+- Scope: this covers _only_ the template corpus. A full-addon manifest (all 315 Blizzard addons) would require a proper parser-backed manifest generator — see [backlog: Blizzard texture manifest builder](plan/backlog.md).
+
+**Texture extraction — batch approach (single CASC open, brace-glob, j=8):**
+
+| Phase                          | Count                 | Time                                                 | Disk                   |
+| ------------------------------ | --------------------- | ---------------------------------------------------- | ---------------------- |
+| Directories extracted          | 23 dirs → 2,982 files | 6.1 s (`rustydemon-cli` internal) + ~29.8 s listfile | —                      |
+| BLP files extracted            | 2,683                 | —                                                    | **451.6 MB** (raw BLP) |
+| 102 referenced BLPs (of those) | 102                   | —                                                    | **2.7 MB**             |
+
+Note: extracting 23 parent directories retrieves 2,982 files total because the tool extracts all files in each directory, not just the 102 specifically referenced. The 102 referenced BLPs themselves total 2.7 MB.
+
+**BLP size distribution (2,683 BLPs in extracted Interface/ tree):**
+
+| Statistic | Value    |
+| --------- | -------- |
+| Total     | 451.6 MB |
+| Mean      | 172.4 KB |
+| p50       | 22.5 KB  |
+| p95       | 1,025 KB |
+| Max       | ~16 MB   |
+
+**BLP→PNG conversion (single-threaded, `js-blp` + `pngjs`):**
+
+| Corpus                          | Files | Decode avg | Encode avg | Decode:Encode | Total single-threaded | Est. ×8 workers |
+| ------------------------------- | ----- | ---------- | ---------- | ------------- | --------------------- | --------------- |
+| 102 template BLPs (2.7 MB)      | 102   | 101.6 ms   | 2.8 ms     | **36×**       | ~11 s                 | ~1 s            |
+| Full Interface/ tree (451.6 MB) | 2,683 | ~95–118 ms | ~6 ms      | **15–18×**    | ~270–330 s            | ~34–42 s        |
+
+PNG output is **smaller** than the BLP input (DXT is an efficient compression): 102 BLPs → ~1.3 MB PNG (0.50× expansion); full corpus → ~90 MB PNG estimated.
+
+**Key findings:**
+
+- Blizzard addon DXT decompression: **36× slower than PNG encoding** for the template set (consistent with Q5)
+- Extracting all 102 template textures: **~1 s with 8 workers** — cheap enough to preload at activation
+- Full Interface/ tree (2,683 BLPs): ~34–42 s with 8 workers — on-demand or background only
+- Per-file extraction (current `extract.sh` loop): **47 minutes** of overhead for 102 files — see Q1
+
 ---
 
 ## 3. Open Questions and Decision Answers
@@ -120,36 +167,46 @@ Each question is answered with current evidence or flagged as "pending" with the
 
 ### Q1: Is CASC "open" expensive? (Batching vs streaming)
 
-**Answer: Unmeasured — pending hyperfine benchmark.**
+**Answer: Yes — listfile parsing is CPU-bound and costs ~25–33 s per invocation. Batch everything; per-file invocation is completely impractical for any non-trivial file set.**
 
-**Why it matters:** The current `dev/extract.sh` retail path spawns a _separate `rustydemon-cli` process per path group_ (each call to `--paths-file` is a new process, each `--type` invocation is a new process). Every process start pays the full CASC mount cost. If that mount cost is large (>500 ms), we must batch aggressively — sending 100 tiny requests at 1 ms each would waste 50 s in mount overhead. If it's small, on-demand streaming is fine.
+**Measured (2026-05-27):**
 
-**How to measure:**
+| Invocation                    | Listfile load (CPU) | `rustydemon-cli` internal | Wall clock |
+| ----------------------------- | ------------------- | ------------------------- | ---------- |
+| First call (cold page cache)  | 32.7 s              | —                         | ~33 s      |
+| Second call (warm page cache) | 25.3 s              | —                         | ~25 s      |
 
-```bash
-# Prepare test paths files
-echo "Interface/Buttons/UI-CheckBox-Check.blp" > /tmp/paths-1.txt
-head -10 dev/bench-paths.txt > /tmp/paths-10.txt   # create from a full extraction list
+The listfile CSV has **2,172,924 entries** (`dev/listfile.csv`). Even with the file fully in OS page cache, the text parsing + in-memory hashing takes ~25 s CPU. This cost is paid on every `rustydemon-cli` process launch.
 
-# Compare: 1 file vs 10 files vs 50 files per process vs one bulk --type call
-hyperfine \
-  --warmup 1 --runs 10 \
-  --prepare 'rm -rf /tmp/bench-extract && mkdir /tmp/bench-extract' \
-  --export-json /tmp/casc-open-bench.json \
-  'WOW_DIR=... ./dev/extract.sh retail --paths-file /tmp/paths-1.txt' \
-  'WOW_DIR=... ./dev/extract.sh retail --paths-file /tmp/paths-10.txt' \
-  'WOW_DIR=... ./dev/extract.sh retail --type interface'
-```
+**Consequence:** Per-file extraction for 102 textures ≈ 102 × 28 s ≈ **47 minutes** of overhead alone — completely impractical. All extraction must be done in a single batched call per CASC open. The `dev/extract.sh --paths-file` loop (which spawns one process per path) must be replaced with a batch strategy.
 
-**Interpretation:** If `paths-1.txt` and `paths-10.txt` take the same wall time (within noise), open cost dominates — batch everything. If `paths-10.txt` takes ~10× longer than `paths-1.txt`, per-file cost dominates — streaming is viable.
+**The fix:** Use `rustydemon-cli -p "{dir1,dir2,...}/**"` brace-glob syntax to extract multiple directories in a single CASC open. The tool supports brace expansion in the `-p` argument (confirmed); it does not support multiple `-p` flags or a `--paths-file` option.
+
+**Implication for architecture:** Any extraction feature (on-demand or batch) must batch all its paths into a single `rustydemon-cli` call. An in-process CASC reader (see [backlog](plan/backlog.md#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli)) would eliminate this listfile-parse overhead entirely.
 
 ---
 
 ### Q2: Is it worth extracting all Blizzard addon data upfront?
 
-**Answer: Likely yes for text files — pending extraction timing.**
+**Answer: Yes for the text files (XML/Lua/TOC) — but the one-time CASC overhead (~5 s extraction + ~30 s listfile parsing) means it should be done lazily at first preview and cached, not at every activation.**
 
-Addon file **reads** are free (22 ms for 100 files). The unknown is how long `rustydemon-cli --type interface` takes on a full extraction (hundreds of XML/Lua/TOC files from Blizzard_SharedXML and Blizzard_FrameXML). If it completes in < 5 s, eager extraction at first preview is acceptable as a one-time cost. The same `hyperfine` benchmark in Q1 will answer this.
+**Measured (2026-05-27):** Full `Interface/AddOns` extraction — all Blizzard\_\* addons (315 folders, 9,103 files matched, 3,650 extracted — the rest are Classic/TBC/Wrath files not installed on the retail CASC):
+
+| Phase                           | Time      | Note                                      |
+| ------------------------------- | --------- | ----------------------------------------- |
+| `rustydemon-cli` internal (j=8) | **5.2 s** | Parallel extraction; includes CASC mount  |
+| Listfile load (first call)      | ~32.7 s   | CPU-bound CSV parse; one-time per process |
+| Total wall clock                | ~43.9 s   | Dominated by listfile, not extraction     |
+| Disk space (all 3,650 files)    | **41 MB** | Mostly Lua/XML/TOC; trivial               |
+
+**Separate numbers for Blizzard_SharedXML + Blizzard_FrameXML only:**
+
+|           | SharedXML | FrameXML | Combined |
+| --------- | --------- | -------- | -------- |
+| Files     | 228       | 130      | 358      |
+| Disk size | 2.1 MB    | 1.7 MB   | 3.8 MB   |
+
+The extraction itself (5.2 s) is acceptable as a one-time cost at first preview. The listfile overhead (25–33 s) makes repeated invocations expensive (see Q1). Strategy: extract once, write a completion marker, and skip on subsequent activations.
 
 ---
 

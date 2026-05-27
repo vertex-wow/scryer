@@ -55,4 +55,4 @@ Update `docs/` when something is decided or completed:
 - Commit between each milestone completion.
 - Include `docs/` updates in the same commit as the code they describe.
 - Never commit implementation without updating the relevant plan file if the approach changed.
-- **When ready to commit:** present the proposed message and issue the `git add` + `git commit` as a single tool call so the user sees and approves it as one permission prompt. Do not stage and commit in separate steps.
+- **When ready to commit:** issue a single Bash tool call that chains `git add <files> && git commit -m "..."` — the tool permission prompt is the user's approval mechanism. Do not stage and commit in separate steps.

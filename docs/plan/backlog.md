@@ -225,9 +225,10 @@ N is clamped to available fixtures (no cycling). When fewer fixtures are on disk
 **Key findings from initial baseline (11 BLP fixtures, 228 addon files):**
 
 - Addon file reads are negligible: 0–22 ms for N=1–100 (I/O is not the bottleneck).
-- BLP decode + PNG compression dominates: N=10 (all buttons) ~34 ms; N=11 including `ui-background-rock.blp` (514 KB DXT, ~1024×1024) ~4 s due to `PNG.sync.write` compression time.
+- BLP decode dominates: N=11 including `ui-background-rock.blp` (514 KB, ~1024×1024) ~4 s. Split timers revealed `js-blp.getPixels` is **44× slower than `PNG.sync.write`** — the bottleneck is DXT decompression, not PNG encoding.
 - Combined cost tracks texture decode; addon reads are effectively free alongside it.
-- **Implication:** PNG compression of large textures is the main cost. Any preload or batch strategy should account for the outsized decode time of large background textures vs small icon textures.
+- **CASC open cost:** `rustydemon-cli` listfile load is CPU-bound at ~25–33 s per invocation (2.17M entries). Per-file invocation is completely impractical — 102 textures × 28 s = 47 minutes of overhead.
+- **Implication:** BLP DXT decompression (not PNG compression) is the main cost. Batch all extraction into a single CASC open. See `docs/measurements.md` for full corpus measurements (2026-05-27).
 
 ---
 
@@ -367,3 +368,38 @@ Default: `"extracted"` — preload whatever is already on disk, no auto-extracti
 - `tsconfig.build.json` — updated to extend `tsconfig.src.json`; overrides `"composite": false` so `tsc --noEmit` works cleanly.
 
 VS Code now reliably picks the correct per-file config via solution-style layout.
+
+---
+
+## Blizzard texture manifest builder
+
+**Status: Pending**
+
+**Problem:** `collect-blizz-textures.ts` (`dev/`) and the `loadBlizzardRegistry` + `collectTexturePaths` pipeline only cover `Blizzard_SharedXML` and `Blizzard_FrameXML` (102 unique texture references). The full Blizzard addon corpus is 315 addon folders (3,650 extracted files). To extract _all_ textures that Scryer would need to preview _any_ Blizzard addon, we need a manifest generator that goes beyond the two-addon template registry.
+
+**Goal:** Build a parser-backed manifest generator that produces a complete, deduplicated list of all texture paths that would be loaded when previewing a given set of addons — usable as input to a single `rustydemon-cli` batch extraction call.
+
+**Plan:**
+
+1. Load the Blizzard template registry (SharedXML + FrameXML) as the base — provides virtual template definitions for inheritance resolution.
+2. For each other addon in the extraction set, discover its XML files via its TOC file and parse them through the existing XML parser + `resolveInheritance`, using the base registry for template lookup.
+3. Walk all resolved `FrameIR` trees with `collectTexturePaths` to collect `TextureIR.file` references.
+4. Normalize paths (backslash → slash, append `.blp` if no extension) and deduplicate.
+5. Output: a sorted, newline-delimited file suitable for generating a `rustydemon-cli` brace-glob argument or a `--paths-file` if the tool ever adds that flag.
+
+**Output usage:**
+
+```bash
+# Generate manifest
+node dist/build-texture-manifest.js .wow-assets/interface/addons > /tmp/texture-manifest.txt
+
+# Derive unique parent dirs and build brace glob
+DIRS=$(cat /tmp/texture-manifest.txt | sed 's|/[^/]*$||' | sort -u | tr '\n' ',' | sed 's/,$//')
+rustydemon-cli export -a "$WOW_DIR" -l dev/listfile.csv -o .wow-assets -p "{$DIRS}/**" -j 8
+```
+
+**Why now matters:** The 2026-05-27 corpus measurements showed that the 102-texture set from the two-addon registry is an undercount. A full manifest is needed before the extraction pipeline can be considered complete for production use. This also feeds the preload decision (Q3 in `docs/measurements.md`) — the total texture count and size distribution from the full corpus determines whether eager preload remains viable.
+
+**Relationship to M4:** Parsing addon XML with proper template inheritance is also what M4 (Lua Shim Runtime) needs. The manifest builder is a lightweight, non-Lua precursor to that work — it exercises the same "load arbitrary addon XML using the Blizzard template base" infrastructure without needing Lua execution.
+
+**Effort:** S — the parser and `collectTexturePaths` already exist; this is mainly a TOC-driven loader that applies them to all addons and aggregates results.
