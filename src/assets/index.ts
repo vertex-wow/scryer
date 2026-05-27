@@ -12,6 +12,18 @@ import {
 import { clearResolutionMemo, resolveTexturePath } from "./resolver.js";
 import type { FrameIR } from "../parser/ir.js";
 
+function parseLogLevel(s: string): vscode.LogLevel {
+  const map: Record<string, vscode.LogLevel> = {
+    off: vscode.LogLevel.Off,
+    trace: vscode.LogLevel.Trace,
+    debug: vscode.LogLevel.Debug,
+    info: vscode.LogLevel.Info,
+    warning: vscode.LogLevel.Warning,
+    error: vscode.LogLevel.Error,
+  };
+  return map[s] ?? vscode.LogLevel.Warning;
+}
+
 /** Resolve the Interface/AddOns path case-insensitively (extraction tools may lowercase it). */
 function resolveAddonsDir(extractedAssetsDir: string): string {
   const candidates = [
@@ -36,7 +48,8 @@ export interface AssetServiceOptions {
   cacheDir: string;
   flavor: string;
   extractScriptPath: string;
-  output: vscode.OutputChannel;
+  output: vscode.LogOutputChannel;
+  logLevel: vscode.LogLevel;
 }
 
 /**
@@ -102,7 +115,7 @@ export class AssetService {
     }
 
     if (found.kind === "tga") {
-      this.opts.output.appendLine(
+      this.opts.output.warn(
         `[Scryer] TGA not yet supported: ${rawPath} — pre-convert to PNG with an image editor or extraction tool.`,
       );
       return null;
@@ -117,7 +130,7 @@ export class AssetService {
       const pngBytes = blpToPng(found.absPath);
       return writeCached(this.opts.cacheDir, key, pngBytes);
     } catch (err) {
-      this.opts.output.appendLine(`[Scryer] BLP decode failed for ${rawPath}: ${String(err)}`);
+      this.opts.output.warn(`[Scryer] BLP decode failed for ${rawPath}: ${String(err)}`);
       return null;
     }
   }
@@ -145,13 +158,18 @@ export class AssetService {
     const before = discoverBlizzardPaths(this.opts.extractedAssetsDir, addonsDir);
     if (before.length === 0) return false;
 
-    this.opts.output.appendLine(
-      `[Scryer] Blizzard addon files: ${before.length} missing — extracting all addon interface files…`,
-    );
+    try {
+      this.opts.output.info(
+        `[Scryer] Blizzard addon files: ${before.length} missing — extracting all addon interface files…`,
+      );
+    } catch {
+      /* channel disposed */
+    }
     await shellExtractInterface({
       flavor: this.opts.flavor,
       extractScriptPath: this.opts.extractScriptPath,
       output: this.opts.output,
+      logLevel: this.opts.logLevel,
     });
 
     // Re-check: only signal re-render if extraction actually produced new files.
@@ -186,6 +204,7 @@ export class AssetService {
       flavor: this.opts.flavor,
       extractScriptPath: this.opts.extractScriptPath,
       output: this.opts.output,
+      logLevel: this.opts.logLevel,
     });
   }
 
@@ -205,7 +224,10 @@ export class AssetService {
     return roots;
   }
 
-  static fromConfig(context: vscode.ExtensionContext, output: vscode.OutputChannel): AssetService {
+  static fromConfig(
+    context: vscode.ExtensionContext,
+    output: vscode.LogOutputChannel,
+  ): AssetService {
     const cfg = vscode.workspace.getConfiguration("scryer");
     const wsFolder =
       vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? context.extensionUri.fsPath;
@@ -215,6 +237,7 @@ export class AssetService {
     const cacheDir = cfg.get<string>("assetCacheDir") || path.join(wsFolder, ".scryer-cache");
     const flavor = cfg.get<string>("flavor") || "retail";
     const extractScriptPath = cfg.get<string>("extractScriptPath") ?? "";
+    const logLevel = parseLogLevel(cfg.get<string>("logLevel") ?? "warning");
 
     return new AssetService({
       extractedAssetsDir,
@@ -223,6 +246,7 @@ export class AssetService {
       flavor,
       extractScriptPath,
       output,
+      logLevel,
     });
   }
 }
