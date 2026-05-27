@@ -334,26 +334,15 @@ Controls how eagerly Scryer pre-warms texture assets for the addon currently bei
 
 ### Progressive tier execution for `scryer.startupContent`
 
-**Problem:** If a user selects `"all-templates-textures"`, the implementation may attempt to start that tier directly. But each tier is a strict superset of the one below it:
+**Status: Done** (2026-05-27)
 
-```
-none < shared-templates < all-templates < all-templates-shared-textures < all-templates-textures
-```
+**What was built:**
 
-Jumping to a high tier without completing the lower ones wastes the early benefit of having lightweight data available quickly, and makes it harder to bail out early if the user closes the preview mid-load.
+`src/extension.ts` — Replaced the `if/else if` texture prewarm with a staged pipeline. A `TIER_ORDER` constant maps tier names to their rank so `tierIdx >= TIER_ORDER.indexOf("all-templates-shared-textures")` drives each guard. A `cancelled` flag is registered in `context.subscriptions` so extension deactivation aborts remaining stages cleanly. Stage completions are logged to the Scryer output channel.
 
-**Plan:** Implement startup content loading as a pipeline that works through each tier in order up to the configured target:
+**Template loading is a single step** (not progressively separated) because there are only two addons (`Blizzard_SharedXML`, `Blizzard_FrameXML`) and the disk cache makes the shared-vs-all difference well under 0.5 s. Panels also need the full ALL registry — pre-warming only the SHARED cache gives them no benefit at panel-open time.
 
-1. `shared-templates` — runs first regardless of target tier (it is the cheapest and most broadly useful).
-2. `all-templates` — runs next if target is `all-templates` or higher.
-3. `all-templates-shared-textures` — runs next if target is that tier or higher.
-4. `all-templates-textures` — runs last, only if the target is this exact tier.
-
-Each tier's work is additive (not restarted). The pipeline checks a cancellation token between stages so a panel close or setting change can abort remaining work cleanly. The output channel logs which stage just completed so the user can observe progress.
-
-**Benefit:** The most useful data (shared templates) is available almost immediately even when the user has configured an expensive tier. No redundant work is done — each stage extends what the previous stage already loaded.
-
-**Effort:** XS — the stage ordering is a loop over an ordered tier list; the individual loads already exist. The main addition is the cancellation check between stages.
+**Texture prewarm is split:** shared textures complete before FrameXML textures begin. BLP→PNG conversion for FrameXML textures can take several seconds; completing shared textures first means the first panel open that relies only on shared templates gets fast texture serving while FrameXML conversion still runs in the background. When `all-templates-textures` is configured, the second `prewarmBlizzardTextures(ADDON_NAMES)` call re-encounters shared texture paths, but they are already PNG-cached on disk so each is a fast file-existence hit rather than a BLP decode.
 
 ---
 
