@@ -53,13 +53,15 @@ export class ScryerPanel {
   // when extraction produced no result (e.g. file not in CASC data store).
   private extractionTriedPaths = new Set<string>();
 
-  static create(context: vscode.ExtensionContext, uri: vscode.Uri): ScryerPanel {
+  static create(
+    context: vscode.ExtensionContext,
+    uri: vscode.Uri,
+    assets: AssetService,
+    output: vscode.LogOutputChannel,
+  ): ScryerPanel {
     const column = vscode.window.activeTextEditor
       ? vscode.ViewColumn.Beside
       : vscode.ViewColumn.One;
-
-    const output = vscode.window.createOutputChannel("Scryer", { log: true });
-    const assets = AssetService.fromConfig(context, output);
 
     const panel = vscode.window.createWebviewPanel(
       ScryerPanel.viewType,
@@ -103,7 +105,7 @@ export class ScryerPanel {
     vscode.workspace.onDidChangeConfiguration(
       (e) => {
         if (e.affectsConfiguration("scryer")) {
-          this.assets = AssetService.fromConfig(this.context, this.output);
+          this.assets.invalidate();
           this.blizzardExtractionDone = false;
           this.workspacePrewarmDone = false;
           this.extractionTriedPaths.clear();
@@ -244,15 +246,18 @@ export class ScryerPanel {
       const doc = parseXmlFile(uri.fsPath, content);
 
       // Kick off Blizzard addon file extraction if needed, but don't block the render.
-      // On the first attempt, always re-render when done: if extraction succeeded,
-      // templates will be available; if it failed, the status needs to flip from
-      // "pending fetches" to "warning(s)". Subsequent renders skip this entirely.
-      const isFirstExtraction = !this.blizzardExtractionDone;
-      if (isFirstExtraction) {
+      // isFirstExtraction is only true when extraction hasn't run this session yet — this
+      // prevents "pending" UI and a redundant re-render on subsequent panel opens where
+      // the shared AssetService already settled which files are present.
+      const isFirstExtraction =
+        !this.blizzardExtractionDone && !this.assets.hasBlizzardExtractionRun();
+      if (!this.blizzardExtractionDone) {
         void this.assets.ensureBlizzardFiles().then((extracted) => {
           this.blizzardExtractionDone = true;
-          if (extracted) this.assets.invalidate();
-          void this.renderFile(uri);
+          if (extracted) this.assets.invalidateAfterBlizzardExtraction();
+          // Re-render to flip pending state or pick up newly extracted templates.
+          // Skipped when isFirstExtraction was false (files already known present).
+          if (isFirstExtraction) void this.renderFile(uri);
         });
       }
 
@@ -428,7 +433,6 @@ export class ScryerPanel {
     if (this.renderDebounce !== undefined) {
       clearTimeout(this.renderDebounce);
     }
-    this.output.dispose();
     this.panel.dispose();
     for (const d of this.disposables) d.dispose();
     this.disposables = [];

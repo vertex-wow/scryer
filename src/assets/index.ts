@@ -85,6 +85,21 @@ export class AssetService {
     clearRegistryCache(this.opts.registryDir);
   }
 
+  /** Returns true if ensureBlizzardFiles() has already been initiated this session.
+   * Used by the panel to skip the "pending" UI state on re-opens when extraction is settled. */
+  hasBlizzardExtractionRun(): boolean {
+    return this.blizzardFilesEnsured;
+  }
+
+  /** Invalidate resolution memo and registry cache after new Blizzard files land on disk.
+   * Unlike invalidate(), preserves blizzardFilesEnsured so extraction is not re-triggered
+   * on the next panel open — the extraction pass is settled for this session. */
+  invalidateAfterBlizzardExtraction(): void {
+    clearResolutionMemo();
+    this.inflight.clear();
+    clearRegistryCache(this.opts.registryDir);
+  }
+
   /** Lighter invalidation for post-texture-extraction retries: clears the resolution memo
    * so newly extracted files are picked up, but leaves the Blizzard registry cache and
    * blizzardFilesEnsured intact so addon extraction is not re-triggered. */
@@ -164,8 +179,15 @@ export class AssetService {
     if (this.blizzardFilesEnsured || !this.opts.sourceDir) return false;
     this.blizzardFilesEnsured = true; // set early to prevent concurrent calls
 
+    // Only check the addons that are actually needed for the configured startupContent,
+    // matching the same filter used in loadBlizzardTemplates(). This prevents FrameXML
+    // from being flagged as missing when the user only needs shared templates.
+    const startupContent =
+      vscode.workspace.getConfiguration("scryer").get<string>("startupContent") ?? "none";
+    const addonNames = startupContent === "shared-templates" ? SHARED_ADDON_NAMES : ADDON_NAMES;
+
     const addonsDir = resolveAddonsDir(this.opts.sourceDir);
-    const before = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
+    const before = discoverBlizzardPaths(this.opts.sourceDir, addonsDir, addonNames);
     if (before.length === 0) return false;
 
     try {
@@ -185,7 +207,7 @@ export class AssetService {
 
     // Re-check: only signal re-render if extraction actually produced new files.
     // If it didn't (no script, failed extraction, etc.) we stop here rather than loop.
-    const after = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
+    const after = discoverBlizzardPaths(this.opts.sourceDir, addonsDir, addonNames);
     return after.length < before.length;
   }
 

@@ -49,6 +49,7 @@ Update `docs/` when something is decided or completed:
 - **Building: `pnpm build` (esbuild).** Never use `tsc` to emit JS — it is typecheck-only (`pnpm typecheck` / `tsc --noEmit`).
 - **Tests live in `test/`** (singular). The jest config, tsconfig.test.json, and vscode mock all assume this path.
 - **vscode mock:** Any extension code that imports `vscode` is redirected to `test/__mocks__/vscode.ts` during tests. Expand stubs there as new APIs are needed — do not import the real `vscode` module in unit tests.
+- **Always run `pnpm build` before handing off to the user for testing.** When a task is complete and the user is expected to test it, run `pnpm build` as the final step so they receive a ready-to-run artifact.
 
 ## Commit discipline
 

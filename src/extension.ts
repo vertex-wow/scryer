@@ -4,6 +4,13 @@ import { ADDON_NAMES, SHARED_ADDON_NAMES } from "./parser/blizzard-registry.js";
 import { ScryerPanel } from "./panel.js";
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Single shared output channel and asset service for the entire extension session.
+  // Sharing AssetService preserves blizzardFilesEnsured across panel opens so extraction
+  // only runs once per session rather than on every new panel.
+  const output = vscode.window.createOutputChannel("Scryer", { log: true });
+  context.subscriptions.push(output);
+  const assets = AssetService.fromConfig(context, output);
+
   const cmd = vscode.commands.registerCommand("scryer.open", (uri?: vscode.Uri) => {
     const resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
     if (!resolved) {
@@ -14,7 +21,7 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.window.showErrorMessage("Scryer: active file is not an XML file.");
       return;
     }
-    ScryerPanel.create(context, resolved);
+    ScryerPanel.create(context, resolved, assets, output);
   });
 
   context.subscriptions.push(cmd);
@@ -39,9 +46,6 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.getConfiguration("scryer").get<string>("startupContent") ?? "none";
   const tierIdx = (TIER_ORDER as readonly string[]).indexOf(startupContent);
   if (tierIdx >= 0) {
-    const output = vscode.window.createOutputChannel("Scryer", { log: true });
-    context.subscriptions.push(output);
-    const assets = AssetService.fromConfig(context, output);
     let cancelled = false;
     context.subscriptions.push({
       dispose: () => {

@@ -202,7 +202,11 @@ function fileReadable(absPath: string): boolean {
  * @param extractedAssetsDir  Root of the local extraction (parent of `Interface/`).
  * @param addonsDir           Absolute path to `extractedAssetsDir/Interface/AddOns/`.
  */
-export function discoverBlizzardPaths(extractedAssetsDir: string, addonsDir: string): string[] {
+export function discoverBlizzardPaths(
+  extractedAssetsDir: string,
+  addonsDir: string,
+  addonNames: string[] = ADDON_NAMES,
+): string[] {
   if (!extractedAssetsDir || !addonsDir) return [];
 
   const missing: string[] = [];
@@ -260,7 +264,7 @@ export function discoverBlizzardPaths(extractedAssetsDir: string, addonsDir: str
     }
   }
 
-  for (const addonName of ADDON_NAMES) {
+  for (const addonName of addonNames) {
     const addonDir = resolveCI(addonsDir, addonName);
     // Use the first suffix that exists on disk; if none exist, request the preferred one.
     const existing = TOC_SUFFIXES.map((s) => resolveCI(addonDir, `${addonName}${s}`)).find(
