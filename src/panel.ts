@@ -248,7 +248,8 @@ export class ScryerPanel {
         frames: renderFrames,
         viewport: DEFAULT_VIEWPORT,
         warnings: warns.count,
-        extractionPending: isFirstExtraction && warns.count > 0,
+        extractionPending: isFirstExtraction,
+        pendingFiles: isFirstExtraction ? texturePaths.length : 0,
       };
 
       void this.panel.webview.postMessage(msg);

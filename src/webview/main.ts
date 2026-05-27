@@ -57,7 +57,8 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         const root = renderFrames(msg.frames, msg.viewport);
         viewport!.appendChild(root);
         let suffix = " OK";
-        if (msg.extractionPending) suffix = ` — ${msg.warnings} pending`;
+        if (msg.extractionPending)
+          suffix = msg.pendingFiles > 0 ? ` — ${msg.pendingFiles} file(s) pending` : ` — pending`;
         else if (msg.warnings > 0) suffix = ` — ${msg.warnings} warning(s)`;
         dbg(`rendered ${msg.frames.length} frame(s)${suffix}`);
         requestRenderedAssets();

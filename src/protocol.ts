@@ -13,6 +13,7 @@ export type HostMessage =
       viewport: Viewport;
       warnings: number;
       extractionPending: boolean;
+      pendingFiles: number;
     }
   | {
       type: "reload";
@@ -20,6 +21,7 @@ export type HostMessage =
       viewport: Viewport;
       warnings: number;
       extractionPending: boolean;
+      pendingFiles: number;
     }
   | { type: "assetResolved"; path: string; uri: string };
 
