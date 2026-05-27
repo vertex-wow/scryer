@@ -332,6 +332,31 @@ Controls how eagerly Scryer pre-warms texture assets for the addon currently bei
 
 ---
 
+### Progressive tier execution for `scryer.startupContent`
+
+**Problem:** If a user selects `"all-templates-textures"`, the implementation may attempt to start that tier directly. But each tier is a strict superset of the one below it:
+
+```
+none < shared-templates < all-templates < all-templates-shared-textures < all-templates-textures
+```
+
+Jumping to a high tier without completing the lower ones wastes the early benefit of having lightweight data available quickly, and makes it harder to bail out early if the user closes the preview mid-load.
+
+**Plan:** Implement startup content loading as a pipeline that works through each tier in order up to the configured target:
+
+1. `shared-templates` — runs first regardless of target tier (it is the cheapest and most broadly useful).
+2. `all-templates` — runs next if target is `all-templates` or higher.
+3. `all-templates-shared-textures` — runs next if target is that tier or higher.
+4. `all-templates-textures` — runs last, only if the target is this exact tier.
+
+Each tier's work is additive (not restarted). The pipeline checks a cancellation token between stages so a panel close or setting change can abort remaining work cleanly. The output channel logs which stage just completed so the user can observe progress.
+
+**Benefit:** The most useful data (shared templates) is available almost immediately even when the user has configured an expensive tier. No redundant work is done — each stage extends what the previous stage already loaded.
+
+**Effort:** XS — the stage ordering is a loop over an ordered tier list; the individual loads already exist. The main addition is the cancellation check between stages.
+
+---
+
 ## Output channel logging and `scryer.logLevel` setting
 
 **Status: Done** (2026-05-26)
