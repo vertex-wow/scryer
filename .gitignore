@@ -10,6 +10,11 @@ dev/listfile.csv
 .tsbuild/
 dist/
 
+# Benchmark results (machine-specific timing data)
+dev/bench-results.json
+dev/bench-baseline.json
+dev/bench-casc-results.json
+
 # Scryer asset cache (on-demand BLP→PNG conversions)
 .scryer-cache/
 

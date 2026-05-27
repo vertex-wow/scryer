@@ -33,7 +33,7 @@ Backlog items (↳) are deferred tasks attached to the milestone after which the
 | ↳   | [WoW build version tracking](backlog.md#wow-build-version-tracking-and-cache-invalidation)                           | 📋 Pending               | Detect WoW patches; prompt re-extraction on update       | XS     | —          |
 | ↳   | [Preload workspace textures](backlog.md#preload-workspace-textures-at-startup)                                       | 📋 Pending               | Pre-warm asset cache at extension startup                | S      | —          |
 | ↳   | [Configurable preload scope](backlog.md#configurable-preload-scope-setting)                                          | 📋 Pending               | `scryer.preloadScope` enum to control preload depth      | XS–S   | —          |
-| ↳   | [Extraction benchmarks](backlog.md#extraction-benchmarks)                                                            | 📋 Pending               | Benchmark extraction pipeline at varying concurrency     | S      | —          |
+| ↳   | [Extraction benchmarks](backlog.md#extraction-benchmarks)                                                            | ✅ Done (2026-05-27)     | Benchmark extraction pipeline at varying concurrency     | S      | —          |
 
 ## Recommended Tech Stack
 

@@ -206,29 +206,28 @@ Retail uses TVFS (introduced in 8.2); Classic uses the older flat-root format. B
 
 ## Extraction benchmarks
 
-**Problem:** We have no measured baseline for how long texture extraction, addon extraction, or combined extraction takes at different concurrency levels. Without this, default settings for extension options (e.g. worker pool size, batch size) are guesses, and we have no way to detect regressions or improvements when the extraction implementation changes.
+**Status: Done** (2026-05-27)
 
-**Goal:** Write a benchmark suite that exercises `AssetService.extractMissing` (texture paths) and the Blizzard addon extraction path at N concurrent requests, for N ∈ {1, 2, 5, 10, 50, 100}. Results inform the default extension settings and serve as a longitudinal regression signal.
+**What was built:**
 
-**Plan:**
+`dev/bench.ts` — benchmark script run via `pnpm bench`. Three scenarios timed at N = {1, 2, 5, 10, 50, 100} concurrent requests, 5 runs each:
 
-Three benchmark scenarios:
+1. **Texture-only** — BLP decode + PNG compression + cache write for N paths (calls `blpToPng` + `writeCached` directly, no vscode dependency).
+2. **Addon-only** — `fs.promises.readFile` for N XML/Lua/TOC files (I/O-only path).
+3. **Combined** — ceil(N/2) texture + floor(N/2) addon in parallel.
 
-1. **Texture-only** — feed N distinct texture paths through `extractMissing`; measure wall time from call to all results resolved.
-2. **Addon-only** — feed N distinct addon XML/Lua/TOC paths through the same pipeline (or the interface extraction path directly); measure end-to-end.
-3. **Combined** — mix of texture and addon paths, N total; measure combined throughput.
+N is clamped to available fixtures (no cycling). When fewer fixtures are on disk than N requests, the output notes the cap. Run `dev/extract.sh retail --type all` for a full corpus that reaches N=100 uncapped.
 
-For each scenario, run N = 1, 2, 5, 10, 50, 100 and record median + p95 wall time (run each N at least 5 times, drop outliers). Output a simple table to stdout and write a JSON results file so runs can be compared across commits.
+`dev/bench.build.mjs` — esbuild config that bundles `bench.ts` into `dist/bench.js` (same settings as the extension host: CJS, Node platform, vscode external). `pnpm bench` builds then runs.
 
-Use real on-disk fixtures (`.wow-assets/` or a small dedicated benchmark corpus) rather than mocks — the point is to measure actual I/O and decode time, not mock overhead.
+`dev/bench-results.json` — gitignored; written after each run with metadata (date, Node version, platform, fixture counts) and per-scenario results (min/median/p95/max for each N).
 
-**Why this matters:**
+**Key findings from initial baseline (11 BLP fixtures, 228 addon files):**
 
-- Informs the default for any concurrency/batch-size extension settings before they ship.
-- Detects if a future extraction implementation change (e.g. the in-process CASC reader) is faster or slower than the current shell-script path.
-- Gives concrete numbers when evaluating the preload scope tiers (see [[configurable-preload-scope]]).
-
-**Effort:** S — the pipeline already exists; this is scripting N-at-a-time calls and timing them. Main work is choosing a fixture corpus that is stable and representative.
+- Addon file reads are negligible: 0–22 ms for N=1–100 (I/O is not the bottleneck).
+- BLP decode + PNG compression dominates: N=10 (all buttons) ~34 ms; N=11 including `ui-background-rock.blp` (514 KB DXT, ~1024×1024) ~4 s due to `PNG.sync.write` compression time.
+- Combined cost tracks texture decode; addon reads are effectively free alongside it.
+- **Implication:** PNG compression of large textures is the main cost. Any preload or batch strategy should account for the outsized decode time of large background textures vs small icon textures.
 
 ---
 
