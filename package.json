@@ -149,10 +149,10 @@
           ],
           "enumDescriptions": [
             "Nothing preloaded at startup (default)",
-            "Preload Blizzard_SharedXML template definitions (not yet implemented)",
-            "Preload all Blizzard addon template definitions (not yet implemented)",
-            "All Blizzard templates + textures from Blizzard_SharedXML only (not yet implemented)",
-            "All Blizzard templates + all Blizzard textures (not yet implemented)"
+            "Blizzard_SharedXML templates only; ~2.1 MB (not yet implemented)",
+            "All Blizzard addon templates; ~41 MB (not yet implemented)",
+            "All templates + Blizzard_SharedXML textures; ~2 MB, <1s (not yet implemented)",
+            "All templates + full Blizzard texture tree; ~452 MB, ~40s (not yet implemented)"
           ],
           "default": "none",
           "description": "What Blizzard template and asset content Scryer loads when the extension activates"
@@ -167,9 +167,9 @@
           ],
           "enumDescriptions": [
             "Resolve and decode textures only when the webview requests them (default)",
-            "Pre-warm textures referenced by the currently saved file (not yet implemented)",
-            "Pre-warm textures for the current file including unsaved edits (not yet implemented)",
-            "Pre-warm textures for all WoW XML files in the workspace (not yet implemented)"
+            "Pre-warm textures in the currently saved file; tiny <2ms each, large <4s each (not yet implemented)",
+            "Same as saved-file but reads unsaved buffer contents; tiny <2ms each, large <4s each (not yet implemented)",
+            "Pre-warm textures for all WoW XML files in the workspace; ~180 refs across a 153-addon install, ~3.3 MB raw, ~1–6 s background decode; typical 1–5 addon workspace < 100 ms (not yet implemented)"
           ],
           "default": "on-demand",
           "description": "How eagerly Scryer pre-warms texture assets for the addon currently being previewed"

@@ -159,6 +159,70 @@ PNG output is **smaller** than the BLP input (DXT is an efficient compression): 
 
 ---
 
+### User addon workspace texture corpus measurements (2026-05-27)
+
+**Context:** The `scryer.userAddonPreload` `"workspace"` tier must pre-warm textures for all WoW XML files in the active VS Code workspace. This section records the texture corpus found in a representative heavily-loaded workspace: 153 installed user addons from `_live/Addons/` (the retail WoW AddOns directory), scanned via `pnpm collect-textures`.
+
+**Scan results:**
+
+- Addons scanned: **153**
+- Unique texture paths found: **182** (1.2 refs/addon on average)
+- Scan time: **27 s** (note: slow because `_live/Addons` is a symlink to a Windows NTFS mount via WSL2; native filesystem would be much faster)
+
+**Resolution breakdown:**
+
+| Category           | Count   | Source                                          | Notes                                                     |
+| ------------------ | ------- | ----------------------------------------------- | --------------------------------------------------------- |
+| Blizzard UI BLPs   | 88      | `.wow-assets/` (previously extracted from CASC) | `Interface/Buttons/`, `Interface/AchievementFrame/`, etc. |
+| Addon-bundled BLPs | 13      | Loose files in `_live/Addons/`                  | Small addon-specific graphics                             |
+| Addon-bundled TGAs | 37      | Loose files in `_live/Addons/`                  | Unimplemented — would need TGA decoder                    |
+| Addon-bundled PNGs | 15      | Loose files in `_live/Addons/`                  | Already web-ready; serve directly                         |
+| Unavailable        | 29      | —                                               | Locale-specific files, addons not on this machine         |
+| **Total resolved** | **153** |                                                 |                                                           |
+
+**Size distribution — Blizzard UI BLPs (88 files, from CASC):**
+
+| Statistic | Value                             |
+| --------- | --------------------------------- |
+| Total     | 1.3 MB                            |
+| Mean      | 15.3 KB                           |
+| p50       | 2.5 KB                            |
+| p95       | 22.5 KB                           |
+| Max       | 513 KB (`ui-background-rock.blp`) |
+
+**Size distribution — addon-bundled textures (65 files, loose):**
+
+| Statistic | Value   |
+| --------- | ------- |
+| Total     | 2.0 MB  |
+| Mean      | 30.8 KB |
+| p50       | 6.2 KB  |
+| p95       | 90.3 KB |
+| Max       | 684 KB  |
+
+**Combined (153 resolved textures):** ~3.3 MB raw total. p50 across the full set is ~3–4 KB — the corpus is overwhelmingly small icons and buttons, with a handful of medium-sized UI panels and one large background outlier.
+
+**Extrapolated decode time (using Q5 benchmarks):**
+
+| Scenario                        | Est. decode time | Notes                                           |
+| ------------------------------- | ---------------- | ----------------------------------------------- |
+| All at p50 (~3 KB)              | < 500 ms         | 153 × < 2 ms, 8 workers; icons and buttons only |
+| Including p95 textures (~90 KB) | ~1–2 s           | A few larger UI panels add tens of ms each      |
+| With rock.blp outlier (513 KB)  | ~5–6 s           | That one file alone is ~4 s (Q5); rest < 2 s    |
+| PNGs (15 files)                 | ~0 ms            | Served directly, no decode                      |
+| TGAs (37 files)                 | unimplemented    | Would add ~50–200 ms once TGA decode lands      |
+
+**Key findings:**
+
+- A heavily-loaded 153-addon workspace has only **~180 texture refs** — workspace scan is smaller than expected.
+- The **per-addon average is ~1.2 textures**; a typical 1–5 addon developer workspace has ~5–30 refs.
+- At ~5–30 refs and p50 ~3 KB each: total workspace preload is **< 100 ms** in the common case — effectively free.
+- The only significant cost is outlier backgrounds (> 200 KB). One such file adds ~2–4 s.
+- TGA textures (37 of 65 addon-bundled = 57%) are the largest unknown; they are currently unimplemented and would be served as placeholders.
+- The 29 unavailable textures are locale-specific variants or from addons not installed locally — these will always be a small miss rate for any given machine.
+
+---
+
 ## 3. Open Questions and Decision Answers
 
 Each question is answered with current evidence or flagged as "pending" with the specific benchmark that will answer it.
