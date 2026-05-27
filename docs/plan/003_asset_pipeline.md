@@ -12,17 +12,17 @@ Resolve and load real WoW textures (file path references and atlas names) into t
 
 - `src/assets/resolver.ts` — `normalizePath` + `resolveTexturePath`: backslash→slash, lowercase, multi-dir probe (BLP/TGA/PNG, with and without `Interface/` prefix), memoized, path-traversal safe (`..` rejected).
 - `src/assets/blp.ts` — BLP → RGBA via `js-blp` 1.0.5, RGBA → PNG buffer via `pngjs` 7.0.0.
-- `src/assets/cache.ts` — SHA1 cache key from path+mtime+size, read/write `.scryer-cache/`.
-- `src/assets/index.ts` — `AssetService` class: resolves path → probes disk → decodes BLP → returns abs PNG path. `fromConfig()` reads VSCode settings and defaults cache dir to `{workspaceFolder}/.scryer-cache`.
+- `src/assets/cache.ts` — SHA1 cache key from path+mtime+size, read/write the configured textures conversion dir (`<cacheRoot>/derived/textures/`).
+- `src/assets/index.ts` — `AssetService` class: resolves path → probes disk → decodes BLP → returns abs PNG path. `fromConfig()` reads VSCode settings and resolves the `cacheRoot` (global/workspace/custom) into explicit `sourceDir`, `texturesConvDir`, and `registryDir` paths.
 - `src/types/js-blp.d.ts` — TypeScript declarations for the untyped `js-blp` CJS package.
 - `test/assets/resolver.test.ts` — 13 tests: normalization, disk probe, traversal guard, memoization.
 
 ### Updated files
 
-- `src/panel.ts` — handles `requestAsset` messages, calls `AssetService`, posts `assetResolved { path, uri }`; adds cache dir + extractedAssetsDir to `localResourceRoots`; re-creates `AssetService` on config change.
+- `src/panel.ts` — handles `requestAsset` messages, calls `AssetService`, posts `assetResolved { path, uri }`; adds `cacheRoot` to `localResourceRoots`; shares one `AssetService` instance per extension session (singleton — `blizzardFilesEnsured` persists across panel opens); calls `invalidateAfterBlizzardExtraction()` instead of a full cache reset after successful extraction.
 - `src/webview/renderer.ts` — texture divs with `tex.file` tagged with `data-asset-path`; atlas textures tagged with `data-atlas-name` (labeled placeholder).
 - `src/webview/main.ts` — after render, collects unique `data-asset-path` values, posts `requestAsset`; handles `assetResolved` by applying `background-image` + removing placeholder child.
-- `package.json` — `scryer.assetCacheDir` and `scryer.blp2pngPath` settings added.
+- `package.json` — `scryer.cacheLocation`, `scryer.cacheDir`, and `scryer.blp2pngPath` settings added.
 - `.gitignore` — `.scryer-cache/` added.
 
 ### Async asset flow
@@ -32,13 +32,13 @@ Resolve and load real WoW textures (file path references and atlas names) into t
 3. Extension host resolves → decodes if needed → posts `assetResolved { path, uri }`.
 4. Webview receives `assetResolved`, swaps placeholder for real `background-image`.
 
-PNG files in `extractedAssetsDir` are served directly (no copy); BLP files are decoded and cached.
+PNG files in `cacheRoot/source/` are served directly (no copy); BLP files are decoded and written to `cacheRoot/derived/textures/`.
 
 ## Approach
 
 1. Read WoW install / extracted-assets dir from VSCode settings (mirrors `dev/config.local.sh` `WOW_DIR` pattern).
 2. Resolve a texture reference (`Interface\Buttons\UI-Quickslot-Depress`) to a file on disk.
-3. Convert BLP→PNG on first use; cache under `.scryer-cache/`.
+3. Convert BLP→PNG on first use; cache under `<cacheRoot>/derived/textures/`.
 4. Serve cached PNG to the webview via `webview.asWebviewUri`.
 5. Resolve atlas names via a JSON manifest (name → sheet file + crop rect). _(Deferred — see gaps.)_
 
@@ -67,7 +67,7 @@ WoW texture paths use backslash separators and typically omit the file extension
 2. If path has no extension: try `.blp` first, then `.tga`, then `.png`.
 3. Strip leading `Interface/` and probe both with and without the prefix (extractors vary).
 4. Search order:
-   - `scryer.extractedAssetsDir` (loose PNG/BLP/TGA extracted by WoW.export or similar)
+   - `<cacheRoot>/source/` (raw WoW assets extracted by `dev/extract.sh` or similar)
    - `scryer.installDir` loose files (only useful if user has non-CASC Classic)
    - Addon-local relative paths (for addon-bundled textures — common with TGA files)
 5. Memoize resolution results (path string → absolute disk path).
@@ -76,14 +76,25 @@ WoW texture paths use backslash separators and typically omit the file extension
 
 ## WoW Install Dir Config
 
-VSCode settings (all four now contributed via `package.json`):
+VSCode settings contributed via `package.json`:
 
 ```jsonc
-"scryer.installDir": "",          // e.g. /path/to/World of Warcraft/_retail_
-"scryer.extractedAssetsDir": "",  // primary: loose BLP/PNG from WoW.export
-"scryer.assetCacheDir": "",       // default: ${workspaceFolder}/.scryer-cache
+"scryer.cacheLocation": "global", // "global" (globalStorageUri, default) | "workspace" | "custom"
+"scryer.cacheDir": "",            // path when cacheLocation=custom; ignored otherwise
+"scryer.installDir": "",          // WoW install dir — Classic loose-file fallback
 "scryer.blp2pngPath": ""          // optional: path to blp2png binary (not yet wired)
 ```
+
+The resolved `cacheRoot` contains:
+
+```
+<cacheRoot>/
+  source/Interface/...     raw WoW assets (extracted BLP/PNG/TGA/Lua/XML) — expensive to regenerate
+  derived/textures/        BLP→PNG conversions — safe to delete, rebuilt on demand
+  derived/registry/        parsed Blizzard template registry JSON — safe to delete
+```
+
+Default cacheRoot (`"global"`) is `context.globalStorageUri.fsPath`, shared across workspaces so the GB-scale asset tree is not duplicated per project. `"workspace"` uses `.scryer-cache/` inside the workspace folder (gitignored).
 
 ## Atlas Textures
 
@@ -109,10 +120,11 @@ We do not bundle WoW assets (copyright). `dev/extract.sh` is the primary contrib
 
 ## Local Cache
 
-- Cache dir: `.scryer-cache/` (added to `.gitignore`).
+- Cache root: `<cacheRoot>/derived/textures/` for BLP→PNG conversions; `<cacheRoot>/source/` for raw extracted assets.
 - Key: SHA1 of the resolved source path + mtime + size (invalidates on file change).
 - File: `<sha1>.png` (decoded/converted texture).
-- PNG files served directly; only BLP→PNG conversions go through the cache.
+- PNG/TGA/BLP files in `source/` are served directly; only BLP→PNG conversions are written to `derived/textures/`.
+- `.scryer-cache/` in the workspace is gitignored (used when `cacheLocation = "workspace"`).
 
 ## Fallback
 

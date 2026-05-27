@@ -69,7 +69,7 @@ Backlog items (↳) are deferred tasks attached to the milestone after which the
   |   - mixins, C_Timer, events            |           asset:// (PNG from cache)
   |                                        |                      |
   |  Asset Pipeline (M3)                   |          +-----------------------------+
-  |   - BLP->PNG, atlas, cache             | -------> |  .scryer-cache/ (PNG)       |
+  |   - BLP->PNG, atlas, cache             | -------> |  cacheRoot/derived/ (PNG)   |
   +----------------------------------------+          +-----------------------------+
               |                  ^
     reads (read-only)          file save -> Hot Reload (M6)

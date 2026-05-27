@@ -41,17 +41,17 @@ An API function is available for a target flavor if: `(flavor.data[apiName] & ta
   "flavor": "mainline",
   "interfaceVersion": 120000,
   "wowInstallDir": "/path/to/World of Warcraft/_retail_",
-  "extractedAssetsDir": "/path/to/extracted/retail"
+  "cacheDir": "/path/to/custom/cache"
 }
 ```
 
-| Field                | Type                                                              | Description                                                    |
-| -------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------- |
-| `name`               | string                                                            | Display name for the status bar                                |
-| `flavor`             | `"mainline"` \| `"mists"` \| `"bcc"` \| `"classic_era"` \| custom | Selects the flavor bitflag for API availability                |
-| `interfaceVersion`   | number                                                            | Primary interface version for TOC validation and asset routing |
-| `wowInstallDir`      | string                                                            | Optional override for global `scryer.installDir`               |
-| `extractedAssetsDir` | string                                                            | Optional override for global `scryer.extractedAssetsDir`       |
+| Field              | Type                                                              | Description                                                                      |
+| ------------------ | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `name`             | string                                                            | Display name for the status bar                                                  |
+| `flavor`           | `"mainline"` \| `"mists"` \| `"bcc"` \| `"classic_era"` \| custom | Selects the flavor bitflag for API availability                                  |
+| `interfaceVersion` | number                                                            | Primary interface version for TOC validation and asset routing                   |
+| `wowInstallDir`    | string                                                            | Optional override for global `scryer.installDir`                                 |
+| `cacheDir`         | string                                                            | Optional override for global `scryer.cacheDir` (implies `cacheLocation: custom`) |
 
 ## API Availability Model
 
@@ -118,7 +118,7 @@ Custom targets reference a known flavor bit + interface version. Unknown flavor 
 
 - **Rotating Classic-progression flavor** — pin a versioned copy of `flavor.ts` to avoid surprise changes when the Classic season advances. Track which ketho release was used.
 - **Behavioral differences not in `flavor.ts`** — presence ≠ identical behavior. Out of scope for M5; document when discovered.
-- **Atlas/asset availability differs by flavor** — per-flavor `extractedAssetsDir` in target config handles this.
+- **Atlas/asset availability differs by flavor** — per-flavor `cacheDir` in target config handles this.
 - **Interface version granularity** — `interfaceVersion` is for asset routing and TOC validation; `flavor` is the API availability axis. Keep them separate fields.
 
 ## Dependencies

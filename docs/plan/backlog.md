@@ -10,11 +10,11 @@ Cross-cutting items deferred from completed milestones, or tooling debt that doe
 
 **What was built:**
 
-`src/parser/blizzard-registry.ts` — `loadBlizzardRegistry(addonsDir, cacheDir)` scans `Blizzard_SharedXML` and `Blizzard_FrameXML` via their TOC files, following `<Include>` chains to collect all virtual frame definitions into a `Map<string, FrameIR>`. Result is serialised to `.scryer-cache/blizzard-registry.json` and validated against TOC file mtimes on every call (fast on cache hit: 4 stat/read ops).
+`src/parser/blizzard-registry.ts` — `loadBlizzardRegistry(addonsDir, registryDir)` scans `Blizzard_SharedXML` and `Blizzard_FrameXML` via their TOC files, following `<Include>` chains to collect all virtual frame definitions into a `Map<string, FrameIR>`. Result is serialised under `<cacheRoot>/derived/registry/` and validated against TOC file mtimes on every call (fast on cache hit: 4 stat/read ops).
 
 `src/parser/collect-textures.ts` — `collectTexturePaths(frames)` walks the resolved frame tree (layers, button textures, children) and returns every distinct `TextureIR.file` path.
 
-`AssetService.loadBlizzardTemplates()` — convenience wrapper that computes the addons dir from `scryer.extractedAssetsDir/Interface/AddOns/` and delegates to `loadBlizzardRegistry`.
+`AssetService.loadBlizzardTemplates()` — convenience wrapper that computes the addons dir from `<cacheRoot>/source/Interface/AddOns/` and delegates to `loadBlizzardRegistry`.
 
 `panel.ts` `renderFile` — loads the registry before each `resolveInheritance` call so all Blizzard templates are available, then calls `collectTexturePaths` and pre-queues every texture for `resolveAndSendAsset` so extraction and resolution begins immediately (proactive rather than waiting for per-texture webview requests).
 
@@ -74,7 +74,7 @@ Three tests added in `test/webview/layout.test.ts`: sibling resolution via `$par
 1. Pick a pure-JS TGA decoder (e.g. `tga-js` on npm, or a small custom reader — the format is simple: uncompressed or RLE-compressed, fixed header).
 2. Decode TGA → RGBA buffer, then encode to PNG via `pngjs` (same pipeline as BLP).
 3. **Critical:** respect the TGA image-origin descriptor byte (bit 5 of byte 17). If set, the image data is top-to-bottom; if clear, it is bottom-to-top. `dev/assets.sh` stores TGAs with the flip applied and the bit set correctly — the decoder must read it to avoid upside-down textures.
-4. Cache in `.scryer-cache/` using the same SHA1 key scheme as BLP.
+4. Cache in `<cacheRoot>/derived/textures/` using the same SHA1 key scheme as BLP.
 5. Add tests against a small known-good TGA fixture (bottom-to-top + top-to-bottom variants).
 
 **Effort:** S — ~2–4 hours once a TGA library is selected.
@@ -89,7 +89,7 @@ Three tests added in `test/webview/layout.test.ts`: sibling resolution via `$par
 
 - **Retail:** uses `rustydemon-cli` (Rust-based CASC extractor, auto-detected from `PATH` or `CASC_TOOL` override in config). Downloads the Marlamin community listfile automatically. Outputs **BLP files** — these go through the normal BLP→PNG decode path in `AssetService`.
 - **Classic/Classic Era:** `rsync` from `$WOW_DIR/_classic_/Interface/` loose files.
-- `.wow-assets/` added to `.gitignore`; `dev/config.sh.example` documents `CASC_TOOL` override and the post-extract `scryer.extractedAssetsDir` setting.
+- `.wow-assets/` added to `.gitignore`; `dev/config.sh.example` documents `CASC_TOOL` override and the post-extract `scryer.cacheDir` / `scryer.cacheLocation` settings.
 
 **Note:** The original plan described WoW.export (GUI/CLI, outputs PNG). The actual implementation used `rustydemon-cli` instead — a headless CLI better suited for scripted extraction. Because it outputs BLP rather than PNG, it exercises the BLP decode path rather than the PNG direct-serve path, which is fine.
 
@@ -99,22 +99,22 @@ Three tests added in `test/webview/layout.test.ts`: sibling resolution via `$par
 
 ## In-app asset setup guidance for end users (deferred from M3)
 
-**Problem:** When a user opens a WoW XML file with Scryer and has no `scryer.extractedAssetsDir` configured, all textures show as colored placeholders with no explanation. There is nothing in the UI telling them how to get real textures.
+**Problem:** When a user opens a WoW XML file with Scryer and has no extracted assets in the cacheRoot, all textures show as colored placeholders with no explanation. There is nothing in the UI telling them how to get real textures.
 
 **Plan:**
 
 On first render (or when asset requests return nothing for every texture in the file), show a one-time notification:
 
 ```
-Scryer: No extracted assets configured.
-To see real WoW textures, set scryer.extractedAssetsDir to a folder of
-extracted WoW assets (PNG/BLP). [Open Settings] [Learn More]
+Scryer: No extracted assets found.
+To see real WoW textures, run dev/extract.sh to populate the asset cache,
+or configure scryer.cacheLocation / scryer.cacheDir. [Open Settings] [Learn More]
 ```
 
-- "Open Settings" → `vscode.commands.executeCommand('workbench.action.openSettings', 'scryer.extractedAssetsDir')`.
+- "Open Settings" → `vscode.commands.executeCommand('workbench.action.openSettings', 'scryer.cacheLocation')`.
 - "Learn More" → link to a docs page or the README section on extraction.
 - Show once per workspace (persist seen-flag in `context.workspaceState`), not on every open.
-- Do not show if `scryer.extractedAssetsDir` is already set.
+- Do not show if `<cacheRoot>/source/Interface/` is already populated.
 
 The output channel already logs per-path warnings; this is a higher-visibility one-time prompt, not a repeated nag.
 
@@ -152,7 +152,7 @@ Config additions: `scryer.flavor` (`retail`/`classic`/`classic_era`, default `re
 
 **What changes:**
 
-- `AssetService.extractMissing(paths)` is reimplemented without spawning a subprocess. Given a list of WoW-relative texture paths, it opens the CASC storage at `scryer.installDir`, reads the requested files, writes them into `extractedAssetsDir` (or directly into the cache), and returns.
+- `AssetService.extractMissing(paths)` is reimplemented without spawning a subprocess. Given a list of WoW-relative texture paths, it opens the CASC storage at `scryer.installDir`, reads the requested files, writes them into `<cacheRoot>/source/`, and returns.
 - `scryer.extractScriptPath` and `scryer.flavor` configs become unnecessary (flavor can be auto-detected from the install's `.build.info`).
 - `dev/extract.sh` and `dev/config.local.sh` remain as developer/contributor tooling but the extension no longer requires them.
 - The community listfile is no longer needed — CASC file lookup by virtual path is handled internally via the TVFS manifest and encoding tables.
@@ -234,7 +234,7 @@ N is clamped to available fixtures (no cycling). When fewer fixtures are on disk
 
 ## WoW build version tracking and cache invalidation
 
-**Problem:** WoW is updated automatically by the Battle.net launcher. After a game update, previously extracted files in `.wow-assets/` and `.scryer-cache/` may be stale — textures or addon code that changed in the patch will not match what the extension is serving. The user has no signal that their extract is out of date, and there is no mechanism to invalidate the cache on update.
+**Problem:** WoW is updated automatically by the Battle.net launcher. After a game update, previously extracted files in `<cacheRoot>/source/` and `<cacheRoot>/derived/` may be stale — textures or addon code that changed in the patch will not match what the extension is serving. The user has no signal that their extract is out of date, and there is no mechanism to invalidate the cache on update.
 
 **Goal:** Detect when the WoW install has been updated since the last extraction and prompt the user to re-extract (or invalidate the cache automatically).
 
@@ -250,12 +250,12 @@ Three viable detection approaches (pick simplest that works):
 
 Either way:
 
-1. After a successful extraction, write the stamp (version string or mtime) to `.wow-assets/.build-stamp`.
+1. After a successful extraction, write the stamp (version string or mtime) to `<cacheRoot>/source/.build-stamp`.
 2. At extension startup (or on first preview render), compare the current `.build.info` against the stamp.
 3. If they differ, surface a notification: _"Your WoW install was updated. Re-run extraction to get current Blizzard addon files and textures."_ with a button to trigger re-extraction.
 4. If `scryer.installDir` is not configured, skip silently.
 
-The stamp file lives in `.wow-assets/` (gitignored) alongside the extracted files — wiping and re-extracting naturally refreshes it.
+The stamp file lives in `<cacheRoot>/source/` alongside the extracted files — wiping and re-extracting naturally refreshes it.
 
 **Effort:** XS — a stat or single-field text parse, one file write, and a VSCode notification.
 
@@ -265,17 +265,17 @@ The stamp file lives in `.wow-assets/` (gitignored) alongside the extracted file
 
 **Problem:** When a WoW XML file is first opened, textures are resolved and decoded on-demand as the webview requests them. This means the first render is slow — each texture causes a round-trip from webview → extension → disk/cache → decode → response before it appears.
 
-**Goal:** Scan the workspace (and any configured `scryer.extractedAssetsDir`) at extension startup and pre-warm the asset cache so textures are already decoded when the first preview renders.
+**Goal:** Scan `<cacheRoot>/source/` at extension startup and pre-warm the asset cache so textures are already decoded when the first preview renders.
 
 **Plan:**
 
-1. At extension activation, glob `scryer.extractedAssetsDir` for all BLP and TGA files (PNG files are already fast, but can be indexed too).
+1. At extension activation, glob `<cacheRoot>/source/` for all BLP and TGA files (PNG files are already fast, but can be indexed too).
 2. Decode each file through the existing `AssetService` pipeline (BLP→PNG, TGA→PNG) and populate the in-memory cache.
 3. Run this preload in the background (don't block activation); use a VSCode progress notification or output channel message to indicate it is happening.
 4. Limit concurrency to avoid pegging the CPU (e.g. a queue of 4–8 parallel decode workers).
-5. Persist the decoded PNG bytes to `.scryer-cache/` (already done per-file on first decode) so subsequent sessions benefit from disk cache even without a full re-scan.
+5. Persist the decoded PNG bytes to `<cacheRoot>/derived/textures/` (already done per-file on first decode) so subsequent sessions benefit from disk cache even without a full re-scan.
 
-**Stretch:** Watch `scryer.extractedAssetsDir` for new files (VSCode `FileSystemWatcher`) and decode them as they arrive, so a fresh extraction populates the cache incrementally.
+**Stretch:** Watch `<cacheRoot>/source/` for new files (VSCode `FileSystemWatcher`) and decode them as they arrive, so a fresh extraction populates the cache incrementally.
 
 **Effort:** S — the decode pipeline already exists; this is parallelizing it over a directory listing at startup. The main complexity is worker concurrency and not blocking the extension host.
 
@@ -303,8 +303,8 @@ Controls what Blizzard template and asset content Scryer loads when the extensio
 
 **Implementation notes:**
 
-- Template tiers read from `extractedAssetsDir/Interface/AddOns/`. Texture tiers additionally require BLP decode + cache write.
-- If a texture-bearing tier is selected but `scryer.extractedAssetsDir` is not configured, degrade to the templates-only tier with a warning rather than failing silently.
+- Template tiers read from `<cacheRoot>/source/Interface/AddOns/`. Texture tiers additionally require BLP decode + cache write to `derived/textures/`.
+- If a texture-bearing tier is selected but `<cacheRoot>/source/` is unpopulated, degrade to the templates-only tier with a warning rather than failing silently.
 - The "+textures" tiers can be thousands of files. Run in the background worker pool (see [[preload-workspace-textures]]) with a progress notification; never block activation.
 
 ---

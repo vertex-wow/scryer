@@ -43,9 +43,10 @@ The Go subprocess option (ADR 001) was not adopted, eliminating that path.
 
 - **BLP:** `js-blp` 1.0.5 (Kruithne, MIT) — pure-JS, handles BLP1 uncompressed + BLP2 DXT1/3/5. Returns RGBA via a Bufo buffer (`bufo.raw`), encoded to PNG via `pngjs` 7.0.0. Optional `scryer.blp2pngPath` setting allows a user to point at a `blp2png` binary for exotic variants (not yet wired — setting exists for future use).
 - **TGA:** deferred in M3. Logs a warning and shows a labeled placeholder, advising the user to pre-convert to PNG. The orientation/flip concern (TGA image-origin descriptor byte) must be handled when implemented. See backlog.
-- **Caching:** lazy decode on first reference → PNG written to `.scryer-cache/` (keyed by SHA1 of source path + mtime + size) → served via `webview.asWebviewUri`. PNG files from `extractedAssetsDir` are served directly without copying.
+- **Caching:** lazy decode on first reference → PNG written to `<cacheRoot>/derived/textures/` (keyed by SHA1 of source path + mtime + size) → served via `webview.asWebviewUri`. Raw PNG/TGA files in `<cacheRoot>/source/` are served directly without copying.
+- **Cache root:** a unified `cacheRoot` (settable via `scryer.cacheLocation`: `global` / `workspace` / `custom`) holds both raw extracted assets (`source/`) and derived outputs (`derived/`). Default is `globalStorageUri` so the GB-scale asset tree is shared across workspaces.
 - **Scope:** decode only textures the previewed addon actually references, not the entire WoW asset library.
-- **Retail assets (CASC):** Retail WoW textures are stored in CASC archives, not loose files. The primary source is a user-configured `scryer.extractedAssetsDir` (extracted via WoW.export or CASCExplorer). The install dir is a secondary fallback for Classic/non-CASC installs.
+- **Retail assets (CASC):** Retail WoW textures are stored in CASC archives, not loose files. The primary source is `<cacheRoot>/source/` (populated by `dev/extract.sh`). The install dir (`scryer.installDir`) is a secondary fallback for Classic/non-CASC installs.
 - **Async flow:** webview renders placeholders immediately, then sends `requestAsset` messages for each unique file path. Extension host resolves asynchronously and responds with `assetResolved { path, uri }`. Webview swaps placeholder for real `background-image` on receipt.
 
 ## `dev/assets.sh` stays developer-only
@@ -56,7 +57,7 @@ The existing GM/ImageMagick usage in `dev/assets.sh` is correct and stays. It is
 
 - `js-blp` 1.0.5 was chosen. Validate coverage against the `_live/Addons` corpus; log unsupported variants for CLI fallback.
 - TGA decoder deferred. When implemented, must handle the vertical-flip case (TGA image-origin descriptor byte) — `dev/assets.sh` stores flipped TGAs and the flip bit must be respected.
-- `.scryer-cache/` is gitignored (added in M3).
+- `.scryer-cache/` is gitignored — used when `scryer.cacheLocation = "workspace"`. Default (`"global"`) routes to `globalStorageUri` outside the workspace tree entirely.
 - Atlas textures (`atlas="..."` in XML) require a JSON manifest mapping atlas names to sheet coordinates — this must be extracted from the game and version-tagged. Deferred to M5. See [plan/003_asset_pipeline.md](../plan/003_asset_pipeline.md) for details.
 
 ## References
