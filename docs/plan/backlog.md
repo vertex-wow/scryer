@@ -332,15 +332,15 @@ Default: `"extracted"` — preload whatever is already on disk, no auto-extracti
 
 ## tsconfig solution-style refactor (IDE tooling debt)
 
+**Status: ✅ Done (2026-05-26)**
+
 **Problem:** `tsconfig.json` includes a `"references"` entry to `tsconfig.test.json` intending VS Code to use the test config for `test/` files. In practice the language server falls back to the root config, which lacks `types: ["jest","node"]`, so Jest/Node globals appear unresolved in the IDE. No CI impact — typecheck uses `tsconfig.build.json` which excludes test files.
 
-**Fix:** Convert to a solution-style layout:
+**Fix applied:**
 
-- Rename current `tsconfig.json` → `tsconfig.src.json` (add `"composite": true`, keep `rootDir: "src"`, no `references`).
-- Replace `tsconfig.json` with a solution file: `{ "files": [], "references": [{"path":"./tsconfig.src.json"}, {"path":"./tsconfig.test.json"}] }`.
-- Update `tsconfig.test.json` to reference `tsconfig.src.json` instead of `tsconfig.json`.
-- Update `tsconfig.build.json`, `package.json` scripts, and any other references to the renamed file.
+- `tsconfig.src.json` — former `tsconfig.json` content, plus `"composite": true`, no `references`.
+- `tsconfig.json` — solution file: `{ "files": [], "references": [tsconfig.src.json, tsconfig.test.json] }`.
+- `tsconfig.test.json` — updated to extend and reference `tsconfig.src.json`.
+- `tsconfig.build.json` — updated to extend `tsconfig.src.json`; overrides `"composite": false` so `tsc --noEmit` works cleanly.
 
-VS Code reliably picks the correct per-file config in a solution-style layout.
-
-**Effort:** XS — under an hour, mostly renaming and updating references.
+VS Code now reliably picks the correct per-file config via solution-style layout.

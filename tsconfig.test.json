@@ -1,5 +1,5 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "./tsconfig.src.json",
   "compilerOptions": {
     "outDir": ".tsbuild/tests",
     "rootDir": ".",
@@ -9,5 +9,5 @@
     "types": ["jest", "node"]
   },
   "include": ["test"],
-  "references": [{ "path": "./tsconfig.json" }]
+  "references": [{ "path": "./tsconfig.src.json" }]
 }

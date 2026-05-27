@@ -22,6 +22,7 @@ Backlog items (↳) are deferred tasks attached to the milestone after which the
 | ↳   | [Extract Blizzard addon files](backlog.md#extract-blizzard-interface-addon-files-from-users-wow-installation)        | ✅ Done (2026-05-26)     | `--type interface` for Blizzard SharedXML/FrameXML       | Done   | —          |
 | ↳   | [Blizzard FrameXML corpus loading](backlog.md#blizzard-framexml-template-corpus-loading-pre-m4)                      | ✅ Done (2026-05-26)     | Load Blizzard template registry from extracted addons    | Done   | —          |
 | ↳   | [Output channel logging + logLevel](backlog.md#output-channel-logging-and-scryer.loglevel-setting)                   | ✅ Done (2026-05-26)     | Route warnings to output panel; add `scryer.logLevel`    | S      | —          |
+| ↳   | [tsconfig solution-style refactor](backlog.md#tsconfig-solution-style-refactor-ide-tooling-debt)                     | ✅ Done (2026-05-26)     | Fix IDE type resolution for test files                   | XS     | —          |
 | 4   | Lua Shim Runtime                                                                                                     | ⬜ Pending               | Sandboxed Lua exec + WoW API stubs + frame object model  | M      | 1, 2       |
 | 5   | Multi-Version Targets                                                                                                | ⬜ Pending               | Selectable Classic/Cata/Retail API profiles              | S–M    | 4          |
 | 6   | Hot Reload _(stretch)_                                                                                               | ⬜ Pending               | Re-parse/re-run on save with minimal repaint             | M      | 2, 4       |
@@ -33,7 +34,6 @@ Backlog items (↳) are deferred tasks attached to the milestone after which the
 | ↳   | [Preload workspace textures](backlog.md#preload-workspace-textures-at-startup)                                       | 📋 Pending               | Pre-warm asset cache at extension startup                | S      | —          |
 | ↳   | [Configurable preload scope](backlog.md#configurable-preload-scope-setting)                                          | 📋 Pending               | `scryer.preloadScope` enum to control preload depth      | XS–S   | —          |
 | ↳   | [Extraction benchmarks](backlog.md#extraction-benchmarks)                                                            | 📋 Pending               | Benchmark extraction pipeline at varying concurrency     | S      | —          |
-| ↳   | [tsconfig solution-style refactor](backlog.md#tsconfig-solution-style-refactor-ide-tooling-debt)                     | 📋 Pending               | Fix IDE type resolution for test files                   | XS     | —          |
 
 ## Recommended Tech Stack
 
