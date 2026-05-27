@@ -5,7 +5,8 @@ import { parseToc } from "./toc.js";
 import { parseXmlFile } from "./xml.js";
 
 // Addons to scan, in dependency order (base templates first).
-const ADDON_NAMES = ["Blizzard_SharedXML", "Blizzard_FrameXML"];
+export const ADDON_NAMES = ["Blizzard_SharedXML", "Blizzard_FrameXML"];
+export const SHARED_ADDON_NAMES = ["Blizzard_SharedXML"];
 
 // TOC filename suffixes to probe, in preference order.
 const TOC_SUFFIXES = ["_Mainline.toc", ".toc"];
@@ -127,7 +128,14 @@ function loadXmlIntoRegistry(
 // Disk cache
 // ---------------------------------------------------------------------------
 
-const CACHE_FILE = "blizzard-registry.json";
+const CACHE_FILE_ALL = "blizzard-registry.json";
+
+/** Stable cache filename for a given addon subset. Full set keeps the original name. */
+function cacheFileName(addonNames: string[]): string {
+  if (addonNames.length === ADDON_NAMES.length) return CACHE_FILE_ALL;
+  const suffix = addonNames.map((n) => n.replace(/^Blizzard_/, "").toLowerCase()).join("-");
+  return `blizzard-registry-${suffix}.json`;
+}
 
 interface RegistryCache {
   /** TOC absolute paths → mtime stamps used to detect stale cache. */
@@ -135,19 +143,19 @@ interface RegistryCache {
   entries: [string, FrameIR][];
 }
 
-function readRegistryCache(cacheDir: string): RegistryCache | null {
+function readRegistryCache(cacheDir: string, file: string): RegistryCache | null {
   try {
-    const raw = fs.readFileSync(path.join(cacheDir, CACHE_FILE), "utf-8");
+    const raw = fs.readFileSync(path.join(cacheDir, file), "utf-8");
     return JSON.parse(raw) as RegistryCache;
   } catch {
     return null;
   }
 }
 
-function writeRegistryCache(cacheDir: string, data: RegistryCache): void {
+function writeRegistryCache(cacheDir: string, file: string, data: RegistryCache): void {
   try {
     fs.mkdirSync(cacheDir, { recursive: true });
-    fs.writeFileSync(path.join(cacheDir, CACHE_FILE), JSON.stringify(data));
+    fs.writeFileSync(path.join(cacheDir, file), JSON.stringify(data));
   } catch {
     // Cache write failure is non-fatal; we'll just re-parse next time.
   }
@@ -155,9 +163,17 @@ function writeRegistryCache(cacheDir: string, data: RegistryCache): void {
 
 export function clearRegistryCache(cacheDir: string): void {
   try {
-    fs.unlinkSync(path.join(cacheDir, CACHE_FILE));
+    for (const entry of fs.readdirSync(cacheDir)) {
+      if (entry.startsWith("blizzard-registry") && entry.endsWith(".json")) {
+        try {
+          fs.unlinkSync(path.join(cacheDir, entry));
+        } catch {
+          // Individual delete failure is non-fatal.
+        }
+      }
+    }
   } catch {
-    // Missing cache is fine.
+    // Cache dir missing or unreadable — nothing to clear.
   }
 }
 
@@ -270,14 +286,20 @@ export function discoverBlizzardPaths(extractedAssetsDir: string, addonsDir: str
  * @param addonsDir  Absolute path to the extracted `Interface/AddOns/` directory.
  * @param cacheDir   Absolute path to the Scryer cache directory.
  */
-export function loadBlizzardRegistry(addonsDir: string, cacheDir: string): Map<string, FrameIR> {
+export function loadBlizzardRegistry(
+  addonsDir: string,
+  cacheDir: string,
+  addonNames: string[] = ADDON_NAMES,
+): Map<string, FrameIR> {
   if (!addonsDir) return new Map();
+
+  const cacheFile = cacheFileName(addonNames);
 
   // Locate TOC files and compute the current mtime stamp.
   const tocPaths = new Map<string, string>(); // addonName → absolute TOC path
   const stamp: Record<string, number> = {};
 
-  for (const addonName of ADDON_NAMES) {
+  for (const addonName of addonNames) {
     const addonDir = resolveCI(addonsDir, addonName);
     const tocPath = findTocPath(addonDir, addonName);
     if (tocPath) {
@@ -289,7 +311,7 @@ export function loadBlizzardRegistry(addonsDir: string, cacheDir: string): Map<s
   if (tocPaths.size === 0) return new Map();
 
   // Check disk cache — valid if stamp matches exactly.
-  const cached = readRegistryCache(cacheDir);
+  const cached = readRegistryCache(cacheDir, cacheFile);
   if (cached) {
     const keys = Object.keys(stamp);
     const ckeys = Object.keys(cached.stamp);
@@ -304,7 +326,7 @@ export function loadBlizzardRegistry(addonsDir: string, cacheDir: string): Map<s
   const visited = new Set<string>();
   const incomplete = { value: false };
 
-  for (const addonName of ADDON_NAMES) {
+  for (const addonName of addonNames) {
     const tocPath = tocPaths.get(addonName);
     if (!tocPath) continue;
     for (const xmlFile of tocXmlFiles(tocPath)) {
@@ -316,7 +338,7 @@ export function loadBlizzardRegistry(addonsDir: string, cacheDir: string): Map<s
   // Don't cache partial results — if any XML files were missing, skip the write so
   // the next load re-parses once the extraction has delivered more files.
   if (!incomplete.value) {
-    writeRegistryCache(cacheDir, { stamp, entries: Array.from(registry.entries()) });
+    writeRegistryCache(cacheDir, cacheFile, { stamp, entries: Array.from(registry.entries()) });
   }
   return registry;
 }

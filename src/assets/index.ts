@@ -5,6 +5,8 @@ import { blpToPng } from "./blp.js";
 import { cacheKey, getCachedPath, writeCached } from "./cache.js";
 import { shellExtractInterface, shellExtractMissing } from "./extractor.js";
 import {
+  ADDON_NAMES,
+  SHARED_ADDON_NAMES,
   clearRegistryCache,
   discoverBlizzardPaths,
   loadBlizzardRegistry,
@@ -187,7 +189,10 @@ export class AssetService {
   loadBlizzardTemplates(): Map<string, FrameIR> {
     if (!this.opts.extractedAssetsDir) return new Map();
     const addonsDir = resolveAddonsDir(this.opts.extractedAssetsDir);
-    return loadBlizzardRegistry(addonsDir, this.opts.cacheDir);
+    const startupContent =
+      vscode.workspace.getConfiguration("scryer").get<string>("startupContent") ?? "none";
+    const addonNames = startupContent === "shared-templates" ? SHARED_ADDON_NAMES : ADDON_NAMES;
+    return loadBlizzardRegistry(addonsDir, this.opts.cacheDir, addonNames);
   }
 
   /**

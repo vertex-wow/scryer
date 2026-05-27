@@ -23,7 +23,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Deferred past activation via a resolved promise so activate() returns promptly.
   const startupContent =
     vscode.workspace.getConfiguration("scryer").get<string>("startupContent") ?? "none";
-  if (startupContent === "all-templates") {
+  if (startupContent === "shared-templates" || startupContent === "all-templates") {
     const output = vscode.window.createOutputChannel("Scryer", { log: true });
     context.subscriptions.push(output);
     const assets = AssetService.fromConfig(context, output);
