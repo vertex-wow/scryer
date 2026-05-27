@@ -15,8 +15,8 @@ await Promise.all([
   esbuild.build({ ...shared, entryPoints: ["dev/bench.ts"], outfile: "dist/bench.js" }),
   esbuild.build({
     ...shared,
-    entryPoints: ["dev/collect-blizz-textures.ts"],
-    outfile: "dist/collect-blizz-textures.js",
+    entryPoints: ["dev/collect-textures.ts"],
+    outfile: "dist/collect-textures.js",
   }),
   esbuild.build({ ...shared, entryPoints: ["dev/conv-time.ts"], outfile: "dist/conv-time.js" }),
 ]);

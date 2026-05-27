@@ -371,35 +371,29 @@ VS Code now reliably picks the correct per-file config via solution-style layout
 
 ---
 
-## Blizzard texture manifest builder
+## Addon texture manifest builder
 
-**Status: Pending**
+**Status: Done** (2026-05-27)
 
-**Problem:** `collect-blizz-textures.ts` (`dev/`) and the `loadBlizzardRegistry` + `collectTexturePaths` pipeline only cover `Blizzard_SharedXML` and `Blizzard_FrameXML` (102 unique texture references). The full Blizzard addon corpus is 315 addon folders (3,650 extracted files). To extract _all_ textures that Scryer would need to preview _any_ Blizzard addon, we need a manifest generator that goes beyond the two-addon template registry.
+**What was built:**
 
-**Goal:** Build a parser-backed manifest generator that produces a complete, deduplicated list of all texture paths that would be loaded when previewing a given set of addons — usable as input to a single `rustydemon-cli` batch extraction call.
+`src/parser/addon-textures.ts` — `collectAddonTexturePaths(addonsDir, addonNames)` scans any set of addon folders via their TOC files, follows `<Include>` chains, and returns every distinct raw texture path found across all frames and templates. No inheritance resolution is applied — each XML definition's `file=` attributes are collected directly, which gives a correct superset of what will be needed at render time. `resolveCI` is now exported from `blizzard-registry.ts` so the path-finding logic is shared.
 
-**Plan:**
+`dev/collect-textures.ts` — CLI wrapper (replaces `collect-blizz-textures.ts`). Accepts an optional addons dir and optional addon name list; defaults to scanning every subdirectory in the addons dir. Normalizes paths (backslash → slash, `.blp` appended if no extension) and outputs a sorted, deduplicated manifest to stdout with stats to stderr. Built via `pnpm collect-textures`.
 
-1. Load the Blizzard template registry (SharedXML + FrameXML) as the base — provides virtual template definitions for inheritance resolution.
-2. For each other addon in the extraction set, discover its XML files via its TOC file and parse them through the existing XML parser + `resolveInheritance`, using the base registry for template lookup.
-3. Walk all resolved `FrameIR` trees with `collectTexturePaths` to collect `TextureIR.file` references.
-4. Normalize paths (backslash → slash, append `.blp` if no extension) and deduplicate.
-5. Output: a sorted, newline-delimited file suitable for generating a `rustydemon-cli` brace-glob argument or a `--paths-file` if the tool ever adds that flag.
-
-**Output usage:**
+**Usage:**
 
 ```bash
-# Generate manifest
-node dist/build-texture-manifest.js .wow-assets/interface/addons > /tmp/texture-manifest.txt
+# All addons in the default dir → manifest → extract
+pnpm collect-textures > /tmp/textures.txt
+./dev/extract.sh retail --paths-file /tmp/textures.txt
+
+# Named addons only
+node dist/collect-textures.js .wow-assets/interface/addons Blizzard_SharedXML Blizzard_FrameXML
 
 # Derive unique parent dirs and build brace glob
-DIRS=$(cat /tmp/texture-manifest.txt | sed 's|/[^/]*$||' | sort -u | tr '\n' ',' | sed 's/,$//')
+DIRS=$(sed 's|/[^/]*$||' /tmp/textures.txt | sort -u | tr '\n' ',' | sed 's/,$//')
 rustydemon-cli export -a "$WOW_DIR" -l dev/listfile.csv -o .wow-assets -p "{$DIRS}/**" -j 8
 ```
 
-**Why now matters:** The 2026-05-27 corpus measurements showed that the 102-texture set from the two-addon registry is an undercount. A full manifest is needed before the extraction pipeline can be considered complete for production use. This also feeds the preload decision (Q3 in `docs/measurements.md`) — the total texture count and size distribution from the full corpus determines whether eager preload remains viable.
-
-**Relationship to M4:** Parsing addon XML with proper template inheritance is also what M4 (Lua Shim Runtime) needs. The manifest builder is a lightweight, non-Lua precursor to that work — it exercises the same "load arbitrary addon XML using the Blizzard template base" infrastructure without needing Lua execution.
-
-**Effort:** S — the parser and `collectTexturePaths` already exist; this is mainly a TOC-driven loader that applies them to all addons and aggregates results.
+**Design note:** Inheritance resolution is not needed for manifest/preload purposes. Template definitions include their `file=` attributes directly in the XML, so raw parsing already captures all texture references. Concrete frames that only inherit textures from Blizzard templates are covered when those template addons are also scanned. This keeps the function fast and dependency-free (no registry pass required).

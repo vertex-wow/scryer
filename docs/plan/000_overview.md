@@ -35,7 +35,7 @@ Backlog items (↳) are deferred tasks attached to the milestone after which the
 | ↳   | [Configurable preload scope](backlog.md#configurable-preload-scope-setting)                                            | 📋 Pending               | `scryer.preloadScope` enum to control preload depth      | XS–S   | —          |
 | ↳   | [Direct BLP/TGA serving in webview](backlog.md#direct-proprietary-texture-serving-in-the-webview-blptga-decode-bypass) | 📋 Pending (research)    | Feasibility: skip PNG compression by serving raw RGBA    | XS     | —          |
 | ↳   | [Extraction benchmarks](backlog.md#extraction-benchmarks)                                                              | ✅ Done (2026-05-27)     | Benchmark extraction pipeline at varying concurrency     | S      | —          |
-| ↳   | [Blizzard texture manifest builder](backlog.md#blizzard-texture-manifest-builder)                                      | 📋 Pending               | Parser-backed manifest of all Blizzard addon textures    | S      | —          |
+| ↳   | [Addon texture manifest builder](backlog.md#addon-texture-manifest-builder)                                            | ✅ Done (2026-05-27)     | `collectAddonTexturePaths` + `collect-textures` CLI      | S      | —          |
 
 ## Recommended Tech Stack
 

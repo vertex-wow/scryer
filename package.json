@@ -153,6 +153,7 @@
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck",
     "ci:install": "pnpm install --frozen-lockfile",
     "bench": "node dev/bench.build.mjs && node dist/bench.js",
+    "collect-textures": "node dev/bench.build.mjs && node dist/collect-textures.js",
     "package": "pnpm run build && vsce package --no-dependencies",
     "publish": "pnpm run build && vsce publish --no-dependencies",
     "prepare": "husky"

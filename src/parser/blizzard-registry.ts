@@ -17,7 +17,7 @@ const TOC_SUFFIXES = ["_Mainline.toc", ".toc"];
  * Each component is matched to an actual directory entry when possible; unmatched
  * components are kept as-is so missing-file detection still works correctly.
  */
-function resolveCI(base: string, relPath: string): string {
+export function resolveCI(base: string, relPath: string): string {
   const parts = relPath.replace(/\\/g, "/").split("/").filter(Boolean);
   let current = base;
   for (const part of parts) {

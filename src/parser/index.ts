@@ -5,3 +5,4 @@ export { parseXmlFile } from "./xml.js";
 export { resolveInheritance } from "./inherit.js";
 export { loadBlizzardRegistry } from "./blizzard-registry.js";
 export { collectTexturePaths } from "./collect-textures.js";
+export { collectAddonTexturePaths } from "./addon-textures.js";
