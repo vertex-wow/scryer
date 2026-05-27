@@ -254,11 +254,16 @@ export class ScryerPanel {
 
       void this.panel.webview.postMessage(msg);
 
-      // Proactively queue all texture paths found in the resolved frame tree.
-      // This triggers extraction for the full inheritance stack up-front rather
-      // than waiting for the webview to request them one at a time.
-      for (const rawPath of texturePaths) {
-        void this.resolveAndSendAsset(rawPath, addonDir);
+      // When userAddonPreload is "saved-file" (or any future eager mode), proactively
+      // resolve and decode all textures found in the frame tree so they hit the PNG
+      // cache before the webview requests them. "on-demand" skips this and lets the
+      // webview drive resolution via requestAsset messages instead.
+      const preloadMode =
+        vscode.workspace.getConfiguration("scryer").get<string>("userAddonPreload") ?? "on-demand";
+      if (preloadMode !== "on-demand") {
+        for (const rawPath of texturePaths) {
+          void this.resolveAndSendAsset(rawPath, addonDir);
+        }
       }
     } catch (err) {
       if (this.isEnabled(vscode.LogLevel.Error)) {
