@@ -7,6 +7,14 @@ import { collectTexturePaths } from "./parser/collect-textures.js";
 import type { FrameIR } from "./parser/ir.js";
 import type { HostMessage, Viewport } from "./protocol.js";
 
+// Minimal surface of the vscode.git extension API needed to check gitignore status.
+interface GitRepo {
+  checkIgnore(paths: string[]): Promise<Set<string>>;
+}
+interface GitApi {
+  getRepository(uri: vscode.Uri): GitRepo | null;
+}
+
 function getNonce(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let result = "";
@@ -316,11 +324,47 @@ export class ScryerPanel {
     }
   }
 
+  /** Returns uris with gitignored paths removed. Falls back to the full list on any error. */
+  private async filterGitIgnored(uris: vscode.Uri[]): Promise<vscode.Uri[]> {
+    try {
+      const ext = vscode.extensions.getExtension<{ getAPI(v: number): GitApi }>("vscode.git");
+      if (!ext) return uris;
+      if (!ext.isActive) await ext.activate();
+      const git = ext.exports.getAPI(1);
+
+      // Group URIs by repository so we can batch each checkIgnore call.
+      const byRepo = new Map<GitRepo, vscode.Uri[]>();
+      const repoless: vscode.Uri[] = [];
+      for (const uri of uris) {
+        const repo = git.getRepository(uri);
+        if (!repo) {
+          repoless.push(uri);
+        } else {
+          const list = byRepo.get(repo) ?? [];
+          list.push(uri);
+          byRepo.set(repo, list);
+        }
+      }
+
+      const kept: vscode.Uri[] = [...repoless];
+      for (const [repo, repoUris] of byRepo) {
+        const ignored = await repo.checkIgnore(repoUris.map((u) => u.fsPath));
+        for (const uri of repoUris) {
+          if (!ignored.has(uri.fsPath)) kept.push(uri);
+        }
+      }
+      return kept;
+    } catch {
+      return uris; // git extension unavailable; proceed unfiltered
+    }
+  }
+
   private async prewarmWorkspace(
     currentUri: vscode.Uri,
     blizzardRegistry: Map<string, FrameIR>,
   ): Promise<void> {
-    const xmlFiles = await vscode.workspace.findFiles("**/*.xml");
+    const allXmlFiles = await vscode.workspace.findFiles("**/*.xml");
+    const xmlFiles = await this.filterGitIgnored(allXmlFiles);
     for (const xmlUri of xmlFiles) {
       if (xmlUri.toString() === currentUri.toString()) continue; // already rendered
       try {
