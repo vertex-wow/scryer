@@ -45,7 +45,10 @@
       "Bash(~/.cargo/bin/rustydemon-cli *)",
       "Bash(cargo search *)",
       "Bash(pnpm build *)",
-      "Bash(shellcheck:*)"      
+      "Bash(shellcheck:*)",
+      "Bash(pnpm bench *)",
+      "Bash(node dist/bench.js)",
+      "Bash(node dev/bench.build.mjs)"
     ]
   },
   "deny": [],
