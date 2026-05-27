@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { AssetService } from "./assets/index.js";
+import { ADDON_NAMES, SHARED_ADDON_NAMES } from "./parser/blizzard-registry.js";
 import { ScryerPanel } from "./panel.js";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -18,17 +19,22 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(cmd);
 
-  // If startupContent requests eager template loading, pre-warm the registry disk cache
-  // so the first panel open returns immediately from cache instead of parsing from disk.
-  // Deferred past activation via a resolved promise so activate() returns promptly.
+  // Pre-warm template registry and/or texture caches at activation so the first panel
+  // open is fast. Deferred past activate() via a resolved promise so activation is
+  // not delayed by synchronous registry parsing.
   const startupContent =
     vscode.workspace.getConfiguration("scryer").get<string>("startupContent") ?? "none";
-  if (startupContent === "shared-templates" || startupContent === "all-templates") {
+  if (startupContent !== "none") {
     const output = vscode.window.createOutputChannel("Scryer", { log: true });
     context.subscriptions.push(output);
     const assets = AssetService.fromConfig(context, output);
-    void Promise.resolve().then(() => {
+    void Promise.resolve().then(async () => {
       assets.loadBlizzardTemplates();
+      if (startupContent === "all-templates-shared-textures") {
+        await assets.prewarmBlizzardTextures(SHARED_ADDON_NAMES);
+      } else if (startupContent === "all-templates-textures") {
+        await assets.prewarmBlizzardTextures(ADDON_NAMES);
+      }
     });
   }
 }

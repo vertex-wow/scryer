@@ -12,6 +12,7 @@ import {
   loadBlizzardRegistry,
 } from "../parser/blizzard-registry.js";
 import { clearResolutionMemo, resolveTexturePath } from "./resolver.js";
+import { collectTexturePaths } from "../parser/collect-textures.js";
 import type { FrameIR } from "../parser/ir.js";
 
 function parseLogLevel(s: string): vscode.LogLevel {
@@ -193,6 +194,20 @@ export class AssetService {
       vscode.workspace.getConfiguration("scryer").get<string>("startupContent") ?? "none";
     const addonNames = startupContent === "shared-templates" ? SHARED_ADDON_NAMES : ADDON_NAMES;
     return loadBlizzardRegistry(addonsDir, this.opts.cacheDir, addonNames);
+  }
+
+  /**
+   * Resolve and cache every texture referenced in the Blizzard templates for the given
+   * addon subset. Converts BLP files to PNG on first use so subsequent panel opens
+   * serve textures from the disk cache without any decode delay.
+   * Skips silently when extractedAssetsDir is not configured.
+   */
+  async prewarmBlizzardTextures(addonNames: string[]): Promise<void> {
+    if (!this.opts.extractedAssetsDir) return;
+    const addonsDir = resolveAddonsDir(this.opts.extractedAssetsDir);
+    const registry = loadBlizzardRegistry(addonsDir, this.opts.cacheDir, addonNames);
+    const paths = collectTexturePaths(Array.from(registry.values()));
+    await Promise.all(paths.map((p) => this.resolveToAbsPath(p)));
   }
 
   /**
