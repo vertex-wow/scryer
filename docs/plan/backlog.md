@@ -281,31 +281,54 @@ The stamp file lives in `.wow-assets/` (gitignored) alongside the extracted file
 
 ---
 
-## Configurable preload scope setting
+## Preload settings — `scryer.startupContent` + `scryer.userAddonPreload`
 
-**Problem:** A single preload strategy doesn't fit all users. A contributor working on one addon wants fast previews for their workspace textures only. A power user with a full extraction wants everything pre-warmed. There's no way to express this preference today.
+**Status: Settings contributed** (2026-05-27) — `package.json` contributions added; implementation pending.
 
-**Goal:** Add a `scryer.preloadScope` dropdown setting with graduated tiers so the user controls how aggressively Scryer pre-warms the asset cache at startup.
+**Supersedes:** The earlier single-setting `scryer.preloadScope` design. That design conflated two orthogonal axes (static Blizzard library scope vs. dynamic per-edit addon scope) into one enum, making it impossible to express e.g. "all Blizz templates but on-demand for my addon."
 
-**Proposed tiers (`scryer.preloadScope` enum):**
+---
 
-| Value         | Label            | Behavior                                                                                         |
-| ------------- | ---------------- | ------------------------------------------------------------------------------------------------ |
-| `"none"`      | Disabled         | No preload — decode on demand only (current default behavior)                                    |
-| `"workspace"` | Workspace only   | Scan textures referenced in XML files found in the current workspace                             |
-| `"extracted"` | Extracted assets | Preload everything already present in `scryer.extractedAssetsDir`                                |
-| `"full"`      | Full extraction  | Trigger extraction of all known Interface textures from the WoW install, then preload the result |
+### `scryer.startupContent` (default `"none"`)
 
-Default: `"extracted"` — preload whatever is already on disk, no auto-extraction triggered.
+Controls what Blizzard template and asset content Scryer loads when the extension activates. This is a static, one-time load at startup — the Blizzard corpus is shared across all previews.
 
-**Notes:**
+| Value                             | Behavior                                                |
+| --------------------------------- | ------------------------------------------------------- |
+| `"none"`                          | Nothing preloaded (default)                             |
+| `"shared-templates"`              | Preload `Blizzard_SharedXML` template definitions       |
+| `"all-templates"`                 | Preload all Blizzard addon template definitions         |
+| `"all-templates-shared-textures"` | All templates + textures from `Blizzard_SharedXML` only |
+| `"all-templates-textures"`        | All templates + all Blizzard textures                   |
 
-- `"workspace"` scope requires parsing open XML files to collect texture paths before decoding — a lighter scan than indexing the whole asset dir.
-- `"full"` is only available when `scryer.installDir` is set; the setting should be grayed out or warn if the install dir is missing. This tier depends on the in-process CASC reader (see [[in-process-casc-reader]]) to be practical for end users.
-- The preload worker pool (concurrency, progress notification) is shared with the parent preload task — this is just a scope gate on top of that work.
-- All tiers still respect `.scryer-cache/` — already-decoded files are served from disk cache without re-decoding.
+**Implementation notes:**
 
-**Effort:** XS–S — the dropdown is a one-line `package.json` contribution; the `"workspace"` XML-scan path is the only novel logic. `"full"` scope is a stretch goal gated on the CASC reader milestone.
+- Template tiers read from `extractedAssetsDir/Interface/AddOns/`. Texture tiers additionally require BLP decode + cache write.
+- If a texture-bearing tier is selected but `scryer.extractedAssetsDir` is not configured, degrade to the templates-only tier with a warning rather than failing silently.
+- The "+textures" tiers can be thousands of files. Run in the background worker pool (see [[preload-workspace-textures]]) with a progress notification; never block activation.
+
+---
+
+### `scryer.userAddonPreload` (default `"on-demand"`)
+
+Controls how eagerly Scryer pre-warms texture assets for the addon currently being previewed. This is a dynamic, per-session scope that runs continuously as the user edits.
+
+| Value            | Behavior                                                              |
+| ---------------- | --------------------------------------------------------------------- |
+| `"on-demand"`    | Decode textures only when the webview requests them (current default) |
+| `"saved-file"`   | Pre-warm textures referenced by the currently saved file              |
+| `"current-file"` | Pre-warm textures for the current file including unsaved edits        |
+| `"workspace"`    | Pre-warm textures for all WoW XML files in the workspace              |
+
+**Implementation notes:**
+
+- `"saved-file"` and `"current-file"` require parsing the active file to collect texture paths before decoding — use `collectAddonTexturePaths` from `src/parser/addon-textures.ts`.
+- `"current-file"` means the buffer contents, not the disk file — needs access to the VS Code `TextDocument` active content.
+- `"workspace"` scope is the most expensive: all XML files in the workspace are scanned. Limit concurrency and run in the background.
+
+---
+
+**Effort (implementation):** S — worker pool + concurrency exist via [[preload-workspace-textures]]; these are scope gates on top of that work. `"current-file"` (unsaved-buffer scan) is the only novel path.
 
 ---
 

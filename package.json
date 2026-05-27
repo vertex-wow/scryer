@@ -137,6 +137,42 @@
           ],
           "default": "warning",
           "description": "Controls how much diagnostic output Scryer writes to the Output channel"
+        },
+        "scryer.startupContent": {
+          "type": "string",
+          "enum": [
+            "none",
+            "shared-templates",
+            "all-templates",
+            "all-templates-shared-textures",
+            "all-templates-textures"
+          ],
+          "enumDescriptions": [
+            "Nothing preloaded at startup (default)",
+            "Preload Blizzard_SharedXML template definitions (not yet implemented)",
+            "Preload all Blizzard addon template definitions (not yet implemented)",
+            "All Blizzard templates + textures from Blizzard_SharedXML only (not yet implemented)",
+            "All Blizzard templates + all Blizzard textures (not yet implemented)"
+          ],
+          "default": "none",
+          "description": "What Blizzard template and asset content Scryer loads when the extension activates"
+        },
+        "scryer.userAddonPreload": {
+          "type": "string",
+          "enum": [
+            "on-demand",
+            "saved-file",
+            "current-file",
+            "workspace"
+          ],
+          "enumDescriptions": [
+            "Resolve and decode textures only when the webview requests them (default)",
+            "Pre-warm textures referenced by the currently saved file (not yet implemented)",
+            "Pre-warm textures for the current file including unsaved edits (not yet implemented)",
+            "Pre-warm textures for all WoW XML files in the workspace (not yet implemented)"
+          ],
+          "default": "on-demand",
+          "description": "How eagerly Scryer pre-warms texture assets for the addon currently being previewed"
         }
       }
     }
