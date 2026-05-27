@@ -143,30 +143,30 @@ interface RegistryCache {
   entries: [string, FrameIR][];
 }
 
-function readRegistryCache(cacheDir: string, file: string): RegistryCache | null {
+function readRegistryCache(registryDir: string, file: string): RegistryCache | null {
   try {
-    const raw = fs.readFileSync(path.join(cacheDir, file), "utf-8");
+    const raw = fs.readFileSync(path.join(registryDir, file), "utf-8");
     return JSON.parse(raw) as RegistryCache;
   } catch {
     return null;
   }
 }
 
-function writeRegistryCache(cacheDir: string, file: string, data: RegistryCache): void {
+function writeRegistryCache(registryDir: string, file: string, data: RegistryCache): void {
   try {
-    fs.mkdirSync(cacheDir, { recursive: true });
-    fs.writeFileSync(path.join(cacheDir, file), JSON.stringify(data));
+    fs.mkdirSync(registryDir, { recursive: true });
+    fs.writeFileSync(path.join(registryDir, file), JSON.stringify(data));
   } catch {
     // Cache write failure is non-fatal; we'll just re-parse next time.
   }
 }
 
-export function clearRegistryCache(cacheDir: string): void {
+export function clearRegistryCache(registryDir: string): void {
   try {
-    for (const entry of fs.readdirSync(cacheDir)) {
+    for (const entry of fs.readdirSync(registryDir)) {
       if (entry.startsWith("blizzard-registry") && entry.endsWith(".json")) {
         try {
-          fs.unlinkSync(path.join(cacheDir, entry));
+          fs.unlinkSync(path.join(registryDir, entry));
         } catch {
           // Individual delete failure is non-fatal.
         }
@@ -281,14 +281,14 @@ export function discoverBlizzardPaths(extractedAssetsDir: string, addonsDir: str
  *
  * Scans Blizzard_SharedXML and Blizzard_FrameXML via their TOC files, following
  * <Include> chains to collect all virtual frame definitions. Result is cached to
- * `cacheDir/blizzard-registry.json` and invalidated when TOC file mtimes change.
+ * `registryDir/blizzard-registry.json` and invalidated when TOC file mtimes change.
  *
- * @param addonsDir  Absolute path to the extracted `Interface/AddOns/` directory.
- * @param cacheDir   Absolute path to the Scryer cache directory.
+ * @param addonsDir    Absolute path to the extracted `Interface/AddOns/` directory.
+ * @param registryDir  Absolute path to `<cacheRoot>/derived/registry/`.
  */
 export function loadBlizzardRegistry(
   addonsDir: string,
-  cacheDir: string,
+  registryDir: string,
   addonNames: string[] = ADDON_NAMES,
 ): Map<string, FrameIR> {
   if (!addonsDir) return new Map();
@@ -311,7 +311,7 @@ export function loadBlizzardRegistry(
   if (tocPaths.size === 0) return new Map();
 
   // Check disk cache — valid if stamp matches exactly.
-  const cached = readRegistryCache(cacheDir, cacheFile);
+  const cached = readRegistryCache(registryDir, cacheFile);
   if (cached) {
     const keys = Object.keys(stamp);
     const ckeys = Object.keys(cached.stamp);
@@ -338,7 +338,7 @@ export function loadBlizzardRegistry(
   // Don't cache partial results — if any XML files were missing, skip the write so
   // the next load re-parses once the extraction has delivered more files.
   if (!incomplete.value) {
-    writeRegistryCache(cacheDir, cacheFile, { stamp, entries: Array.from(registry.entries()) });
+    writeRegistryCache(registryDir, cacheFile, { stamp, entries: Array.from(registry.entries()) });
   }
   return registry;
 }

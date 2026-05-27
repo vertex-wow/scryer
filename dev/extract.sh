@@ -7,8 +7,10 @@ set -euo pipefail
 # Retail: auto-detects an installed CASC extraction tool (see CASC_TOOLS below).
 # Classic/Classic Era: copies loose files from $WOW_DIR/_classic_/Interface/.
 #
-# Usage: ./dev/extract.sh [classic|classic_era|retail(default)] [--type textures|interface|all] [--paths-file <file>]
+# Usage: ./dev/extract.sh [classic|classic_era|retail(default)] [--out-dir <dir>] [--type textures|interface|all] [--paths-file <file>]
 #
+#   --out-dir <dir>   Output root (default: .wow-assets/ beside the project). The extension
+#                     passes <cacheRoot>/source here automatically; manual runs use the default.
 #   --type textures   Extract Interface texture files (BLP/PNG/TGA). Default.
 #   --type interface  Extract Blizzard addon code (Lua/XML/TOC) from Interface/AddOns/.
 #   --type all        Extract both textures and addon code.
@@ -20,9 +22,9 @@ readonly SCRIPT_DIR
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 readonly PROJECT_ROOT
 readonly CONFIG="$SCRIPT_DIR/config.local.sh"
-readonly OUT_DIR="$PROJECT_ROOT/.wow-assets"
 
 FLAVOR="${1:-retail}"
+OUT_DIR="$PROJECT_ROOT/.wow-assets"
 PATHS_FILE=""
 TYPE="textures"
 
@@ -30,6 +32,14 @@ shift || true # consume flavor arg (or no-op if no args given)
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --out-dir)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --out-dir requires an argument" >&2
+                exit 1
+            fi
+            OUT_DIR="$2"
+            shift 2
+            ;;
         --paths-file)
             if [[ -z "${2:-}" ]]; then
                 echo "Error: --paths-file requires an argument" >&2
@@ -55,7 +65,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo "Error: Unknown argument: $1" >&2
-            echo "Usage: $0 [retail|classic|classic_era] [--type textures|interface|all] [--paths-file <file>]" >&2
+            echo "Usage: $0 [retail|classic|classic_era] [--out-dir <dir>] [--type textures|interface|all] [--paths-file <file>]" >&2
             exit 1
             ;;
     esac
@@ -88,8 +98,9 @@ print_done() {
     echo "Done. Assets written to:"
     echo "  $OUT_DIR"
     echo ""
-    echo "Next step: add this to .vscode/settings.json in your project:"
-    echo '  "scryer.extractedAssetsDir": "'"$OUT_DIR"'"'
+    echo "Next step: set scryer.cacheLocation to \"custom\" and scryer.cacheDir to the"
+    echo "parent of this directory (the path before /source) in your VSCode settings,"
+    echo "or re-run this script via the extension (which passes --out-dir automatically)."
 }
 
 # ---------------------------------------------------------------------------

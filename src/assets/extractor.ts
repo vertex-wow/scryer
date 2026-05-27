@@ -6,6 +6,7 @@ import * as vscode from "vscode";
 
 export interface ExtractorOptions {
   flavor: string;
+  outDir: string;
   extractScriptPath: string;
   output: vscode.LogOutputChannel;
   logLevel: vscode.LogLevel;
@@ -64,12 +65,9 @@ function spawnExtract(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const flavor = opts.flavor || "retail";
-    safeLog(
-      opts.output,
-      "debug",
-      `[Scryer] Spawning: ${scriptPath} ${flavor} --paths-file ${pathsFile}`,
-    );
-    const proc = cp.spawn(scriptPath, [flavor, "--paths-file", pathsFile], {
+    const args = [flavor, "--out-dir", opts.outDir, "--paths-file", pathsFile];
+    safeLog(opts.output, "debug", `[Scryer] Spawning: ${scriptPath} ${args.join(" ")}`);
+    const proc = cp.spawn(scriptPath, args, {
       stdio: ["ignore", "pipe", "pipe"],
     });
     const { onData, flush } = makeLineHandler(opts);
@@ -109,8 +107,9 @@ export async function shellExtractInterface(opts: ExtractorOptions): Promise<voi
 function spawnExtractInterface(scriptPath: string, opts: ExtractorOptions): Promise<void> {
   return new Promise((resolve, reject) => {
     const flavor = opts.flavor || "retail";
-    safeLog(opts.output, "debug", `[Scryer] Spawning: ${scriptPath} ${flavor} --type interface`);
-    const proc = cp.spawn(scriptPath, [flavor, "--type", "interface"], {
+    const args = [flavor, "--out-dir", opts.outDir, "--type", "interface"];
+    safeLog(opts.output, "debug", `[Scryer] Spawning: ${scriptPath} ${args.join(" ")}`);
+    const proc = cp.spawn(scriptPath, args, {
       stdio: ["ignore", "pipe", "pipe"],
     });
     const { onData, flush } = makeLineHandler(opts);

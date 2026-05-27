@@ -28,10 +28,10 @@ function parseLogLevel(s: string): vscode.LogLevel {
 }
 
 /** Resolve the Interface/AddOns path case-insensitively (extraction tools may lowercase it). */
-function resolveAddonsDir(extractedAssetsDir: string): string {
+function resolveAddonsDir(sourceDir: string): string {
   const candidates = [
-    path.join(extractedAssetsDir, "Interface", "AddOns"),
-    path.join(extractedAssetsDir, "interface", "addons"),
+    path.join(sourceDir, "Interface", "AddOns"),
+    path.join(sourceDir, "interface", "addons"),
   ];
   return (
     candidates.find((d) => {
@@ -46,9 +46,16 @@ function resolveAddonsDir(extractedAssetsDir: string): string {
 }
 
 export interface AssetServiceOptions {
-  extractedAssetsDir: string;
+  /** <cacheRoot>/source — parent of Interface/; raw WoW assets, expensive to regenerate. */
+  sourceDir: string;
+  /** <cacheRoot>/derived/textures — BLP→PNG conversions, always safe to delete. */
+  texturesConvDir: string;
+  /** <cacheRoot>/derived/registry — parsed Blizzard template registry JSON, always safe to delete. */
+  registryDir: string;
+  /** WoW installation directory — Classic loose-file fallback; independent of cacheRoot. */
   installDir: string;
-  cacheDir: string;
+  /** Root of the unified cache tree; used as the single webview resource root. */
+  cacheRoot: string;
   flavor: string;
   extractScriptPath: string;
   output: vscode.LogOutputChannel;
@@ -75,7 +82,7 @@ export class AssetService {
     clearResolutionMemo();
     this.inflight.clear();
     this.blizzardFilesEnsured = false;
-    clearRegistryCache(this.opts.cacheDir);
+    clearRegistryCache(this.opts.registryDir);
   }
 
   /** Lighter invalidation for post-texture-extraction retries: clears the resolution memo
@@ -106,7 +113,7 @@ export class AssetService {
   }
 
   private get searchDirs(): string[] {
-    return [this.opts.extractedAssetsDir, this.opts.installDir].filter(Boolean);
+    return [this.opts.sourceDir, this.opts.installDir].filter(Boolean);
   }
 
   private async _resolve(rawPath: string, addonDir?: string): Promise<string | null> {
@@ -126,12 +133,12 @@ export class AssetService {
 
     // BLP — decode and cache
     const key = cacheKey(found.absPath);
-    const cached = getCachedPath(this.opts.cacheDir, key);
+    const cached = getCachedPath(this.opts.texturesConvDir, key);
     if (cached) return cached;
 
     try {
       const pngBytes = blpToPng(found.absPath);
-      return writeCached(this.opts.cacheDir, key, pngBytes);
+      return writeCached(this.opts.texturesConvDir, key, pngBytes);
     } catch (err) {
       this.opts.output.warn(`[Scryer] BLP decode failed for ${rawPath}: ${String(err)}`);
       return null;
@@ -154,11 +161,11 @@ export class AssetService {
    * produced no new files — so the caller does not loop.
    */
   async ensureBlizzardFiles(): Promise<boolean> {
-    if (this.blizzardFilesEnsured || !this.opts.extractedAssetsDir) return false;
+    if (this.blizzardFilesEnsured || !this.opts.sourceDir) return false;
     this.blizzardFilesEnsured = true; // set early to prevent concurrent calls
 
-    const addonsDir = resolveAddonsDir(this.opts.extractedAssetsDir);
-    const before = discoverBlizzardPaths(this.opts.extractedAssetsDir, addonsDir);
+    const addonsDir = resolveAddonsDir(this.opts.sourceDir);
+    const before = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
     if (before.length === 0) return false;
 
     try {
@@ -170,6 +177,7 @@ export class AssetService {
     }
     await shellExtractInterface({
       flavor: this.opts.flavor,
+      outDir: this.opts.sourceDir,
       extractScriptPath: this.opts.extractScriptPath,
       output: this.opts.output,
       logLevel: this.opts.logLevel,
@@ -177,7 +185,7 @@ export class AssetService {
 
     // Re-check: only signal re-render if extraction actually produced new files.
     // If it didn't (no script, failed extraction, etc.) we stop here rather than loop.
-    const after = discoverBlizzardPaths(this.opts.extractedAssetsDir, addonsDir);
+    const after = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
     return after.length < before.length;
   }
 
@@ -188,12 +196,12 @@ export class AssetService {
    * Returns an empty map if extractedAssetsDir is not configured or addons are absent.
    */
   loadBlizzardTemplates(): Map<string, FrameIR> {
-    if (!this.opts.extractedAssetsDir) return new Map();
-    const addonsDir = resolveAddonsDir(this.opts.extractedAssetsDir);
+    if (!this.opts.sourceDir) return new Map();
+    const addonsDir = resolveAddonsDir(this.opts.sourceDir);
     const startupContent =
       vscode.workspace.getConfiguration("scryer").get<string>("startupContent") ?? "none";
     const addonNames = startupContent === "shared-templates" ? SHARED_ADDON_NAMES : ADDON_NAMES;
-    return loadBlizzardRegistry(addonsDir, this.opts.cacheDir, addonNames);
+    return loadBlizzardRegistry(addonsDir, this.opts.registryDir, addonNames);
   }
 
   /**
@@ -203,9 +211,9 @@ export class AssetService {
    * Skips silently when extractedAssetsDir is not configured.
    */
   async prewarmBlizzardTextures(addonNames: string[]): Promise<void> {
-    if (!this.opts.extractedAssetsDir) return;
-    const addonsDir = resolveAddonsDir(this.opts.extractedAssetsDir);
-    const registry = loadBlizzardRegistry(addonsDir, this.opts.cacheDir, addonNames);
+    if (!this.opts.sourceDir) return;
+    const addonsDir = resolveAddonsDir(this.opts.sourceDir);
+    const registry = loadBlizzardRegistry(addonsDir, this.opts.registryDir, addonNames);
     const paths = collectTexturePaths(Array.from(registry.values()));
     await Promise.all(paths.map((p) => this.resolveToAbsPath(p)));
   }
@@ -222,6 +230,7 @@ export class AssetService {
   extractMissing(paths: string[]): Promise<void> {
     return shellExtractMissing(paths, {
       flavor: this.opts.flavor,
+      outDir: this.opts.sourceDir,
       extractScriptPath: this.opts.extractScriptPath,
       output: this.opts.output,
       logLevel: this.opts.logLevel,
@@ -230,14 +239,11 @@ export class AssetService {
 
   /**
    * Build the set of URI roots that the webview must be allowed to load from.
-   * The cache dir always needs to be included; extractedAssetsDir is included so
-   * PNG files there can be served directly without copying.
+   * cacheRoot covers both source/ (raw PNG/TGA served directly) and derived/textures/
+   * (BLP→PNG conversions) in one root. installDir is independent (Classic loose files).
    */
   webviewResourceRoots(): vscode.Uri[] {
-    const roots: vscode.Uri[] = [vscode.Uri.file(this.opts.cacheDir)];
-    if (this.opts.extractedAssetsDir) {
-      roots.push(vscode.Uri.file(this.opts.extractedAssetsDir));
-    }
+    const roots: vscode.Uri[] = [vscode.Uri.file(this.opts.cacheRoot)];
     if (this.opts.installDir) {
       roots.push(vscode.Uri.file(this.opts.installDir));
     }
@@ -252,17 +258,25 @@ export class AssetService {
     const wsFolder =
       vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? context.extensionUri.fsPath;
 
-    const extractedAssetsDir = cfg.get<string>("extractedAssetsDir") ?? "";
+    const cacheLocation = cfg.get<string>("cacheLocation") ?? "global";
+    const cacheRoot =
+      cacheLocation === "workspace"
+        ? path.join(wsFolder, ".scryer-cache")
+        : cacheLocation === "custom"
+          ? cfg.get<string>("cacheDir") || path.join(wsFolder, ".scryer-cache")
+          : context.globalStorageUri.fsPath;
+
     const installDir = cfg.get<string>("installDir") ?? "";
-    const cacheDir = cfg.get<string>("assetCacheDir") || path.join(wsFolder, ".scryer-cache");
     const flavor = cfg.get<string>("flavor") || "retail";
     const extractScriptPath = cfg.get<string>("extractScriptPath") ?? "";
     const logLevel = parseLogLevel(cfg.get<string>("logLevel") ?? "warning");
 
     return new AssetService({
-      extractedAssetsDir,
+      sourceDir: path.join(cacheRoot, "source"),
+      texturesConvDir: path.join(cacheRoot, "derived", "textures"),
+      registryDir: path.join(cacheRoot, "derived", "registry"),
       installDir,
-      cacheDir,
+      cacheRoot,
       flavor,
       extractScriptPath,
       output,

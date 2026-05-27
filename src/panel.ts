@@ -173,7 +173,7 @@ export class ScryerPanel {
     if (!absPath) {
       if (this.isEnabled(vscode.LogLevel.Warning)) {
         this.output.warn(
-          `Asset not found: ${rawPath} — configure scryer.extractedAssetsDir to load real textures.`,
+          `Asset not found: ${rawPath} — run dev/extract.sh to populate the asset cache (scryer.cacheLocation).`,
         );
       }
       if (!this.retryInProgress && !this.extractionTriedPaths.has(rawPath)) {
