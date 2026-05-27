@@ -17,6 +17,8 @@ const DEFAULT_VIEWPORT: Viewport = { w: 1280, h: 720 };
 
 // How long after the last unresolved-asset report to wait before triggering extraction.
 const EXTRACT_DEBOUNCE_MS = 300;
+// How long after the last document change to wait before re-rendering in current-file mode.
+const RENDER_DEBOUNCE_MS = 300;
 
 export class ScryerPanel {
   static readonly viewType = "scryer.preview";
@@ -32,6 +34,7 @@ export class ScryerPanel {
   // Set while the extract-and-retry pass is running; suppresses re-queuing failed retries.
   private retryInProgress = false;
   private extractDebounce: ReturnType<typeof setTimeout> | undefined;
+  private renderDebounce: ReturnType<typeof setTimeout> | undefined;
   // True once the Blizzard addon extraction attempt has finished for this asset service
   // instance; prevents the "pending fetches" label from flickering on every re-render.
   private blizzardExtractionDone = false;
@@ -92,6 +95,25 @@ export class ScryerPanel {
           this.assets = AssetService.fromConfig(this.context, this.output);
           this.blizzardExtractionDone = false;
           this.extractionTriedPaths.clear();
+        }
+      },
+      null,
+      this.disposables,
+    );
+
+    // In current-file mode, re-render whenever the document buffer changes.
+    vscode.workspace.onDidChangeTextDocument(
+      (e) => {
+        if (
+          e.document.uri.toString() === uri.toString() &&
+          vscode.workspace.getConfiguration("scryer").get<string>("userAddonPreload") ===
+            "current-file"
+        ) {
+          if (this.renderDebounce !== undefined) clearTimeout(this.renderDebounce);
+          this.renderDebounce = setTimeout(() => {
+            this.renderDebounce = undefined;
+            void this.renderFile(uri);
+          }, RENDER_DEBOUNCE_MS);
         }
       },
       null,
@@ -192,9 +214,21 @@ export class ScryerPanel {
     }
     this.missingPaths.clear();
 
+    const preloadMode =
+      vscode.workspace.getConfiguration("scryer").get<string>("userAddonPreload") ?? "on-demand";
+
     try {
-      const bytes = await vscode.workspace.fs.readFile(uri);
-      const content = Buffer.from(bytes).toString("utf-8");
+      let content: string;
+      if (preloadMode === "current-file") {
+        const openDoc = vscode.workspace.textDocuments.find(
+          (d) => d.uri.toString() === uri.toString(),
+        );
+        content = openDoc
+          ? openDoc.getText()
+          : Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf-8");
+      } else {
+        content = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf-8");
+      }
       const doc = parseXmlFile(uri.fsPath, content);
 
       // Kick off Blizzard addon file extraction if needed, but don't block the render.
@@ -254,12 +288,10 @@ export class ScryerPanel {
 
       void this.panel.webview.postMessage(msg);
 
-      // When userAddonPreload is "saved-file" (or any future eager mode), proactively
-      // resolve and decode all textures found in the frame tree so they hit the PNG
-      // cache before the webview requests them. "on-demand" skips this and lets the
-      // webview drive resolution via requestAsset messages instead.
-      const preloadMode =
-        vscode.workspace.getConfiguration("scryer").get<string>("userAddonPreload") ?? "on-demand";
+      // When userAddonPreload is "saved-file" or "current-file", proactively resolve and
+      // decode all textures found in the frame tree so they hit the PNG cache before the
+      // webview requests them. "on-demand" skips this and lets the webview drive
+      // resolution via requestAsset messages instead.
       if (preloadMode !== "on-demand") {
         for (const rawPath of texturePaths) {
           void this.resolveAndSendAsset(rawPath, addonDir);
@@ -311,6 +343,9 @@ export class ScryerPanel {
   dispose(): void {
     if (this.extractDebounce !== undefined) {
       clearTimeout(this.extractDebounce);
+    }
+    if (this.renderDebounce !== undefined) {
+      clearTimeout(this.renderDebounce);
     }
     this.output.dispose();
     this.panel.dispose();
