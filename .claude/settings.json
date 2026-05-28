@@ -49,15 +49,15 @@
       "Bash(pnpm bench *)",
       "Bash(node dist/bench.js)",
       "Bash(node dev/bench.build.mjs)",
-      "Bash(node dist/conv-time.js)"
+      "Bash(node dist/conv-time.js)",
+      "Bash(sed:*)",
+      "Bash(awk:*)"
     ]
   },
   "deny": [],
   "ask": [
     "Skill(caveman-commit)",
     "Skill(caveman-commit:*)",
-    "Bash(sed:*)",
-    "Bash(awk:*)",
     "Bash(git add:*)",
     "Bash(git commit:*)",
     "Bash(git -C:*)"

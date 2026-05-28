@@ -43,6 +43,12 @@ Update `docs/` when something is decided or completed:
 
 **Never let a session end with discoveries or decisions only in conversation context.** If it matters beyond this task, it belongs in `docs/`.
 
+## File editing rules
+
+- **Prefer Edit or Write over `sed`/`awk` for file edits.** These tools are error-prone and can silently leave files in a broken state.
+- Before running any `sed` or `awk` command that modifies a file, use `AskUserQuestion` to show the exact command and get approval first.
+- `sed` and `awk` are fine for read-only operations (grepping, inspecting) without asking.
+
 ## Tooling
 
 - **Package manager: `pnpm` only.** Never use `npm install` or `yarn` — they bypass the `onlyBuiltDependencies` allowlist and `minimum-release-age` security settings.
