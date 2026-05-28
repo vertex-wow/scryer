@@ -471,7 +471,7 @@ rustydemon-cli export -a "$WOW_DIR" -l dev/listfile.csv -o .wow-assets -p "{$DIR
 
 ## TexCoords sprite-sheet slicing in the DOM renderer (deferred from M2)
 
-**Status: 📋 Pending**
+**Status: ✅ Done (2026-05-28)**
 
 **Problem:** WoW templates like `UIMenuButtonStretchTemplate` store each button segment as a subsection of a larger sprite sheet. The `<TexCoords left right top bottom>` attribute defines UV coordinates (0–1 space) that select the tile. The DOM renderer stores these values as a `data-tex-coords` JSON attribute but never applies them. Each texture element therefore shows the full sprite instead of its slice, producing the "floating borders" appearance visible in `UIMenuButtonStretchTemplate` and similar nine-slice templates.
 
@@ -529,3 +529,28 @@ These replace the current `background-size: 100% 100%` set unconditionally in `a
 - Future extension points: backdrop defaults, scrollbar skin paths, frame border defaults — all can be added as new keys without breaking the schema.
 
 **Effort:** M — config loading and merging is straightforward (S); the larger work is wiring the resolved config into the webview renderer and applying defaults at the right rendering layer (M) without breaking the existing explicit-attribute path.
+
+---
+
+## Pixel ruler overlay in the preview panel
+
+**Status: 📋 Pending**
+
+**Idea:** Add an optional pixel ruler to the preview webview — a graduated ruler strip along the top edge and another along the left edge, anchored (sticky) so they stay visible as the user scrolls the frame canvas. Toggled by a `scryer.showRuler` boolean setting (default `false`).
+
+**Design:**
+
+- Two `<div>` ruler strips injected into the webview HTML on initial render: `#ruler-top` (horizontal, spans the full width along the top) and `#ruler-left` (vertical, spans the full height along the left).
+- `position: fixed` so they remain at the viewport edge regardless of how the canvas is scrolled. `#ruler-top` is `~20px` tall; `#ruler-left` is `~20px` wide. A small square corner filler sits at their intersection.
+- Tick marks and labels drawn via a `<canvas>` element inside each strip (or CSS-generated content at regular intervals). Spacing follows the WoW logical-pixel coordinate system already established by `uiParentWidth`/`uiParentHeight` — ticks at every 10 or 50 logical pixels, labels at every 100.
+- The canvas offset (frame canvas `scrollLeft`/`scrollTop`) is tracked via a `scroll` listener on the frame container; the ruler canvas is redrawn on each scroll event to update the visible tick range.
+- Hide/show via a CSS class toggled when the webview receives a `setRuler` message from the extension host. The extension host sends this message when `scryer.showRuler` changes (via `onDidChangeConfiguration`), or immediately after initial render based on the current setting.
+- A `StatusBarItem` (or a button in the webview's own toolbar/status strip) lets the user flip the ruler on/off without opening settings — clicking it toggles `scryer.showRuler` in workspace config, which fires `onDidChangeConfiguration` and propagates the change to the webview automatically.
+
+**Implementation notes:**
+
+- Ruler ticks are in logical WoW pixels (same coordinate space as the anchor layout engine), not CSS pixels — account for any `frameScale` applied to the canvas container.
+- The ruler strips must clear the opposite ruler's width/height at the corner so tick labels don't overlap the intersection square.
+- Low priority purely cosmetic feature; worth doing alongside any other webview polish work.
+
+**Effort:** XS–S — pure webview HTML/CSS/JS with a small `onDidChangeConfiguration` handler in the extension host. No IR or asset pipeline changes required.

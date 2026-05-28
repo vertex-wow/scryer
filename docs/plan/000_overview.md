@@ -40,7 +40,8 @@ Backlog items (↳) are deferred tasks attached to the milestone after which the
 | ↳   | [Dynamic flavor detection from `.build.info`](backlog.md#dynamic-flavor-detection-from-buildinfo)                      | ✅ Done (2026-05-27)        | Derive available flavors from install rather than hardcode | S      | —          |
 | ↳   | [Flavor configuration file](backlog.md#flavor-configuration-file--per-flavor-display-defaults)                         | ✅ Done (2026-05-28)        | Per-flavor font/size/resolution defaults; user override    | M      | —          |
 | ↳   | [CSS inset + relativeKey renderer fixes](backlog.md#css-inset--relativekey-renderer-fixes-deferred-from-m2)            | ✅ Done (2026-05-28)        | Fix texture positioning and sibling-anchor resolution      | S      | —          |
-| ↳   | [TexCoords sprite-sheet slicing](backlog.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2)       | 📋 Pending                  | Apply UV crop via CSS background-position/size             | S      | —          |
+| ↳   | [TexCoords sprite-sheet slicing](backlog.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2)       | ✅ Done (2026-05-28)        | Apply UV crop via CSS background-position/size             | S      | —          |
+| ↳   | [Pixel ruler overlay](backlog.md#pixel-ruler-overlay-in-the-preview-panel)                                             | 📋 Pending                  | Optional sticky rulers along top/left edges of the preview | XS–S   | —          |
 
 ## Recommended Tech Stack
 
