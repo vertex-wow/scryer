@@ -23,7 +23,6 @@ export function activate(context: vscode.ExtensionContext): void {
         e.affectsConfiguration("scryer.cacheLocation") ||
         e.affectsConfiguration("scryer.cacheDir") ||
         e.affectsConfiguration("scryer.cascToolPath") ||
-        e.affectsConfiguration("scryer.extractScriptPath") ||
         e.affectsConfiguration("scryer.logLevel")
       ) {
         assets = AssetService.fromConfig(context, output);

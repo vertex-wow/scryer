@@ -12,7 +12,7 @@ WoW addons reference textures using two proprietary/legacy formats:
 
 The scale of the problem is bounded: a typical addon references **dozens** of unique textures in its XML (verified against the live corpus — even Auctionator at 343 Lua files declares only ~15–24 unique XML texture paths). Total corpus-wide: ~541 TGA + ~179 BLP files across 152 addons. This is not the entire WoW asset library.
 
-Additionally, `dev/assets.sh` already uses GraphicsMagick/ImageMagick as a developer-side tool (SVG→TGA conversion with `-flip`). The question was whether to make this a runtime extension dependency.
+Additionally, `dev/assets.ts` already uses GraphicsMagick/ImageMagick as a developer-side tool (SVG→TGA conversion with `-flip`). The question was whether to make this a runtime extension dependency.
 
 ## Options Considered
 
@@ -46,17 +46,17 @@ The Go subprocess option (ADR 001) was not adopted, eliminating that path.
 - **Caching:** lazy decode on first reference → PNG written to `<cacheRoot>/derived/textures/` (keyed by SHA1 of source path + mtime + size) → served via `webview.asWebviewUri`. Raw PNG/TGA files in `<cacheRoot>/source/` are served directly without copying.
 - **Cache root:** a unified `cacheRoot` (settable via `scryer.cacheLocation`: `global` / `workspace` / `custom`) holds both raw extracted assets (`source/`) and derived outputs (`derived/`). Default is `globalStorageUri` so the GB-scale asset tree is shared across workspaces.
 - **Scope:** decode only textures the previewed addon actually references, not the entire WoW asset library.
-- **Retail assets (CASC):** Retail WoW textures are stored in CASC archives, not loose files. The primary source is `<cacheRoot>/source/` (populated by `dev/extract.sh`). The install dir (`scryer.installDir`) is a secondary fallback for Classic/non-CASC installs.
+- **Retail assets (CASC):** Retail WoW textures are stored in CASC archives, not loose files. The primary source is `<cacheRoot>/source/` (populated by `pnpm run extract` / `dev/extract.ts`). The install dir (`scryer.installDir`) is a secondary fallback for Classic/non-CASC installs.
 - **Async flow:** webview renders placeholders immediately, then sends `requestAsset` messages for each unique file path. Extension host resolves asynchronously and responds with `assetResolved { path, uri }`. Webview swaps placeholder for real `background-image` on receipt.
 
-## `dev/assets.sh` stays developer-only
+## `dev/assets.ts` stays developer-only
 
-The existing GM/ImageMagick usage in `dev/assets.sh` is correct and stays. It is a contributor-facing build script, not a runtime extension dependency. The distinction is intentional.
+The existing GM/ImageMagick usage in `dev/assets.ts` is correct and stays. It is a contributor-facing build script (`pnpm run assets`), not a runtime extension dependency. The distinction is intentional.
 
 ## Consequences
 
 - `js-blp` 1.0.5 was chosen. Validate coverage against the `_live/Addons` corpus; log unsupported variants for CLI fallback.
-- TGA decoder deferred. When implemented, must handle the vertical-flip case (TGA image-origin descriptor byte) — `dev/assets.sh` stores flipped TGAs and the flip bit must be respected.
+- TGA decoder deferred. When implemented, must handle the vertical-flip case (TGA image-origin descriptor byte) — `dev/assets.ts` stores flipped TGAs and the flip bit must be respected.
 - `.scryer-cache/` is gitignored — used when `scryer.cacheLocation = "workspace"`. Default (`"global"`) routes to `globalStorageUri` outside the workspace tree entirely.
 - Atlas textures (`atlas="..."` in XML) require a JSON manifest mapping atlas names to sheet coordinates — this must be extracted from the game and version-tagged. Deferred to M5. See [plan/003_asset_pipeline.md](../plan/003_asset_pipeline.md) for details.
 
@@ -64,4 +64,4 @@ The existing GM/ImageMagick usage in `dev/assets.sh` is correct and stays. It is
 
 - [plan/003_asset_pipeline.md](../plan/003_asset_pipeline.md)
 - [plan/000_overview.md](../plan/000_overview.md)
-- `dev/assets.sh`
+- `dev/assets.ts`

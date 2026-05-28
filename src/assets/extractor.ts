@@ -1,24 +1,29 @@
-import * as cp from "child_process";
+/**
+ * VSCode-aware wrappers around the extraction and atlas-gen core libraries.
+ *
+ * This file is the only place in src/ that imports vscode. The underlying logic
+ * lives in extract-core.ts and atlas-gen.ts (no vscode dependency) so those
+ * modules can be called directly from dev CLI scripts and unit tests.
+ */
+
 import * as fs from "fs";
-import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
+import { extractPaths, extractBulk, type ExtractCoreOptions, type Flavor } from "./extract-core.js";
+import { generateAtlasManifest } from "./atlas-gen.js";
 
 export interface ExtractorOptions {
   flavor: string;
   outDir: string;
-  extractScriptPath: string;
-  /** WoW root directory passed as --wow-dir to the extraction script. */
+  /** WoW root directory. Empty string means extraction is unavailable. */
   wowDir?: string;
-  /** Path to the CASC tool binary passed as --casc-tool to the extraction script. */
   cascToolPath?: string;
-  /** Directory where the community listfile should be downloaded/read. Passed as --listfile-dir. */
   listfileDir?: string;
   output: vscode.LogOutputChannel;
   logLevel: vscode.LogLevel;
 }
 
-export interface AtlasGenOptions {
+export interface AtlasGenWrapperOptions {
   /** Absolute path where atlas-manifest.json should be written. */
   manifestPath: string;
   /** Directory containing listfile.csv (e.g. <cacheRoot>/downloads). */
@@ -28,158 +33,21 @@ export interface AtlasGenOptions {
 }
 
 /**
- * Normalize a WoW-relative path for the paths file:
+ * Normalize a WoW-relative path for extraction:
  * - backslashes → forward slashes
  * - no extension → append .blp (WoW XML texture references conventionally omit
  *   the extension; BLP is the default and community listfile uses explicit .blp entries)
- * - any existing extension → kept as-is (handles XML/TOC/LUA interface files)
+ * - any existing extension → kept as-is
  */
 function normalizeForExtraction(rawPath: string): string {
   const slashed = rawPath.replace(/\\/g, "/");
   return /\.\w+$/i.test(slashed) ? slashed : slashed + ".blp";
 }
 
-/**
- * Shell-script-based texture extractor. Delegates to dev/extract.sh.
- *
- * This module is intentionally isolated so it can be replaced wholesale when
- * the in-JS CASC reader is implemented (see backlog: "In-process JavaScript
- * CASC reader"). At that point only this file and the one-line call in
- * AssetService.extractMissing need to change.
- */
-export async function shellExtractMissing(paths: string[], opts: ExtractorOptions): Promise<void> {
-  if (paths.length === 0) return;
-
-  const scriptPath = resolveScriptPath(opts.extractScriptPath);
-  if (!scriptPath) return;
-
-  const tmpFile = path.join(os.tmpdir(), `scryer-missing-${Date.now()}.txt`);
-  const normalized = paths.map(normalizeForExtraction);
-  await fs.promises.writeFile(tmpFile, normalized.join("\n") + "\n", "utf8");
-
-  try {
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: `Scryer: extracting ${paths.length} file${paths.length === 1 ? "" : "s"}…`,
-        cancellable: false,
-      },
-      () => spawnExtract(scriptPath, tmpFile, opts),
-    );
-  } catch (err) {
-    safeLog(opts.output, "info", `[Scryer] Extraction failed: ${String(err)}`);
-  } finally {
-    await fs.promises.unlink(tmpFile).catch(() => {});
-  }
-}
-
-function spawnExtract(
-  scriptPath: string,
-  pathsFile: string,
-  opts: ExtractorOptions,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const flavor = opts.flavor || "retail";
-    const args = [
-      flavor,
-      "--out-dir",
-      opts.outDir,
-      "--paths-file",
-      pathsFile,
-      ...(opts.wowDir ? ["--wow-dir", opts.wowDir] : []),
-      ...(opts.cascToolPath ? ["--casc-tool", opts.cascToolPath] : []),
-      ...(opts.listfileDir ? ["--listfile-dir", opts.listfileDir] : []),
-    ];
-    safeLog(opts.output, "debug", `[Scryer] Spawning: ${scriptPath} ${args.join(" ")}`);
-    const proc = cp.spawn(scriptPath, args, {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    const { onData, flush } = makeLineHandler(opts);
-    proc.stdout?.on("data", onData);
-    proc.stderr?.on("data", onData);
-    proc.on("error", reject);
-    proc.on("close", (code) => {
-      flush();
-      if (code === 0) resolve();
-      else reject(new Error(`extract.sh exited with code ${code}`));
-    });
-  });
-}
-
-/**
- * Extract all Blizzard addon interface files via a single glob-based --type interface call.
- * Much faster than per-file --paths-file for the initial Blizzard corpus extraction.
- */
-export async function shellExtractInterface(opts: ExtractorOptions): Promise<void> {
-  const scriptPath = resolveScriptPath(opts.extractScriptPath);
-  if (!scriptPath) return;
-
-  try {
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: "Scryer: extracting Blizzard addon files…",
-        cancellable: false,
-      },
-      () => spawnExtractInterface(scriptPath, opts),
-    );
-  } catch (err) {
-    safeLog(opts.output, "info", `[Scryer] Interface extraction failed: ${String(err)}`);
-  }
-}
-
-function spawnExtractInterface(scriptPath: string, opts: ExtractorOptions): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const flavor = opts.flavor || "retail";
-    const args = [
-      flavor,
-      "--out-dir",
-      opts.outDir,
-      "--type",
-      "interface",
-      ...(opts.wowDir ? ["--wow-dir", opts.wowDir] : []),
-      ...(opts.cascToolPath ? ["--casc-tool", opts.cascToolPath] : []),
-      ...(opts.listfileDir ? ["--listfile-dir", opts.listfileDir] : []),
-    ];
-    safeLog(opts.output, "debug", `[Scryer] Spawning: ${scriptPath} ${args.join(" ")}`);
-    const proc = cp.spawn(scriptPath, args, {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    const { onData, flush } = makeLineHandler(opts);
-    proc.stdout?.on("data", onData);
-    proc.stderr?.on("data", onData);
-    proc.on("error", reject);
-    proc.on("close", (code) => {
-      flush();
-      if (code === 0) resolve();
-      else reject(new Error(`extract.sh exited with code ${code}`));
-    });
-  });
-}
-
 /** Lines with 4+ leading spaces are trace-level tool internals; shallower lines are debug. */
 function classifyLine(line: string): "trace" | "debug" {
   const indent = line.length - line.trimStart().length;
   return indent >= 4 ? "trace" : "debug";
-}
-
-/**
- * Write a log line, gating on the scryer.logLevel setting.
- * We must check the setting ourselves because LogOutputChannel's built-in
- * logLevel defaults to Info and silently drops trace/debug calls regardless
- * of the scryer.logLevel setting.
- */
-function writeLogLine(
-  output: vscode.LogOutputChannel,
-  logLevel: vscode.LogLevel,
-  line: string,
-): void {
-  const level = classifyLine(line);
-  if (level === "trace") {
-    if (logLevel <= vscode.LogLevel.Trace) safeLog(output, "trace", line);
-  } else {
-    if (logLevel <= vscode.LogLevel.Debug) safeLog(output, "debug", line);
-  }
 }
 
 /** Calls output[method](msg) and silently swallows errors from a disposed channel. */
@@ -195,54 +63,99 @@ function safeLog(
   }
 }
 
-/** Returns handlers that buffer partial chunks and write complete lines at the right level. */
-function makeLineHandler(opts: { output: vscode.LogOutputChannel; logLevel: vscode.LogLevel }): {
-  onData: (d: Buffer) => void;
-  flush: () => void;
-} {
-  let buf = "";
+/**
+ * Log a line from subprocess output, routing to trace or debug based on indentation.
+ * We check the setting ourselves because LogOutputChannel's built-in logLevel defaults
+ * to Info and silently drops trace/debug calls regardless of scryer.logLevel.
+ */
+function writeLogLine(
+  output: vscode.LogOutputChannel,
+  logLevel: vscode.LogLevel,
+  line: string,
+): void {
+  const level = classifyLine(line);
+  if (level === "trace") {
+    if (logLevel <= vscode.LogLevel.Trace) safeLog(output, "trace", line);
+  } else {
+    if (logLevel <= vscode.LogLevel.Debug) safeLog(output, "debug", line);
+  }
+}
+
+function makeCoreOpts(opts: ExtractorOptions): ExtractCoreOptions {
   return {
-    onData(d: Buffer): void {
-      buf += String(d);
-      const lines = buf.split("\n");
-      buf = lines.pop() ?? "";
-      for (const line of lines) writeLogLine(opts.output, opts.logLevel, line);
-    },
-    flush(): void {
-      if (buf) {
-        writeLogLine(opts.output, opts.logLevel, buf);
-        buf = "";
-      }
-    },
+    flavor: (opts.flavor || "retail") as Flavor,
+    outDir: opts.outDir,
+    wowDir: opts.wowDir!,
+    cascToolPath: opts.cascToolPath,
+    listfileDir: opts.listfileDir ?? "",
+    log: (line: string) => writeLogLine(opts.output, opts.logLevel, line),
   };
 }
 
-function resolveScriptPath(explicit: string): string | null {
-  if (explicit) {
-    return fs.existsSync(explicit) ? explicit : null;
+/**
+ * Extract a specific set of WoW-relative texture paths via the configured extractor.
+ * Errors when wowDir is not configured — it is required for extraction to work.
+ */
+export async function extractMissing(paths: string[], opts: ExtractorOptions): Promise<void> {
+  if (paths.length === 0) return;
+  if (!opts.wowDir) {
+    safeLog(
+      opts.output,
+      "error",
+      "[Scryer] scryer.installDir is not set. Set it to your WoW root directory (the folder containing _retail_/, _classic_/, .build.info) to enable extraction.",
+    );
+    return;
   }
-  const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  if (!wsFolder) return null;
-  const auto = path.join(wsFolder, "dev", "extract.sh");
-  return fs.existsSync(auto) ? auto : null;
+  const normalized = paths.map(normalizeForExtraction);
+  try {
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: `Scryer: extracting ${paths.length} file${paths.length === 1 ? "" : "s"}…`,
+        cancellable: false,
+      },
+      () => extractPaths(normalized, makeCoreOpts(opts)),
+    );
+  } catch (err) {
+    safeLog(opts.output, "info", `[Scryer] Extraction failed: ${String(err)}`);
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Atlas manifest generation  (dev/gen-atlas.mjs)
-// ---------------------------------------------------------------------------
+/**
+ * Extract all Blizzard addon interface files via a bulk --type interface pass.
+ * Much faster than per-file extraction for the initial Blizzard corpus setup.
+ * Errors when wowDir is not configured — it is required for extraction to work.
+ */
+export async function extractInterface(opts: ExtractorOptions): Promise<void> {
+  if (!opts.wowDir) {
+    safeLog(
+      opts.output,
+      "error",
+      "[Scryer] scryer.installDir is not set. Set it to your WoW root directory (the folder containing _retail_/, _classic_/, .build.info) to enable extraction.",
+    );
+    return;
+  }
+  try {
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Scryer: extracting Blizzard addon files…",
+        cancellable: false,
+      },
+      () => extractBulk("interface", makeCoreOpts(opts)),
+    );
+  } catch (err) {
+    safeLog(opts.output, "info", `[Scryer] Interface extraction failed: ${String(err)}`);
+  }
+}
 
 /**
- * Generate the atlas manifest JSON by running dev/gen-atlas.mjs.
- * Downloads WoW DB2 table CSV exports from wago.tools and joins them with
- * the community listfile to produce atlas-manifest.json in the derived cache dir.
+ * Generate the atlas manifest JSON by downloading WoW DB2 table CSV exports from wago.tools
+ * and joining them with the community listfile.
  *
- * Silently skips when the gen-atlas script is absent (end-user installs that
- * don't include the dev/ directory) or when the listfile has not been downloaded yet.
+ * Silently skips when the listfile has not been downloaded yet (extraction not run).
  */
-export async function shellGenAtlas(opts: AtlasGenOptions): Promise<void> {
-  const scriptPath = resolveGenAtlasPath();
-  if (!scriptPath) return;
-
+export async function genAtlas(opts: AtlasGenWrapperOptions): Promise<void> {
   const listfilePath = opts.listfileDir ? path.join(opts.listfileDir, "listfile.csv") : null;
   if (!listfilePath || !fs.existsSync(listfilePath)) {
     safeLog(
@@ -260,39 +173,14 @@ export async function shellGenAtlas(opts: AtlasGenOptions): Promise<void> {
         title: "Scryer: generating atlas manifest…",
         cancellable: false,
       },
-      () => spawnGenAtlas(scriptPath, listfilePath, opts),
+      () =>
+        generateAtlasManifest({
+          out: opts.manifestPath,
+          listfile: listfilePath,
+          log: (msg: string) => safeLog(opts.output, "info", msg),
+        }),
     );
   } catch (err) {
     safeLog(opts.output, "warn", `[Scryer] Atlas manifest generation failed: ${String(err)}`);
   }
-}
-
-function spawnGenAtlas(
-  scriptPath: string,
-  listfilePath: string,
-  opts: AtlasGenOptions,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const args = [scriptPath, "--out", opts.manifestPath, "--listfile", listfilePath];
-    safeLog(opts.output, "debug", `[Scryer] Spawning: ${process.execPath} ${args.join(" ")}`);
-    const proc = cp.spawn(process.execPath, args, {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    const { onData, flush } = makeLineHandler(opts);
-    proc.stdout?.on("data", onData);
-    proc.stderr?.on("data", onData);
-    proc.on("error", reject);
-    proc.on("close", (code) => {
-      flush();
-      if (code === 0) resolve();
-      else reject(new Error(`gen-atlas.mjs exited with code ${code}`));
-    });
-  });
-}
-
-function resolveGenAtlasPath(): string | null {
-  const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  if (!wsFolder) return null;
-  const p = path.join(wsFolder, "dev", "gen-atlas.mjs");
-  return fs.existsSync(p) ? p : null;
 }

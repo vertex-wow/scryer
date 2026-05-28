@@ -78,12 +78,6 @@ Path to the CASC extraction tool binary (e.g. `rustydemon-cli`). Passed to the e
 
 Optional path to a `blp2png` CLI binary used as a fallback for BLP variants not supported by the built-in pure-JS decoder. Leave empty unless you encounter unsupported textures.
 
-### `scryer.extractScriptPath`
-
-**Default:** _(auto-detected)_
-
-Path to the extraction shell script. Defaults to `dev/extract.sh` in the workspace root. Leave empty for auto-detection.
-
 ---
 
 ## Startup Preloading

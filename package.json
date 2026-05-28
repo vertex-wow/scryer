@@ -135,12 +135,7 @@
             "classic_era"
           ],
           "default": "retail",
-          "description": "WoW flavor passed to dev/extract.sh for on-demand texture extraction (retail | classic | classic_era)"
-        },
-        "scryer.extractScriptPath": {
-          "type": "string",
-          "default": "",
-          "description": "Path to the extraction script. Defaults to dev/extract.sh in the workspace root. Leave empty for auto-detection."
+          "description": "WoW flavor for on-demand texture extraction (retail | classic | classic_era)"
         },
         "scryer.logLevel": {
           "type": "string",
@@ -227,6 +222,10 @@
     "ci:install": "pnpm install --frozen-lockfile",
     "bench": "node dev/bench.build.mjs && node dist/bench.js",
     "collect-textures": "node dev/bench.build.mjs && node dist/collect-textures.js",
+    "extract": "node dev/bench.build.mjs && node dist/extract.js",
+    "gen-atlas": "node dev/bench.build.mjs && node dist/gen-atlas.js",
+    "links": "node dev/bench.build.mjs && node dist/links.js",
+    "assets": "node dev/bench.build.mjs && node dist/assets.js",
     "package": "pnpm run build && vsce package --no-dependencies",
     "publish": "pnpm run build && vsce publish --no-dependencies",
     "prepare": "husky"

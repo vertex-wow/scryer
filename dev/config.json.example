@@ -1,0 +1,9 @@
+{
+  "_comment": "Copy this file to dev/config.local.json and fill in your local paths. It is gitignored.",
+
+  "installDir": "/path/to/World of Warcraft/",
+
+  "wowAccount": "youraccountname",
+
+  "cascToolPath": "/path/to/rustydemon-cli"
+}

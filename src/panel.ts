@@ -85,6 +85,7 @@ export class ScryerPanel {
   private readonly output: vscode.LogOutputChannel;
   private readonly context: vscode.ExtensionContext;
   private readonly statusBar: vscode.StatusBarItem;
+  private readonly installDirBar: vscode.StatusBarItem;
   private disposables: vscode.Disposable[] = [];
   private assets: AssetService;
 
@@ -151,6 +152,19 @@ export class ScryerPanel {
     this.statusBar.show();
     this.disposables.push(this.statusBar);
 
+    this.installDirBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 91);
+    this.installDirBar.command = {
+      command: "workbench.action.openSettings",
+      title: "Open Settings",
+      arguments: ["@id:scryer.installDir"],
+    };
+    this.installDirBar.text = "$(warning) Scryer: set installDir";
+    this.installDirBar.tooltip =
+      "scryer.installDir is not set — extraction is disabled. Click to configure.";
+    this.installDirBar.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
+    this.disposables.push(this.installDirBar);
+    this.updateInstallDirBar();
+
     this.panel.webview.html = this.buildHtml();
 
     this.panel.webview.onDidReceiveMessage(
@@ -174,6 +188,9 @@ export class ScryerPanel {
         if (e.affectsConfiguration("scryer.showRuler")) {
           this.updateStatusBar();
           void this.panel.webview.postMessage(this.rulerMessage());
+        }
+        if (e.affectsConfiguration("scryer.installDir")) {
+          this.updateInstallDirBar();
         }
       },
       null,
@@ -208,6 +225,15 @@ export class ScryerPanel {
   private updateStatusBar(): void {
     const show = vscode.workspace.getConfiguration("scryer").get<boolean>("showRuler") ?? true;
     this.statusBar.text = `📏 ${show ? "ON" : "OFF"}`;
+  }
+
+  private updateInstallDirBar(): void {
+    const installDir = vscode.workspace.getConfiguration("scryer").get<string>("installDir") ?? "";
+    if (installDir) {
+      this.installDirBar.hide();
+    } else {
+      this.installDirBar.show();
+    }
   }
 
   private handleWebviewMessage(message: unknown, uri: vscode.Uri): void {
