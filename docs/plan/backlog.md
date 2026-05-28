@@ -423,7 +423,7 @@ node dist/collect-textures.js .wow-assets/interface/addons Blizzard_SharedXML Bl
 
 # Derive unique parent dirs and build brace glob
 DIRS=$(sed 's|/[^/]*$||' /tmp/textures.txt | sort -u | tr '\n' ',' | sed 's/,$//')
-rustydemon-cli export -a "$WOW_DIR" -l dev/listfile.csv -o .wow-assets -p "{$DIRS}/**" -j 8
+rustydemon-cli export -a "$WOW_DIR" -l <cacheRoot>/downloads/listfile.csv -o .wow-assets -p "{$DIRS}/**" -j 8
 ```
 
 **Design note:** Inheritance resolution is not needed for manifest/preload purposes. Template definitions include their `file=` attributes directly in the XML, so raw parsing already captures all texture references. Concrete frames that only inherit textures from Blizzard templates are covered when those template addons are also scanned. This keeps the function fast and dependency-free (no registry pass required).
@@ -553,11 +553,14 @@ Atlas references (e.g. `atlas="glues-characterselect-tophud-middle-bg"`) name a 
 4. **IR enrichment in `panel.ts`** — before sending the render message, walks all textures and fills `TextureIR.resolvedAtlas` from the manifest. `collectTexturePaths` was updated to also include resolved atlas sheet paths for pre-warming.
 5. **Renderer** — when `resolvedAtlas` is set, emits `data-asset-path` (sheet file) + `data-atlas-crop` (crop JSON). `useAtlasSize=true` sets explicit element dimensions from the atlas region at render time and is re-applied when the asset loads.
 6. **Webview `applyAsset`** — detects `data-atlas-crop` and computes `background-size`/`background-position` using pixel math (same approach as TexCoords). `useAtlasSize` overrides element dimensions on asset load.
-7. **`dev/gen-atlas.mjs`** — dev contributor tool that generates the manifest JSON from `UiTextureAtlas` and `UiTextureAtlasMember` CSV exports (auto-downloaded from wago.tools, or supplied as local files via `--atlas-csv`/`--members-csv`) joined with `dev/listfile.csv` for FileDataID → path lookup.
+7. **`dev/gen-atlas.mjs`** — generates the manifest JSON from `UiTextureAtlas` and `UiTextureAtlasMember` CSV exports (auto-downloaded from wago.tools, or supplied as local files via `--atlas-csv`/`--members-csv`) joined with `<cacheRoot>/downloads/listfile.csv` for FileDataID → path lookup. Accepts `--listfile <path>` or `--listfile-dir <dir>`. Invoked automatically by `AssetService.ensureAtlasManifest()` at first render when the manifest is absent; re-tried after Blizzard file extraction completes (which downloads the listfile as a side effect). Community listfile is cached at `<cacheRoot>/downloads/listfile.csv`; never written to `dev/`.
+8. **Atlas name lookup** — case-insensitive with `-2x` suffix fallback. WoW DB2 exports store names lowercase (e.g. `ui-frame-diamondmetal-header-cornerleft-2x`); XML attributes use mixed-case without the suffix. `resolveAtlasInTexture` in `panel.ts` cascades: `manifest[name]` → `manifest[name.toLowerCase()]` → `manifest[name.toLowerCase() + "-2x"]`.
 
-**M5 versioning deferred:** Per-build version-tagging of the manifest and auto-extraction via the on-demand pipeline remain for M5. The manifest is currently a manually generated dev artifact. Fallback to the labeled placeholder is automatic when the manifest is absent, so there is no regression for users who have not generated one.
+**Post-completion fixes (same session):**
 
-**Visible gap (remaining):** `_UI-Frame-TopTileStreaks` in `DefaultPanelTemplate` will render correctly once a manifest is generated with `dev/gen-atlas.mjs` and placed in the cache. Without the manifest the placeholder behavior is unchanged.
+- `dev/extract.sh` `ensure_listfile()` — progress messages redirected to stderr; previously captured by `listfile="$(ensure_listfile)"` command substitution, corrupting the path variable and causing rustydemon-cli to receive the download message as the listfile path.
+- Atlas manifest generation retry — `panel.ts` resets `atlasGenDone` when Blizzard extraction produces new files, allowing the subsequent re-render to retry manifest generation once the listfile is available.
+- `package.json` — `clear-cache:workspace` and `clear-cache:global` scripts for development convenience.
 
 ---
 
@@ -615,7 +618,7 @@ The `isEnabled()` helper and `logLevel()` mapper can remain for any callers that
 
    Alternatively, use an npm DB2 parser such as `@wowserhq/db2` if one becomes available with a compatible license.
 
-3. **FileDataID → path join** — unchanged: still uses `dev/listfile.csv` to resolve FileDataIDs to `Interface/...` paths.
+3. **FileDataID → path join** — unchanged: still uses the community listfile (now at `<cacheRoot>/downloads/listfile.csv`) to resolve FileDataIDs to `Interface/...` paths.
 
 4. **Wire into `ensureAtlasManifest()`** — `AssetService.ensureAtlasManifest()` currently calls `shellGenAtlas` which spawns `gen-atlas.mjs`. After this change, `gen-atlas.mjs` falls back to the wago.tools download only when the DB2 files are absent (first run before any extraction), and prefers the local files when they exist.
 

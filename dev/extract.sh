@@ -7,18 +7,21 @@ set -euo pipefail
 # Retail: auto-detects an installed CASC extraction tool (see CASC_TOOLS below).
 # Classic/Classic Era: copies loose files from $WOW_DIR/_classic_/Interface/.
 #
-# Usage: ./dev/extract.sh [classic|classic_era|retail(default)] [--out-dir <dir>] [--type textures|interface|all] [--paths-file <file>] [--wow-dir <path>] [--casc-tool <path>]
+# Usage: ./dev/extract.sh [classic|classic_era|retail(default)] [--out-dir <dir>] [--type textures|interface|all] [--paths-file <file>] [--wow-dir <path>] [--casc-tool <path>] [--listfile-dir <dir>]
 #
-#   --out-dir <dir>     Output root (default: .wow-assets/ beside the project). The extension
-#                       passes <cacheRoot>/source here automatically; manual runs use the default.
-#   --type textures     Extract Interface texture files (BLP/PNG/TGA). Default.
-#   --type interface    Extract Blizzard addon code (Lua/XML/TOC) from Interface/AddOns/.
-#   --type all          Extract both textures and addon code.
-#   --paths-file        Targeted extraction: a newline-delimited list of specific paths.
-#                       Overrides the default path set; --type is ignored.
-#   --wow-dir <path>    WoW root directory. Overrides WOW_DIR from config.local.sh.
-#                       When provided, config.local.sh is not required.
-#   --casc-tool <path>  Path to the CASC extraction binary. Overrides CASC_TOOL from config.local.sh.
+#   --out-dir <dir>       Output root (default: .wow-assets/ beside the project). The extension
+#                         passes <cacheRoot>/source here automatically; manual runs use the default.
+#   --type textures       Extract Interface texture files (BLP/PNG/TGA). Default.
+#   --type interface      Extract Blizzard addon code (Lua/XML/TOC) from Interface/AddOns/.
+#   --type all            Extract both textures and addon code.
+#   --paths-file          Targeted extraction: a newline-delimited list of specific paths.
+#                         Overrides the default path set; --type is ignored.
+#   --wow-dir <path>      WoW root directory. Overrides WOW_DIR from config.local.sh.
+#                         When provided, config.local.sh is not required.
+#   --casc-tool <path>    Path to the CASC extraction binary. Overrides CASC_TOOL from config.local.sh.
+#   --listfile-dir <dir>  Directory where community-listfile.csv is downloaded/cached.
+#                         Default: dev/ (beside this script). The extension passes
+#                         <cacheRoot>/downloads here so nothing is written into the source tree.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
@@ -32,6 +35,7 @@ PATHS_FILE=""
 TYPE="textures"
 WOW_DIR_ARG=""
 CASC_TOOL_ARG=""
+LISTFILE_DIR="$SCRIPT_DIR"
 
 shift || true # consume flavor arg (or no-op if no args given)
 
@@ -84,9 +88,17 @@ while [[ $# -gt 0 ]]; do
             CASC_TOOL_ARG="$2"
             shift 2
             ;;
+        --listfile-dir)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --listfile-dir requires an argument" >&2
+                exit 1
+            fi
+            LISTFILE_DIR="$2"
+            shift 2
+            ;;
         *)
             echo "Error: Unknown argument: $1" >&2
-            echo "Usage: $0 [retail|classic|classic_era] [--out-dir <dir>] [--type textures|interface|all] [--paths-file <file>] [--wow-dir <path>] [--casc-tool <path>]" >&2
+            echo "Usage: $0 [retail|classic|classic_era] [--out-dir <dir>] [--type textures|interface|all] [--paths-file <file>] [--wow-dir <path>] [--casc-tool <path>] [--listfile-dir <dir>]" >&2
             exit 1
             ;;
     esac
@@ -208,16 +220,19 @@ extract_retail() {
 
 # ---------------------------------------------------------------------------
 # Shared: community listfile (needed by tools that don't auto-download it)
-# Cached at dev/listfile.csv (gitignored). Downloaded once, reused after.
+# Downloaded once to LISTFILE_DIR, reused after. Defaults to dev/ for manual
+# runs; the extension passes --listfile-dir <cacheRoot>/downloads so nothing
+# is written into the source tree.
 # ---------------------------------------------------------------------------
 
 ensure_listfile() {
-    local listfile="$SCRIPT_DIR/listfile.csv"
+    local listfile="$LISTFILE_DIR/listfile.csv"
     if [[ ! -f "$listfile" ]]; then
-        echo "Downloading community listfile to $listfile..."
+        mkdir -p "$LISTFILE_DIR"
+        echo "Downloading community listfile to $listfile..." >&2
         curl -fsSL -o "$listfile" \
             "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv"
-        echo ""
+        echo "" >&2
     fi
     echo "$listfile"
 }

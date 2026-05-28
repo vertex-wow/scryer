@@ -1,10 +1,11 @@
 import * as path from "path";
 import * as vscode from "vscode";
 import { AssetService } from "./assets/index.js";
+import type { AtlasManifest } from "./assets/atlas-manifest.js";
 import { parseXmlFile } from "./parser/index.js";
 import { resolveInheritance } from "./parser/inherit.js";
 import { collectTexturePaths } from "./parser/collect-textures.js";
-import type { FrameIR } from "./parser/ir.js";
+import type { FrameIR, TextureIR } from "./parser/ir.js";
 import { resolveFlavorConfig } from "./flavors/config.js";
 import type { HostMessage, Viewport } from "./protocol.js";
 
@@ -25,6 +26,55 @@ function getNonce(): string {
 
 // How long after the last unresolved-asset report to wait before triggering extraction.
 const EXTRACT_DEBOUNCE_MS = 300;
+
+// ---------------------------------------------------------------------------
+// Atlas name resolution
+// ---------------------------------------------------------------------------
+
+function resolveAtlasInTexture(tex: TextureIR, manifest: AtlasManifest): void {
+  if (!tex.atlas) return;
+  const lower = tex.atlas.toLowerCase();
+  const entry = manifest[tex.atlas] ?? manifest[lower] ?? manifest[lower + "-2x"];
+  if (!entry) return;
+  tex.resolvedAtlas = {
+    file: entry.file,
+    x: entry.x,
+    y: entry.y,
+    width: entry.width,
+    height: entry.height,
+    sheetW: entry.sheetW,
+    sheetH: entry.sheetH,
+    tilesH: entry.tilesH,
+    tilesV: entry.tilesV,
+  };
+}
+
+function resolveAtlasInFrame(frame: FrameIR, manifest: AtlasManifest): void {
+  for (const layer of frame.layers) {
+    for (const obj of layer.objects) {
+      if (obj.kind === "Texture" || obj.kind === "MaskTexture") {
+        resolveAtlasInTexture(obj as TextureIR, manifest);
+      }
+    }
+  }
+  for (const tex of [
+    frame.normalTexture,
+    frame.pushedTexture,
+    frame.disabledTexture,
+    frame.highlightTexture,
+  ]) {
+    if (tex) resolveAtlasInTexture(tex, manifest);
+  }
+  for (const child of frame.children) {
+    resolveAtlasInFrame(child, manifest);
+  }
+}
+
+function resolveAtlasNames(frames: FrameIR[], manifest: AtlasManifest): void {
+  for (const frame of frames) {
+    resolveAtlasInFrame(frame, manifest);
+  }
+}
 // How long after the last document change to wait before re-rendering in current-file mode.
 const RENDER_DEBOUNCE_MS = 300;
 
@@ -49,6 +99,8 @@ export class ScryerPanel {
   private blizzardExtractionDone = false;
   // True once the workspace-wide texture pre-warm has been kicked off for this panel.
   private workspacePrewarmDone = false;
+  // True once atlas manifest generation has been attempted for this panel lifetime.
+  private atlasGenDone = false;
   // Paths already attempted for extraction; prevents re-queuing on subsequent re-renders
   // when extraction produced no result (e.g. file not in CASC data store).
   private extractionTriedPaths = new Set<string>();
@@ -116,6 +168,7 @@ export class ScryerPanel {
           this.assets.invalidate();
           this.blizzardExtractionDone = false;
           this.workspacePrewarmDone = false;
+          this.atlasGenDone = false;
           this.extractionTriedPaths.clear();
         }
         if (e.affectsConfiguration("scryer.showRuler")) {
@@ -203,9 +256,7 @@ export class ScryerPanel {
     const absPath = await this.assets.resolveToAbsPath(rawPath, addonDir);
     if (!absPath) {
       if (this.isEnabled(vscode.LogLevel.Warning)) {
-        this.output.warn(
-          `Asset not found: ${rawPath} — run dev/extract.sh to populate the asset cache (scryer.cacheLocation).`,
-        );
+        this.output.warn(`Asset not found: ${rawPath}`);
       }
       if (!this.retryInProgress && !this.extractionTriedPaths.has(rawPath)) {
         this.missingPaths.set(rawPath, addonDir);
@@ -286,10 +337,24 @@ export class ScryerPanel {
       if (!this.blizzardExtractionDone) {
         void this.assets.ensureBlizzardFiles().then((extracted) => {
           this.blizzardExtractionDone = true;
-          if (extracted) this.assets.invalidateAfterBlizzardExtraction();
+          if (extracted) {
+            this.assets.invalidateAfterBlizzardExtraction();
+            // Extraction downloads the listfile as a side effect — allow atlas
+            // manifest generation to retry on the upcoming re-render.
+            this.atlasGenDone = false;
+          }
           // Re-render to flip pending state or pick up newly extracted templates.
           // Skipped when isFirstExtraction was false (files already known present).
           if (isFirstExtraction) void this.renderFile(uri);
+        });
+      }
+
+      // Ensure atlas manifest exists; generate from wago.tools if absent.
+      // Non-blocking: triggers a re-render only when a manifest is newly created.
+      if (!this.atlasGenDone && !this.assets.hasAtlasManifestRun()) {
+        this.atlasGenDone = true;
+        void this.assets.ensureAtlasManifest().then((generated) => {
+          if (generated) void this.renderFile(uri);
         });
       }
 
@@ -313,6 +378,11 @@ export class ScryerPanel {
 
       const renderFrames = resolved.frames.filter((f) => !f.virtual);
       const addonDir = path.dirname(uri.fsPath);
+
+      // Resolve atlas names from the manifest before collecting paths or sending IR.
+      const atlasManifest = this.assets.loadAtlasManifest();
+      if (atlasManifest) resolveAtlasNames(renderFrames, atlasManifest);
+
       const texturePaths = collectTexturePaths(renderFrames);
 
       if (this.isEnabled(vscode.LogLevel.Debug)) {

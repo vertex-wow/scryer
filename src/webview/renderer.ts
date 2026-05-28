@@ -34,13 +34,30 @@ function renderTexture(tex: TextureIR, rect: Rect): HTMLElement {
 
   if (tex.color) {
     el.style.background = cssColor(tex.color);
+  } else if (tex.resolvedAtlas) {
+    const ra = tex.resolvedAtlas;
+    el.dataset.assetPath = ra.file;
+    el.dataset.atlasCrop = JSON.stringify({
+      x: ra.x,
+      y: ra.y,
+      width: ra.width,
+      height: ra.height,
+      sheetW: ra.sheetW,
+      sheetH: ra.sheetH,
+      tilesH: ra.tilesH,
+      tilesV: ra.tilesV,
+      useAtlasSize: tex.useAtlasSize ?? false,
+    });
+    const ph = makePlaceholder(ra.file);
+    ph.dataset.placeholder = "1";
+    el.appendChild(ph);
   } else if (tex.file) {
     el.dataset.assetPath = tex.file;
     const ph = makePlaceholder(tex.file);
     ph.dataset.placeholder = "1";
     el.appendChild(ph);
   } else if (tex.atlas) {
-    // Atlas resolution deferred (requires manifest); show labeled placeholder
+    // Atlas name present but no manifest entry — show labeled placeholder
     el.dataset.atlasName = tex.atlas;
     el.appendChild(makePlaceholder(tex.atlas, `[atlas] ${tex.atlas}`));
   } else {
@@ -56,12 +73,17 @@ function renderTexture(tex: TextureIR, rect: Rect): HTMLElement {
   if (tex.hidden) el.style.opacity = "0.4";
   if (tex.alpha !== undefined) el.style.opacity = String(tex.alpha);
 
-  // Position: explicit rect if sized, otherwise fill parent with inset:0
+  // Position: explicit rect if sized; useAtlasSize falls back to atlas dimensions; else fill parent.
   if (rect.width > 0 || rect.height > 0) {
     el.style.left = `${Math.round(rect.left)}px`;
     el.style.top = `${Math.round(rect.top)}px`;
     el.style.width = `${Math.round(rect.width)}px`;
     el.style.height = `${Math.round(rect.height)}px`;
+  } else if (tex.useAtlasSize && tex.resolvedAtlas) {
+    el.style.left = `${Math.round(rect.left)}px`;
+    el.style.top = `${Math.round(rect.top)}px`;
+    el.style.width = `${tex.resolvedAtlas.width}px`;
+    el.style.height = `${tex.resolvedAtlas.height}px`;
   } else {
     el.style.inset = "0";
   }

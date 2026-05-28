@@ -110,11 +110,25 @@ export interface FrameIR extends LayoutFrameBase {
 
 export type RenderObjectIR = TextureIR | FontStringIR;
 
+export interface ResolvedAtlasInfo {
+  file: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  sheetW: number;
+  sheetH: number;
+  tilesH: boolean;
+  tilesV: boolean;
+}
+
 export interface TextureIR extends LayoutFrameBase {
   kind: "Texture" | "MaskTexture";
   file?: string;
   atlas?: string;
   useAtlasSize?: boolean;
+  /** Populated at render-time from the atlas manifest; absent when manifest is missing or name unknown. */
+  resolvedAtlas?: ResolvedAtlasInfo;
   alphaMode?: AlphaMode;
   texCoords?: { left: number; right: number; top: number; bottom: number };
   color?: Color;

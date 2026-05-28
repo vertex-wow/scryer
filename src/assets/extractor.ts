@@ -12,6 +12,17 @@ export interface ExtractorOptions {
   wowDir?: string;
   /** Path to the CASC tool binary passed as --casc-tool to the extraction script. */
   cascToolPath?: string;
+  /** Directory where the community listfile should be downloaded/read. Passed as --listfile-dir. */
+  listfileDir?: string;
+  output: vscode.LogOutputChannel;
+  logLevel: vscode.LogLevel;
+}
+
+export interface AtlasGenOptions {
+  /** Absolute path where atlas-manifest.json should be written. */
+  manifestPath: string;
+  /** Directory containing listfile.csv (e.g. <cacheRoot>/downloads). */
+  listfileDir?: string;
   output: vscode.LogOutputChannel;
   logLevel: vscode.LogLevel;
 }
@@ -77,6 +88,7 @@ function spawnExtract(
       pathsFile,
       ...(opts.wowDir ? ["--wow-dir", opts.wowDir] : []),
       ...(opts.cascToolPath ? ["--casc-tool", opts.cascToolPath] : []),
+      ...(opts.listfileDir ? ["--listfile-dir", opts.listfileDir] : []),
     ];
     safeLog(opts.output, "debug", `[Scryer] Spawning: ${scriptPath} ${args.join(" ")}`);
     const proc = cp.spawn(scriptPath, args, {
@@ -127,6 +139,7 @@ function spawnExtractInterface(scriptPath: string, opts: ExtractorOptions): Prom
       "interface",
       ...(opts.wowDir ? ["--wow-dir", opts.wowDir] : []),
       ...(opts.cascToolPath ? ["--casc-tool", opts.cascToolPath] : []),
+      ...(opts.listfileDir ? ["--listfile-dir", opts.listfileDir] : []),
     ];
     safeLog(opts.output, "debug", `[Scryer] Spawning: ${scriptPath} ${args.join(" ")}`);
     const proc = cp.spawn(scriptPath, args, {
@@ -183,7 +196,7 @@ function safeLog(
 }
 
 /** Returns handlers that buffer partial chunks and write complete lines at the right level. */
-function makeLineHandler(opts: ExtractorOptions): {
+function makeLineHandler(opts: { output: vscode.LogOutputChannel; logLevel: vscode.LogLevel }): {
   onData: (d: Buffer) => void;
   flush: () => void;
 } {
@@ -212,4 +225,74 @@ function resolveScriptPath(explicit: string): string | null {
   if (!wsFolder) return null;
   const auto = path.join(wsFolder, "dev", "extract.sh");
   return fs.existsSync(auto) ? auto : null;
+}
+
+// ---------------------------------------------------------------------------
+// Atlas manifest generation  (dev/gen-atlas.mjs)
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate the atlas manifest JSON by running dev/gen-atlas.mjs.
+ * Downloads WoW DB2 table CSV exports from wago.tools and joins them with
+ * the community listfile to produce atlas-manifest.json in the derived cache dir.
+ *
+ * Silently skips when the gen-atlas script is absent (end-user installs that
+ * don't include the dev/ directory) or when the listfile has not been downloaded yet.
+ */
+export async function shellGenAtlas(opts: AtlasGenOptions): Promise<void> {
+  const scriptPath = resolveGenAtlasPath();
+  if (!scriptPath) return;
+
+  const listfilePath = opts.listfileDir ? path.join(opts.listfileDir, "listfile.csv") : null;
+  if (!listfilePath || !fs.existsSync(listfilePath)) {
+    safeLog(
+      opts.output,
+      "debug",
+      "[Scryer] Atlas manifest: listfile.csv not available yet — skipping.",
+    );
+    return;
+  }
+
+  try {
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Scryer: generating atlas manifest…",
+        cancellable: false,
+      },
+      () => spawnGenAtlas(scriptPath, listfilePath, opts),
+    );
+  } catch (err) {
+    safeLog(opts.output, "warn", `[Scryer] Atlas manifest generation failed: ${String(err)}`);
+  }
+}
+
+function spawnGenAtlas(
+  scriptPath: string,
+  listfilePath: string,
+  opts: AtlasGenOptions,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const args = [scriptPath, "--out", opts.manifestPath, "--listfile", listfilePath];
+    safeLog(opts.output, "debug", `[Scryer] Spawning: ${process.execPath} ${args.join(" ")}`);
+    const proc = cp.spawn(process.execPath, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const { onData, flush } = makeLineHandler(opts);
+    proc.stdout?.on("data", onData);
+    proc.stderr?.on("data", onData);
+    proc.on("error", reject);
+    proc.on("close", (code) => {
+      flush();
+      if (code === 0) resolve();
+      else reject(new Error(`gen-atlas.mjs exited with code ${code}`));
+    });
+  });
+}
+
+function resolveGenAtlasPath(): string | null {
+  const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!wsFolder) return null;
+  const p = path.join(wsFolder, "dev", "gen-atlas.mjs");
+  return fs.existsSync(p) ? p : null;
 }

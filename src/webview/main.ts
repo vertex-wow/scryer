@@ -69,9 +69,38 @@ function applyAsset(rawPath: string, uri: string): void {
     el.style.backgroundImage = `url("${uri}")`;
     el.style.backgroundRepeat = "no-repeat";
 
-    const raw = el.dataset.texCoords;
-    if (raw) {
-      const { left, right, top, bottom } = JSON.parse(raw) as {
+    const cropRaw = el.dataset.atlasCrop;
+    const coordsRaw = el.dataset.texCoords;
+
+    if (cropRaw) {
+      const crop = JSON.parse(cropRaw) as {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        sheetW: number;
+        sheetH: number;
+        tilesH: boolean;
+        tilesV: boolean;
+        useAtlasSize: boolean;
+      };
+      // When useAtlasSize is set, override the element's dimensions to the atlas region size.
+      if (crop.useAtlasSize) {
+        el.style.width = `${crop.width}px`;
+        el.style.height = `${crop.height}px`;
+      }
+      // Scale the sheet so that the region exactly fills the element.
+      const elemW = crop.useAtlasSize ? crop.width : el.offsetWidth;
+      const elemH = crop.useAtlasSize ? crop.height : el.offsetHeight;
+      const scaleX = elemW / crop.width;
+      const scaleY = elemH / crop.height;
+      const bgW = crop.sheetW * scaleX;
+      const bgH = crop.sheetH * scaleY;
+      el.style.backgroundSize = `${bgW}px ${bgH}px`;
+      el.style.backgroundPosition = `${-crop.x * scaleX}px ${-crop.y * scaleY}px`;
+      el.style.backgroundRepeat = crop.tilesH || crop.tilesV ? "repeat" : "no-repeat";
+    } else if (coordsRaw) {
+      const { left, right, top, bottom } = JSON.parse(coordsRaw) as {
         left: number;
         right: number;
         top: number;

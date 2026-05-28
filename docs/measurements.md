@@ -240,7 +240,7 @@ Each question is answered with current evidence or flagged as "pending" with the
 | First call (cold page cache)  | 32.7 s              | —                         | ~33 s      |
 | Second call (warm page cache) | 25.3 s              | —                         | ~25 s      |
 
-The listfile CSV has **2,172,924 entries** (`dev/listfile.csv`). Even with the file fully in OS page cache, the text parsing + in-memory hashing takes ~25 s CPU. This cost is paid on every `rustydemon-cli` process launch.
+The listfile CSV has **2,172,924 entries** (cached at `<cacheRoot>/downloads/listfile.csv`). Even with the file fully in OS page cache, the text parsing + in-memory hashing takes ~25 s CPU. This cost is paid on every `rustydemon-cli` process launch.
 
 **Consequence:** Per-file extraction for 102 textures ≈ 102 × 28 s ≈ **47 minutes** of overhead alone — completely impractical. All extraction must be done in a single batched call per CASC open. The `dev/extract.sh --paths-file` loop (which spawns one process per path) must be replaced with a batch strategy.
 

@@ -13,7 +13,7 @@
 
     DefaultPanelTemplate (→ DefaultPanelBaseTemplate):
       ✓  BACKGROUND: Interface\FrameGeneral\UI-Background-Rock    (tiled rock fill)
-      ✗  BACKGROUND: _UI-Frame-TopTileStreaks                      (atlas-only, no file path)
+      ✓  BACKGROUND: _UI-Frame-TopTileStreaks                      (atlas; resolves once atlas-manifest.json is present)
       ✗  Frames > NineSlice (NineSlicePanelTemplate)              (code-driven — needs M4)
       ✓  Frames > TitleContainer > TitleText FontString            (text label, no font yet)
 
