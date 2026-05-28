@@ -48,6 +48,7 @@ Completed `↳` rows appear in chronological order before the first pending mile
 | ↳   | [Atlas manifest from DB2 (replace wago.tools)](backlog.md#atlas-manifest-from-db2-replace-wagotools)                   | 📋 Pending                  | Parse UiTextureAtlas DB2 files directly; no outbound HTTP                                     | M      | —          |
 | ↳   | [Listfile cache speed-up](backlog.md#listfile-cache-speed-up-sqlite-or-equivalent)                                     | 📋 Pending                  | SQLite/binary index; cut 25 s CSV parse to sub-millisecond                                    | S–M    | —          |
 | ↳   | [Apply logLevel setting to output channel](backlog.md#apply-scryer.loglevel-setting-to-logoutputchannel-log-level)     | 📋 Pending                  | Set `channel.logLevel` from setting; remove manual gating                                     | XS     | —          |
+| ↳   | [Texture placeholder hover tooltip](backlog.md#texture-placeholder-hover-tooltip)                                      | 📋 Pending                  | `title` attribute on placeholders so full name shows on hover when truncated                  | XS     | —          |
 
 ## Recommended Tech Stack
 
