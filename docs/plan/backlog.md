@@ -561,6 +561,26 @@ Atlas references (e.g. `atlas="glues-characterselect-tophud-middle-bg"`) name a 
 
 ---
 
+## JS entry-point runners (replace dev shell scripts)
+
+**Status: 📋 Pending**
+
+**Problem:** The extension invokes texture extraction and atlas manifest generation by spawning `dev/extract.sh` and `dev/gen-atlas.mjs` as subprocesses. This means the extension host must locate scripts on disk, exec a shell, and parse exit codes. Contributor tooling and the production extension path share the same subprocess boundary — awkward, platform-sensitive, and brittle (e.g. `scryer.extractScriptPath` must be explicitly configured or auto-detected).
+
+**Goal:** Extract the core logic from each shell script into importable JS/TS functions already living in `src/` (or a new `src/tools/` layer), then add thin `dev/*.ts` CLI entry points that call those same functions. The extension host calls by import; the `/dev` scripts become a contributor convenience layer, not a runtime dependency.
+
+**What changes:**
+
+- **`dev/extract.sh`** — the non-CASC portions (path normalization, loose-file rsync for Classic, temp-file management) move to a callable TS function. The script can remain as a thin wrapper for terminal use. `AssetService.extractMissing` calls the function directly instead of spawning a subprocess.
+- **`dev/gen-atlas.mjs`** — atlas manifest generation is exposed as a callable function; the `.mjs` entry point remains for manual runs.
+- **`scryer.extractScriptPath`** — becomes unnecessary once the extension calls the function directly; can be deprecated and removed.
+
+**Relationship to in-process CASC reader:** The [In-process CASC reader](#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli) item eliminates `rustydemon-cli` entirely and is the longer-term solution for retail CASC extraction. This item is narrower and independent: it refactors the call boundary without requiring a CASC reimplementation. The shell script can still shell out to `rustydemon-cli`; it just does so from within the Node process. Both items can land independently.
+
+**Effort:** S — the logic already exists; this is a call-boundary refactor, not new feature work.
+
+---
+
 ## Apply scryer.logLevel setting to LogOutputChannel log level
 
 **Status: 📋 Pending**

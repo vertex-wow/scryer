@@ -9,6 +9,5 @@
   "files.eol": "\n",
   "files.insertFinalNewline": true,
   "typescript.tsdk": "node_modules/typescript/lib",
-  "typescript.enablePromptUseWorkspaceTsdk": true,
-  "scryer.showRuler": true
+  "typescript.enablePromptUseWorkspaceTsdk": true
 }

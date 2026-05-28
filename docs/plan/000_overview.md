@@ -45,6 +45,7 @@ Completed `↳` rows appear in chronological order before the first pending mile
 | ↳   | [Direct BLP/TGA serving in webview](backlog.md#direct-proprietary-texture-serving-in-the-webview-blptga-decode-bypass) | 📋 Pending (research)       | Feasibility: skip PNG compression by serving raw RGBA       | XS     | —          |
 | ↳   | [Atlas manifest from DB2 (replace wago.tools)](backlog.md#atlas-manifest-from-db2-replace-wagotools)                   | 📋 Pending                  | Parse UiTextureAtlas DB2 files directly; no outbound HTTP   | M      | —          |
 | ↳   | [Apply logLevel setting to output channel](backlog.md#apply-scryer.loglevel-setting-to-logoutputchannel-log-level)     | 📋 Pending                  | Set `channel.logLevel` from setting; remove manual gating   | XS     | —          |
+| ↳   | [JS entry-point runners (replace dev shell scripts)](backlog.md#js-entry-point-runners-replace-dev-shell-scripts)      | 📋 Pending                  | Expose dev script logic as importable JS fns; no subprocess | S      | —          |
 
 ## Recommended Tech Stack
 
