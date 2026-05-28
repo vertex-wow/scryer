@@ -232,6 +232,29 @@ N is clamped to available fixtures (no cycling). When fewer fixtures are on disk
 
 ---
 
+## Listfile cache speed-up (SQLite or equivalent)
+
+**Status: 📋 Pending**
+
+**Problem:** The community listfile (`<cacheRoot>/downloads/listfile.csv`) has 2,172,924 entries and is 140 MB. Parsing and hashing it takes ~25 s CPU even with the file warm in OS page cache. Two consumers pay this cost today:
+
+- **`rustydemon-cli`** — reads the CSV on every process launch. With the current single-batch extraction strategy this is ~28 s per extraction run. We cannot change this; it is a fixed cost of the external binary.
+- **`dev/gen-atlas.mjs`** — reads the CSV once per atlas manifest generation to join FileDataIDs to Interface paths. Currently acceptable (~25 s, runs rarely), but will become worse if the manifest needs regenerating after every game patch.
+
+**Goal:** Convert the CSV to a binary index on first download, stored at `<cacheRoot>/downloads/listfile.db` (SQLite) or a lighter key→value format. Subsequent reads do point lookups instead of a full linear parse.
+
+**Options to evaluate:**
+
+1. **SQLite** (`better-sqlite3` or the built-in `node:sqlite` module added in Node 22.5) — `SELECT path FROM listfile WHERE id = ?` is ~sub-millisecond after the first open. Widely understood, easy to inspect. Adds a native or pure-JS dependency.
+2. **Flat binary hash map** — write a custom file format: sorted `(u32 id, u32 offset)` index + packed string table. Pure JS, zero deps, ~5–10 ms read overhead. More implementation work than SQLite.
+3. **Pre-filtered CSV** — strip all non-`Interface/` entries at download time; reduces from 2.17 M to roughly 200–400 K entries (estimated), cutting `rustydemon-cli` parse time 5–10×. No dep change, immediate win, but only helps the external binary path and doesn't help point-lookup use cases.
+
+**Scope note:** The [in-process CASC reader](#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli) eliminates `rustydemon-cli` entirely and uses the TVFS manifest for path resolution — making the community listfile unnecessary for extraction. The listfile remains needed for `gen-atlas.mjs` (FileDataID → path join) until the [Atlas manifest from DB2](#atlas-manifest-from-db2-replace-wagotools) item lands. Doing the SQLite conversion now is worthwhile only if the listfile parse latency is actively blocking work.
+
+**Effort:** S (SQLite or pre-filtered CSV); M (custom binary format).
+
+---
+
 ## WoW build version tracking and cache invalidation
 
 **Status: Done** (2026-05-27)

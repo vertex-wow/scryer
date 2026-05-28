@@ -44,6 +44,7 @@ Completed `↳` rows appear in chronological order before the first pending mile
 | ↳   | [Preload settings](backlog.md#preload-settings--scryer.startupcontent--scryer.useraddonpreload)                        | 🔧 Partial (settings added) | `scryer.startupContent` + `scryer.userAddonPreload` enums   | S      | —          |
 | ↳   | [Direct BLP/TGA serving in webview](backlog.md#direct-proprietary-texture-serving-in-the-webview-blptga-decode-bypass) | 📋 Pending (research)       | Feasibility: skip PNG compression by serving raw RGBA       | XS     | —          |
 | ↳   | [Atlas manifest from DB2 (replace wago.tools)](backlog.md#atlas-manifest-from-db2-replace-wagotools)                   | 📋 Pending                  | Parse UiTextureAtlas DB2 files directly; no outbound HTTP   | M      | —          |
+| ↳   | [Listfile cache speed-up](backlog.md#listfile-cache-speed-up-sqlite-or-equivalent)                                     | 📋 Pending                  | SQLite/binary index; cut 25 s CSV parse to sub-millisecond  | S–M    | —          |
 | ↳   | [Apply logLevel setting to output channel](backlog.md#apply-scryer.loglevel-setting-to-logoutputchannel-log-level)     | 📋 Pending                  | Set `channel.logLevel` from setting; remove manual gating   | XS     | —          |
 | ↳   | [JS entry-point runners (replace dev shell scripts)](backlog.md#js-entry-point-runners-replace-dev-shell-scripts)      | 📋 Pending                  | Expose dev script logic as importable JS fns; no subprocess | S      | —          |
 
