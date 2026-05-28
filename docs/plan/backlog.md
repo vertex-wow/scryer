@@ -540,3 +540,24 @@ el.style.backgroundPosition = `${-left * bgW}px ${-top * bgH}px`;
 - Low priority purely cosmetic feature; worth doing alongside any other webview polish work.
 
 **Effort:** XS–S — pure webview HTML/CSS/JS with a small `onDidChangeConfiguration` handler in the extension host. No IR or asset pipeline changes required.
+
+---
+
+## Atlas texture resolution
+
+**Status: 📋 Pending**
+
+Atlas references (e.g. `atlas="glues-characterselect-tophud-middle-bg"`) name a region within a sprite sheet rather than a standalone file. They currently render as labeled colored placeholders (`[atlas] <name>`) because the renderer has no manifest to look up the sheet file and crop rectangle.
+
+**What is needed:**
+
+1. **Atlas manifest** — a JSON file mapping `atlasName → { file, x, y, width, height, tilesH, tilesV }`. Blizzard ships one (or more, per-build) as part of the WoW interface files; the extraction pipeline must acquire and version-tag it alongside textures.
+2. **Manifest loader** — load and cache the manifest in `AssetService` (or alongside `BlizzardRegistry`). Index by atlas name for O(1) lookup.
+3. **Renderer support** — when a `tex.atlas` name is present, resolve it through the manifest: load the sheet as an asset, then apply UV crop via `background-position`/`background-size` (same CSS technique as `TexCoords`). If the manifest is absent or the name is unknown, fall back to the current labeled placeholder.
+4. **`useAtlasSize` support** — when `useAtlasSize="true"`, size the frame element from the atlas region's `width`/`height` rather than any explicit `<Size>` attribute.
+
+**Depends on:** M5 (Multi-Version Targets and per-build manifests), since the atlas manifest is per game build and must be version-tagged.
+
+**Visible gap today:** `_UI-Frame-TopTileStreaks` in `DefaultPanelTemplate` renders as a gray placeholder box instead of the animated streak texture. Documented in `test/manual/test_blizz_templates.xml`.
+
+**Effort:** S–M (manifest acquisition and loader: S; renderer + `useAtlasSize` wiring: S; versioning integration with M5: M).
