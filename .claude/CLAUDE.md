@@ -13,7 +13,11 @@ World of Warcraft Addon Preview — Preview the result of XML frame definitions 
 ### `docs/plan/`
 Implementation roadmap. One file per milestone (`000_overview.md`, `001_xml_parser.md`, etc.). Update these when scope, approach, or effort changes — they are the source of truth for what we're building and why.
 
-When updating the milestone table in `000_overview.md`: backlog items (`↳` rows) are placed **after the last milestone completed before the work was done**, not after the milestone they were originally deferred from or assigned to. A backlog item sniped ahead of schedule must be moved (or inserted) before the next pending milestone — keeping all completed rows in chronological order above the pending ones.
+When updating the milestone table in `000_overview.md`, maintain this invariant: **all completed `↳` rows must appear before the first pending milestone row, in chronological order.** A `↳` row marked ✅ Done that sits under a pending milestone is always wrong.
+
+- **Adding a new pending backlog item:** Attach it under the pending milestone it relates to.
+- **Adding a completed backlog item:** Insert it immediately before the first pending milestone, after the last completed row.
+- **Completing a backlog item:** If it currently sits under a pending milestone row, move it to immediately before the first pending milestone row.
 
 ### `docs/decisions/`
 Architecture Decision Records (ADRs). One file per significant decision (`001_language_stack.md`, etc.). Write an ADR whenever a non-obvious technical or architectural choice is made, especially when alternatives were seriously considered. Include: context, options considered, decision, rationale, and consequences. Do not delete old ADRs — mark them superseded if overturned.
