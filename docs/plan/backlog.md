@@ -661,13 +661,13 @@ The output channel (`scryer.logLevel`) is a power-user tool. Regular users never
 
 ## Texture placeholder hover tooltip
 
-**Status: 📋 Pending**
+**Status: ✅ Done**
 
 **Problem:** Unloaded or missing textures render as colored placeholder elements with the texture path (or atlas name) as visible text. When the name is long, it is truncated by the element's bounds with no way to read the full path without inspecting the DOM.
 
 **Plan:** Add a `title` attribute to each placeholder element in the webview renderer, set to the full, un-truncated texture path or atlas name. The browser then shows it as a native tooltip on hover — no JS required.
 
-The renderer already has the full name at placeholder-creation time (it is the same value that goes into the placeholder's `textContent`). This is a one-line change per placeholder type (file texture, atlas texture).
+**Implemented:** `div.title = label ?? path` added to `makePlaceholder` in [src/webview/placeholder.ts](../../src/webview/placeholder.ts) — one line, no JS, no new protocol.
 
 **Effort:** XS — attribute addition in the renderer HTML generation; no new protocol, no new styles.
 
