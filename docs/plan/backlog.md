@@ -589,21 +589,27 @@ Atlas references (e.g. `atlas="glues-characterselect-tophud-middle-bg"`) name a 
 
 ## JS entry-point runners (replace dev shell scripts)
 
-**Status: 📋 Pending**
+**Status: ✅ Done (2026-05-28)**
 
-**Problem:** The extension invokes texture extraction and atlas manifest generation by spawning `dev/extract.sh` and `dev/gen-atlas.mjs` as subprocesses. This means the extension host must locate scripts on disk, exec a shell, and parse exit codes. Contributor tooling and the production extension path share the same subprocess boundary — awkward, platform-sensitive, and brittle (e.g. `scryer.extractScriptPath` must be explicitly configured or auto-detected).
+**What was built:**
 
-**Goal:** Extract the core logic from each shell script into importable JS/TS functions already living in `src/` (or a new `src/tools/` layer), then add thin `dev/*.ts` CLI entry points that call those same functions. The extension host calls by import; the `/dev` scripts become a contributor convenience layer, not a runtime dependency.
+`src/assets/atlas-gen.ts` — self-contained atlas manifest generation library (ported from `dev/gen-atlas.mjs`). Exports `generateAtlasManifest(opts)`. Fetches UiTextureAtlas and UiTextureAtlasMember CSV exports from wago.tools, joins with the community listfile, and writes `atlas-manifest.json`. No vscode dependency.
 
-**What changes:**
+`src/assets/extract-core.ts` — self-contained extraction library (ported from `dev/extract.sh`). Exports `extractPaths()`, `extractBulk()`, and `ensureListfile()`. Handles retail (rustydemon-cli subprocess), classic/classic_era (direct `fs` loose-file copy with case-insensitive path resolution), and listfile download (Node https streaming). No vscode dependency.
 
-- **`dev/extract.sh`** — the non-CASC portions (path normalization, loose-file rsync for Classic, temp-file management) move to a callable TS function. The script can remain as a thin wrapper for terminal use. `AssetService.extractMissing` calls the function directly instead of spawning a subprocess.
-- **`dev/gen-atlas.mjs`** — atlas manifest generation is exposed as a callable function; the `.mjs` entry point remains for manual runs.
-- **`scryer.extractScriptPath`** — becomes unnecessary once the extension calls the function directly; can be deprecated and removed.
+`src/assets/extractor.ts` — replaced entirely. Now a thin vscode wrapper around the two core libraries: `extractMissing()`, `extractInterface()`, `genAtlas()`. All subprocess and script-path logic removed.
 
-**Relationship to in-process CASC reader:** The [In-process CASC reader](#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli) item eliminates `rustydemon-cli` entirely and is the longer-term solution for retail CASC extraction. This item is narrower and independent: it refactors the call boundary without requiring a CASC reimplementation. The shell script can still shell out to `rustydemon-cli`; it just does so from within the Node process. Both items can land independently.
+`dev/extract.ts` — thin CLI shim replacing `dev/extract.sh`. Parses CLI args (same interface as the old bash script), reads `dev/config.local.json` for `wowDir`/`cascTool` defaults, delegates to `extract-core.ts`.
 
-**Effort:** S — the logic already exists; this is a call-boundary refactor, not new feature work.
+`dev/gen-atlas.ts` — thin CLI shim replacing `dev/gen-atlas.mjs`. Delegates to `atlas-gen.ts`.
+
+`dev/bench.build.mjs` — updated to build `gen-atlas.ts` and `extract.ts` into `dist/`.
+
+`dev/config.json.example` — replaces `dev/config.sh.example`. JSON format; gitignore entry added for `dev/config.local.json`.
+
+`package.json` — added `pnpm run extract` and `pnpm run gen-atlas` scripts. Removed `scryer.extractScriptPath` setting from contributes.configuration.
+
+**Architecture:** `src/` is the source of truth. `dev/` scripts are thin CLI entry points that import and call `src/` functions. The extension calls `src/` directly with no subprocess boundary. CLAUDE.md documents this invariant.
 
 ---
 
@@ -622,6 +628,34 @@ Atlas references (e.g. `atlas="glues-characterselect-tophud-middle-bg"`) name a 
 The `isEnabled()` helper and `logLevel()` mapper can remain for any callers that need to branch on level (e.g. deciding whether to build an expensive log string), but should not be the primary filter mechanism.
 
 **Effort:** XS — config wiring + guard removal; no new logic.
+
+---
+
+## User-visible loading notifications
+
+**Status: 📋 Pending**
+
+**Problem:** Several slow async operations happen silently with no user-facing feedback:
+
+- **Atlas manifest generation** — `ensureAtlasManifest()` downloads two CSV exports from wago.tools (~1–3 s network + ~2 s parse), then writes the manifest. This happens at first render. The user sees placeholder tiles with no indication that anything is in progress or why.
+- **Blizzard file extraction** — `ensureBlizzardFiles()` can trigger a CASC extraction pass. The output channel logs it, but the panel shows no in-panel status.
+- **Startup preload** — `scryer.startupContent` tier execution logs to the output channel but there is no status bar or panel indicator that background work is ongoing.
+
+The output channel (`scryer.logLevel`) is a power-user tool. Regular users never open it, so they have no visibility into why the preview is showing placeholders.
+
+**Plan:**
+
+1. **Atlas generation progress** — wrap `ensureAtlasManifest()` in a `vscode.window.withProgress({ location: ProgressLocation.Notification })` call. Show distinct messages for download phase ("Scryer: downloading atlas data…") and generation phase ("Scryer: building atlas manifest…"). Dismiss automatically on success; surface output channel on failure.
+
+2. **In-panel loading indicator** — add a small status element to the webview HTML (e.g. a bottom-edge bar or a corner badge) that the extension host toggles via a `{ type: "setStatus" }` protocol message. States: `idle`, `loading` (generic), `extracting`, `buildingAtlas`. Prevents the "why are all my textures colored boxes?" confusion without requiring the user to find the output channel.
+
+3. **Status bar for long background work** — reuse or extend the existing per-panel `StatusBarItem` to show a spinner prefix while any async work is in flight (extraction, atlas gen, preload tiers). Clear on idle.
+
+4. **Consolidate** the existing `vscode.window.withProgress` call in `extractMissing()` so all three entry points (extraction, Blizzard file ensure, atlas gen) use a consistent notification pattern.
+
+**Scope:** Extension host progress notifications + in-panel status indicator + status bar integration. No new user-configurable settings needed; this is always-on feedback that scales down gracefully when nothing is in flight.
+
+**Effort:** S — ~2–4 hours. Notification plumbing is the largest part; in-panel status element is small HTML/CSS.
 
 ---
 
