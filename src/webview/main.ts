@@ -30,6 +30,18 @@ function requestRenderedAssets(): void {
   }
 }
 
+/** Inject or update the @font-face rule for the WoWDefaultFont family. */
+function applyDefaultFont(uri: string): void {
+  const id = "scryer-default-font";
+  let style = document.getElementById(id) as HTMLStyleElement | null;
+  if (!style) {
+    style = document.createElement("style");
+    style.id = id;
+    document.head.appendChild(style);
+  }
+  style.textContent = `@font-face { font-family: "WoWDefaultFont"; src: url("${uri}"); }`;
+}
+
 /** Apply a resolved asset URI to all texture elements sharing that path. */
 function applyAsset(rawPath: string, uri: string): void {
   const selector = `[data-asset-path="${rawPath.replace(/"/g, '\\"')}"]`;
@@ -53,8 +65,9 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         `render received — ${msg.frames.length} frame(s), viewport ${msg.viewport.w}x${msg.viewport.h}`,
       );
       try {
+        if (msg.defaultFontUri) applyDefaultFont(msg.defaultFontUri);
         viewport!.innerHTML = "";
-        const root = renderFrames(msg.frames, msg.viewport);
+        const root = renderFrames(msg.frames, msg.viewport, msg.flavorConfig);
         viewport!.appendChild(root);
         let suffix = " OK";
         if (msg.extractionPending)

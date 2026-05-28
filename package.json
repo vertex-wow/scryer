@@ -193,6 +193,11 @@
           ],
           "default": "on-demand",
           "description": "How eagerly Scryer pre-warms texture assets for the addon currently being previewed"
+        },
+        "scryer.flavorConfigPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to a JSON file that overrides per-flavor display defaults (fonts, viewport size, scale). Must match the shape of src/flavors/defaults.json. Merged additively on top of the built-in config — later layers win per key."
         }
       }
     }

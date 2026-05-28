@@ -5,6 +5,7 @@ import { parseXmlFile } from "./parser/index.js";
 import { resolveInheritance } from "./parser/inherit.js";
 import { collectTexturePaths } from "./parser/collect-textures.js";
 import type { FrameIR } from "./parser/ir.js";
+import { resolveFlavorConfig } from "./flavors/config.js";
 import type { HostMessage, Viewport } from "./protocol.js";
 
 // Minimal surface of the vscode.git extension API needed to check gitignore status.
@@ -21,8 +22,6 @@ function getNonce(): string {
   for (let i = 0; i < 32; i++) result += chars[Math.floor(Math.random() * chars.length)];
   return result;
 }
-
-const DEFAULT_VIEWPORT: Viewport = { w: 1280, h: 720 };
 
 // How long after the last unresolved-asset report to wait before triggering extraction.
 const EXTRACT_DEBOUNCE_MS = 300;
@@ -228,8 +227,11 @@ export class ScryerPanel {
     }
     this.missingPaths.clear();
 
-    const preloadMode =
-      vscode.workspace.getConfiguration("scryer").get<string>("userAddonPreload") ?? "on-demand";
+    const cfg = vscode.workspace.getConfiguration("scryer");
+    const preloadMode = cfg.get<string>("userAddonPreload") ?? "on-demand";
+    const flavor = cfg.get<string>("flavor") ?? "retail";
+    const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
+    const flavorConfig = resolveFlavorConfig(flavor, userConfigPath);
 
     try {
       let content: string;
@@ -294,13 +296,29 @@ export class ScryerPanel {
         }
       }
 
+      const viewport: Viewport = {
+        w: flavorConfig.uiParentWidth,
+        h: flavorConfig.uiParentHeight,
+      };
+
+      // Resolve the default font from the asset cache so the webview can inject @font-face.
+      let defaultFontUri: string | undefined;
+      if (flavorConfig.defaultFont) {
+        const fontAbsPath = await this.assets.resolveToAbsPath(flavorConfig.defaultFont, "");
+        if (fontAbsPath) {
+          defaultFontUri = this.panel.webview.asWebviewUri(vscode.Uri.file(fontAbsPath)).toString();
+        }
+      }
+
       const msg: HostMessage = {
         type: "render",
         frames: renderFrames,
-        viewport: DEFAULT_VIEWPORT,
+        viewport,
         warnings: warns.count,
         extractionPending: isFirstExtraction,
         pendingFiles: isFirstExtraction ? texturePaths.length : 0,
+        flavorConfig,
+        defaultFontUri,
       };
 
       void this.panel.webview.postMessage(msg);
@@ -400,6 +418,7 @@ export class ScryerPanel {
     const csp = [
       `default-src 'none'`,
       `img-src ${webview.cspSource}`,
+      `font-src ${webview.cspSource}`,
       `style-src ${webview.cspSource} 'unsafe-inline'`,
       `script-src 'nonce-${nonce}'`,
     ].join("; ");

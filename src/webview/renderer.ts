@@ -1,5 +1,5 @@
 import type { Color, FontStringIR, FrameIR, TextureIR } from "../parser/ir.js";
-import type { Viewport } from "../protocol.js";
+import type { ResolvedFlavorConfig, Viewport } from "../protocol.js";
 import type { Rect } from "./layout.js";
 import { layoutAll } from "./layout.js";
 import { frameZ, layerZ } from "./strata.js";
@@ -73,7 +73,11 @@ function renderTexture(tex: TextureIR, rect: Rect): HTMLElement {
 // FontString rendering
 // ---------------------------------------------------------------------------
 
-function renderFontString(fs: FontStringIR, rect: Rect): HTMLElement {
+// CSS font-family stack for WoW text. "WoWDefaultFont" is populated by an
+// @font-face rule injected by main.ts when the asset is available.
+const WOW_FONT_STACK = '"WoWDefaultFont","Palatino Linotype","Book Antiqua",serif';
+
+function renderFontString(fs: FontStringIR, rect: Rect, config: ResolvedFlavorConfig): HTMLElement {
   const el = document.createElement("div");
   el.dataset.name = fs.name ?? "";
   el.dataset.kind = "FontString";
@@ -99,13 +103,17 @@ function renderFontString(fs: FontStringIR, rect: Rect): HTMLElement {
   el.style.justifyContent = justifyContentMap[jh] ?? "flex-start";
   el.style.alignItems = alignItemsMap[jv] ?? "center";
 
+  const explicitSize = fs.fontSize ?? (rect.height > 0 ? Math.round(rect.height * 0.75) : 0);
+  const fontSize = explicitSize > 0 ? explicitSize : config.defaultFontSize;
+  const color = fs.color ? cssColor(fs.color) : cssColor(config.defaultTextColor);
+
   const span = document.createElement("span");
   span.textContent = fs.text ?? "";
   span.title = `FontString (approximate rendering)`;
   span.style.cssText = [
-    `font-family:"Palatino Linotype","Book Antiqua",serif`,
-    `font-size:${rect.height > 0 ? Math.round(rect.height * 0.75) : 13}px`,
-    `color:${fs.color ? cssColor(fs.color) : "#ffd100"}`,
+    `font-family:${WOW_FONT_STACK}`,
+    `font-size:${fontSize}px`,
+    `color:${color}`,
     "pointer-events:none",
   ].join(";");
 
@@ -134,6 +142,7 @@ function renderFrame(
   parentRect: Rect,
   rectMap: Map<FrameIR, Rect>,
   viewportRect: Rect,
+  config: ResolvedFlavorConfig,
   isTopLevel = false,
 ): HTMLElement {
   const el = document.createElement("div");
@@ -172,7 +181,7 @@ function renderFrame(
 
       let objEl: HTMLElement;
       if (obj.kind === "FontString") {
-        objEl = renderFontString(obj, objRect);
+        objEl = renderFontString(obj, objRect, config);
       } else {
         objEl = renderTexture(obj as TextureIR, objRect);
       }
@@ -204,7 +213,7 @@ function renderFrame(
   // Recursively render children
   for (const child of frame.children) {
     const childRect = rectMap.get(child) ?? frameRect;
-    el.appendChild(renderFrame(child, childRect, frameRect, rectMap, viewportRect));
+    el.appendChild(renderFrame(child, childRect, frameRect, rectMap, viewportRect, config));
   }
 
   return el;
@@ -218,9 +227,15 @@ function renderFrame(
  * Render a list of resolved FrameIRs into a container div sized to the viewport.
  * All layout is computed here (no DOM measurements needed for M2).
  */
-export function renderFrames(frames: FrameIR[], viewport: Viewport): HTMLElement {
+export function renderFrames(
+  frames: FrameIR[],
+  viewport: Viewport,
+  config: ResolvedFlavorConfig,
+): HTMLElement {
   const container = document.createElement("div");
   container.id = "wow-viewport";
+
+  const scale = config.frameScale;
   container.style.cssText = [
     "position:relative",
     `width:${viewport.w}px`,
@@ -229,6 +244,7 @@ export function renderFrames(frames: FrameIR[], viewport: Viewport): HTMLElement
     "background-color:#555",
     "background-image:repeating-conic-gradient(#444 0% 25%,#666 0% 50%)",
     "background-size:128px 128px",
+    ...(scale !== 1 ? [`transform:scale(${scale})`, "transform-origin:top left"] : []),
   ].join(";");
 
   const viewportRect: Rect = { left: 0, top: 0, width: viewport.w, height: viewport.h };
@@ -239,7 +255,9 @@ export function renderFrames(frames: FrameIR[], viewport: Viewport): HTMLElement
 
   for (const frame of renderable) {
     const rect = rectMap.get(frame) ?? viewportRect;
-    container.appendChild(renderFrame(frame, rect, viewportRect, rectMap, viewportRect, true));
+    container.appendChild(
+      renderFrame(frame, rect, viewportRect, rectMap, viewportRect, config, true),
+    );
   }
 
   return container;

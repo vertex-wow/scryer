@@ -453,7 +453,7 @@ rustydemon-cli export -a "$WOW_DIR" -l dev/listfile.csv -o .wow-assets -p "{$DIR
 
 ## Flavor configuration file — per-flavor display defaults
 
-**Status: 📋 Pending**
+**Status: ✅ Done** (2026-05-28)
 
 **Problem:** Previewed frames don't match in-game appearance because display properties are either hardcoded in the renderer or absent entirely. The most visible gaps are fonts, font sizes, and the UIParent reference resolution. WoW uses specific per-flavor fonts (e.g. `Fonts\FRIZQT__.TTF` as the primary UI font in Retail, different families in Classic Era), and the standard reference canvas is 1024×768 logical units (scaled from a 1920×1200 physical resolution). Without these, font strings render at browser defaults and frame proportions are wrong.
 

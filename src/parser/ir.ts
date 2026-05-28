@@ -123,6 +123,9 @@ export interface TextureIR extends LayoutFrameBase {
 export interface FontStringIR extends LayoutFrameBase {
   kind: "FontString";
   text?: string;
+  /** Named font reference (e.g. "GameFontNormal") or direct file path. */
+  font?: string;
+  fontSize?: number;
   inheritsFont?: string;
   justifyH?: "LEFT" | "CENTER" | "RIGHT";
   justifyV?: "TOP" | "MIDDLE" | "BOTTOM";

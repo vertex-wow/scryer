@@ -376,6 +376,10 @@ function parseFontString(node: RawNode, sourceFile: string): FontStringIR {
   if (parentArray) fs.parentArray = parentArray;
   const inheritsFont = strAttr(a, "inherits");
   if (inheritsFont) fs.inheritsFont = inheritsFont;
+  const font = strAttr(a, "font");
+  if (font) fs.font = font;
+  const fontSize = numAttr(a, "fontsize") ?? numAttr(a, "fontSize");
+  if (fontSize !== undefined) fs.fontSize = fontSize;
   const text = strAttr(a, "text");
   if (text !== undefined) fs.text = text;
   const justifyH = strAttr(a, "justifyH");

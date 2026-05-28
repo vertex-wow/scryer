@@ -38,7 +38,7 @@ Backlog items (↳) are deferred tasks attached to the milestone after which the
 | ↳   | [Extraction benchmarks](backlog.md#extraction-benchmarks)                                                              | ✅ Done (2026-05-27)        | Benchmark extraction pipeline at varying concurrency       | S      | —          |
 | ↳   | [Addon texture manifest builder](backlog.md#addon-texture-manifest-builder)                                            | ✅ Done (2026-05-27)        | `collectAddonTexturePaths` + `collect-textures` CLI        | S      | —          |
 | ↳   | [Dynamic flavor detection from `.build.info`](backlog.md#dynamic-flavor-detection-from-buildinfo)                      | ✅ Done (2026-05-27)        | Derive available flavors from install rather than hardcode | S      | —          |
-| ↳   | [Flavor configuration file](backlog.md#flavor-configuration-file--per-flavor-display-defaults)                         | 📋 Pending                  | Per-flavor font/size/resolution defaults; user override    | M      | —          |
+| ↳   | [Flavor configuration file](backlog.md#flavor-configuration-file--per-flavor-display-defaults)                         | ✅ Done (2026-05-28)        | Per-flavor font/size/resolution defaults; user override    | M      | —          |
 
 ## Recommended Tech Stack
 
