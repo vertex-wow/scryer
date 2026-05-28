@@ -32,6 +32,7 @@ Completed `↳` rows appear in chronological order before the first pending mile
 | ↳   | [CSS inset + relativeKey renderer fixes](backlog.md#css-inset--relativekey-renderer-fixes-deferred-from-m2)            | ✅ Done (2026-05-28)        | Fix texture positioning and sibling-anchor resolution       | S      | —          |
 | ↳   | [TexCoords sprite-sheet slicing](backlog.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2)       | ✅ Done (2026-05-28)        | Apply UV crop via CSS background-position/size              | S      | —          |
 | ↳   | [Pixel ruler overlay](backlog.md#pixel-ruler-overlay-in-the-preview-panel)                                             | ✅ Done (2026-05-28)        | Optional sticky rulers along top/left edges of the preview  | XS–S   | —          |
+| ↳   | [Atlas texture resolution](backlog.md#atlas-texture-resolution)                                                        | ✅ Done (2026-05-28)        | Resolve atlas names via manifest; apply UV crop in renderer | S–M    | —          |
 | 4   | Lua Shim Runtime                                                                                                       | ⬜ Pending                  | Sandboxed Lua exec + WoW API stubs + frame object model     | M      | 1, 2       |
 | 5   | Multi-Version Targets                                                                                                  | ⬜ Pending                  | Selectable Classic/Cata/Retail API profiles                 | S–M    | 4          |
 | 6   | Hot Reload _(stretch)_                                                                                                 | ⬜ Pending                  | Re-parse/re-run on save with minimal repaint                | M      | 2, 4       |
@@ -42,7 +43,8 @@ Completed `↳` rows appear in chronological order before the first pending mile
 | ↳   | [Preload workspace textures](backlog.md#preload-workspace-textures-at-startup)                                         | 📋 Pending                  | Pre-warm asset cache at extension startup                   | S      | —          |
 | ↳   | [Preload settings](backlog.md#preload-settings--scryer.startupcontent--scryer.useraddonpreload)                        | 🔧 Partial (settings added) | `scryer.startupContent` + `scryer.userAddonPreload` enums   | S      | —          |
 | ↳   | [Direct BLP/TGA serving in webview](backlog.md#direct-proprietary-texture-serving-in-the-webview-blptga-decode-bypass) | 📋 Pending (research)       | Feasibility: skip PNG compression by serving raw RGBA       | XS     | —          |
-| ↳   | [Atlas texture resolution](backlog.md#atlas-texture-resolution)                                                        | 📋 Pending                  | Resolve atlas names via manifest; apply UV crop in renderer | S–M    | 5          |
+| ↳   | [Atlas manifest from DB2 (replace wago.tools)](backlog.md#atlas-manifest-from-db2-replace-wagotools)                   | 📋 Pending                  | Parse UiTextureAtlas DB2 files directly; no outbound HTTP   | M      | —          |
+| ↳   | [Apply logLevel setting to output channel](backlog.md#apply-scryer.loglevel-setting-to-logoutputchannel-log-level)     | 📋 Pending                  | Set `channel.logLevel` from setting; remove manual gating   | XS     | —          |
 
 ## Recommended Tech Stack
 

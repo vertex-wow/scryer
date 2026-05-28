@@ -541,19 +541,64 @@ el.style.backgroundPosition = `${-left * bgW}px ${-top * bgH}px`;
 
 ## Atlas texture resolution
 
+**Status: ✅ Done (2026-05-28)**
+
+Atlas references (e.g. `atlas="glues-characterselect-tophud-middle-bg"`) name a region within a sprite sheet rather than a standalone file. They previously rendered as labeled colored placeholders (`[atlas] <name>`).
+
+**What was built:**
+
+1. **Manifest format** — JSON at `<cacheRoot>/<flavor>/derived/atlas-manifest.json` mapping `atlasName → { file, x, y, width, height, sheetW, sheetH, tilesH, tilesV }`. `file` is the WoW-relative path to the sprite sheet BLP. Pixel offsets `x`/`y` and region dimensions `width`/`height` come from `UiTextureAtlasMember.CommittedLeft/CommittedTop/Width/Height`; sheet totals `sheetW`/`sheetH` from `UiTextureAtlas.AtlasWidth/Height`.
+2. **`src/assets/atlas-manifest.ts`** — `AtlasEntry` / `AtlasManifest` types; `loadAtlasManifest(path)` disk loader (returns `null` when file is absent — silent no-op for users without a manifest).
+3. **`AssetService.loadAtlasManifest()`** — reads from `<texturesConvDir>/../atlas-manifest.json`.
+4. **IR enrichment in `panel.ts`** — before sending the render message, walks all textures and fills `TextureIR.resolvedAtlas` from the manifest. `collectTexturePaths` was updated to also include resolved atlas sheet paths for pre-warming.
+5. **Renderer** — when `resolvedAtlas` is set, emits `data-asset-path` (sheet file) + `data-atlas-crop` (crop JSON). `useAtlasSize=true` sets explicit element dimensions from the atlas region at render time and is re-applied when the asset loads.
+6. **Webview `applyAsset`** — detects `data-atlas-crop` and computes `background-size`/`background-position` using pixel math (same approach as TexCoords). `useAtlasSize` overrides element dimensions on asset load.
+7. **`dev/gen-atlas.mjs`** — dev contributor tool that generates the manifest JSON from `UiTextureAtlas` and `UiTextureAtlasMember` CSV exports (auto-downloaded from wago.tools, or supplied as local files via `--atlas-csv`/`--members-csv`) joined with `dev/listfile.csv` for FileDataID → path lookup.
+
+**M5 versioning deferred:** Per-build version-tagging of the manifest and auto-extraction via the on-demand pipeline remain for M5. The manifest is currently a manually generated dev artifact. Fallback to the labeled placeholder is automatic when the manifest is absent, so there is no regression for users who have not generated one.
+
+**Visible gap (remaining):** `_UI-Frame-TopTileStreaks` in `DefaultPanelTemplate` will render correctly once a manifest is generated with `dev/gen-atlas.mjs` and placed in the cache. Without the manifest the placeholder behavior is unchanged.
+
+---
+
+## Apply scryer.logLevel setting to LogOutputChannel log level
+
 **Status: 📋 Pending**
 
-Atlas references (e.g. `atlas="glues-characterselect-tophud-middle-bg"`) name a region within a sprite sheet rather than a standalone file. They currently render as labeled colored placeholders (`[atlas] <name>`) because the renderer has no manifest to look up the sheet file and crop rectangle.
+**Problem:** `LogOutputChannel` (created with `{ log: true }`) has a native `logLevel` property that VSCode uses to filter messages at the channel level. Currently `panel.ts` implements a parallel `isEnabled(messageLevel)` guard and never sets `channel.logLevel`, so VSCode's own log-level UI (the level selector in the Output panel) has no effect and the channel's built-in filtering is bypassed entirely.
 
-**What is needed:**
+**Plan:**
 
-1. **Atlas manifest** — a JSON file mapping `atlasName → { file, x, y, width, height, tilesH, tilesV }`. Blizzard ships one (or more, per-build) as part of the WoW interface files; the extraction pipeline must acquire and version-tag it alongside textures.
-2. **Manifest loader** — load and cache the manifest in `AssetService` (or alongside `BlizzardRegistry`). Index by atlas name for O(1) lookup.
-3. **Renderer support** — when a `tex.atlas` name is present, resolve it through the manifest: load the sheet as an asset, then apply UV crop via `background-position`/`background-size` (same CSS technique as `TexCoords`). If the manifest is absent or the name is unknown, fall back to the current labeled placeholder.
-4. **`useAtlasSize` support** — when `useAtlasSize="true"`, size the frame element from the atlas region's `width`/`height` rather than any explicit `<Size>` attribute.
+1. After creating the output channel and on every `onDidChangeConfiguration` change to `scryer.logLevel`, call `output.logLevel = logLevel()` to keep the channel's native level in sync.
+2. Remove `isEnabled()` call-site guards from `panel.ts` — the channel suppresses lower-priority calls natively, so double-gating is redundant.
+3. Verify `"off"` correctly silences the channel by setting `output.logLevel = vscode.LogLevel.Off`.
 
-**Depends on:** M5 (Multi-Version Targets and per-build manifests), since the atlas manifest is per game build and must be version-tagged.
+The `isEnabled()` helper and `logLevel()` mapper can remain for any callers that need to branch on level (e.g. deciding whether to build an expensive log string), but should not be the primary filter mechanism.
 
-**Visible gap today:** `_UI-Frame-TopTileStreaks` in `DefaultPanelTemplate` renders as a gray placeholder box instead of the animated streak texture. Documented in `test/manual/test_blizz_templates.xml`.
+**Effort:** XS — config wiring + guard removal; no new logic.
 
-**Effort:** S–M (manifest acquisition and loader: S; renderer + `useAtlasSize` wiring: S; versioning integration with M5: M).
+---
+
+## Atlas manifest from DB2 (replace wago.tools)
+
+**Status: 📋 Pending**
+
+`dev/gen-atlas.mjs` currently generates the atlas manifest by downloading `UiTextureAtlas` and `UiTextureAtlasMember` CSV table exports from wago.tools. This works but has two problems: it makes an outbound HTTP request to a third-party service at extension startup (whenever the manifest is absent), and it silently produces a stale manifest when the user is offline or when wago.tools lags behind a patch.
+
+**Goal:** Replace the CSV download with direct parsing of the DB2 binary files extracted from the user's WoW installation. No outbound HTTP. The manifest is generated from the same build as the user's game data.
+
+**Rough plan:**
+
+1. **Extract the DB2 files** — extend `dev/extract.sh --type atlas` (or the on-demand extractor) to pull `dbfilesclient/uitextureatlas.db2` and `dbfilesclient/uitextureatlasmember.db2` from CASC via rustydemon-cli, writing them to `<sourceDir>/dbfilesclient/`.
+
+2. **Parse the DB2 binary format** — write a minimal WDC4 parser in `dev/parse-db2.mjs` (or inline in `gen-atlas.mjs`) covering only the two table schemas needed. The WDC4 format is documented; the field layouts for these two tables are fixed and small. Key reference: `_reference/wow.export/src/js/db/WDCReader.js`. The main complexity is bitpacked fields and the string table; both tables use simple non-packed integer and string fields so a hand-rolled subset parser is feasible without pulling in the full WDCReader infrastructure.
+
+   Alternatively, use an npm DB2 parser such as `@wowserhq/db2` if one becomes available with a compatible license.
+
+3. **FileDataID → path join** — unchanged: still uses `dev/listfile.csv` to resolve FileDataIDs to `Interface/...` paths.
+
+4. **Wire into `ensureAtlasManifest()`** — `AssetService.ensureAtlasManifest()` currently calls `shellGenAtlas` which spawns `gen-atlas.mjs`. After this change, `gen-atlas.mjs` falls back to the wago.tools download only when the DB2 files are absent (first run before any extraction), and prefers the local files when they exist.
+
+**Depends on:** Having a WoW install configured (`scryer.installDir`) so the DB2 files can be extracted. Falls back to wago.tools download if not.
+
+**Effort:** M (WDC4 parser for two specific schemas: S; DB2 extraction plumbing + fallback logic: S; testing across retail/classic builds: S).
