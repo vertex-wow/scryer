@@ -1,11 +1,22 @@
 # Reference — WoW XML Schema & Format
 
-_Derived from inspecting `_reference/wow-ui-source/` and `_live/Addons/`. Read-only reference — do not edit source directories._
+_Derived from inspecting `_reference/wow-ui-source/`, `_live/wow-ui-source/`, and `_live/Addons/`. Read-only reference — do not edit source directories._
+
+## WoW UI Source — Two Copies
+
+There are two copies of the WoW UI source available:
+
+| Path                        | Nature                                                                                                                                            | When to use                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `_reference/wow-ui-source/` | Git-tracked snapshot (GitHub upload repo). Self-contained — no cache required. Version: `12.0.1.66709`.                                           | Stable baseline; use for schema diffing and when the live cache is absent.      |
+| `_live/wow-ui-source/`      | Symlink → Scryer extension's live-extracted cache (`~/.vscode-server/.../retail/source/interface/`). Always reflects the current installed patch. | Prefer for any work that needs to match the user's actual running game version. |
+
+The `_live` copy is authoritative for current patch accuracy; the `_reference` copy is the fallback when the cache has not been populated.
 
 ## Schema Location and Version
 
-- **Authoritative XSD:** `_reference/wow-ui-source/Interface/AddOns/Blizzard_SharedXML/UI.xsd` (1628 lines)
-- **WoW UI source version:** `12.0.1.66709` — The War Within / Retail (from `_reference/wow-ui-source/version.txt`)
+- **Authoritative XSD:** `_reference/wow-ui-source/Interface/AddOns/Blizzard_SharedXML/UI.xsd` (1628 lines) — same path exists under `_live/wow-ui-source/` for the current-patch version
+- **WoW UI source version (reference snapshot):** `12.0.1.66709` — The War Within / Retail (from `_reference/wow-ui-source/version.txt`)
 - **XML namespace:** `http://www.blizzard.com/wow/ui/`
 - **Common `xsi:schemaLocation` in addons:** points to `..\FrameXML\UI.xsd` or `..\Blizzard_SharedXML\UI.xsd` (both are equivalent references to the same schema conceptually; the FrameXML one is used in older/Blizzard files, Blizzard_SharedXML in newer)
 
