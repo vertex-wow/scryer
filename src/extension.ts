@@ -54,6 +54,13 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   context.subscriptions.push(selectFlavorCmd);
 
+  const toggleRulerCmd = vscode.commands.registerCommand("scryer.toggleRuler", async () => {
+    const cfg = vscode.workspace.getConfiguration("scryer");
+    const current = cfg.get<boolean>("showRuler") ?? true;
+    await cfg.update("showRuler", !current, vscode.ConfigurationTarget.Workspace);
+  });
+  context.subscriptions.push(toggleRulerCmd);
+
   const cmd = vscode.commands.registerCommand("scryer.open", (uri?: vscode.Uri) => {
     const resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
     if (!resolved) {

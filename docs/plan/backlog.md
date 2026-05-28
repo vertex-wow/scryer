@@ -520,26 +520,22 @@ el.style.backgroundPosition = `${-left * bgW}px ${-top * bgH}px`;
 
 ## Pixel ruler overlay in the preview panel
 
-**Status: 📋 Pending**
+**Status: ✅ Done (2026-05-28)**
 
-**Idea:** Add an optional pixel ruler to the preview webview — a graduated ruler strip along the top edge and another along the left edge, anchored (sticky) so they stay visible as the user scrolls the frame canvas. Toggled by a `scryer.showRuler` boolean setting (default `false`).
+**What was built:**
 
-**Design:**
+`src/webview/ruler.ts` — `initRulers()` creates `#ruler-top` (horizontal `<canvas>`), `#ruler-left` (vertical `<canvas>`), and `#ruler-corner` (filler square) as `position: fixed` elements appended to the webview body. `updateRulers(wowViewportEl, scale)` redraws both canvases using `getBoundingClientRect()` on the WoW viewport element so the displayed coordinates automatically track CSS transforms (`frameScale`) and body scroll. `setRulersVisible(show)` toggles the `show-ruler` CSS class on the body, which activates display and adjusts body padding from 8px to 28px on the top/left to prevent canvas content from hiding beneath the strips.
 
-- Two `<div>` ruler strips injected into the webview HTML on initial render: `#ruler-top` (horizontal, spans the full width along the top) and `#ruler-left` (vertical, spans the full height along the left).
-- `position: fixed` so they remain at the viewport edge regardless of how the canvas is scrolled. `#ruler-top` is `~20px` tall; `#ruler-left` is `~20px` wide. A small square corner filler sits at their intersection.
-- Tick marks and labels drawn via a `<canvas>` element inside each strip (or CSS-generated content at regular intervals). Spacing follows the WoW logical-pixel coordinate system already established by `uiParentWidth`/`uiParentHeight` — ticks at every 10 or 50 logical pixels, labels at every 100.
-- The canvas offset (frame canvas `scrollLeft`/`scrollTop`) is tracked via a `scroll` listener on the frame container; the ruler canvas is redrawn on each scroll event to update the visible tick range.
-- Hide/show via a CSS class toggled when the webview receives a `setRuler` message from the extension host. The extension host sends this message when `scryer.showRuler` changes (via `onDidChangeConfiguration`), or immediately after initial render based on the current setting.
-- A `StatusBarItem` (or a button in the webview's own toolbar/status strip) lets the user flip the ruler on/off without opening settings — clicking it toggles `scryer.showRuler` in workspace config, which fires `onDidChangeConfiguration` and propagates the change to the webview automatically.
+**Coordinate system:** Ticks are in WoW logical pixels — the same units as the anchor layout engine. Minor ticks every 10 WoW px, major ticks at 50, numeric labels at 100. The horizontal ruler labels are right of the tick; the vertical ruler labels are rotated 90° so they read top-to-bottom.
 
-**Implementation notes:**
+**Extension host:**
 
-- Ruler ticks are in logical WoW pixels (same coordinate space as the anchor layout engine), not CSS pixels — account for any `frameScale` applied to the canvas container.
-- The ruler strips must clear the opposite ruler's width/height at the corner so tick labels don't overlap the intersection square.
-- Low priority purely cosmetic feature; worth doing alongside any other webview polish work.
+- `src/protocol.ts` — `{ type: "setRuler"; show: boolean }` added to `HostMessage`.
+- `src/panel.ts` — `rulerMessage()` helper reads `scryer.showRuler`; posted after every `render` message and on `onDidChangeConfiguration` when `scryer.showRuler` changes. A `StatusBarItem` ("Ruler: ON" / "Ruler: OFF") is created per panel, wired to the `scryer.toggleRuler` command, and disposed with the panel.
+- `src/extension.ts` — `scryer.toggleRuler` command flips `scryer.showRuler` in workspace config; the `onDidChangeConfiguration` chain in `panel.ts` propagates the change to the webview automatically.
+- `package.json` — `scryer.showRuler` boolean setting (default `false`); `scryer.toggleRuler` command contributed.
 
-**Effort:** XS–S — pure webview HTML/CSS/JS with a small `onDidChangeConfiguration` handler in the extension host. No IR or asset pipeline changes required.
+**Effort:** XS–S — within estimate.
 
 ---
 

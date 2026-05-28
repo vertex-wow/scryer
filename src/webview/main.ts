@@ -1,5 +1,6 @@
 import type { HostMessage, WebviewMessage } from "../protocol.js";
 import { renderFrames } from "./renderer.js";
+import { initRulers, setRulersVisible, updateRulers } from "./ruler.js";
 
 declare function acquireVsCodeApi(): {
   postMessage(msg: WebviewMessage): void;
@@ -11,11 +12,29 @@ const viewport = document.getElementById("viewport");
 const debug = document.getElementById("debug");
 if (!viewport) throw new Error("Missing #viewport element");
 
+// Current WoW viewport element and scale — retained so scroll/resize can redraw rulers.
+let currentWowViewport: HTMLElement | null = null;
+let currentScale = 1;
+
 function dbg(msg: string): void {
   if (debug) debug.textContent = msg;
 }
 
 dbg("script loaded — waiting for ready handshake");
+
+initRulers();
+
+document.getElementById("ruler-toggle")?.addEventListener("click", () => {
+  vscode.postMessage({ type: "toggleRuler" });
+});
+
+window.addEventListener("scroll", () => {
+  if (currentWowViewport) updateRulers(currentWowViewport, currentScale);
+});
+
+window.addEventListener("resize", () => {
+  if (currentWowViewport) updateRulers(currentWowViewport, currentScale);
+});
 
 /** After a render, collect all unique [data-asset-path] values and request each. */
 function requestRenderedAssets(): void {
@@ -88,6 +107,9 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         viewport!.innerHTML = "";
         const root = renderFrames(msg.frames, msg.viewport, msg.flavorConfig);
         viewport!.appendChild(root);
+        currentWowViewport = document.getElementById("wow-viewport");
+        currentScale = msg.flavorConfig.frameScale;
+        if (currentWowViewport) updateRulers(currentWowViewport, currentScale);
         let suffix = " OK";
         if (msg.extractionPending)
           suffix = msg.pendingFiles > 0 ? ` — ${msg.pendingFiles} file(s) pending` : ` — pending`;
@@ -102,6 +124,12 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
 
     case "assetResolved": {
       applyAsset(msg.path, msg.uri);
+      break;
+    }
+
+    case "setRuler": {
+      setRulersVisible(msg.show);
+      if (msg.show && currentWowViewport) updateRulers(currentWowViewport, currentScale);
       break;
     }
   }

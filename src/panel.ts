@@ -34,6 +34,7 @@ export class ScryerPanel {
   private readonly panel: vscode.WebviewPanel;
   private readonly output: vscode.LogOutputChannel;
   private readonly context: vscode.ExtensionContext;
+  private readonly statusBar: vscode.StatusBarItem;
   private disposables: vscode.Disposable[] = [];
   private assets: AssetService;
 
@@ -90,6 +91,14 @@ export class ScryerPanel {
     this.context = context;
     this.output = output;
     this.assets = assets;
+
+    this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 90);
+    this.statusBar.command = "scryer.toggleRuler";
+    this.statusBar.tooltip = "Toggle pixel ruler overlay";
+    this.updateStatusBar();
+    this.statusBar.show();
+    this.disposables.push(this.statusBar);
+
     this.panel.webview.html = this.buildHtml();
 
     this.panel.webview.onDidReceiveMessage(
@@ -100,7 +109,7 @@ export class ScryerPanel {
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 
-    // Re-resolve assets when config changes (new extractedAssetsDir etc.)
+    // Re-resolve assets and propagate setting changes to the webview.
     vscode.workspace.onDidChangeConfiguration(
       (e) => {
         if (e.affectsConfiguration("scryer")) {
@@ -108,6 +117,10 @@ export class ScryerPanel {
           this.blizzardExtractionDone = false;
           this.workspacePrewarmDone = false;
           this.extractionTriedPaths.clear();
+        }
+        if (e.affectsConfiguration("scryer.showRuler")) {
+          this.updateStatusBar();
+          void this.panel.webview.postMessage(this.rulerMessage());
         }
       },
       null,
@@ -134,6 +147,16 @@ export class ScryerPanel {
     );
   }
 
+  private rulerMessage(): HostMessage {
+    const show = vscode.workspace.getConfiguration("scryer").get<boolean>("showRuler") ?? true;
+    return { type: "setRuler", show };
+  }
+
+  private updateStatusBar(): void {
+    const show = vscode.workspace.getConfiguration("scryer").get<boolean>("showRuler") ?? true;
+    this.statusBar.text = `📏 ${show ? "ON" : "OFF"}`;
+  }
+
   private handleWebviewMessage(message: unknown, uri: vscode.Uri): void {
     if (typeof message !== "object" || !message) return;
     const msg = message as { type: string; path?: string; atlas?: string };
@@ -148,6 +171,13 @@ export class ScryerPanel {
           void this.resolveAndSendAsset(msg.path, path.dirname(uri.fsPath));
         }
         break;
+
+      case "toggleRuler": {
+        const cfg = vscode.workspace.getConfiguration("scryer");
+        const current = cfg.get<boolean>("showRuler") ?? true;
+        void cfg.update("showRuler", !current, vscode.ConfigurationTarget.Workspace);
+        break;
+      }
     }
   }
 
@@ -322,6 +352,7 @@ export class ScryerPanel {
       };
 
       void this.panel.webview.postMessage(msg);
+      void this.panel.webview.postMessage(this.rulerMessage());
 
       // When userAddonPreload is "saved-file" or "current-file", proactively resolve and
       // decode all textures found in the frame tree so they hit the PNG cache before the
@@ -432,13 +463,26 @@ export class ScryerPanel {
   <title>Scryer Preview</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{background:#1a1a1a;display:flex;flex-direction:column;align-items:flex-start;padding:8px;overflow:auto}
+    body{background:#1a1a1a;display:flex;flex-direction:column;align-items:flex-start;padding:8px;padding-top:28px;overflow:auto}
     #viewport{position:relative}
-    #debug{font:11px monospace;color:#888;padding:4px 0;white-space:pre-wrap}
+    #status-bar{position:fixed;top:0;left:0;right:0;height:20px;background:#222;display:flex;align-items:center;z-index:10001;border-bottom:1px solid #2a2a2a;font:11px monospace;color:#888;white-space:nowrap;overflow:hidden}
+    #ruler-toggle{flex-shrink:0;background:none;border:none;border-right:1px solid #2a2a2a;cursor:pointer;font:14px/20px system-ui;padding:0 5px;height:20px}
+    #ruler-toggle:hover{background:#2e2e2e}
+    .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(0.85);display:inline-block}
+    #ruler-toggle:hover .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(1.1)}
+#debug{padding:0 4px;white-space:pre-wrap}
+    #ruler-top{position:fixed;top:20px;left:0;right:0;height:20px;z-index:9999;display:none}
+    #ruler-left{position:fixed;top:20px;left:0;bottom:0;width:20px;z-index:9999;display:none}
+    #ruler-corner{position:fixed;top:20px;left:0;width:20px;height:20px;z-index:10000;background:#1a1a1a;border-right:1px solid #2a2a2a;border-bottom:1px solid #2a2a2a;display:none}
+    body.show-ruler{padding-top:48px;padding-left:28px}
+    body.show-ruler #ruler-top,body.show-ruler #ruler-left,body.show-ruler #ruler-corner{display:block}
   </style>
 </head>
 <body>
-  <div id="debug">script not yet loaded</div>
+  <div id="status-bar">
+    <button id="ruler-toggle" title="Toggle pixel ruler"><span class="ruler-icon">📏</span></button>
+    <span id="debug">script not yet loaded</span>
+  </div>
   <div id="viewport"></div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>

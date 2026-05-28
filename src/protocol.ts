@@ -31,9 +31,11 @@ export type HostMessage =
       flavorConfig: ResolvedFlavorConfig;
       defaultFontUri?: string;
     }
-  | { type: "assetResolved"; path: string; uri: string };
+  | { type: "assetResolved"; path: string; uri: string }
+  | { type: "setRuler"; show: boolean };
 
 // Webview → extension host
 export type WebviewMessage =
   | { type: "ready" }
-  | { type: "requestAsset"; path?: string; atlas?: string };
+  | { type: "requestAsset"; path?: string; atlas?: string }
+  | { type: "toggleRuler" };
