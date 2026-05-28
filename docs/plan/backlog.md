@@ -473,36 +473,22 @@ rustydemon-cli export -a "$WOW_DIR" -l dev/listfile.csv -o .wow-assets -p "{$DIR
 
 **Status: ✅ Done (2026-05-28)**
 
-**Problem:** WoW templates like `UIMenuButtonStretchTemplate` store each button segment as a subsection of a larger sprite sheet. The `<TexCoords left right top bottom>` attribute defines UV coordinates (0–1 space) that select the tile. The DOM renderer stores these values as a `data-tex-coords` JSON attribute but never applies them. Each texture element therefore shows the full sprite instead of its slice, producing the "floating borders" appearance visible in `UIMenuButtonStretchTemplate` and similar nine-slice templates.
+**What was built:**
 
-**Goal:** Apply TexCoords slicing to texture elements that have the attribute set, using CSS `background-position` / `background-size` calculations — no canvas/WebGL required.
+`src/webview/main.ts` — `applyAsset` now checks `data-tex-coords` on each resolved texture element. If present, it computes pixel-based `background-size` and `background-position` from the UV crop:
 
-**Approach:**
-
-The UV-to-CSS transform is straightforward. Given `{ left, right, top, bottom }` (all 0–1):
-
-```
-scaleX = 1 / (right - left)       // how many times the sprite fits horizontally
-scaleY = 1 / (bottom - top)        // vertically
-posX   = -(left * scaleX) * 100%   // how far left to shift the sprite (negative offset)
-posY   = -(top  * scaleY) * 100%
+```typescript
+const bgW = el.offsetWidth / (right - left);
+const bgH = el.offsetHeight / (bottom - top);
+el.style.backgroundSize = `${bgW}px ${bgH}px`;
+el.style.backgroundPosition = `${-left * bgW}px ${-top * bgH}px`;
 ```
 
-- `background-size: ${scaleX * 100}% ${scaleY * 100}%`
-- `background-position: ${posX}% ${posY}%`
+**Why pixel units, not percentages:** CSS `background-position: X%` does NOT mean "offset by X% of the container." It means "point X% along the image aligns with point X% along the container" — a different coordinate when the image is larger than the container. For a corner slice where `scaleX ≈ 10.67`, the percentage formula gave `−566%` which CSS interpreted as a +657px rightward shift instead of the wanted −68px. Pixel math via `offsetWidth`/`offsetHeight` is unambiguous and correct.
 
-These replace the current `background-size: 100% 100%` set unconditionally in `applyAsset`.
+**Companion fix — two-anchor size override** (`src/webview/layout.ts`): the middle textures in nine-slice templates (TopMiddle, MiddleLeft, etc.) have both a `<Size>` attribute and two opposing relativeKey anchors. `layoutByTwoAnchors` was using the explicit `<Size>` value (e.g., 56px) instead of the anchor-computed span (136px). WoW's rule is that two opposing anchors always stretch the element; `<Size>` is ignored for those axes. Fixed: anchor-computed dimensions unconditionally win when the two anchors span that axis; explicit size is only a fallback when both anchors share the same point-fraction and cannot determine the dimension.
 
-**Changes required:**
-
-1. `src/webview/renderer.ts` — in `renderTexture`, when `tex.texCoords` is present, emit them as inline style rather than just a data attribute, OR emit a `data-*` attribute that `applyAsset` picks up and applies after the URI arrives.
-2. `src/webview/main.ts` — `applyAsset` must check `data-tex-coords` and apply the computed `background-size` / `background-position` instead of the unconditional `100% 100%` / `no-repeat` values.
-
-**Limitations:** This approach works only when the texture URI resolves (i.e. the asset is in cache). Placeholder elements (before resolution) still show the full placeholder; that is acceptable.
-
-**Tests:** Add a test in `test/webview/` asserting that after `applyAsset` is called on an element with `data-tex-coords`, `background-size` and `background-position` are correctly computed.
-
-**Effort:** S — ~1–2 hours. The math is trivial; the main work is threading the computed values through `applyAsset`.
+**Visible result:** `UIMenuButtonStretchTemplate` (and any nine-slice template) now renders all nine segments — four corners with correct UV crops, four edges and one centre all stretching correctly to fill the button.
 
 ---
 

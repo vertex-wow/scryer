@@ -54,8 +54,11 @@ export function layoutByOneAnchor(
 }
 
 /**
- * Layout from two anchors. Derives size from the span between anchor points
- * (or uses explicit size if provided). Returns absolute rect.
+ * Layout from two anchors. Derives size from the span between anchor points.
+ * Anchor-computed dimensions always win over the explicit size (WoW behaviour:
+ * two opposing anchors stretch the frame; Size is ignored for those axes).
+ * Explicit size is only used as a fallback when the anchors share the same
+ * point-fraction on an axis and therefore cannot determine that dimension.
  *
  * Solves:
  *   frameLeft + f1.x * w = p1.x   →   left = p1.x - f1.x * w
@@ -75,17 +78,10 @@ export function layoutByTwoAnchors(
   const f1 = POINT_FRACTION[anchor1.point];
   const f2 = POINT_FRACTION[anchor2.point];
 
-  let width = explicitWidth;
-  if (width === undefined && Math.abs(f2.x - f1.x) > 1e-9) {
-    width = (p2.x - p1.x) / (f2.x - f1.x);
-  }
-  width ??= 0;
+  const width = Math.abs(f2.x - f1.x) > 1e-9 ? (p2.x - p1.x) / (f2.x - f1.x) : (explicitWidth ?? 0);
 
-  let height = explicitHeight;
-  if (height === undefined && Math.abs(f2.y - f1.y) > 1e-9) {
-    height = (p2.y - p1.y) / (f2.y - f1.y);
-  }
-  height ??= 0;
+  const height =
+    Math.abs(f2.y - f1.y) > 1e-9 ? (p2.y - p1.y) / (f2.y - f1.y) : (explicitHeight ?? 0);
 
   return { left: p1.x - f1.x * width, top: p1.y - f1.y * height, width, height };
 }

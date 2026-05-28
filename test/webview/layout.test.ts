@@ -6,6 +6,7 @@ import {
   layoutByTwoAnchors,
   layoutAll,
 } from "../../src/webview/layout";
+import type { Rect } from "../../src/webview/layout";
 import type { Anchor, FrameIR } from "../../src/parser/ir";
 
 // ---------------------------------------------------------------------------
@@ -183,6 +184,20 @@ describe("layoutByTwoAnchors", () => {
     const r = layoutByTwoAnchors(a1, VP, a2, VP, 200, 100);
     expect(r.width).toBe(200);
     expect(r.height).toBe(100);
+  });
+
+  test("anchor span overrides explicit size (WoW nine-slice stretch behaviour)", () => {
+    // Middle texture between two 12px corner textures inside a 160px parent.
+    // <Size x="56" y="6"/> is present but should be ignored for width — anchors win.
+    const leftCorner: Rect = { left: 0, top: 0, width: 12, height: 6 };
+    const rightCorner: Rect = { left: 148, top: 0, width: 12, height: 6 };
+    const a1 = makeAnchor({ point: "TOPLEFT", relativePoint: "TOPRIGHT" });
+    const a2 = makeAnchor({ point: "BOTTOMRIGHT", relativePoint: "BOTTOMLEFT" });
+    const r = layoutByTwoAnchors(a1, leftCorner, a2, rightCorner, 56, 6);
+    expect(r.left).toBe(12);
+    expect(r.top).toBe(0);
+    expect(r.width).toBe(136); // anchor-derived, not the explicit 56
+    expect(r.height).toBe(6);
   });
 });
 

@@ -48,7 +48,6 @@ function renderTexture(tex: TextureIR, rect: Rect): HTMLElement {
     el.style.outline = "1px dashed rgba(255,255,255,0.15)";
   }
 
-  // Apply texCoords clipping hint as a data attribute (M3 will use these)
   if (tex.texCoords) {
     el.dataset.texCoords = JSON.stringify(tex.texCoords);
   }

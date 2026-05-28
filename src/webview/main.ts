@@ -48,9 +48,28 @@ function applyAsset(rawPath: string, uri: string): void {
   const els = Array.from(viewport!.querySelectorAll<HTMLElement>(selector));
   for (const el of els) {
     el.style.backgroundImage = `url("${uri}")`;
-    el.style.backgroundSize = "100% 100%";
     el.style.backgroundRepeat = "no-repeat";
-    // Remove the placeholder child so the real texture shows through.
+
+    const raw = el.dataset.texCoords;
+    if (raw) {
+      const { left, right, top, bottom } = JSON.parse(raw) as {
+        left: number;
+        right: number;
+        top: number;
+        bottom: number;
+      };
+      // Use pixel math: CSS background-position percentages don't mean
+      // "offset by N% of container" — they use a relative-to-(container - image)
+      // coordinate that gives wrong results when the image exceeds the container.
+      const bgW = el.offsetWidth / (right - left);
+      const bgH = el.offsetHeight / (bottom - top);
+      el.style.backgroundSize = `${bgW}px ${bgH}px`;
+      el.style.backgroundPosition = `${-left * bgW}px ${-top * bgH}px`;
+    } else {
+      el.style.backgroundSize = "100% 100%";
+      el.style.backgroundPosition = "0% 0%";
+    }
+
     const ph = el.querySelector("[data-placeholder]");
     if (ph) ph.remove();
   }

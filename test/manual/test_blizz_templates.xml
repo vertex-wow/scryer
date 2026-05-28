@@ -22,13 +22,13 @@
       ✗  Frames > NineSlice (NineSlicePanelTemplate)              (code-driven — needs M4)
 
     UIPanelGoldButtonTemplate:
-      ✓  BACKGROUND Left  (Interface\Buttons\UI-DialogBox-goldbutton-up-left)
-      ✓  BACKGROUND Right (Interface\Buttons\UI-DialogBox-goldbutton-up-right)
-      ✗  BACKGROUND Middle (relativeKey anchors — needs relativeKey impl)
+      ✓  BACKGROUND Left   (Interface\Buttons\UI-DialogBox-goldbutton-up-left)
+      ✓  BACKGROUND Right  (Interface\Buttons\UI-DialogBox-goldbutton-up-right)
+      ✓  BACKGROUND Middle (relativeKey + two-anchor stretch — rendering correctly)
 
     UIMenuButtonStretchTemplate:
       ✓  BACKGROUND corners × 4  (Interface\Buttons\UI-Silver-Button-Up, sliced TexCoords)
-      ✗  BACKGROUND middles × 5  (relativeKey anchors — needs relativeKey impl)
+      ✓  BACKGROUND middles × 5  (relativeKey + two-anchor stretch — all rendering correctly)
   -->
 
   <!-- Panel: rock background from DefaultPanelTemplate, marble inset content area -->
@@ -45,7 +45,7 @@
           <Anchor point="BOTTOMRIGHT" x="-10" y="52"/>
         </Anchors>
       </Frame>
-      <!-- Two gold buttons at the bottom; Left+Right pieces render, Middle needs relativeKey -->
+      <!-- Two gold buttons at the bottom; Left, Middle, Right all render correctly -->
       <Button inherits="UIPanelGoldButtonTemplate">
         <Size x="120" y="32"/>
         <Anchors>
@@ -63,8 +63,8 @@
 
   <!--
     Standalone UIMenuButtonStretchTemplate button.
-    Four corner textures (12×6 px each) render at their fixed anchors from UI-Silver-Button-Up.
-    Five middle-fill textures use relativeKey and will be mispositioned until relativeKey lands.
+    Four corner textures (12×6 px each) at fixed anchors from UI-Silver-Button-Up.
+    Five middle-fill textures use relativeKey + two-anchor stretch — all render correctly.
   -->
   <Button name="ExampleSilverBtn" inherits="UIMenuButtonStretchTemplate" parent="UIParent">
     <Size x="160" y="26"/>
