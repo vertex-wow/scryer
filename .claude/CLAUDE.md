@@ -43,6 +43,14 @@ Update `docs/` when something is decided or completed:
 
 **Never let a session end with discoveries or decisions only in conversation context.** If it matters beyond this task, it belongs in `docs/`.
 
+### Deferring out-of-scope work
+When something is noticed during a task but is deemed out of scope — a bug, a useful enhancement, a follow-up refactor — record it before moving on:
+
+1. Add a `↳` backlog row in the milestone table in `docs/plan/000_overview.md`, placed after the last completed milestone row (per the ordering rule above).
+2. Add a full entry in `docs/plan/backlog.md` with a short description, the problem it solves, a rough plan, and an effort estimate.
+
+Do not silently discard deferred items. They belong in `docs/` so they are visible and prioritizable rather than lost in conversation history.
+
 ## File editing rules
 
 - **Prefer Edit or Write over `sed`/`awk` for file edits.** These tools are error-prone and can silently leave files in a broken state.
