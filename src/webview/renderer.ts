@@ -30,7 +30,7 @@ function renderTexture(tex: TextureIR, rect: Rect): HTMLElement {
   const el = document.createElement("div");
   el.dataset.name = tex.name ?? "";
   el.dataset.kind = tex.kind;
-  el.style.cssText = "position:absolute;inset:0;overflow:hidden;";
+  el.style.cssText = "position:absolute;overflow:hidden;";
 
   if (tex.color) {
     el.style.background = cssColor(tex.color);
@@ -57,13 +57,14 @@ function renderTexture(tex: TextureIR, rect: Rect): HTMLElement {
   if (tex.hidden) el.style.opacity = "0.4";
   if (tex.alpha !== undefined) el.style.opacity = String(tex.alpha);
 
-  // Size: use the texture's own rect if it has anchors/size, otherwise fill parent
+  // Position: explicit rect if sized, otherwise fill parent with inset:0
   if (rect.width > 0 || rect.height > 0) {
     el.style.left = `${Math.round(rect.left)}px`;
     el.style.top = `${Math.round(rect.top)}px`;
     el.style.width = `${Math.round(rect.width)}px`;
     el.style.height = `${Math.round(rect.height)}px`;
-    el.style.inset = "";
+  } else {
+    el.style.inset = "0";
   }
 
   return el;
@@ -165,14 +166,16 @@ function renderFrame(
     layerEl.dataset.layer = layer.level;
     layerEl.style.cssText = `position:absolute;inset:0;z-index:${layerZ(layer.level, layer.subLevel)};`;
 
+    // Layout all objects in the layer together so relativeKey references between
+    // sibling render objects (e.g. Middle anchored to Left/Right) can resolve.
+    const layerObjRectMap = layoutAll(layer.objects as unknown as FrameIR[], {
+      w: frameRect.width,
+      h: frameRect.height,
+    });
+
     for (const obj of layer.objects) {
-      // Lay out the render object relative to the frame
-      const objRectMap = layoutAll([obj as unknown as FrameIR], {
-        w: frameRect.width,
-        h: frameRect.height,
-      });
       const objFrameIR = obj as unknown as FrameIR;
-      const objRect = objRectMap.get(objFrameIR) ?? {
+      const objRect = layerObjRectMap.get(objFrameIR) ?? {
         left: 0,
         top: 0,
         width: frameRect.width,

@@ -104,6 +104,7 @@ type RectMap = Map<FrameIR, Rect>;
 function collectNames(frames: FrameIR[], registry: FrameRegistry): void {
   for (const frame of frames) {
     if (frame.name) registry.set(frame.name.toLowerCase(), frame);
+    if (frame.parentKey) registry.set(frame.parentKey.toLowerCase(), frame);
     if (frame.children) collectNames(frame.children, registry);
   }
 }

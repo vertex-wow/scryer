@@ -451,6 +451,61 @@ rustydemon-cli export -a "$WOW_DIR" -l dev/listfile.csv -o .wow-assets -p "{$DIR
 
 ---
 
+## CSS inset + relativeKey renderer fixes (deferred from M2)
+
+**Status: ✅ Done** (2026-05-28)
+
+**What was built:**
+
+`src/webview/renderer.ts` — Two fixes:
+
+1. **CSS inset shorthand bug:** The initial `cssText` was `"position:absolute;inset:0;overflow:hidden;"`, then `el.style.inset = ""` was used to clear the inset after setting explicit `left`/`top`. In Chromium's CSSOM, clearing a shorthand removes all its constituent longhands — including `left` and `top` that were set just before. Result: every texture collapsed to position (0,0), so the last-rendered cap appeared in place of all others. Fix: start with `"position:absolute;overflow:hidden;"` and use an if/else to either set explicit `left`/`top`/`width`/`height` or set `inset:0`, never mixing the two paths.
+
+2. **Bulk layer layout:** Each texture was previously laid out in isolation via `layoutAll([obj], ...)`, so `Middle`'s `layoutAll` call had no Left/Right rects in its `rectMap` and `relativeKey` references fell back to the viewport. Fixed by calling `layoutAll` once for the entire layer's object list, so sibling relativeKey references (e.g. `$parent.Left` → `$parent.Right`) resolve correctly.
+
+`src/webview/layout.ts` — `collectNames` now registers frames by `parentKey` in addition to `name`. Templates like `UIPanelGoldButtonTemplate` use `parentKey="Left"/"Right"/"Middle"` (not `name=`), so they were invisible to the registry. Adding `parentKey` registration allows `expandRelativeKey("$parent.Left", "")` → `"left"` to find the Left texture element.
+
+**Visible result:** `UIPanelGoldButtonTemplate` buttons now render with Left cap on the left, Right cap on the right, and Middle filling the space between them.
+
+---
+
+## TexCoords sprite-sheet slicing in the DOM renderer (deferred from M2)
+
+**Status: 📋 Pending**
+
+**Problem:** WoW templates like `UIMenuButtonStretchTemplate` store each button segment as a subsection of a larger sprite sheet. The `<TexCoords left right top bottom>` attribute defines UV coordinates (0–1 space) that select the tile. The DOM renderer stores these values as a `data-tex-coords` JSON attribute but never applies them. Each texture element therefore shows the full sprite instead of its slice, producing the "floating borders" appearance visible in `UIMenuButtonStretchTemplate` and similar nine-slice templates.
+
+**Goal:** Apply TexCoords slicing to texture elements that have the attribute set, using CSS `background-position` / `background-size` calculations — no canvas/WebGL required.
+
+**Approach:**
+
+The UV-to-CSS transform is straightforward. Given `{ left, right, top, bottom }` (all 0–1):
+
+```
+scaleX = 1 / (right - left)       // how many times the sprite fits horizontally
+scaleY = 1 / (bottom - top)        // vertically
+posX   = -(left * scaleX) * 100%   // how far left to shift the sprite (negative offset)
+posY   = -(top  * scaleY) * 100%
+```
+
+- `background-size: ${scaleX * 100}% ${scaleY * 100}%`
+- `background-position: ${posX}% ${posY}%`
+
+These replace the current `background-size: 100% 100%` set unconditionally in `applyAsset`.
+
+**Changes required:**
+
+1. `src/webview/renderer.ts` — in `renderTexture`, when `tex.texCoords` is present, emit them as inline style rather than just a data attribute, OR emit a `data-*` attribute that `applyAsset` picks up and applies after the URI arrives.
+2. `src/webview/main.ts` — `applyAsset` must check `data-tex-coords` and apply the computed `background-size` / `background-position` instead of the unconditional `100% 100%` / `no-repeat` values.
+
+**Limitations:** This approach works only when the texture URI resolves (i.e. the asset is in cache). Placeholder elements (before resolution) still show the full placeholder; that is acceptable.
+
+**Tests:** Add a test in `test/webview/` asserting that after `applyAsset` is called on an element with `data-tex-coords`, `background-size` and `background-position` are correctly computed.
+
+**Effort:** S — ~1–2 hours. The math is trivial; the main work is threading the computed values through `applyAsset`.
+
+---
+
 ## Flavor configuration file — per-flavor display defaults
 
 **Status: ✅ Done** (2026-05-28)

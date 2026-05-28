@@ -39,6 +39,8 @@ Backlog items (↳) are deferred tasks attached to the milestone after which the
 | ↳   | [Addon texture manifest builder](backlog.md#addon-texture-manifest-builder)                                            | ✅ Done (2026-05-27)        | `collectAddonTexturePaths` + `collect-textures` CLI        | S      | —          |
 | ↳   | [Dynamic flavor detection from `.build.info`](backlog.md#dynamic-flavor-detection-from-buildinfo)                      | ✅ Done (2026-05-27)        | Derive available flavors from install rather than hardcode | S      | —          |
 | ↳   | [Flavor configuration file](backlog.md#flavor-configuration-file--per-flavor-display-defaults)                         | ✅ Done (2026-05-28)        | Per-flavor font/size/resolution defaults; user override    | M      | —          |
+| ↳   | [CSS inset + relativeKey renderer fixes](backlog.md#css-inset--relativekey-renderer-fixes-deferred-from-m2)            | ✅ Done (2026-05-28)        | Fix texture positioning and sibling-anchor resolution      | S      | —          |
+| ↳   | [TexCoords sprite-sheet slicing](backlog.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2)       | 📋 Pending                  | Apply UV crop via CSS background-position/size             | S      | —          |
 
 ## Recommended Tech Stack
 
