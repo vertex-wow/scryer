@@ -43,6 +43,11 @@
         "title": "Open WoW Preview",
         "category": "Scryer",
         "icon": "$(open-preview)"
+      },
+      {
+        "command": "scryer.selectFlavor",
+        "title": "Select Flavor",
+        "category": "Scryer"
       }
     ],
     "menus": {

@@ -427,3 +427,50 @@ rustydemon-cli export -a "$WOW_DIR" -l dev/listfile.csv -o .wow-assets -p "{$DIR
 ```
 
 **Design note:** Inheritance resolution is not needed for manifest/preload purposes. Template definitions include their `file=` attributes directly in the XML, so raw parsing already captures all texture references. Concrete frames that only inherit textures from Blizzard templates are covered when those template addons are also scanned. This keeps the function fast and dependency-free (no registry pass required).
+
+---
+
+## Dynamic flavor detection from `.build.info`
+
+**Status: ✅ Done** (2026-05-27)
+
+**What was built:**
+
+`src/assets/build-info.ts` — `listInstalledFlavors(wowRoot)` reads `.build.info`, parses all product rows via `parseBuildInfo`, reverse-maps each product key through `PRODUCT_TO_FLAVOR`, and returns an `InstalledFlavor[]` (flavor + version pairs) for every recognized product. Unrecognized keys are silently ignored. Never throws.
+
+`src/assets/index.ts` — Two new methods on `AssetService`:
+
+- `getInstalledFlavors()` — thin wrapper over `listInstalledFlavors` that returns empty when `installDir` is unset.
+- `detectAndLogFlavors()` — logs `"[Scryer] detected flavors: retail (11.2.0), classic_era (1.15.7)"` to the output channel; emits a warning when the configured `scryer.flavor` is absent from the detected set.
+
+`src/extension.ts` — `detectAndLogFlavors()` called at activation (after `checkBuildVersion()`). A `vscode.workspace.onDidChangeConfiguration` listener re-creates `AssetService` and re-runs both `checkBuildVersion` + `detectAndLogFlavors` when any relevant setting changes (`scryer.flavor`, `scryer.installDir`, cache settings, etc.).
+
+`scryer.selectFlavor` command registered in `extension.ts` and contributed in `package.json`. Opens a `showQuickPick` populated with detected flavors (version in description) when `installDir` is set; falls back to the static `FLAVOR_INFO` key list when not configured. Writing a selection updates `scryer.flavor` in workspace settings.
+
+**Tests:** 6 new tests added to `test/assets/build-info.test.ts` covering: all-flavors returned, correct versions, unknown-product filtering, absent file, no recognized products, and empty-file robustness.
+
+---
+
+## Flavor configuration file — per-flavor display defaults
+
+**Status: 📋 Pending**
+
+**Problem:** Previewed frames don't match in-game appearance because display properties are either hardcoded in the renderer or absent entirely. The most visible gaps are fonts, font sizes, and the UIParent reference resolution. WoW uses specific per-flavor fonts (e.g. `Fonts\FRIZQT__.TTF` as the primary UI font in Retail, different families in Classic Era), and the standard reference canvas is 1024×768 logical units (scaled from a 1920×1200 physical resolution). Without these, font strings render at browser defaults and frame proportions are wrong.
+
+**Goal:** A layered configuration system that defines per-flavor display defaults, ships with the extension for each known flavor, and lets users override or extend it for their own setup.
+
+**Design:**
+
+- **Built-in config** (`src/flavors/<flavor>.json` or a single `src/flavors/defaults.json` with nested sections): a JSON file with a `default` section and per-flavor overrides (`retail`, `classic`, `classic_era`). The `default` section is applied when no flavor-specific entry exists.
+- **Config keys (initial set):** `uiParentWidth`, `uiParentHeight` (reference resolution, default `1024` × `768`), `defaultFont` (WoW-relative path, e.g. `Fonts/FRIZQT__.TTF`), `defaultFontSize` (number), `defaultFontFlags` (e.g. `""`, `"OUTLINE"`, `"THICKOUTLINE"`), `defaultTextColor` (RGBA), `frameScale` (global preview scale).
+- **User config:** a new extension setting `scryer.flavorConfigPath` (string, default empty) points to a user-supplied JSON file with the same shape. When set, it is loaded and merged additively on top of the built-in config: built-in `default` → built-in per-flavor → user `default` → user per-flavor. Later layers win per-key.
+- **Consumption:** the webview renderer reads the resolved config object (passed in the initial `render` message or as a separate `configUpdate` message) and applies font/size/resolution defaults wherever an explicit frame attribute is absent. FontString elements without `font=` or `fontsize=` fall back to the resolved defaults.
+
+**Implementation notes:**
+
+- Keep the config shape flat and JSON-native. No TOML or YAML — avoids adding a parser dependency for a small config file.
+- The webview already receives a JSON payload from the extension host; add the resolved flavor config to that payload rather than a separate round-trip.
+- Font assets: WoW font paths (e.g. `Fonts/FRIZQT__.TTF`) must be resolved through the asset pipeline exactly like textures. If the font file is present in the cache, serve it as `asset://` and inject a `@font-face` rule. If absent, fall back to a reasonable system sans-serif.
+- Future extension points: backdrop defaults, scrollbar skin paths, frame border defaults — all can be added as new keys without breaking the schema.
+
+**Effort:** M — config loading and merging is straightforward (S); the larger work is wiring the resolved config into the webview renderer and applying defaults at the right rendering layer (M) without breaking the existing explicit-attribute path.

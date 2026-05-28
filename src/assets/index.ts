@@ -14,6 +14,8 @@ import {
 import {
   clearFlavorCache,
   flavorSubdir,
+  InstalledFlavor,
+  listInstalledFlavors,
   readBuildStamp,
   readBuildText,
   writeBuildStamp,
@@ -137,6 +139,36 @@ export class AssetService {
       this.opts.output.info(
         `[Scryer] WoW build changed (${stamped ?? "none"} → ${current}); cleared ${this.opts.flavor} cache.`,
       );
+    } catch {
+      /* channel disposed */
+    }
+  }
+
+  /**
+   * Return the flavors recognized in the WoW install's .build.info.
+   * Empty when installDir is unset or the file is absent/unreadable.
+   */
+  getInstalledFlavors(): InstalledFlavor[] {
+    if (!this.opts.installDir) return [];
+    return listInstalledFlavors(this.opts.installDir);
+  }
+
+  /**
+   * Log the flavors detected in .build.info to the output channel.
+   * Emits a warning if the configured flavor is not present among them.
+   */
+  detectAndLogFlavors(): void {
+    if (!this.opts.installDir) return;
+    const installed = listInstalledFlavors(this.opts.installDir);
+    if (installed.length === 0) return;
+    const summary = installed.map(({ flavor, version }) => `${flavor} (${version})`).join(", ");
+    try {
+      this.opts.output.info(`[Scryer] detected flavors: ${summary}`);
+      if (!installed.some(({ flavor }) => flavor === this.opts.flavor)) {
+        this.opts.output.warn(
+          `[Scryer] configured flavor '${this.opts.flavor}' not found in .build.info — check scryer.flavor setting.`,
+        );
+      }
     } catch {
       /* channel disposed */
     }

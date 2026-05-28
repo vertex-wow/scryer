@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { AssetService } from "./assets/index.js";
+import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
 import { ADDON_NAMES, SHARED_ADDON_NAMES } from "./parser/blizzard-registry.js";
 import { ScryerPanel } from "./panel.js";
 
@@ -9,8 +10,49 @@ export function activate(context: vscode.ExtensionContext): void {
   // only runs once per session rather than on every new panel.
   const output = vscode.window.createOutputChannel("Scryer", { log: true });
   context.subscriptions.push(output);
-  const assets = AssetService.fromConfig(context, output);
+  let assets = AssetService.fromConfig(context, output);
   assets.checkBuildVersion();
+  assets.detectAndLogFlavors();
+
+  // Re-create AssetService and re-run startup checks when relevant settings change.
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (
+        e.affectsConfiguration("scryer.flavor") ||
+        e.affectsConfiguration("scryer.installDir") ||
+        e.affectsConfiguration("scryer.cacheLocation") ||
+        e.affectsConfiguration("scryer.cacheDir") ||
+        e.affectsConfiguration("scryer.cascToolPath") ||
+        e.affectsConfiguration("scryer.extractScriptPath") ||
+        e.affectsConfiguration("scryer.logLevel")
+      ) {
+        assets = AssetService.fromConfig(context, output);
+        assets.checkBuildVersion();
+        assets.detectAndLogFlavors();
+      }
+    }),
+  );
+
+  const selectFlavorCmd = vscode.commands.registerCommand("scryer.selectFlavor", async () => {
+    const installDir = vscode.workspace.getConfiguration("scryer").get<string>("installDir") ?? "";
+    const installed = installDir ? listInstalledFlavors(installDir) : [];
+    const items =
+      installed.length > 0
+        ? installed.map(({ flavor, version }) => ({ label: flavor, description: version }))
+        : Object.keys(FLAVOR_INFO).map((f) => ({ label: f, description: "" }));
+
+    const current = vscode.workspace.getConfiguration("scryer").get<string>("flavor") ?? "retail";
+    const picked = await vscode.window.showQuickPick(items, {
+      title: "Scryer: Select WoW Flavor",
+      placeHolder: `Current: ${current}`,
+    });
+    if (picked) {
+      await vscode.workspace
+        .getConfiguration("scryer")
+        .update("flavor", picked.label, vscode.ConfigurationTarget.Workspace);
+    }
+  });
+  context.subscriptions.push(selectFlavorCmd);
 
   const cmd = vscode.commands.registerCommand("scryer.open", (uri?: vscode.Uri) => {
     const resolved = uri ?? vscode.window.activeTextEditor?.document.uri;

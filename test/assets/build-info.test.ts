@@ -6,6 +6,7 @@ import {
   FLAVOR_INFO,
   flavorProduct,
   flavorSubdir,
+  listInstalledFlavors,
   parseBuildInfo,
   readBuildStamp,
   readBuildText,
@@ -151,6 +152,55 @@ describe("readBuildStamp / writeBuildStamp round-trip", () => {
     writeBuildStamp(tmpDir, "classic", "1.15.7.56789");
     expect(readBuildStamp(tmpDir, "retail")).toBe("11.1.7.60000");
     expect(readBuildStamp(tmpDir, "classic")).toBe("1.15.7.56789");
+  });
+});
+
+describe("listInstalledFlavors", () => {
+  let tmpDir: string;
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "scryer-flavors-"));
+  });
+  afterEach(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+
+  it("returns all recognized flavors present in .build.info", () => {
+    fs.writeFileSync(path.join(tmpDir, ".build.info"), SAMPLE_BUILD_INFO, "utf8");
+    const flavors = listInstalledFlavors(tmpDir);
+    expect(flavors.map((f) => f.flavor).sort()).toEqual(["classic", "classic_era", "retail"]);
+  });
+
+  it("includes correct version strings", () => {
+    fs.writeFileSync(path.join(tmpDir, ".build.info"), SAMPLE_BUILD_INFO, "utf8");
+    const flavors = listInstalledFlavors(tmpDir);
+    const retail = flavors.find((f) => f.flavor === "retail");
+    expect(retail?.version).toBe("11.1.7.60000");
+  });
+
+  it("ignores unrecognized product keys", () => {
+    const withUnknown = [
+      "Product!STRING:0|Version!STRING:0",
+      "wow|11.1.7.60000",
+      "wow_beta|99.0.0.12345",
+    ].join("\n");
+    fs.writeFileSync(path.join(tmpDir, ".build.info"), withUnknown, "utf8");
+    const flavors = listInstalledFlavors(tmpDir);
+    expect(flavors).toHaveLength(1);
+    expect(flavors[0].flavor).toBe("retail");
+  });
+
+  it("returns empty array when .build.info is absent", () => {
+    expect(listInstalledFlavors(tmpDir)).toEqual([]);
+  });
+
+  it("returns empty array when no recognized products are present", () => {
+    const noKnown = "Product!STRING:0|Version!STRING:0\nwow_beta|99.0.0.12345\n";
+    fs.writeFileSync(path.join(tmpDir, ".build.info"), noKnown, "utf8");
+    expect(listInstalledFlavors(tmpDir)).toEqual([]);
+  });
+
+  it("does not throw on a completely empty file", () => {
+    fs.writeFileSync(path.join(tmpDir, ".build.info"), "", "utf8");
+    expect(() => listInstalledFlavors(tmpDir)).not.toThrow();
+    expect(listInstalledFlavors(tmpDir)).toEqual([]);
   });
 });
 

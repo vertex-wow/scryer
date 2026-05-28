@@ -8,6 +8,36 @@ export const FLAVOR_INFO: Record<string, { product: string; subdir: string }> = 
   classic_era: { product: "wow_classic_era", subdir: "_classic_era_" },
 };
 
+/** Reverse map: .build.info product key → scryer flavor name */
+const PRODUCT_TO_FLAVOR: Record<string, string> = Object.fromEntries(
+  Object.entries(FLAVOR_INFO).map(([flavor, { product }]) => [product, flavor]),
+);
+
+export interface InstalledFlavor {
+  flavor: string;
+  version: string;
+}
+
+/**
+ * Scan .build.info at wowRoot and return every recognized flavor that is installed.
+ * Unrecognized product keys are silently ignored.
+ * Never throws — returns an empty array on any read/parse failure.
+ */
+export function listInstalledFlavors(wowRoot: string): InstalledFlavor[] {
+  try {
+    const content = fs.readFileSync(path.join(wowRoot, ".build.info"), "utf8");
+    const map = parseBuildInfo(content);
+    const result: InstalledFlavor[] = [];
+    for (const [product, version] of map) {
+      const flavor = PRODUCT_TO_FLAVOR[product];
+      if (flavor) result.push({ flavor, version });
+    }
+    return result;
+  } catch {
+    return [];
+  }
+}
+
 export function flavorSubdir(flavor: string): string {
   return FLAVOR_INFO[flavor]?.subdir ?? "_retail_";
 }
