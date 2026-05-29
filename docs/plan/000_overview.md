@@ -8,58 +8,377 @@ End state: open any addon folder, pick a version target (Mainline/MoP Classic/Cl
 
 ## Milestone Table
 
-Completed `↳` rows appear in chronological order before the first pending milestone. Pending `↳` rows are grouped under the milestone they relate to. See [backlog.md](backlog.md) for full detail on each.
+Each milestone has its own section. Completed `↳` rows appear before pending `↳` rows within each section. Pending `↳` rows are placed under the milestone that enables or most naturally precedes the work. See [backlog.md](backlog.md) for full detail on each item.
 
-| #   | Name                                                                                                                   | Status                      | Description                                                                                   | Effort | Depends on |
-| --- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------- | ------ | ---------- |
-| 1   | WoW XML Parser                                                                                                         | ✅ Complete (2026-05-24)    | Parse `.xml` → typed IR; resolve templates/inheritance                                        | M      | —          |
-| ↳   | [CI-safe committed fixtures](backlog.md#ci-safe-committed-fixtures-deferred-from-m1)                                   | ✅ Done (2026-05-24)        | Replace live-fixture tests with inline cookbook fixtures                                      | Done   | —          |
-| 2   | Static XML Preview                                                                                                     | ✅ Complete (2026-05-24)    | Render IR in a DOM webview with WoW anchor layout                                             | M      | 1          |
-| ↳   | [relativeKey anchor resolution](backlog.md#relativekey-anchor-targets-deferred-from-m2)                                | ✅ Done (2026-05-26)        | Resolve `$parent.Key` anchors in the layout engine                                            | Done   | —          |
-| 3   | Asset Pipeline                                                                                                         | ✅ Complete (2026-05-25)    | BLP→PNG conversion, path/atlas resolution, cache                                              | M      | 2          |
-| ↳   | [dev/extract.sh contributor script](backlog.md#devextractsh--wow-asset-extraction-for-contributors-deferred-from-m3)   | ✅ Done (2026-05-26)        | Shell script for extracting WoW textures + addon files (superseded by JS entry-point runners) | Done   | —          |
-| ↳   | [On-demand texture extraction](backlog.md#on-demand-texture-extraction-from-the-preview-deferred-from-m3)              | ✅ Done (2026-05-26)        | Extract missing textures on demand from preview panel                                         | Done   | —          |
-| ↳   | [Extract Blizzard addon files](backlog.md#extract-blizzard-interface-addon-files-from-users-wow-installation)          | ✅ Done (2026-05-26)        | `--type interface` for Blizzard SharedXML/FrameXML                                            | Done   | —          |
-| ↳   | [Blizzard FrameXML corpus loading](backlog.md#blizzard-framexml-template-corpus-loading-pre-m4)                        | ✅ Done (2026-05-26)        | Load Blizzard template registry from extracted addons                                         | Done   | —          |
-| ↳   | [Output channel logging](backlog.md#output-channel-logging-and-scryer.loglevel-setting)                                | ✅ Done (2026-05-26)        | Route warnings to output panel via `LogOutputChannel`                                         | S      | —          |
-| ↳   | [tsconfig solution-style refactor](backlog.md#tsconfig-solution-style-refactor-ide-tooling-debt)                       | ✅ Done (2026-05-26)        | Fix IDE type resolution for test files                                                        | XS     | —          |
-| ↳   | [Extraction benchmarks](backlog.md#extraction-benchmarks)                                                              | ✅ Done (2026-05-27)        | Benchmark extraction pipeline at varying concurrency                                          | S      | —          |
-| ↳   | [Addon texture manifest builder](backlog.md#addon-texture-manifest-builder)                                            | ✅ Done (2026-05-27)        | `collectAddonTexturePaths` + `collect-textures` CLI                                           | S      | —          |
-| ↳   | [Progressive startupContent tier execution](backlog.md#progressive-tier-execution-for-scryer.startupcontent)           | ✅ Done (2026-05-27)        | Execute each cache tier in order up to the configured one                                     | XS     | —          |
-| ↳   | [WoW build version tracking](backlog.md#wow-build-version-tracking-and-cache-invalidation)                             | ✅ Done (2026-05-27)        | Per-flavor cache; auto-wipe on .build.info version change                                     | XS     | —          |
-| ↳   | [Dynamic flavor detection from `.build.info`](backlog.md#dynamic-flavor-detection-from-buildinfo)                      | ✅ Done (2026-05-27)        | Derive available flavors from install rather than hardcode                                    | S      | —          |
-| ↳   | [Flavor configuration file](backlog.md#flavor-configuration-file--per-flavor-display-defaults)                         | ✅ Done (2026-05-28)        | Per-flavor font/size/resolution defaults; user override                                       | M      | —          |
-| ↳   | [CSS inset + relativeKey renderer fixes](backlog.md#css-inset--relativekey-renderer-fixes-deferred-from-m2)            | ✅ Done (2026-05-28)        | Fix texture positioning and sibling-anchor resolution                                         | S      | —          |
-| ↳   | [TexCoords sprite-sheet slicing](backlog.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2)       | ✅ Done (2026-05-28)        | Apply UV crop via CSS background-position/size                                                | S      | —          |
-| ↳   | [Pixel ruler overlay](backlog.md#pixel-ruler-overlay-in-the-preview-panel)                                             | ✅ Done (2026-05-28)        | Optional sticky rulers along top/left edges of the preview                                    | XS–S   | —          |
-| ↳   | [Atlas texture resolution](backlog.md#atlas-texture-resolution)                                                        | ✅ Done (2026-05-28)        | Resolve atlas names via manifest; apply UV crop in renderer                                   | S–M    | —          |
-| ↳   | [JS entry-point runners (replace dev shell scripts)](backlog.md#js-entry-point-runners-replace-dev-shell-scripts)      | ✅ Done (2026-05-28)        | `src/` is source of truth; dev/ scripts are thin TS shims                                     | S      | —          |
-| ↳   | [Texture placeholder hover tooltip](backlog.md#texture-placeholder-hover-tooltip)                                      | ✅ Done (2026-05-28)        | `title` attribute on placeholders so full name shows on hover when truncated                  | XS     | —          |
-| ↳   | [Listfile pre-filter (rustydemon era)](backlog.md#listfile-pre-filter-rustydemon-era)                                  | ✅ Done (2026-05-28)        | `grep -F` filter at download time; cuts rustydemon's 25–33 s CSV parse to ~2–3 s              | XS     | —          |
-| ↳   | [WoW font loading (FRIZQT\_\_.TTF from CASC)](backlog.md#wow-font-loading-frizqtttf-from-casc)                         | ✅ Done (2026-05-28)        | Extend resolver for TTF/OTF; extract from CASC via full listfile; per-session dedup guard     | S      | —          |
-| ↳   | [FontString rendering fidelity](backlog.md#fontstring-rendering-fidelity)                                              | ✅ Done (2026-05-28)        | Fix justifyH/V defaults, zero-width rect, letter-spacing fudge for DirectWrite vs ClearType   | S      | —          |
-| ↳   | [All preview chrome values in defaults.json](backlog.md#all-preview-chrome-values-configurable-via-defaultsjson)       | ✅ Done (2026-05-29)        | Every magic value in the renderer configurable via flavorConfigPath; three-tier doc split     | S      | —          |
-| 4   | TOC Parser                                                                                                             | ✅ Complete (2026-05-29)    | Parse `.toc` → `TocFile` IR; file load order for XML and Lua execution                        | XS     | 1          |
-| 5   | Lua Sandbox + 5.1 Shim                                                                                                 | ✅ Complete (2026-05-29)    | wasmoon embed; disable-and-replace stdlib; `setfenv`/`getfenv` shim; compat aliases; `bit`    | S–M    | —          |
-| ↳   | [GlobalStrings population](backlog.md#globalstrings-population-deferred-from-m5)                                       | 📋 Pending                  | Load 24k enUS GlobalStrings into `_G` before addon code runs; needed for FontString/SetText   | XS     | 7          |
-| ↳   | [TypeScriptToLua integration investigation](backlog.md#typescripttolua-integration-investigation)                      | 📋 Pending                  | Research: does TSTL lualib conflict with 5.1 shim? source map support? addon detection?       | XS–S   | —          |
-| 6   | WoW API Stubs                                                                                                          | ⬜ Pending                  | TypeScript stubs into sandbox; C\_\* scaffolding from `globalapi.ts`; LibStub; C_Timer        | S      | 5          |
-| 7   | Frame Object Model                                                                                                     | ⬜ Pending                  | `CreateFrame` proxy; core widget methods; `ScryerLivePanel`; full re-render on mutation       | M      | 2, 5, 6    |
-| ↳   | [Live panel frame diffing](backlog.md#live-panel-frame-diffing-deferred-from-m4)                                       | 📋 Pending                  | Incremental frame-tree diffs to webview; full re-render used in M7                            | S–M    | —          |
-| 8   | TOC Execution Pipeline                                                                                                 | ⬜ Pending                  | `scryer.openLive` command; TOC load sequence; `ADDON_LOADED`; `PLAYER_LOGIN`                  | S      | 4, 7       |
-| 9   | Script Events                                                                                                          | ⬜ Pending                  | `OnLoad` through `OnUpdate`; `RegisterEvent`; webview→Lua event bridge; `OnUpdate` watchdog   | S–M    | 8          |
-| 10  | Multi-Version Targets                                                                                                  | ⬜ Pending                  | Selectable Classic/Cata/Retail API profiles                                                   | S–M    | 6          |
-| 11  | Hot Reload _(stretch)_                                                                                                 | ⬜ Pending                  | Re-parse/re-run on save with minimal repaint                                                  | M      | 2, 9       |
-| 12  | Test Suite _(stretch)_                                                                                                 | ⬜ Pending                  | Headless addon test runner + reporter                                                         | M      | 9          |
-| ↳   | [User-visible loading notifications](backlog.md#user-visible-loading-notifications)                                    | 📋 Pending                  | Progress notifications for atlas gen, extraction, preload                                     | S      | —          |
-| ↳   | [TGA texture decode](backlog.md#tga-texture-decode-deferred-from-m3)                                                   | 📋 Pending                  | Decode `.tga` textures via pure-JS decoder                                                    | S      | —          |
-| ↳   | [In-app asset setup guidance](backlog.md#in-app-asset-setup-guidance-for-end-users-deferred-from-m3)                   | 📋 Pending                  | One-time notification when no assets are configured                                           | S      | —          |
-| ↳   | [In-process CASC reader](backlog.md#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli)               | 📋 Pending                  | Read WoW CASC archives in-process, no external binary                                         | L      | —          |
-| ↳   | [Preload workspace textures](backlog.md#preload-workspace-textures-at-startup)                                         | 📋 Pending                  | Pre-warm asset cache at extension startup                                                     | S      | —          |
-| ↳   | [Preload settings](backlog.md#preload-settings--scryer.startupcontent--scryer.useraddonpreload)                        | 🔧 Partial (settings added) | `scryer.startupContent` + `scryer.userAddonPreload` enums                                     | S      | —          |
-| ↳   | [Direct BLP/TGA serving in webview](backlog.md#direct-proprietary-texture-serving-in-the-webview-blptga-decode-bypass) | 📋 Pending (research)       | Feasibility: skip PNG compression by serving raw RGBA                                         | XS     | —          |
-| ↳   | [Atlas manifest from DB2 (replace wago.tools)](backlog.md#atlas-manifest-from-db2-replace-wagotools)                   | 📋 Pending                  | Parse UiTextureAtlas DB2 files directly; no outbound HTTP                                     | M      | —          |
-| ↳   | [Listfile fast index (in-process era)](backlog.md#listfile-fast-index-in-process--post-rustydemon-era)                 | 📋 Pending                  | SQLite/binary index for atlas-gen FileDataID lookups; prereq: in-process CASC reader          | S–M    | —          |
+**Table conventions:**
+
+- **Adding a pending ↳:** attach it under the milestone that enables or most naturally precedes it.
+- **Completing a ↳:** change status to `✅ Done (YYYY-MM-DD)` and move it above any pending ↳ rows in the same section.
+- **Completing a milestone:** update its Status cell; keep it in place — do not move its section.
+
+### M1 — WoW XML Parser
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>1</td>
+  <td><strong>WoW XML Parser</strong></td>
+  <td>✅ Complete (2026-05-24)</td>
+  <td>Parse <code>.xml</code> → typed IR; resolve templates/inheritance</td>
+  <td>M</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td colspan="5">✅ <a href="backlog.md#ci-safe-committed-fixtures-deferred-from-m1">CI-safe committed fixtures</a></td>
+</tr>
+</tbody>
+</table>
+
+### M2 — Static XML Preview
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>2</td>
+  <td><strong>Static XML Preview</strong></td>
+  <td>✅ Complete (2026-05-24)</td>
+  <td>Render IR in a DOM webview with WoW anchor layout</td>
+  <td>M</td>
+  <td>1</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td colspan="5">✅ <a href="backlog.md#relativekey-anchor-targets-deferred-from-m2">relativeKey anchor resolution</a>, <a href="backlog.md#css-inset--relativekey-renderer-fixes-deferred-from-m2">CSS inset + relativeKey renderer fixes</a>, <a href="backlog.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2">TexCoords sprite-sheet slicing</a>, <a href="backlog.md#fontstring-rendering-fidelity">FontString rendering fidelity</a>, <a href="backlog.md#pixel-ruler-overlay-in-the-preview-panel">Pixel ruler overlay</a>, <a href="backlog.md#texture-placeholder-hover-tooltip">Texture placeholder hover tooltip</a>, <a href="backlog.md#all-preview-chrome-values-configurable-via-defaultsjson">All preview chrome values in defaults.json</a></td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#preview-background-philosophy">Preview background philosophy</a></td>
+  <td>📋 Pending</td>
+  <td>Codify "no game graphics" scope; principled placeholder design; write ADR</td>
+  <td>XS</td>
+  <td>—</td>
+</tr>
+</tbody>
+</table>
+
+### M3 — Asset Pipeline
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>3</td>
+  <td><strong>Asset Pipeline</strong></td>
+  <td>✅ Complete (2026-05-25)</td>
+  <td>BLP→PNG conversion, path/atlas resolution, cache</td>
+  <td>M</td>
+  <td>2</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td colspan="5">✅ <a href="backlog.md#devextractsh--wow-asset-extraction-for-contributors-deferred-from-m3">dev/extract.sh contributor script</a>, <a href="backlog.md#on-demand-texture-extraction-from-the-preview-deferred-from-m3">On-demand texture extraction</a>, <a href="backlog.md#extract-blizzard-interface-addon-files-from-users-wow-installation">Extract Blizzard addon files</a>, <a href="backlog.md#blizzard-framexml-template-corpus-loading-pre-m4">Blizzard FrameXML corpus loading</a>, <a href="backlog.md#output-channel-logging-and-scryer.loglevel-setting">Output channel logging</a>, <a href="backlog.md#tsconfig-solution-style-refactor-ide-tooling-debt">tsconfig solution-style refactor</a>, <a href="backlog.md#extraction-benchmarks">Extraction benchmarks</a>, <a href="backlog.md#addon-texture-manifest-builder">Addon texture manifest builder</a>, <a href="backlog.md#progressive-tier-execution-for-scryer.startupcontent">Progressive startupContent tier execution</a>, <a href="backlog.md#wow-build-version-tracking-and-cache-invalidation">WoW build version tracking</a>, <a href="backlog.md#dynamic-flavor-detection-from-buildinfo">Dynamic flavor detection</a>, <a href="backlog.md#flavor-configuration-file--per-flavor-display-defaults">Flavor configuration file</a>, <a href="backlog.md#atlas-texture-resolution">Atlas texture resolution</a>, <a href="backlog.md#js-entry-point-runners-replace-dev-shell-scripts">JS entry-point runners</a>, <a href="backlog.md#listfile-pre-filter-rustydemon-era">Listfile pre-filter</a>, <a href="backlog.md#wow-font-loading-frizqtttf-from-casc">WoW font loading</a></td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#tga-texture-decode-deferred-from-m3">TGA texture decode</a></td>
+  <td>📋 Pending</td>
+  <td>Decode <code>.tga</code> textures via pure-JS decoder</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#in-app-asset-setup-guidance-for-end-users-deferred-from-m3">In-app asset setup guidance</a></td>
+  <td>📋 Pending</td>
+  <td>One-time notification when no assets are configured</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#user-visible-loading-notifications">User-visible loading notifications</a></td>
+  <td>📋 Pending</td>
+  <td>Progress notifications for atlas gen, extraction, preload</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli">In-process CASC reader</a></td>
+  <td>📋 Pending</td>
+  <td>Read WoW CASC archives in-process, no external binary</td>
+  <td>L</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#preload-workspace-textures-at-startup">Preload workspace textures</a></td>
+  <td>📋 Pending</td>
+  <td>Pre-warm asset cache at extension startup</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#preload-settings--scryer.startupcontent--scryer.useraddonpreload">Preload settings</a></td>
+  <td>🔧 Partial</td>
+  <td><code>scryer.startupContent</code> + <code>scryer.userAddonPreload</code> enums</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#direct-proprietary-texture-serving-in-the-webview-blptga-decode-bypass">Direct BLP/TGA serving in webview</a></td>
+  <td>📋 Pending (research)</td>
+  <td>Feasibility: skip PNG compression by serving raw RGBA</td>
+  <td>XS</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#atlas-manifest-from-db2-replace-wagotools">Atlas manifest from DB2</a></td>
+  <td>📋 Pending</td>
+  <td>Parse UiTextureAtlas DB2 files directly; no outbound HTTP</td>
+  <td>M</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#listfile-fast-index-in-process--post-rustydemon-era">Listfile fast index</a></td>
+  <td>📋 Pending</td>
+  <td>SQLite/binary index for atlas-gen FileDataID lookups; prereq: in-process CASC reader</td>
+  <td>S–M</td>
+  <td>—</td>
+</tr>
+</tbody>
+</table>
+
+### M4 — TOC Parser
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>4</td>
+  <td><strong>TOC Parser</strong></td>
+  <td>✅ Complete (2026-05-29)</td>
+  <td>Parse <code>.toc</code> → <code>TocFile</code> IR; file load order for XML and Lua execution</td>
+  <td>XS</td>
+  <td>1</td>
+</tr>
+</tbody>
+</table>
+
+### M5 — Lua Sandbox + 5.1 Shim
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>5</td>
+  <td><strong>Lua Sandbox + 5.1 Shim</strong></td>
+  <td>✅ Complete (2026-05-29)</td>
+  <td>wasmoon embed; disable-and-replace stdlib; <code>setfenv</code>/<code>getfenv</code> shim; compat aliases; <code>bit</code></td>
+  <td>S–M</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#globalstrings-population-deferred-from-m5">GlobalStrings population</a></td>
+  <td>📋 Pending</td>
+  <td>Load 24k enUS GlobalStrings into <code>_G</code> before addon code runs; needed for FontString/SetText</td>
+  <td>XS</td>
+  <td>7</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#typescripttolua-integration-investigation">TypeScriptToLua integration investigation</a></td>
+  <td>📋 Pending</td>
+  <td>Research: does TSTL lualib conflict with 5.1 shim? source map support? addon detection?</td>
+  <td>XS–S</td>
+  <td>—</td>
+</tr>
+</tbody>
+</table>
+
+### M6 — WoW API Stubs
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>6</td>
+  <td><strong>WoW API Stubs</strong></td>
+  <td>⬜ Pending</td>
+  <td>TypeScript stubs into sandbox; C_* scaffolding from <code>globalapi.ts</code>; LibStub; C_Timer</td>
+  <td>S</td>
+  <td>5</td>
+</tr>
+</tbody>
+</table>
+
+### M7 — Frame Object Model
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>7</td>
+  <td><strong>Frame Object Model</strong></td>
+  <td>⬜ Pending</td>
+  <td><code>CreateFrame</code> proxy; core widget methods; <code>ScryerLivePanel</code>; full re-render on mutation</td>
+  <td>M</td>
+  <td>2, 5, 6</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#live-panel-frame-diffing-deferred-from-m4">Live panel frame diffing</a></td>
+  <td>📋 Pending</td>
+  <td>Incremental frame-tree diffs to webview; full re-render used in M7</td>
+  <td>S–M</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#wysiwyg-widget-placement">WYSIWYG widget placement</a></td>
+  <td>📋 Pending</td>
+  <td>Drag frames in preview; emit anchor deltas as XML/Lua <code>SetPoint</code> calls</td>
+  <td>L</td>
+  <td>7, 9</td>
+</tr>
+</tbody>
+</table>
+
+### M8 — TOC Execution Pipeline
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>8</td>
+  <td><strong>TOC Execution Pipeline</strong></td>
+  <td>⬜ Pending</td>
+  <td><code>scryer.openLive</code> command; TOC load sequence; <code>ADDON_LOADED</code>; <code>PLAYER_LOGIN</code></td>
+  <td>S</td>
+  <td>4, 7</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#xml--lua-coupling-in-static-preview">XML + Lua coupling in static preview</a></td>
+  <td>📋 Pending</td>
+  <td>How much Lua to run for static XML preview; design boundary between static/live modes</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#f5-run-mode">F5 run mode — full environment VM</a></td>
+  <td>📋 Pending</td>
+  <td><code>scryer.run</code> command + F5 keybinding to launch full TOC execution pipeline</td>
+  <td>S</td>
+  <td>8, 9</td>
+</tr>
+</tbody>
+</table>
+
+### M9 — Script Events
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>9</td>
+  <td><strong>Script Events</strong></td>
+  <td>⬜ Pending</td>
+  <td><code>OnLoad</code> through <code>OnUpdate</code>; <code>RegisterEvent</code>; webview→Lua event bridge; <code>OnUpdate</code> watchdog</td>
+  <td>S–M</td>
+  <td>8</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#preview-settings-toolbar">Preview settings toolbar</a></td>
+  <td>📋 Pending</td>
+  <td>In-panel toolbar for quick access to common settings: resolution, scale, flavor</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#keyboard-input-handling-in-preview">Keyboard input handling in preview</a></td>
+  <td>📋 Pending</td>
+  <td>Key event routing; ESC menu override; WoW default keybinding recreation</td>
+  <td>S–M</td>
+  <td>9</td>
+</tr>
+</tbody>
+</table>
+
+### M10 — Multi-Version Targets
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>10</td>
+  <td><strong>Multi-Version Targets</strong></td>
+  <td>⬜ Pending</td>
+  <td>Selectable Classic/Cata/Retail API profiles</td>
+  <td>S–M</td>
+  <td>6</td>
+</tr>
+</tbody>
+</table>
+
+### M11 — Hot Reload
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>11</td>
+  <td><strong>Hot Reload</strong> <em>(stretch)</em></td>
+  <td>⬜ Pending</td>
+  <td>Re-parse/re-run on save with minimal repaint</td>
+  <td>M</td>
+  <td>2, 9</td>
+</tr>
+</tbody>
+</table>
+
+### M12 — Test Suite
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>12</td>
+  <td><strong>Test Suite</strong> <em>(stretch)</em></td>
+  <td>⬜ Pending</td>
+  <td>Headless addon test runner + reporter</td>
+  <td>M</td>
+  <td>9</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#addon-state-emulation">Addon state emulation (addons testing addons)</a></td>
+  <td>📋 Pending</td>
+  <td>Secondary Lua API to drive simulated game state; test one addon's reaction through another</td>
+  <td>M–L</td>
+  <td>12</td>
+</tr>
+</tbody>
+</table>
+
+### Miscellaneous
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+</tbody>
+</table>
 
 ## Recommended Tech Stack
 

@@ -803,6 +803,186 @@ However, there are a few integration questions worth answering before M8 (TOC Ex
 
 ---
 
+## Preview background philosophy
+
+**Status:** 📋 Pending
+
+Scryer is an addon development tool — not a game emulator, not an alternative WoW client. The preview viewport intentionally omits game world graphics (terrain, character models, sky, particles). Only addon UI frames are rendered.
+
+This matters because it is easy to drift: as fidelity improves, requests will come in for "why doesn't the world show behind the frames?" The answer is that rendering game geometry is out of scope by design, and there is real value in the current approach — a clean, distraction-free canvas makes frame layout and texture debugging much easier than it would be against a real game background.
+
+**What this item covers:**
+
+1. **Write ADR** — document the decision with context, the out-of-scope boundary ("no game world graphics"), and why that boundary is correct. Record what Scryer _is_: a UI frame preview and execution sandbox, not a visual WoW emulator.
+2. **Improve placeholder fidelity** — the colored placeholder tiles are currently functional but not beautiful. Evaluate: should missing textures use a subtle checkerboard or the current hue-based solid color? Should textures that _have_ a resolved file but failed to decode show differently from ones that were never extracted?
+3. **Viewport background** — the dark checker pattern is configurable (already in `defaults.json`). Confirm the defaults are a good "neutral canvas" for addon work, not something that implies a game world.
+4. **No out-of-scope creep** — explicitly note in the ADR that requests for terrain, sky, or character rendering should be closed as out-of-scope.
+
+**Effort:** XS (ADR + minor placeholder polish).
+
+---
+
+## XML + Lua coupling in static preview
+
+**Status:** 📋 Pending
+
+The current M2 static XML preview ignores any `.lua` files referenced in the same TOC. This works for purely declarative frames, but many addons use Lua to set up templates, register scripts, or populate `FontString` text at load time. Without any Lua execution, these frames render incomplete — missing text, incorrect visibility, or referencing templates that only exist as Lua tables.
+
+**The core design question:** how much Lua execution, if any, is appropriate in the "static" preview path? Options:
+
+1. **None (current)** — parse and render the XML literally; Lua side-effects are absent but the preview is predictable and instant.
+2. **Template-only execution** — run just enough Lua to register virtual frames and templates that XML `inherits=` attributes reference, but skip all `OnLoad`/event handlers.
+3. **Full execution on preview** — the static preview becomes the live preview (M7+), removing the distinction entirely.
+
+**What this item covers:**
+
+1. **Audit real addons** — look at 5–10 popular addons in `_live/` or `_reference/wow-cookbook` and note how many XML files have meaningful Lua coupling (templates defined in Lua, text set in `OnLoad`, etc.). This determines how bad the current gap is in practice.
+2. **Decide the static/live boundary** — document the decision: is the static preview (M2) intentionally "Lua-free," or should it gain partial Lua execution before M7? If the latter, define exactly what "partial" means.
+3. **Surface the gap to users** — if a previewed XML file has a TOC with Lua entries, show a status bar note: "Lua files not executed — use _Run_ for live preview." This sets expectations without requiring a full implementation.
+4. **Write ADR** if the static/live boundary changes from the current assumption.
+
+**Effort:** S (audit + decision + status bar note). Full Lua execution in the static path is M7 scope.
+
+---
+
+## F5 run mode
+
+**Status:** 📋 Pending
+
+Once M8 (TOC Execution Pipeline) and M9 (Script Events) are complete, the full addon runtime exists — but it may only be reachable via `scryer.openLive` from the command palette. Developers expect F5 (or equivalent) to mean "run this thing."
+
+**Goal:** Make the full execution pipeline discoverable with a single keystroke. Press F5 in any `.xml`, `.lua`, or `.toc` file that belongs to a WoW addon → Scryer finds the TOC, loads the full addon, and opens (or focuses) the live preview panel.
+
+**What this item covers:**
+
+1. **Command:** `scryer.run` contributed in `package.json` with a keyboard shortcut (default `F5`), constrained to addon files (via `when` clause: `editorLangId in ['xml', 'lua']`). The command logic: walk up from the active file to find the nearest `.toc`, then launch `scryer.openLive` against it.
+2. **Re-run on F5 in panel focus** — if the live preview panel is focused, F5 re-runs (reloads) the current addon without re-opening the panel.
+3. **Stop/restart** — consider `Shift+F5` to stop execution (tear down the sandbox, clear the frame tree) without closing the panel.
+4. **Status bar integration** — the existing per-panel `StatusBarItem` could show a "▶ Run" / "■ Stop" affordance when a TOC is detected.
+
+**Scope note:** This item is purely a UX/discoverability layer on top of M8+M9. No new runtime capability is added; the command wiring and TOC discovery are the only implementation work.
+
+**Effort:** S — the runtime is M8+M9; this is ~2–3 hours of command registration, `when` clause tuning, and TOC-finder logic.
+
+---
+
+## Preview settings toolbar
+
+**Status:** 📋 Pending
+
+The preview panel currently has no UI for changing common settings — resolution, UI scale, flavor, ruler visibility. Developers who want to check how an addon looks at 1024×768 vs 1920×1200, or on Classic vs Retail font sizes, must navigate to VS Code settings and edit JSON strings.
+
+**Goal:** A compact toolbar inside the preview panel (above or below the WoW viewport) with direct controls for the most-changed settings.
+
+**Proposed controls (initial set):**
+
+| Control           | Type                                                          | Maps to                                                                 |
+| ----------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Screen resolution | Dropdown (1920×1200, 1920×1080, 2560×1440, 1024×768, custom…) | `scryer.flavorConfigPath` override or a new `scryer.resolution` setting |
+| UI scale          | Slider or text input (0.5–2.0)                                | `flavorConfig.frameScale`                                               |
+| Flavor            | Dropdown (Retail, Classic, Classic Era)                       | `scryer.flavor`                                                         |
+| Ruler             | Toggle button                                                 | `scryer.showRuler`                                                      |
+| Run / Stop        | Button                                                        | `scryer.run` / sandbox teardown                                         |
+
+**Architecture notes:**
+
+- The toolbar lives in the webview HTML (not the extension host), so changes are sent as `hostMessage` updates from the webview to the extension. The extension host writes the new value back via workspace settings and re-renders.
+- Alternatively, toolbar controls could emit a `{ type: "settingChange"; key; value }` webview message; the panel's `onDidReceiveMessage` updates the workspace config via `vscode.workspace.getConfiguration("scryer").update(...)`, which fires `onDidChangeConfiguration` and naturally triggers a re-render. This is the cleanest flow.
+- Avoid duplicating the full settings surface — this toolbar is for the settings developers reach for most. Deep configuration still lives in VS Code settings.
+
+**Effort:** S — webview HTML/CSS for the toolbar strip, message protocol additions, and config-write round-trip. Roughly 4–6 hours.
+
+---
+
+## Keyboard input handling in preview
+
+**Status:** 📋 Pending
+
+Once the full runtime (M8+M9) is running, the preview webview becomes an interactive WoW-like surface. WoW addons register keyboard handlers, open/close frames on key presses, and rely on the default WoW keybindings (e.g. ESC closes the topmost open frame). The webview's default key behavior will conflict with this.
+
+**Questions to resolve before implementing:**
+
+1. **ESC key** — In VS Code's webview, ESC closes the panel or blurs the editor. In WoW, ESC closes the topmost open full-screen frame (the "UISpecialFrames" stack). These two behaviors conflict. Options: (a) intercept ESC in the webview and synthesize a WoW `ESCAPE_PRESSED` event, letting VS Code's ESC only fire if no WoW frame consumes it; (b) provide a toggle to "capture keyboard input" that swallows ESC; (c) document the conflict and let addon authors work around it.
+
+2. **WoW default keybindings** — WoW has a large default keybinding table (movement, targeting, action bars, etc.). Most are irrelevant to UI addon development. The preview only needs to emulate bindings that addons are likely to test: ESC, Enter, Tab, and any custom bindings an addon registers via `SetBinding`/`SetBindingClick`.
+
+3. **Input capture toggle** — A panel control (button or checkbox: "Capture keyboard") that, when active, routes all keystrokes through the Lua event bridge (`KeyDown`, `KeyUp` events) rather than letting them bubble to VS Code. Pressing the toggle again (or pressing a configurable release chord like Ctrl+ESC) releases capture.
+
+4. **Virtual gamepad / binding emulation** — Out of scope for now, but note it for the future: addons that use controller input will need a different strategy.
+
+**Approach:**
+
+- Phase 1 (this item): resolve questions 1–3, write an ADR on the keyboard capture strategy, and implement input capture toggle + ESC routing in the webview.
+- Phase 2 (deferred): full binding table emulation if real addons require it.
+
+**Effort:** S–M — the design question is the hard part; once the strategy is decided, webview event listener setup + Lua event dispatch is ~4–8 hours.
+
+---
+
+## Addon state emulation
+
+**Status:** 📋 Pending
+
+Real WoW addons react to game state: player health drops, a new buff is applied, a quest completes, the player enters combat. Testing these reactions in the real game requires either waiting for the right game event or using test tools that exist inside the game. Neither is CI-friendly.
+
+**Goal:** A secondary scripting layer that lets addon authors (or a test addon) drive simulated game state changes, so that a Scryer test suite can assert "when player health drops below 20%, the low-health flash frame becomes visible" without a running WoW client.
+
+**Concept — "addons testing addons":**
+
+An author ships a companion addon (e.g. `MyAddon_Tests`) that uses a Scryer-specific API to manipulate state:
+
+```lua
+-- hypothetical Scryer test API
+ScryerTest.SetUnitHealth("player", 0.15)  -- fires UNIT_HEALTH event
+ScryerTest.SimulateEvent("COMBAT_LOG_EVENT_UNFILTERED", ...)
+ScryerTest.Assert(MyAddon.lowHealthFrame:IsShown(), "low health frame should be visible")
+```
+
+This is not a general WoW emulator — it only needs to cover the subset of game state that UI addons can _observe_ (unit stats, events, aura states, etc.), not the subset they _cause_ (damage dealt, movement, etc.).
+
+**Architecture:**
+
+- `ScryerTest` is a global table injected into the sandbox alongside the WoW API stubs (M6). It is absent from the real WoW environment (addons that accidentally ship test code get a no-op stub or an error, not a game-breaking call).
+- `ScryerTest.SimulateEvent(event, ...)` — fires the named event on the frame event bus, reaching any addon that called `frame:RegisterEvent(event)`.
+- `ScryerTest.SetUnitHealth` / `SetUnitAura` / etc. — update the mock state tables backing `UnitHealth`, `UnitBuff`, etc. stubs, then fire the corresponding event.
+- Test results flow back via `ScryerTest.Assert` / `ScryerTest.Fail` → collected by the extension host → shown in VS Code Test Explorer (M12).
+
+**Depends on:** M12 (Test Suite) for the runner and Test Explorer integration. M9 (Script Events) for the event bridge that `SimulateEvent` needs.
+
+**Effort:** M–L — the state tables and `SimulateEvent` wiring are S; a comprehensive enough stub surface to cover real addon test patterns is M; a VS Code Test Explorer integration is M. Total is M–L depending on how complete the stub surface needs to be.
+
+---
+
+## WYSIWYG widget placement
+
+**Status:** 📋 Pending
+
+Addon developers often prototype frame layouts by guessing anchor values and reloading. A drag-to-place mode in the preview would let them position frames visually and get the correct anchor XML or Lua back without any trial-and-error.
+
+**Goal:** Click a frame in the live preview, drag it to a new position, and have Scryer emit the updated `<AbsInset>` / `<Anchor>` XML fragment or Lua `SetPoint` call that reproduces that position.
+
+**What makes this hard:**
+
+WoW's anchor system is constraint-based — a frame's position is determined by up to two anchor points, each relative to a named frame and a point (TOPLEFT, CENTER, etc.). Inverting a rendered position back to an anchor description is ambiguous: the same pixel position can be expressed as dozens of valid anchor combinations. The tool needs a strategy for which anchor form to prefer (e.g. preserve the existing anchor type and only update the offsets, or default to `TOPLEFT` + `BOTTOMRIGHT` for two-anchor frames).
+
+**Rough plan:**
+
+1. **Drag affordance in webview** — in a "placement mode" (toggled via toolbar or command), frames become draggable. Mouse events update a ghost overlay; on drop, the new absolute position is reported to the extension host.
+2. **Anchor inversion** — given the frame's current anchor configuration (from the IR) and its new pixel position, compute updated `x`/`y` offsets. If the frame has two anchors that fix both axes, update both offsets independently. If one anchor is `CENTER`, update to keep it centered at the new position.
+3. **Output** — show a small popover or notification with the updated XML snippet. "Copy to clipboard" button. Optionally, offer to write the change back to the source file directly (this is the risky path — file writes require confirming the right source location).
+4. **Resize handles** — extend drag to the frame edges/corners for resizing, which requires updating `<Size>` values and/or the second anchor's offset.
+
+**Constraints:**
+
+- Frames with templated anchors (where the anchor is in a Blizzard parent template) cannot be written back to the source file — only frames with anchors directly in the addon XML are candidates for in-place editing.
+- This feature is UI-only (no runtime state changes); it operates on the rendered layout, not the Lua frame object.
+
+**Depends on:** M7 (Frame Object Model) for the live panel and frame identity tracking; M9 (Script Events) for the event bridge that drag events will use.
+
+**Effort:** L — the drag affordance and anchor inversion for simple cases are S; handling the full variety of anchor configurations (CENTER, relative-to-sibling, two-axis independence) is M; safe source-file write-back is M. Total L.
+
+---
+
 ## GlobalStrings population (deferred from M5)
 
 **Status:** 📋 Pending

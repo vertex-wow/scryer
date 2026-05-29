@@ -14,12 +14,18 @@ World of Warcraft Addon Preview — Preview the result of XML frame definitions 
 ### `docs/plan/`
 Implementation roadmap. One file per milestone (`000_overview.md`, `001_xml_parser.md`, etc.). Update these when scope, approach, or effort changes — they are the source of truth for what we're building and why.
 
-When updating the milestone table in `000_overview.md`, maintain this invariant: **all completed `↳` rows must appear before the first pending milestone row, in chronological order.** A `↳` row marked ✅ Done that sits under a pending milestone is always wrong.
+`000_overview.md` uses **one HTML `<table>` per milestone**, each under a `###` subheading. The table structure is:
 
-- **Adding a new pending backlog item:** Attach it under the pending milestone it relates to.
-- **Adding a completed backlog item:** Insert it immediately before the first pending milestone, after the last completed row. **Always include a date:** use `✅ Done (YYYY-MM-DD)`.
-- **Completing a backlog item:** Change its status to `✅ Done (YYYY-MM-DD)` and move it to immediately before the first pending milestone row.
-- **After any table edit:** scan the full table and confirm no `✅ Done` row appears below any pending milestone row before closing the file.
+- **Milestone row** — 6 columns (`#`, `Name`, `Status`, `Description`, `Effort`, `Depends on`), name in `<strong>`.
+- **Completed ↳ row** — a single row with `↳` in col 1 and `colspan="5"` on col 2, containing a ✅ prefix followed by comma-separated `<a>` links to backlog.md anchors. All completed backlog items for a milestone collapse into one row — no dates or descriptions in the table.
+- **Pending ↳ rows** — full 6-column rows, one per item, with status emoji, description, effort, and depends-on filled in.
+- **No ↳ milestones** — table contains only the milestone row.
+
+**Editing rules:**
+
+- **Adding a pending ↳:** Add a full 6-column `<tr>` below any completed ↳ row, under the milestone that enables or most naturally precedes it.
+- **Completing a ↳:** Remove the full pending row. Add a link to it in the completed ↳ row's `colspan="5"` cell (create that row if it doesn't exist yet). No date needed in the table — dates live in backlog.md.
+- **After any table edit:** confirm no pending ↳ `<tr>` appears above the completed ↳ `<tr>` within the same `<tbody>`.
 
 ### `docs/decisions/`
 Architecture Decision Records (ADRs). One file per significant decision (`001_language_stack.md`, etc.). Write an ADR whenever a non-obvious technical or architectural choice is made, especially when alternatives were seriously considered. Include: context, options considered, decision, rationale, and consequences. Do not delete old ADRs — mark them superseded if overturned.
