@@ -85,7 +85,7 @@ In Lua 5.4, every chunk loaded via `load()` has `_ENV` as an explicit upvalue. T
 The complete list of shims required on top of wasmoon (5.4) to reach WoW Lua 5.1 semantics:
 
 | Item                                                          | Solution                                                                                     |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `setfenv`/`getfenv`                                           | debug library shim (see above)                                                               |
 | `unpack` global                                               | `unpack = table.unpack`                                                                      |
 | `loadstring`                                                  | `loadstring = load`                                                                          |
@@ -95,7 +95,7 @@ The complete list of shims required on top of wasmoon (5.4) to reach WoW Lua 5.1
 | `bit` library                                                 | Lua table implementation of `bit.band`/`bor`/`bxor`/`bnot`/`lshift`/`rshift`/`arshift`/`mod` |
 | Degree-based trig globals                                     | `cos`/`sin`/`tan`/`acos`/`asin`/`atan`/`atan2` wrap `math.*` with degree conversion          |
 | `goto` statement (5.2+ syntax)                                | Not needed — WoW addon code targeting 5.1 won't use it                                       |
-| Bitwise operators `&`, `                                      | `, `~` (5.3+ syntax)                                                                         | Not needed — addons use `bit.band()` etc. |
+| Bitwise operators (`&`, `\|`, `~`) (5.3+ syntax)              | Not needed — addons use `bit.band()` etc.                                                    |
 
 Source of truth: `_reference/vscode-wow-api/Annotations/Core/Lua/compat.lua`, `bit.lua`, `basic.lua`.
 
@@ -109,5 +109,5 @@ Source of truth: `_reference/vscode-wow-api/Annotations/Core/Lua/compat.lua`, `b
 ## References
 
 - [ADR 001 — Language Stack](001_language_stack.md)
-- [plan/004_lua_runtime.md](../plan/004_lua_runtime.md)
+- [plan/004_toc_parser.md](../plan/004_toc_parser.md) through [plan/009_script_events.md](../plan/009_script_events.md)
 - `_reference/vscode-wow-api/Annotations/Core/Lua/` (compat.lua, bit.lua, basic.lua)
