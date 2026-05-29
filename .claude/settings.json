@@ -51,7 +51,11 @@
       "Bash(node dev/bench.build.mjs)",
       "Bash(node dist/conv-time.js)",
       "Bash(sed:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(mkdir -p /tmp/*)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   },
   "deny": [],
