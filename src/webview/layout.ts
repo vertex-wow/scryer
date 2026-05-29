@@ -72,16 +72,18 @@ export function layoutByTwoAnchors(
   target2: Rect,
   explicitWidth?: number,
   explicitHeight?: number,
+  epsilon = 1e-9,
 ): Rect {
   const p1 = resolveAnchorPoint(anchor1, target1);
   const p2 = resolveAnchorPoint(anchor2, target2);
   const f1 = POINT_FRACTION[anchor1.point];
   const f2 = POINT_FRACTION[anchor2.point];
 
-  const width = Math.abs(f2.x - f1.x) > 1e-9 ? (p2.x - p1.x) / (f2.x - f1.x) : (explicitWidth ?? 0);
+  const width =
+    Math.abs(f2.x - f1.x) > epsilon ? (p2.x - p1.x) / (f2.x - f1.x) : (explicitWidth ?? 0);
 
   const height =
-    Math.abs(f2.y - f1.y) > 1e-9 ? (p2.y - p1.y) / (f2.y - f1.y) : (explicitHeight ?? 0);
+    Math.abs(f2.y - f1.y) > epsilon ? (p2.y - p1.y) / (f2.y - f1.y) : (explicitHeight ?? 0);
 
   return { left: p1.x - f1.x * width, top: p1.y - f1.y * height, width, height };
 }
@@ -91,7 +93,6 @@ export function layoutByTwoAnchors(
 // ---------------------------------------------------------------------------
 
 const UI_PARENT = "UIParent";
-const MAX_LAYOUT_ITERATIONS = 64;
 
 type FrameRegistry = Map<string, FrameIR>;
 type RectMap = Map<FrameIR, Rect>;
@@ -167,6 +168,7 @@ function tryLayout(
   viewportRect: Rect,
   rectMap: RectMap,
   registry: FrameRegistry,
+  epsilon: number,
 ): Rect | undefined {
   const w = frame.size?.x;
   const h = frame.size?.y;
@@ -189,7 +191,7 @@ function tryLayout(
     const t1 = resolveTarget(anchors[0], parentName, parentRect, viewportRect, rectMap, registry);
     const t2 = resolveTarget(anchors[1], parentName, parentRect, viewportRect, rectMap, registry);
     if (!t1 || !t2) return undefined;
-    return layoutByTwoAnchors(anchors[0], t1, anchors[1], t2, w, h);
+    return layoutByTwoAnchors(anchors[0], t1, anchors[1], t2, w, h, epsilon);
   }
 
   if (anchors.length === 1) {
@@ -206,7 +208,13 @@ function tryLayout(
  * Compute absolute layout rects for all frames (relative to the viewport).
  * Uses an iterative approach to handle anchor chains and forward references.
  */
-export function layoutAll(frames: FrameIR[], viewport: { w: number; h: number }): RectMap {
+export function layoutAll(
+  frames: FrameIR[],
+  viewport: { w: number; h: number },
+  opts: { epsilon?: number; maxIterations?: number } = {},
+): RectMap {
+  const epsilon = opts.epsilon ?? 1e-9;
+  const maxIterations = opts.maxIterations ?? 64;
   const viewportRect: Rect = { left: 0, top: 0, width: viewport.w, height: viewport.h };
 
   const registry: FrameRegistry = new Map();
@@ -227,7 +235,7 @@ export function layoutAll(frames: FrameIR[], viewport: { w: number; h: number })
 
   const rectMap: RectMap = new Map();
 
-  for (let iter = 0; iter < MAX_LAYOUT_ITERATIONS; iter++) {
+  for (let iter = 0; iter < maxIterations; iter++) {
     let changed = false;
     for (const frame of allFrames) {
       if (rectMap.has(frame)) continue;
@@ -237,7 +245,15 @@ export function layoutAll(frames: FrameIR[], viewport: { w: number; h: number })
       const parentRect = parent ? rectMap.get(parent) : viewportRect;
       if (!parentRect) continue; // parent not resolved yet
 
-      const rect = tryLayout(frame, parentName, parentRect, viewportRect, rectMap, registry);
+      const rect = tryLayout(
+        frame,
+        parentName,
+        parentRect,
+        viewportRect,
+        rectMap,
+        registry,
+        epsilon,
+      );
       if (rect) {
         rectMap.set(frame, rect);
         changed = true;

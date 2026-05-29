@@ -561,6 +561,16 @@ export class ScryerPanel {
       `script-src 'nonce-${nonce}'`,
     ].join("; ");
 
+    const cfg = vscode.workspace.getConfiguration("scryer");
+    const flavor = cfg.get<string>("flavor") ?? "retail";
+    const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
+    const c = resolveFlavorConfig(flavor, userConfigPath);
+
+    // Fixed 8px body padding on all sides; computed values derive from config.
+    const BP = 8;
+    const sbH = c.statusBarHeight;
+    const rsz = c.rulerSize;
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -570,18 +580,18 @@ export class ScryerPanel {
   <title>Scryer Preview</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{background:#1a1a1a;display:flex;flex-direction:column;align-items:flex-start;padding:8px;padding-top:28px;overflow:auto}
+    body{background:${c.rulerBg};display:flex;flex-direction:column;align-items:flex-start;padding:${BP}px;padding-top:${sbH + BP}px;overflow:auto}
     #viewport{position:relative}
-    #status-bar{position:fixed;top:0;left:0;right:0;height:20px;background:#222;display:flex;align-items:center;z-index:10001;border-bottom:1px solid #2a2a2a;font:11px monospace;color:#888;white-space:nowrap;overflow:hidden}
-    #ruler-toggle{flex-shrink:0;background:none;border:none;border-right:1px solid #2a2a2a;cursor:pointer;font:14px/20px system-ui;padding:0 5px;height:20px}
+    #status-bar{position:fixed;top:0;left:0;right:0;height:${sbH}px;background:${c.statusBarBg};display:flex;align-items:center;z-index:10001;border-bottom:1px solid ${c.rulerBorder};font:${c.statusBarFont};color:${c.statusBarColor};white-space:nowrap;overflow:hidden}
+    #ruler-toggle{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;font:14px/${sbH}px system-ui;padding:0 5px;height:${sbH}px}
     #ruler-toggle:hover{background:#2e2e2e}
     .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(0.85);display:inline-block}
     #ruler-toggle:hover .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(1.1)}
 #debug{padding:0 4px;white-space:pre-wrap}
-    #ruler-top{position:fixed;top:20px;left:0;right:0;height:20px;z-index:9999;display:none}
-    #ruler-left{position:fixed;top:20px;left:0;bottom:0;width:20px;z-index:9999;display:none}
-    #ruler-corner{position:fixed;top:20px;left:0;width:20px;height:20px;z-index:10000;background:#1a1a1a;border-right:1px solid #2a2a2a;border-bottom:1px solid #2a2a2a;display:none}
-    body.show-ruler{padding-top:48px;padding-left:28px}
+    #ruler-top{position:fixed;top:${sbH}px;left:0;right:0;height:${rsz}px;z-index:9999;display:none}
+    #ruler-left{position:fixed;top:${sbH}px;left:0;bottom:0;width:${rsz}px;z-index:9999;display:none}
+    #ruler-corner{position:fixed;top:${sbH}px;left:0;width:${rsz}px;height:${rsz}px;z-index:10000;background:${c.rulerBg};border-right:1px solid ${c.rulerBorder};border-bottom:1px solid ${c.rulerBorder};display:none}
+    body.show-ruler{padding-top:${sbH + rsz + BP}px;padding-left:${rsz + BP}px}
     body.show-ruler #ruler-top,body.show-ruler #ruler-left,body.show-ruler #ruler-corner{display:block}
   </style>
 </head>

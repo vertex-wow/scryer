@@ -57,6 +57,26 @@ When something is noticed during a task but is deemed out of scope — a bug, a 
 
 Do not silently discard deferred items. They belong in `docs/` so they are visible and prioritizable rather than lost in conversation history.
 
+## defaults.json philosophy
+
+All magic values used in the preview — WoW environment constants, rendering calibration values, and visual appearance of the preview chrome — live in `src/flavors/defaults.json`. Nothing is hardcoded in the source. This keeps every tunable value auditable in one place and makes it easy for contributors to submit patches that only touch defaults, or for advanced users to override the whole set via `scryer.flavorConfigPath`.
+
+When adding new behaviour that involves a constant or threshold, always ask: does this belong in `defaults.json`? If it appears in the preview window (or directly affects it), the answer is almost certainly yes.
+
+### User-facing documentation tiers
+
+Configuration documentation is split across three files so users see only what is relevant to their use case:
+
+- **`README.md`** — "batteries included" overview. A brief table of the key WoW display defaults that work out of the box. No tuning required.
+- **`docs/configuration.md`** — Settings a typical addon developer might want to change: VS Code settings (`scryer.*`), the `flavorConfigPath` mechanism, and WoW-environment fields (screen resolution, font, text color, scale, rendering calibration).
+- **`docs/advancedConfiguration.md`** — Minute details for extension contributors and anyone wanting to theme or visually tweak the preview chrome: viewport background, ruler appearance, status bar colors, placeholder tile style, layout solver parameters.
+
+**When adding or changing any `defaults.json` field or `scryer.*` VS Code setting, update the correct documentation tier in the same change.** Do not ship a new setting without documenting it. Use this rule to pick the right file:
+
+- Affects WoW environment or rendering fidelity → `docs/configuration.md`
+- Affects preview chrome aesthetics (colors, sizes, layout solver) → `docs/advancedConfiguration.md`
+- Worth a one-line mention for first-time users → also update the table in `README.md`
+
 ## File editing rules
 
 - **Prefer Edit or Write over `sed`/`awk` for file edits.** These tools are error-prone and can silently leave files in a broken state.

@@ -737,6 +737,41 @@ The output channel (`scryer.logLevel`) is a power-user tool. Regular users never
 
 ---
 
+## All preview chrome values configurable via defaults.json
+
+**Status: ✅ Done (2026-05-29)**
+
+**What was built:**
+
+Extended `src/flavors/defaults.json` and the `FlavorConfigLayer` / `ResolvedFlavorConfig` types to cover every previously hardcoded value in the preview — not just WoW environment fields but all visual and behavioral knobs in the preview chrome. This creates a single auditable location for every magic value in the renderer and makes the full set user-overridable via `scryer.flavorConfigPath`.
+
+**New fields added (grouped by concern):**
+
+- **WoW engine:** `uiParentHeight` (768 — now flows from defaults.json rather than being hardcoded in `resolveFlavorConfig`)
+- **Rendering calibration:** `fontLetterSpacing` (renamed from `fontLetterSpacingEm`; default `"0.033em"`, now a string so the user can specify any CSS unit), `autoFontSizeRatio` (`0.75`), `fontSmoothing` (`"antialiased"` — maps to `-webkit-font-smoothing`; matches WoW's DirectWrite grayscale AA)
+- **Viewport background:** `viewportBg`, `viewportCheckerLight`, `viewportCheckerDark`, `viewportCheckerSize`
+- **Pixel ruler:** `rulerSize`, `rulerBg`, `rulerBorder`, `rulerTickMajorColor`, `rulerTickMinorColor`, `rulerLabelColor`, `rulerLabelInterval`, `rulerTickMajor`, `rulerTickMinor`, `rulerShadowColor`, `rulerShadowBlur`
+- **Status bar:** `statusBarHeight`, `statusBarBg`, `statusBarColor`, `statusBarFont`
+- **Placeholder tiles:** `placeholderSaturation`, `placeholderLightness`, `placeholderLabelOpacity`
+- **Layout solver:** `layoutEpsilon`, `layoutMaxIterations`
+
+**Consumer updates:**
+
+- `ruler.ts` — `RULER_SIZE` / `STATUS_BAR_H` module-level exports removed; all drawing uses config fields. Shadow constants removed.
+- `placeholder.ts` — `placeholderColor` and `makePlaceholder` now accept `config`; HSL values and label opacity come from config.
+- `renderer.ts` — `renderTexture` receives config for placeholder calls; `layoutAll` calls pass `{ epsilon, maxIterations }` from config; viewport background/checkerboard use config; `letter-spacing` and `autoFontSizeRatio` come from config.
+- `panel.ts` — `buildHtml()` resolves the flavor config and templates all computed CSS pixel values (status bar height, ruler size, body padding with and without ruler, all colors).
+- `layout.ts` — `layoutByTwoAnchors` gains an optional `epsilon` param; `MAX_LAYOUT_ITERATIONS` constant removed; `layoutAll` accepts `{ epsilon?, maxIterations? }` opts.
+
+**Documentation:**
+
+- `CLAUDE.md` — new "defaults.json philosophy" section: all magic values in defaults.json; three-tier doc split; rule that new settings must be documented in the correct tier in the same change.
+- `docs/configuration.md` — rewrote `flavorConfigPath` section with correct field names (old version had wrong fields); split into WoW environment fields vs. rendering calibration fields; links to advancedConfiguration.md.
+- `docs/advancedConfiguration.md` (new) — documents all chrome-aesthetic fields (viewport, ruler, status bar, placeholder, layout solver); framed as the natural theming surface.
+- `README.md` — fixed display defaults table (was showing 1024×768; now shows 1920×1080 + correct UIParent); linked to advancedConfiguration.md.
+
+---
+
 ## FontString rendering fidelity
 
 **Status: ✅ Done (2026-05-28)**

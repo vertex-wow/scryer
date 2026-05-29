@@ -93,17 +93,20 @@ For the complete settings reference — cache options, per-flavor display overri
 
 ## Flavor Display Defaults
 
-Each flavor uses a built-in set of display defaults (viewport size, font, scale). The defaults for all flavors are:
+Each flavor uses a built-in set of display defaults — they work out of the box for a standard 1080p setup:
 
 | Property    | Default                |
 | ----------- | ---------------------- |
-| Viewport    | 1024 × 768             |
+| Screen      | 1920 × 1080            |
+| UIParent    | 1365 × 768             |
 | Font        | `Fonts/FRIZQT__.TTF`   |
 | Font size   | 12                     |
 | Text color  | WoW gold (255, 209, 0) |
 | Frame scale | 1.0                    |
 
-You can override these per-flavor by pointing `scryer.flavorConfigPath` at a JSON file. See [docs/configuration.md#per-flavor-display-overrides](docs/configuration.md#per-flavor-display-overrides) for the format.
+Override any of these per-flavor by pointing `scryer.flavorConfigPath` at a JSON file. See [docs/configuration.md#per-flavor-display-overrides](docs/configuration.md#per-flavor-display-overrides) for the fields and format.
+
+For advanced customization — viewport background, ruler colors, status bar, placeholder appearance, and layout solver parameters — see [docs/advancedConfiguration.md](docs/advancedConfiguration.md).
 
 ---
 

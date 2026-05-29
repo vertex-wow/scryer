@@ -26,7 +26,7 @@ function applyRect(el: HTMLElement, rect: Rect, parentRect: Rect): void {
 // Texture rendering
 // ---------------------------------------------------------------------------
 
-function renderTexture(tex: TextureIR, rect: Rect): HTMLElement {
+function renderTexture(tex: TextureIR, rect: Rect, config: ResolvedFlavorConfig): HTMLElement {
   const el = document.createElement("div");
   el.dataset.name = tex.name ?? "";
   el.dataset.kind = tex.kind;
@@ -48,18 +48,18 @@ function renderTexture(tex: TextureIR, rect: Rect): HTMLElement {
       tilesV: ra.tilesV,
       useAtlasSize: tex.useAtlasSize ?? false,
     });
-    const ph = makePlaceholder(ra.file);
+    const ph = makePlaceholder(ra.file, config);
     ph.dataset.placeholder = "1";
     el.appendChild(ph);
   } else if (tex.file) {
     el.dataset.assetPath = tex.file;
-    const ph = makePlaceholder(tex.file);
+    const ph = makePlaceholder(tex.file, config);
     ph.dataset.placeholder = "1";
     el.appendChild(ph);
   } else if (tex.atlas) {
     // Atlas name present but no manifest entry — show labeled placeholder
     el.dataset.atlasName = tex.atlas;
-    el.appendChild(makePlaceholder(tex.atlas, `[atlas] ${tex.atlas}`));
+    el.appendChild(makePlaceholder(tex.atlas, config, `[atlas] ${tex.atlas}`));
   } else {
     // No file or color — transparent slot; still show a faint outline
     el.style.outline = "1px dashed rgba(255,255,255,0.15)";
@@ -125,7 +125,8 @@ function renderFontString(fs: FontStringIR, rect: Rect, config: ResolvedFlavorCo
   el.style.justifyContent = justifyContentMap[jh] ?? "flex-start";
   el.style.alignItems = alignItemsMap[jv] ?? "center";
 
-  const explicitSize = fs.fontSize ?? (rect.height > 0 ? Math.round(rect.height * 0.75) : 0);
+  const explicitSize =
+    fs.fontSize ?? (rect.height > 0 ? Math.round(rect.height * config.autoFontSizeRatio) : 0);
   const fontSize = explicitSize > 0 ? explicitSize : config.defaultFontSize;
   const color = fs.color ? cssColor(fs.color) : cssColor(config.defaultTextColor);
 
@@ -136,12 +137,14 @@ function renderFontString(fs: FontStringIR, rect: Rect, config: ResolvedFlavorCo
     `font-family:${WOW_FONT_STACK}`,
     `font-size:${fontSize}px`,
     `color:${color}`,
-    // FUDGE: WoW's DirectWrite renderer produces ~6.3% wider advance widths than
-    // the browser's ClearType renderer for the same font file. Calibrated against
-    // FRIZQT__.TTF at height=12 by measuring "Example Bare Frame" (18 chars):
-    // WoW=151px vs browser=142px at 125% DPI → 7.2 CSS px gap → 0.4px per char
-    // → 0.4/12 = 0.033em. Applied as letter-spacing so it scales with font size.
-    "letter-spacing:0.033em",
+    // WoW's DirectWrite renderer produces ~6.3% wider advance widths than the
+    // browser's ClearType renderer for the same font. Calibrated against FRIZQT__
+    // at height=12 (18 chars: WoW=151px vs browser=142px at 125% DPI → 0.033em).
+    // Override fontLetterSpacingEm in your flavor config when using a different font.
+    `letter-spacing:${config.fontLetterSpacing}`,
+    // WoW uses DirectWrite grayscale AA; browser default on Windows is ClearType (subpixel).
+    // Switching to antialiased makes rendered weight match more closely.
+    `-webkit-font-smoothing:${config.fontSmoothing}`,
     "pointer-events:none",
   ].join(";");
 
@@ -202,10 +205,11 @@ function renderFrame(
 
     // Layout all objects in the layer together so relativeKey references between
     // sibling render objects (e.g. Middle anchored to Left/Right) can resolve.
-    const layerObjRectMap = layoutAll(layer.objects as unknown as FrameIR[], {
-      w: frameRect.width,
-      h: frameRect.height,
-    });
+    const layerObjRectMap = layoutAll(
+      layer.objects as unknown as FrameIR[],
+      { w: frameRect.width, h: frameRect.height },
+      { epsilon: config.layoutEpsilon, maxIterations: config.layoutMaxIterations },
+    );
 
     for (const obj of layer.objects) {
       const objFrameIR = obj as unknown as FrameIR;
@@ -220,7 +224,7 @@ function renderFrame(
       if (obj.kind === "FontString") {
         objEl = renderFontString(obj, objRect, config);
       } else {
-        objEl = renderTexture(obj as TextureIR, objRect);
+        objEl = renderTexture(obj as TextureIR, objRect, config);
       }
       layerEl.appendChild(objEl);
     }
@@ -241,7 +245,11 @@ function renderFrame(
     stateEl.style.cssText = "position:absolute;inset:0;z-index:1;";
     for (const tex of stateTextures) {
       stateEl.appendChild(
-        renderTexture(tex, { left: 0, top: 0, width: frameRect.width, height: frameRect.height }),
+        renderTexture(
+          tex,
+          { left: 0, top: 0, width: frameRect.width, height: frameRect.height },
+          config,
+        ),
       );
     }
     el.appendChild(stateEl);
@@ -273,14 +281,15 @@ export function renderFrames(
   container.id = "wow-viewport";
 
   const scale = config.frameScale;
+  const checkerSize = config.viewportCheckerSize;
   container.style.cssText = [
     "position:relative",
     `width:${viewport.w}px`,
     `height:${viewport.h}px`,
     "overflow:hidden",
-    "background-color:#555",
-    "background-image:repeating-conic-gradient(#444 0% 25%,#666 0% 50%)",
-    "background-size:128px 128px",
+    `background-color:${config.viewportBg}`,
+    `background-image:repeating-conic-gradient(${config.viewportCheckerDark} 0% 25%,${config.viewportCheckerLight} 0% 50%)`,
+    `background-size:${checkerSize}px ${checkerSize}px`,
     ...(scale !== 1 ? [`transform:scale(${scale})`, "transform-origin:top left"] : []),
   ].join(";");
 
@@ -288,7 +297,10 @@ export function renderFrames(
 
   // Filter out virtual frames (templates) — host should already do this, but be safe
   const renderable = frames.filter((f) => !f.virtual);
-  const rectMap = layoutAll(renderable, viewport);
+  const rectMap = layoutAll(renderable, viewport, {
+    epsilon: config.layoutEpsilon,
+    maxIterations: config.layoutMaxIterations,
+  });
 
   for (const frame of renderable) {
     const rect = rectMap.get(frame) ?? viewportRect;

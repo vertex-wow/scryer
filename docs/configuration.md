@@ -155,41 +155,51 @@ Default WoW version target used when no workspace-level target is configured.
 
 **Default:** _(empty, use built-in defaults)_
 
-Path to a JSON file that overrides per-flavor display defaults. Merged on top of the built-in config — later layers win per key. The merge order is:
+Path to a JSON file that overrides per-flavor display and rendering defaults. Merged on top of the built-in config — later layers win per key. The merge order is:
 
 ```
 built-in default → built-in per-flavor → user default → user per-flavor
 ```
 
-The file must match the shape of the built-in `src/flavors/defaults.json`:
+The file shape mirrors `src/flavors/defaults.json`. Include only the keys you want to override — omitted keys fall through to the built-in value. Flavor-specific blocks override the `"default"` block for that flavor only:
 
 ```jsonc
 {
   "default": {
-    "uiParentWidth": 1920,
-    "uiParentHeight": 1080,
-    "defaultFont": "Fonts/FRIZQT__.TTF",
-    "defaultFontSize": 12,
-    "defaultFontFlags": "",
-    "defaultTextColor": { "r": 1.0, "g": 0.82, "b": 0.0, "a": 1.0 },
-    "frameScale": 1.0,
+    "screenWidth": 2560,
+    "screenHeight": 1440,
+    "frameScale": 0.75,
   },
-  "retail": {},
-  "classic": {},
-  "classic_era": {},
+  "retail": {
+    "defaultFont": "Fonts/MyCustomFont.ttf",
+    "fontLetterSpacing": "0em",
+  },
 }
 ```
 
-Only include the keys you want to override — omitted keys fall through to the built-in value. Flavor-specific blocks (e.g. `"retail": { "uiParentWidth": 2560 }`) override the `"default"` block for that flavor only.
+### WoW environment fields
 
-**Built-in defaults for all flavors:**
+These fields control how Scryer models the WoW environment. Change them to match your monitor setup or to simulate a different in-game configuration.
 
-| Property           | Default                                          |
-| ------------------ | ------------------------------------------------ |
-| `uiParentWidth`    | `1024`                                           |
-| `uiParentHeight`   | `768`                                            |
-| `defaultFont`      | `Fonts/FRIZQT__.TTF`                             |
-| `defaultFontSize`  | `12`                                             |
-| `defaultFontFlags` | _(empty)_                                        |
-| `defaultTextColor` | WoW gold — `{ r: 1.0, g: 0.82, b: 0.0, a: 1.0 }` |
-| `frameScale`       | `1.0`                                            |
+| Field              | Default                               | Description                                                         |
+| ------------------ | ------------------------------------- | ------------------------------------------------------------------- |
+| `screenWidth`      | `1920`                                | Physical monitor width in pixels — determines UIParent aspect ratio |
+| `screenHeight`     | `1080`                                | Physical monitor height in pixels                                   |
+| `uiParentHeight`   | `768`                                 | WoW UIParent logical height (fixed by the engine; rarely changed)   |
+| `defaultFont`      | `Fonts/FRIZQT__.TTF`                  | WoW-relative path to the default font file                          |
+| `defaultFontSize`  | `12`                                  | Default font size when none is specified                            |
+| `defaultFontFlags` | _(empty)_                             | WoW font rendering flags (e.g. `OUTLINE`, `THICKOUTLINE`)           |
+| `defaultTextColor` | `{ r: 1.0, g: 0.82, b: 0.0, a: 1.0 }` | Default FontString color — WoW gold                                 |
+| `frameScale`       | `1.0`                                 | Global scale applied to the preview viewport (CSS transform)        |
+
+### Rendering calibration fields
+
+These fields tune how closely the browser preview approximates WoW's actual text rendering. The built-in values are calibrated for the default FRIZQT\_\_.TTF font at standard DPI. If you change `defaultFont`, you may need to adjust these.
+
+| Field               | Default         | Description                                                                                           |
+| ------------------- | --------------- | ----------------------------------------------------------------------------------------------------- |
+| `fontLetterSpacing` | `"0.033em"`     | CSS `letter-spacing` to compensate for WoW DirectWrite wider advance widths vs the browser's renderer |
+| `autoFontSizeRatio` | `0.75`          | Fallback font size when no explicit size is set: `height × ratio`                                     |
+| `fontSmoothing`     | `"antialiased"` | CSS `-webkit-font-smoothing` value. `antialiased` matches WoW's DirectWrite grayscale AA              |
+
+> For preview chrome appearance (ruler colors, viewport background, status bar, placeholder tiles, layout solver parameters), see [advancedConfiguration.md](./advancedConfiguration.md).

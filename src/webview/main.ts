@@ -1,4 +1,4 @@
-import type { HostMessage, WebviewMessage } from "../protocol.js";
+import type { HostMessage, ResolvedFlavorConfig, WebviewMessage } from "../protocol.js";
 import { renderFrames } from "./renderer.js";
 import { initRulers, setRulersVisible, updateRulers } from "./ruler.js";
 
@@ -12,9 +12,10 @@ const viewport = document.getElementById("viewport");
 const debug = document.getElementById("debug");
 if (!viewport) throw new Error("Missing #viewport element");
 
-// Current WoW viewport element and scale — retained so scroll/resize can redraw rulers.
+// Current WoW viewport element, scale, and config — retained so scroll/resize can redraw rulers.
 let currentWowViewport: HTMLElement | null = null;
 let currentScale = 1;
+let currentConfig: ResolvedFlavorConfig | null = null;
 
 function dbg(msg: string): void {
   if (debug) debug.textContent = msg;
@@ -29,11 +30,13 @@ document.getElementById("ruler-toggle")?.addEventListener("click", () => {
 });
 
 window.addEventListener("scroll", () => {
-  if (currentWowViewport) updateRulers(currentWowViewport, currentScale);
+  if (currentWowViewport && currentConfig)
+    updateRulers(currentWowViewport, currentScale, currentConfig);
 });
 
 window.addEventListener("resize", () => {
-  if (currentWowViewport) updateRulers(currentWowViewport, currentScale);
+  if (currentWowViewport && currentConfig)
+    updateRulers(currentWowViewport, currentScale, currentConfig);
 });
 
 /** After a render, collect all unique [data-asset-path] values and request each. */
@@ -137,8 +140,9 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         const root = renderFrames(msg.frames, msg.viewport, msg.flavorConfig);
         viewport!.appendChild(root);
         currentWowViewport = document.getElementById("wow-viewport");
-        currentScale = msg.flavorConfig.frameScale;
-        if (currentWowViewport) updateRulers(currentWowViewport, currentScale);
+        currentConfig = msg.flavorConfig;
+        currentScale = currentConfig.frameScale;
+        if (currentWowViewport) updateRulers(currentWowViewport, currentScale, currentConfig);
         let suffix = " OK";
         if (msg.extractionPending)
           suffix = msg.pendingFiles > 0 ? ` — ${msg.pendingFiles} file(s) pending` : ` — pending`;
@@ -158,7 +162,8 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
 
     case "setRuler": {
       setRulersVisible(msg.show);
-      if (msg.show && currentWowViewport) updateRulers(currentWowViewport, currentScale);
+      if (msg.show && currentWowViewport && currentConfig)
+        updateRulers(currentWowViewport, currentScale, currentConfig);
       break;
     }
   }
