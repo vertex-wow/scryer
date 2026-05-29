@@ -56,7 +56,11 @@
     "layoutMaxIterations": 64,
 
     "_comment_sandboxTimeout": "Per-call Lua execution timeout in milliseconds. Each JS→Lua call (doString, event dispatch) is killed if it exceeds this limit, preventing infinite loops from hanging VS Code. Applies per-call, not to the total session.",
-    "sandboxTimeout": 5000
+    "sandboxTimeout": 5000,
+
+    "_comment_onUpdate": "OnUpdate tick loop. onUpdateHz is the target tick rate (ticks per second). onUpdateTimeout is the per-tick Lua execution budget in milliseconds; a tick that exceeds this is killed with a warning.",
+    "onUpdateHz": 60,
+    "onUpdateTimeout": 100
   },
   "retail": {},
   "classic": {},

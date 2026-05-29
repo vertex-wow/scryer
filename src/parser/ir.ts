@@ -106,6 +106,10 @@ export interface FrameIR extends LayoutFrameBase {
   normalFont?: string;
   highlightFont?: string;
   disabledFont?: string;
+  /** Set by live-panel runtime: frame has OnClick/OnEnter/OnLeave handlers. */
+  interactive?: boolean;
+  /** Live-panel runtime ID used to route webview frameEvent messages back to Lua. */
+  runtimeId?: number;
 }
 
 export type RenderObjectIR = TextureIR | FontStringIR;

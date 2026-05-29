@@ -231,6 +231,11 @@ export function frameNodeToIR(
   const parentNode = node.parentId !== undefined ? getNode(node.parentId) : undefined;
   const parentName = parentNode?.name ?? (node.parentId === uiParentId ? "UIParent" : undefined);
 
+  const interactive =
+    (node.scripts.get("OnClick")?.length ?? 0) > 0 ||
+    (node.scripts.get("OnEnter")?.length ?? 0) > 0 ||
+    (node.scripts.get("OnLeave")?.length ?? 0) > 0;
+
   return {
     kind: FRAME_KIND_MAP[node.frameType] ?? "Frame",
     name: node.name,
@@ -260,5 +265,7 @@ export function frameNodeToIR(
     children,
     scripts: [],
     buttonText: node.buttonText,
+    interactive: interactive || undefined,
+    runtimeId: interactive ? node.id : undefined,
   };
 }

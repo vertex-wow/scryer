@@ -197,13 +197,16 @@ function generateFrameCode(
     }
   }
 
-  // Register OnLoad scripts, then fire immediately (mirrors WoW XML load behaviour)
+  // Register OnLoad scripts, then fire immediately (mirrors WoW XML load behaviour).
+  // __scryer_dispatch_script fires all handlers in the chain (including hooks).
   for (const script of onLoadScripts) {
     const scriptLines: string[] = [];
     emitScriptCode(v, script, scriptLines, scriptBodies);
     for (const l of scriptLines) lines.push(`  ${l}`);
   }
-  lines.push(`  do local _fn = ${v}:GetScript("OnLoad"); if _fn then pcall(_fn, ${v}) end end`);
+  lines.push(
+    `  if type(__scryer_dispatch_script) == "function" then __scryer_dispatch_script(${v}.__id, "OnLoad") end`,
+  );
 
   lines.push(`end`); // close "if v then"
 }

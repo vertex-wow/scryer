@@ -38,4 +38,10 @@ export type HostMessage =
 export type WebviewMessage =
   | { type: "ready" }
   | { type: "requestAsset"; path?: string; atlas?: string }
-  | { type: "toggleRuler" };
+  | { type: "toggleRuler" }
+  | {
+      type: "frameEvent";
+      frameId: number;
+      event: "OnClick" | "OnEnter" | "OnLeave";
+      extra?: unknown[];
+    };

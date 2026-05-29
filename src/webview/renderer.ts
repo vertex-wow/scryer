@@ -174,6 +174,8 @@ function renderFontString(fs: FontStringIR, rect: Rect, config: ResolvedFlavorCo
 // Frame rendering
 // ---------------------------------------------------------------------------
 
+type FrameEventCallback = (frameId: number, event: string, extra: unknown[]) => void;
+
 function renderFrame(
   frame: FrameIR,
   frameRect: Rect,
@@ -181,6 +183,7 @@ function renderFrame(
   rectMap: Map<FrameIR, Rect>,
   viewportRect: Rect,
   config: ResolvedFlavorConfig,
+  onFrameEvent: FrameEventCallback | undefined,
   isTopLevel = false,
 ): HTMLElement {
   const el = document.createElement("div");
@@ -196,6 +199,22 @@ function renderFrame(
   // Child hidden frames are conditional overlays — dim them so layout is visible but reads inactive.
   if (frame.hidden && !isTopLevel) el.style.opacity = "0.4";
   if (frame.alpha !== undefined) el.style.opacity = String(frame.alpha);
+
+  // Attach mouse event listeners for interactive frames (those with OnClick/OnEnter/OnLeave handlers).
+  if (frame.interactive && frame.runtimeId !== undefined && onFrameEvent) {
+    const rId = frame.runtimeId;
+    el.style.cursor = "pointer";
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onFrameEvent(rId, "OnClick", ["LeftButton", true]);
+    });
+    el.addEventListener("mouseenter", () => {
+      onFrameEvent(rId, "OnEnter", []);
+    });
+    el.addEventListener("mouseleave", () => {
+      onFrameEvent(rId, "OnLeave", []);
+    });
+  }
 
   // Render layers (back → front)
   for (const layer of frame.layers) {
@@ -258,7 +277,9 @@ function renderFrame(
   // Recursively render children
   for (const child of frame.children) {
     const childRect = rectMap.get(child) ?? frameRect;
-    el.appendChild(renderFrame(child, childRect, frameRect, rectMap, viewportRect, config));
+    el.appendChild(
+      renderFrame(child, childRect, frameRect, rectMap, viewportRect, config, onFrameEvent),
+    );
   }
 
   return el;
@@ -271,11 +292,13 @@ function renderFrame(
 /**
  * Render a list of resolved FrameIRs into a container div sized to the viewport.
  * All layout is computed here (no DOM measurements needed for M2).
+ * Pass onFrameEvent to receive click/enter/leave events from interactive frames.
  */
 export function renderFrames(
   frames: FrameIR[],
   viewport: Viewport,
   config: ResolvedFlavorConfig,
+  onFrameEvent?: FrameEventCallback,
 ): HTMLElement {
   const container = document.createElement("div");
   container.id = "wow-viewport";
@@ -305,7 +328,7 @@ export function renderFrames(
   for (const frame of renderable) {
     const rect = rectMap.get(frame) ?? viewportRect;
     container.appendChild(
-      renderFrame(frame, rect, viewportRect, rectMap, viewportRect, config, true),
+      renderFrame(frame, rect, viewportRect, rectMap, viewportRect, config, onFrameEvent, true),
     );
   }
 

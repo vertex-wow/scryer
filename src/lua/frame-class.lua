@@ -88,16 +88,57 @@ do
   local _fs_set_all_points       = __scryer_fs_set_all_points
   local _ui_parent_id            = __scryer_ui_parent_id
   local _event_listeners         = __scryer_event_listeners
-  -- Lua-side script storage avoids JS round-trip (wasmoon null crash on GetScript)
-  local _scripts                 = {}  -- { [frameId] = { [event] = fn } }
   local _world_frame_id          = __scryer_world_frame_id
 
   -- Shared reference cache: id → Lua table.
-  -- Lets GetParent/GetChildren return the actual Lua table, not just an ID.
   local _refs = {}
 
+  -- Script storage: { [frameId] = { [event] = { fn, fn2, ... } } }
+  -- SetScript sets the chain to { fn } (or {} for nil); HookScript appends.
+  -- GetScript returns handlers[1] (the primary). _fire_script calls all.
+  local _scripts = {}
+
+  -- OnUpdate frame list: frames with active OnUpdate handlers (maintained by SetScript/HookScript).
+  local _update_frames     = {}
+  local _update_frame_set  = {}  -- { [frameId] = true } for O(1) membership check
+
+  -- ── _fire_script: call all handlers for (frame, event, ...) ──────────────────
+  local function _fire_script(frame, event, ...)
+    local id = frame.__id
+    local s = _scripts[id]
+    if not s then return end
+    local handlers = s[event]
+    if not handlers or #handlers == 0 then return end
+    for i = 1, #handlers do
+      local ok, err = pcall(handlers[i], frame, ...)
+      if not ok then
+        print("[Scryer] " .. tostring(event) .. " error: " .. tostring(err))
+      end
+    end
+  end
+
+  -- ── _update_frames management ────────────────────────────────────────────────
+  local function _track_update(frame, has_handler)
+    local id = frame.__id
+    if has_handler then
+      if not _update_frame_set[id] then
+        _update_frame_set[id] = true
+        table.insert(_update_frames, frame)
+      end
+    else
+      if _update_frame_set[id] then
+        _update_frame_set[id] = nil
+        for i = #_update_frames, 1, -1 do
+          if _update_frames[i].__id == id then
+            table.remove(_update_frames, i)
+            break
+          end
+        end
+      end
+    end
+  end
+
   -- ── Shared: resolve a relTo argument to an ID or name ───────────────────────
-  -- Accepts a frame/texture table (extracts __id), a string name, or nil.
   local function _relTo(rTo)
     if type(rTo) == "table" then return rTo.__id end
     if type(rTo) == "string" then return rTo end
@@ -211,9 +252,20 @@ do
   function FrameMT:SetParent(p)          _frame_set_parent(self.__id, p and p.__id)        end
   function FrameMT:GetWidth()     return _frame_get_width(self.__id)  or 0                 end
   function FrameMT:GetHeight()    return _frame_get_height(self.__id) or 0                 end
-  function FrameMT:SetWidth(w)           _frame_set_size(self.__id, w, nil)                end
-  function FrameMT:SetHeight(h)          _frame_set_size(self.__id, nil, h)                end
-  function FrameMT:SetSize(w,h)          _frame_set_size(self.__id, w, h)                  end
+  function FrameMT:SetWidth(w)
+    _frame_set_size(self.__id, w, nil)
+    local h = _frame_get_height(self.__id) or 0
+    _fire_script(self, "OnSizeChanged", w, h)
+  end
+  function FrameMT:SetHeight(h)
+    _frame_set_size(self.__id, nil, h)
+    local w = _frame_get_width(self.__id) or 0
+    _fire_script(self, "OnSizeChanged", w, h)
+  end
+  function FrameMT:SetSize(w, h)
+    _frame_set_size(self.__id, w, h)
+    _fire_script(self, "OnSizeChanged", w or 0, h or 0)
+  end
   function FrameMT:GetSize()      return _frame_get_width(self.__id) or 0, _frame_get_height(self.__id) or 0 end
   function FrameMT:GetRect()      return 0, 0, _frame_get_width(self.__id) or 0, _frame_get_height(self.__id) or 0 end
   function FrameMT:GetLeft()      return 0   end
@@ -228,8 +280,14 @@ do
   end
   function FrameMT:ClearAllPoints()      _frame_clear_points(self.__id)                    end
   function FrameMT:SetAllPoints(rTo)     _frame_set_all_points(self.__id, _relTo(rTo))     end
-  function FrameMT:Show()                _frame_show(self.__id)                            end
-  function FrameMT:Hide()                _frame_hide(self.__id)                            end
+  function FrameMT:Show()
+    _frame_show(self.__id)
+    _fire_script(self, "OnShow")
+  end
+  function FrameMT:Hide()
+    _frame_hide(self.__id)
+    _fire_script(self, "OnHide")
+  end
   function FrameMT:IsShown()      return _frame_is_shown(self.__id)                        end
   function FrameMT:IsVisible()    return _frame_is_shown(self.__id)                        end
   function FrameMT:SetAlpha(a)           _frame_set_alpha(self.__id, a)                    end
@@ -253,18 +311,32 @@ do
     _frame_set_script(self.__id, e, fn)
     local id = self.__id
     if not _scripts[id] then _scripts[id] = {} end
-    _scripts[id][e] = fn
+    if fn ~= nil then
+      _scripts[id][e] = { fn }
+    else
+      _scripts[id][e] = nil
+    end
+    if e == "OnUpdate" then _track_update(self, fn ~= nil) end
   end
   function FrameMT:GetScript(e)
     local id = self.__id
-    if _scripts[id] then return _scripts[id][e] end
-    return _frame_get_script(self.__id, e)
+    local s = _scripts[id]
+    local handlers = s and s[e]
+    if handlers and #handlers > 0 then return handlers[1] end
+    return nil
   end
   function FrameMT:HookScript(e, fn)
+    if fn == nil then return end
     _frame_hook_script(self.__id, e, fn)
     local id = self.__id
     if not _scripts[id] then _scripts[id] = {} end
-    _scripts[id][e] = fn
+    local handlers = _scripts[id][e]
+    if handlers then
+      table.insert(handlers, fn)
+    else
+      _scripts[id][e] = { fn }
+    end
+    if e == "OnUpdate" then _track_update(self, true) end
   end
   function FrameMT:HasScript()   return true                                                end
   function FrameMT:RegisterEvent(e)
@@ -365,7 +437,9 @@ do
   function ButtonMT:Enable()             _btn_enable(self.__id)                             end
   function ButtonMT:Disable()            _btn_disable(self.__id)                            end
   function ButtonMT:IsEnabled()  return _btn_is_enabled(self.__id)                          end
-  function ButtonMT:Click()              end
+  function ButtonMT:Click()
+    _fire_script(self, "OnClick", "LeftButton", false)
+  end
   function ButtonMT:GetButtonState()     return "NORMAL" end
   function ButtonMT:SetButtonState()     end
   function ButtonMT:LockHighlight()      end
@@ -389,7 +463,10 @@ do
 
   function StatusBarMT:SetMinMaxValues(mn,mx) _sb_set_minmax(self.__id, mn, mx) end
   function StatusBarMT:GetMinMaxValues()       return _sb_get_min(self.__id), _sb_get_max(self.__id) end
-  function StatusBarMT:SetValue(v)             _sb_set_value(self.__id, v)                          end
+  function StatusBarMT:SetValue(v)
+    _sb_set_value(self.__id, v)
+    _fire_script(self, "OnValueChanged", v, false)
+  end
   function StatusBarMT:GetValue()      return _sb_get_value(self.__id)                              end
   function StatusBarMT:SetStatusBarTexture(v)
     if type(v) == "string" then _sb_set_texture(self.__id, v)
@@ -423,7 +500,9 @@ do
 
   function SliderMT:SetMinMaxValues()     end
   function SliderMT:GetMinMaxValues()     return 0, 1 end
-  function SliderMT:SetValue()            end
+  function SliderMT:SetValue(v)
+    _fire_script(self, "OnValueChanged", v, false)
+  end
   function SliderMT:GetValue()            return 0 end
   function SliderMT:SetValueStep()        end
   function SliderMT:SetOrientation()      end
@@ -526,23 +605,31 @@ do
   noop       = nop
   donothing  = nop
 
-  -- ── Event dispatch (used by toc-runner after TOC load sequence) ──────────
+  -- ── Event dispatch (used by toc-runner after TOC load sequence) ──────────────
   function __scryer_fire_event(eventName, ...)
     local list = _event_listeners[eventName]
     if not list then return end
     local args = {...}
     for i = 1, #list do
       local frame = list[i]
-      -- Read from Lua-side _scripts to avoid JS round-trip (wasmoon null crash on GetScript)
-      local frameScripts = _scripts[frame.__id]
-      local fn = frameScripts and frameScripts["OnEvent"]
-      if fn then
-        local ok, err = pcall(fn, frame, eventName, table.unpack(args))
-        if not ok then
-          print("[Scryer] OnEvent error (" .. tostring(eventName) .. "): " .. tostring(err))
-        end
-      end
+      _fire_script(frame, "OnEvent", eventName, table.unpack(args))
     end
+  end
+
+  -- ── OnUpdate tick — called by EventEngine on each virtual clock tick ──────────
+  -- elapsed is the time in seconds since the last tick.
+  function __scryer_tick(elapsed)
+    for i = 1, #_update_frames do
+      _fire_script(_update_frames[i], "OnUpdate", elapsed)
+    end
+  end
+
+  -- ── Frame-script dispatch — called by host for webview frameEvent messages ────
+  -- Looks up the frame by runtimeId and fires the named script with extra args.
+  function __scryer_dispatch_script(frameId, event, ...)
+    local frame = _refs[frameId]
+    if not frame then return end
+    _fire_script(frame, event, ...)
   end
 
   -- ── Clear all helper globals ──────────────────────────────────────────────────

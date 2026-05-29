@@ -74,6 +74,10 @@ export interface FlavorConfigLayer {
   layoutMaxIterations?: number;
   /** Per-call Lua execution timeout in milliseconds. Each JS→Lua call is killed if it exceeds this limit. */
   sandboxTimeout?: number;
+  /** OnUpdate tick rate in ticks per second (default 60). */
+  onUpdateHz?: number;
+  /** Per-tick Lua execution budget in milliseconds; tick is killed with a warning if exceeded (default 100). */
+  onUpdateTimeout?: number;
 }
 
 /** Shape of a flavor config JSON file (defaults.json or user-supplied). */
@@ -123,6 +127,8 @@ export interface ResolvedFlavorConfig {
   layoutEpsilon: number;
   layoutMaxIterations: number;
   sandboxTimeout: number;
+  onUpdateHz: number;
+  onUpdateTimeout: number;
 }
 
 // Absolute fallback — matches the values in src/flavors/defaults.json.
@@ -163,6 +169,8 @@ const HARD_DEFAULTS: Required<FlavorConfigLayer> = {
   layoutEpsilon: 1e-9,
   layoutMaxIterations: 64,
   sandboxTimeout: 5000,
+  onUpdateHz: 60,
+  onUpdateTimeout: 100,
 };
 
 // Built-in per-flavor config — mirrors src/flavors/defaults.json exactly.
@@ -204,6 +212,8 @@ const BUILTIN_CONFIG: FlavorConfigFile = {
     layoutEpsilon: 1e-9,
     layoutMaxIterations: 64,
     sandboxTimeout: 5000,
+    onUpdateHz: 60,
+    onUpdateTimeout: 100,
   },
   retail: {},
   classic: {},

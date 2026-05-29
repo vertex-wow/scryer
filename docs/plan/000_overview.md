@@ -320,7 +320,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tr>
   <td>9</td>
   <td><strong><a href="009_script_events.md">Script Events</a></strong></td>
-  <td>⬜ Pending</td>
+  <td>✅ Complete (2026-05-29)</td>
   <td><code>OnLoad</code> through <code>OnUpdate</code>; <code>RegisterEvent</code>; webview→Lua event bridge; <code>OnUpdate</code> watchdog</td>
   <td>S–M</td>
   <td>8</td>

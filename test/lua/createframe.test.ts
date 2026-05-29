@@ -393,8 +393,8 @@ describe("SetScript / GetScript", () => {
     const { lua, registry } = await setup();
     try {
       await lua.doString(`local f = CreateFrame("Frame", "NoScript")`);
-      // JS helper returns undefined → 0 Lua values → doString returns undefined (wasmoon gotcha)
-      expect(await lua.doString(`return NoScript:GetScript("OnLoad")`)).toBeUndefined();
+      // Lua nil → null in JavaScript (GetScript returns nil from pure-Lua _scripts table)
+      expect(await lua.doString(`return NoScript:GetScript("OnLoad")`)).toBeNull();
     } finally {
       lua.global.close();
     }

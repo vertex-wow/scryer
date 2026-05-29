@@ -1,89 +1,74 @@
 # Milestone 9 — Script Events
 
+**Status:** ✅ Complete (2026-05-29)
+
 ## Goal
 
 Implement the full WoW script event system: `OnLoad` through `OnUpdate`, the Lua event dispatcher (`RegisterEvent`/`UnregisterEvent`/`OnEvent`), and the webview→Lua bridge for user interaction events (`OnClick`, `OnEnter`, `OnLeave`). After this milestone, addon interactive UI works end-to-end.
 
-## Script Handlers
+## What Was Built
 
-Handlers are stored on the frame object during M7 (`SetScript`, `HookScript`). M9 dispatches them.
+### Handler Chain (HookScript)
 
-**Inline scripts** compiled as:
+`_scripts[id][event]` is now an array `{ fn1, fn2, ... }`. A local `_fire_script(frame, event, ...)` iterates and pcall-wraps each handler. All dispatch sites use `_fire_script`.
 
-```lua
-load("return function(self, ...) " .. body .. " end")()
-```
+- `SetScript(e, fn)` → sets chain to `{ fn }` (or clears to nil if fn is nil)
+- `HookScript(e, fn)` → appends fn to existing chain (or creates `{ fn }` if no prior handler)
+- `GetScript(e)` → returns `handlers[1]` (the primary, for API compatibility)
 
-**`method=`** resolves against the frame's mixin table. **`function=`** resolves against `_G`. **`inherit="prepend|append|none"`** controls merging with inherited script bodies.
+### Dispatched Script Events
 
-## Event Table
+| Event                      | Trigger                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| `OnLoad`                   | After frame (and all children) are created; dispatches all handlers in chain |
+| `OnShow`                   | From `FrameMT:Show()`                                                        |
+| `OnHide`                   | From `FrameMT:Hide()`                                                        |
+| `OnSizeChanged(w, h)`      | From `SetSize`, `SetWidth`, `SetHeight`                                      |
+| `OnValueChanged(v, false)` | From `StatusBarMT:SetValue`, `SliderMT:SetValue`                             |
+| `OnClick(btn, down)`       | From `ButtonMT:Click()` or webview frameEvent                                |
+| `OnEnter` / `OnLeave`      | From webview frameEvent                                                      |
+| `OnUpdate(elapsed)`        | From `__scryer_tick(elapsed)` (EventEngine tick loop)                        |
+| `OnEvent(event, ...)`      | From `__scryer_fire_event` (event bus)                                       |
 
-| Event                        | Trigger                                                         |
-| ---------------------------- | --------------------------------------------------------------- |
-| `OnLoad`                     | After a frame (and all children) are created and mixins applied |
-| `OnShow` / `OnHide`          | On `Show()`/`Hide()` call; also on `SetShown`                   |
-| `OnSizeChanged(w, h)`        | On `SetSize`, `SetWidth`, `SetHeight`                           |
-| `OnClick(button, down)`      | From webview `frameEvent` message (user clicks in preview)      |
-| `OnEnter` / `OnLeave`        | From webview mouse-over events                                  |
-| `OnUpdate(elapsed)`          | Throttled virtual clock tick; protected against infinite loops  |
-| `OnEvent(event, ...)`        | From the event dispatcher                                       |
-| `OnValueChanged(value, ...)` | StatusBar / Slider value changes                                |
+### WoW Event Dispatcher
 
-## WoW Event Dispatcher
+`RegisterEvent`/`UnregisterEvent`/`UnregisterAllEvents` maintain the `_event_listeners` table. `__scryer_fire_event(eventName, ...)` iterates registered frames and calls `_fire_script(frame, "OnEvent", eventName, ...)`.
 
-```ts
-// Per-frame event subscription (TypeScript-backed):
-lua.global.set("RegisterEvent", (frame, event) => eventBus.register(frame, event));
-lua.global.set("UnregisterEvent", (frame, event) => eventBus.unregister(frame, event));
+### OnLoad
 
-// Fire an event to all registered frames:
-eventBus.fire("PLAYER_LOGIN"); // → each registered frame's OnEvent(self, "PLAYER_LOGIN")
-eventBus.fire("BAG_UPDATE", 0); // → OnEvent(self, "BAG_UPDATE", 0)
-```
+`xml-importer.ts` now calls `__scryer_dispatch_script(frame.__id, "OnLoad")` after registering OnLoad scripts, firing all handlers in the chain (instead of only the primary via `GetScript`).
 
-Event argument types are generic in M9 (`...`). Typed payloads from `_reference/vscode-wow-api/src/data/event.ts` (1739 events, 7648 lines) are an M12 enhancement.
+### OnUpdate Tick Loop
 
-## Webview → Lua Event Bridge
+- `_update_frames` / `_update_frame_set` track frames with active OnUpdate handlers (maintained by `SetScript`/`HookScript`)
+- `__scryer_tick(elapsed)` global iterates `_update_frames` and calls `_fire_script(frame, "OnUpdate", elapsed)`
+- `EventEngine` (`src/lua/event-engine.ts`) runs a `setInterval` at `onUpdateHz` (default 60 Hz, configurable via `defaults.json`)
+- Per-tick budget: `onUpdateTimeout` (default 100ms); exceeded ticks are killed with a warning
 
-The webview sends `frameEvent` messages to the extension host when the user interacts with the preview:
+### Webview → Lua Event Bridge
 
-```ts
-// webview message → extension host → Lua dispatch
-case "frameEvent": {
-    const frame = frameRegistry.get(msg.frameId);
-    if (msg.type === "click") frame.fireScript("OnClick", msg.button, true);
-    if (msg.type === "mouseenter") frame.fireScript("OnEnter");
-    if (msg.type === "mouseleave") frame.fireScript("OnLeave");
-}
-```
+- `FrameIR` gains `interactive?: boolean` and `runtimeId?: number`; set when a frame has OnClick/OnEnter/OnLeave handlers in the registry
+- `__scryer_dispatch_script(frameId, event, ...)` global looks up the frame by runtime ID and fires its script chain
+- Webview renderer attaches `click`/`mouseenter`/`mouseleave` listeners to interactive frames; posts `frameEvent` messages to the host
+- `live-panel.ts` routes `frameEvent` → `EventEngine.dispatchFrameEvent()`
 
-The webview emits these events for frames that have script handlers registered (the render protocol can mark frames as interactive).
+### Live Session Architecture
 
-## OnUpdate — Throttle and Watchdog
+`ScryerLivePanel` keeps the sandbox alive after TOC run (instead of closing it immediately). The `EventEngine` tick loop runs until the panel is disposed or re-rendered. On file save, the old session is torn down and a new one is created.
 
-`OnUpdate` handlers fire on a virtual tick loop. Without protection, a tight `OnUpdate` can freeze the extension host.
+## Config Values Added
 
-- **Throttle:** tick no faster than 60 Hz (configurable via `defaults.json`).
-- **Instruction watchdog:** wasmoon supports a step-count hook; configure a per-tick limit. If exceeded, log a warning and skip the frame for that tick.
-- **Infinite loop protection:** global instruction count cap per sandbox execution (configurable).
+In `defaults.json` and `config.ts`:
 
-## HookScript
+| Key               | Default | Description                    |
+| ----------------- | ------- | ------------------------------ |
+| `onUpdateHz`      | 60      | OnUpdate tick rate (ticks/sec) |
+| `onUpdateTimeout` | 100     | Per-tick Lua budget in ms      |
 
-`HookScript(event, fn)` appends `fn` after the existing handler without replacing it. Maintain a handler chain per event per frame: `[originalHandler, ...hooks]`. Fire in order.
+## New Files
+
+- `src/lua/event-engine.ts` — `EventEngine` class (tick loop, frame event dispatch, dirty-flush)
 
 ## Testing
 
-- `frame:SetScript("OnLoad", fn)` — `fn` fires after addon loads
-- `frame:SetScript("OnClick", fn)` — clicking the frame in the webview fires `fn`
-- `RegisterEvent("PLAYER_LOGIN")` + `OnEvent` — handler fires on `PLAYER_LOGIN`
-- `frame:SetScript("OnUpdate", fn)` — fn fires on each tick; instruction watchdog terminates a tight loop
-- `HookScript` — both original and hook fire in order
-- Inline script compilation: `<OnLoad>self:Hide()</OnLoad>` hides the frame after load
-
-## Dependencies
-
-**M8** (execution pipeline must be running for events to fire in context).
-
-## Rough Effort
-
-**S–M** — dispatcher and bridge logic are straightforward; `OnUpdate` watchdog and `HookScript` chain need care.
+All 25 M9 tests pass in `test/lua/script-events.test.ts`. Full suite: 348/348.

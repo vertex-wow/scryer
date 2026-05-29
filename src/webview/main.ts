@@ -137,7 +137,19 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       try {
         if (msg.defaultFontUri) applyDefaultFont(msg.defaultFontUri);
         viewport!.innerHTML = "";
-        const root = renderFrames(msg.frames, msg.viewport, msg.flavorConfig);
+        const root = renderFrames(
+          msg.frames,
+          msg.viewport,
+          msg.flavorConfig,
+          (frameId, event, extra) => {
+            vscode.postMessage({
+              type: "frameEvent",
+              frameId,
+              event: event as "OnClick" | "OnEnter" | "OnLeave",
+              extra,
+            });
+          },
+        );
         viewport!.appendChild(root);
         currentWowViewport = document.getElementById("wow-viewport");
         currentConfig = msg.flavorConfig;

@@ -8,9 +8,12 @@ import { registerWowApi, VirtualClock } from "./lua/wow-api.js";
 import { registerFrameModel } from "./lua/createframe.js";
 import { FrameRegistry } from "./lua/frame-registry.js";
 import { runTocAddon } from "./lua/toc-runner.js";
+import { EventEngine } from "./lua/event-engine.js";
 import { resolveFlavorConfig } from "./flavors/config.js";
-import type { HostMessage, Viewport } from "./protocol.js";
+import type { ResolvedFlavorConfig } from "./flavors/config.js";
+import type { HostMessage, Viewport, WebviewMessage } from "./protocol.js";
 import type { FrameIR, TextureIR } from "./parser/ir.js";
+import type { LuaEngine } from "wasmoon";
 
 function getNonce(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -83,6 +86,19 @@ function collectTexturePaths(frames: FrameIR[]): string[] {
 }
 
 // ---------------------------------------------------------------------------
+// Live session — holds the active sandbox and event engine
+// ---------------------------------------------------------------------------
+
+interface LiveSession {
+  sandbox: LuaEngine;
+  registry: FrameRegistry;
+  clock: VirtualClock;
+  engine: EventEngine;
+  addonDir: string;
+  flavorConfig: ResolvedFlavorConfig;
+}
+
+// ---------------------------------------------------------------------------
 
 export class ScryerLivePanel {
   static readonly viewType = "scryer.live";
@@ -94,6 +110,7 @@ export class ScryerLivePanel {
   private disposables: vscode.Disposable[] = [];
   private assets: AssetService;
 
+  private session: LiveSession | undefined;
   private missingPaths = new Map<string, string>();
   private retryInProgress = false;
   private extractDebounce: ReturnType<typeof setTimeout> | undefined;
@@ -149,7 +166,7 @@ export class ScryerLivePanel {
     this.panel.webview.html = this.buildHtml();
 
     this.panel.webview.onDidReceiveMessage(
-      (message: unknown) => this.handleWebviewMessage(message, uri),
+      (message: unknown) => void this.handleWebviewMessage(message, uri),
       null,
       this.disposables,
     );
@@ -218,9 +235,25 @@ export class ScryerLivePanel {
     this.statusBar.text = `📏 ${show ? "ON" : "OFF"}`;
   }
 
-  private handleWebviewMessage(message: unknown, uri: vscode.Uri): void {
+  // ── Session lifecycle ────────────────────────────────────────────────────────
+
+  private stopSession(): void {
+    if (this.session) {
+      this.session.engine.stop();
+      try {
+        this.session.sandbox.global.close();
+      } catch {
+        /* ignore */
+      }
+      this.session = undefined;
+    }
+  }
+
+  // ── Webview message handler ──────────────────────────────────────────────────
+
+  private async handleWebviewMessage(message: unknown, uri: vscode.Uri): Promise<void> {
     if (typeof message !== "object" || !message) return;
-    const msg = message as { type: string; path?: string };
+    const msg = message as WebviewMessage;
 
     switch (msg.type) {
       case "ready":
@@ -237,6 +270,12 @@ export class ScryerLivePanel {
         const cfg = vscode.workspace.getConfiguration("scryer");
         const current = cfg.get<boolean>("showRuler") ?? true;
         void cfg.update("showRuler", !current, vscode.ConfigurationTarget.Workspace);
+        break;
+      }
+
+      case "frameEvent": {
+        if (!this.session) break;
+        await this.session.engine.dispatchFrameEvent(msg.frameId, msg.event, msg.extra ?? []);
         break;
       }
     }
@@ -283,6 +322,39 @@ export class ScryerLivePanel {
     }
   }
 
+  // ── Re-render helper (called by EventEngine when frames go dirty) ────────────
+
+  private sendFrames(
+    frames: FrameIR[],
+    flavorConfig: ResolvedFlavorConfig,
+    addonDir: string,
+  ): void {
+    const atlasManifest = this.assets.loadAtlasManifest();
+    if (atlasManifest) resolveAtlasNames(frames, atlasManifest);
+
+    const viewport: Viewport = {
+      w: flavorConfig.uiParentWidth,
+      h: flavorConfig.uiParentHeight,
+    };
+
+    const msg: HostMessage = {
+      type: "render",
+      frames,
+      viewport,
+      warnings: 0,
+      extractionPending: false,
+      pendingFiles: 0,
+      flavorConfig,
+    };
+    void this.panel.webview.postMessage(msg);
+
+    for (const rawPath of collectTexturePaths(frames)) {
+      void this.resolveAndSendAsset(rawPath, addonDir);
+    }
+  }
+
+  // ── Main run-and-render cycle ────────────────────────────────────────────────
+
   async runAndRender(uri: vscode.Uri): Promise<void> {
     if (this.extractDebounce !== undefined) {
       clearTimeout(this.extractDebounce);
@@ -290,82 +362,72 @@ export class ScryerLivePanel {
     }
     this.missingPaths.clear();
 
+    // Tear down any existing session first
+    this.stopSession();
+
     const cfg = vscode.workspace.getConfiguration("scryer");
     const flavor = cfg.get<string>("flavor") ?? "retail";
     const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
     const flavorConfig = resolveFlavorConfig(flavor, userConfigPath);
+    const addonDir = path.dirname(uri.fsPath);
 
     try {
       // Read the TOC file
       const tocContent = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf-8");
       const toc = parseToc(tocContent, uri.fsPath);
-      const addonDir = path.dirname(uri.fsPath);
 
-      // Build a fresh sandbox + registry for each render cycle
+      // Build a fresh sandbox + registry
       const wasmPath = vscode.Uri.joinPath(this.context.extensionUri, "dist", "glue.wasm").fsPath;
       const registry = new FrameRegistry(flavorConfig.uiParentWidth, flavorConfig.uiParentHeight);
       const clock = new VirtualClock();
       const sandbox = await createSandbox(wasmPath, { timeout: flavorConfig.sandboxTimeout });
 
-      try {
-        await registerWowApi(sandbox, {
-          clock,
-          print: (msg) => this.output.info(`[Lua] ${msg}`),
-          isAddonLoaded: () => true,
-          getAddonMetadata: (name, key) => {
-            if (
-              name.toLowerCase() ===
-              path.basename(toc.sourceFile, path.extname(toc.sourceFile)).toLowerCase()
-            ) {
-              return toc.rawMeta[key] ?? null;
-            }
-            return null;
-          },
-        });
+      await registerWowApi(sandbox, {
+        clock,
+        print: (msg) => this.output.info(`[Lua] ${msg}`),
+        isAddonLoaded: () => true,
+        getAddonMetadata: (name, key) => {
+          if (
+            name.toLowerCase() ===
+            path.basename(toc.sourceFile, path.extname(toc.sourceFile)).toLowerCase()
+          ) {
+            return toc.rawMeta[key] ?? null;
+          }
+          return null;
+        },
+      });
 
-        await registerFrameModel(sandbox, registry);
+      await registerFrameModel(sandbox, registry);
 
-        // Load blizzard templates (disk-cached; fast after first parse)
-        const blizzardTemplates = this.assets.loadBlizzardTemplates();
+      const blizzardTemplates = this.assets.loadBlizzardTemplates();
 
-        // Run the TOC load sequence
-        await runTocAddon({
-          toc,
-          addonDir,
-          sandbox,
-          blizzardTemplates,
-          timeout: flavorConfig.sandboxTimeout,
-          readFile: async (absPath) => {
-            // Prefer open document buffer (unsaved changes) over disk
-            const docUri = vscode.Uri.file(absPath);
-            const openDoc = vscode.workspace.textDocuments.find(
-              (d) => d.uri.toString() === docUri.toString(),
-            );
-            if (openDoc) return openDoc.getText();
-            return Buffer.from(await vscode.workspace.fs.readFile(docUri)).toString("utf-8");
-          },
-          output: {
-            info: (msg) => this.output.info(msg),
-            warn: (msg) => this.output.warn(msg),
-            error: (msg) => this.output.error(msg),
-          },
-        });
+      await runTocAddon({
+        toc,
+        addonDir,
+        sandbox,
+        blizzardTemplates,
+        timeout: flavorConfig.sandboxTimeout,
+        readFile: async (absPath) => {
+          const docUri = vscode.Uri.file(absPath);
+          const openDoc = vscode.workspace.textDocuments.find(
+            (d) => d.uri.toString() === docUri.toString(),
+          );
+          if (openDoc) return openDoc.getText();
+          return Buffer.from(await vscode.workspace.fs.readFile(docUri)).toString("utf-8");
+        },
+        output: {
+          info: (msg) => this.output.info(msg),
+          warn: (msg) => this.output.warn(msg),
+          error: (msg) => this.output.error(msg),
+        },
+      });
 
-        // Advance clock one tick to fire any immediate timers (C_Timer.After(0, ...))
-        clock.advance(0.001);
-      } finally {
-        sandbox.global.close();
-      }
+      // Advance clock one tick to fire any immediate timers
+      clock.advance(0.001);
 
-      // Serialize frame tree → FrameIR[]
+      // Serialize the initial frame tree
       registry.clearDirty();
       const frames = registry.serialize();
-
-      // Resolve atlas names
-      const atlasManifest = this.assets.loadAtlasManifest();
-      if (atlasManifest) resolveAtlasNames(frames, atlasManifest);
-
-      const texturePaths = collectTexturePaths(frames);
 
       // Resolve default font
       let defaultFontUri: string | undefined;
@@ -376,9 +438,30 @@ export class ScryerLivePanel {
         }
       }
 
-      const viewport: Viewport = { w: flavorConfig.uiParentWidth, h: flavorConfig.uiParentHeight };
+      // Build the EventEngine (sandbox stays alive — NOT closed here)
+      const engine = new EventEngine(sandbox, registry, clock, flavorConfig, {
+        onFramesDirty: (dirtyFrames) => {
+          this.sendFrames(dirtyFrames, flavorConfig, addonDir);
+        },
+        output: {
+          warn: (msg) => this.output.warn(msg),
+          error: (msg) => this.output.error(msg),
+        },
+      });
 
-      const msg: HostMessage = {
+      this.session = { sandbox, registry, clock, engine, addonDir, flavorConfig };
+      engine.start();
+
+      // Send initial render
+      const atlasManifest = this.assets.loadAtlasManifest();
+      if (atlasManifest) resolveAtlasNames(frames, atlasManifest);
+
+      const viewport: Viewport = {
+        w: flavorConfig.uiParentWidth,
+        h: flavorConfig.uiParentHeight,
+      };
+
+      const renderMsg: HostMessage = {
         type: "render",
         frames,
         viewport,
@@ -389,17 +472,16 @@ export class ScryerLivePanel {
         defaultFontUri,
       };
 
-      void this.panel.webview.postMessage(msg);
+      void this.panel.webview.postMessage(renderMsg);
       void this.panel.webview.postMessage(this.rulerMessage());
 
-      for (const rawPath of texturePaths) {
+      for (const rawPath of collectTexturePaths(frames)) {
         void this.resolveAndSendAsset(rawPath, addonDir);
       }
 
-      this.output.debug(
-        `[Live] rendered ${frames.length} root frame(s), ${texturePaths.length} textures`,
-      );
+      this.output.debug(`[Live] rendered ${frames.length} root frame(s); event engine started`);
     } catch (err) {
+      this.stopSession();
       this.output.error(`[Live] Error running ${uri.fsPath}: ${String(err)}`);
       this.output.show(true);
     }
@@ -466,6 +548,7 @@ export class ScryerLivePanel {
   dispose(): void {
     if (this.extractDebounce !== undefined) clearTimeout(this.extractDebounce);
     if (this.renderDebounce !== undefined) clearTimeout(this.renderDebounce);
+    this.stopSession();
     this.panel.dispose();
     for (const d of this.disposables) d.dispose();
     this.disposables = [];
