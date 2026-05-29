@@ -8,6 +8,6 @@
     "noEmit": false,
     "types": ["jest", "node"]
   },
-  "include": ["test"],
+  "include": ["test", "src/types"],
   "references": [{ "path": "./tsconfig.src.json" }]
 }

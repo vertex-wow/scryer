@@ -5,6 +5,7 @@ const config = {
   testMatch: ["<rootDir>/test/**/*.test.ts"],
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { tsconfig: "tsconfig.test.json" }],
+    "^.+\\.lua$": "<rootDir>/test/transforms/lua-text.mjs",
   },
   moduleNameMapper: {
     "^vscode$": "<rootDir>/test/__mocks__/vscode.ts",

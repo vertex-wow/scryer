@@ -1,4 +1,6 @@
 import * as esbuild from "esbuild";
+import * as fs from "fs";
+import * as path from "path";
 
 const watch = process.argv.includes("--watch");
 
@@ -17,6 +19,7 @@ const extensionCtx = await esbuild.context({
   platform: "node",
   external: ["vscode"],
   target: "node20",
+  loader: { ".lua": "text" },
 });
 
 // Webview bundle (browser IIFE, no Node/vscode APIs)
@@ -29,14 +32,24 @@ const webviewCtx = await esbuild.context({
   target: "es2022",
 });
 
+// Copy wasmoon WASM binary so the extension host can load it at runtime.
+function copyWasm() {
+  const src = path.resolve("node_modules/wasmoon/dist/glue.wasm");
+  const dst = path.resolve("dist/glue.wasm");
+  fs.mkdirSync("dist", { recursive: true });
+  fs.copyFileSync(src, dst);
+}
+
 if (watch) {
   await extensionCtx.watch();
   await webviewCtx.watch();
+  copyWasm();
   console.log("Watching...");
 } else {
   await extensionCtx.rebuild();
   await extensionCtx.dispose();
   await webviewCtx.rebuild();
   await webviewCtx.dispose();
+  copyWasm();
   console.log("Build complete.");
 }

@@ -52,7 +52,8 @@
       "Bash(node dist/conv-time.js)",
       "Bash(sed:*)",
       "Bash(awk:*)",
-      "Bash(mkdir -p /tmp/*)"
+      "Bash(mkdir -p /tmp/*)",
+      "Bash(npm show *)"
     ],
     "additionalDirectories": [
       "/tmp"

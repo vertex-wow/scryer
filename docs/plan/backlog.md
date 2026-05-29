@@ -800,3 +800,17 @@ However, there are a few integration questions worth answering before M8 (TOC Ex
 **Why deferred:** Full re-render is correct, simple, and sufficient for M4's goal of "does the addon render at all." Diffing is an optimization that only matters once real addons are running and frame counts are known. Premature optimization here would complicate the initial panel architecture.
 
 **Effort:** S–M (depends on how complex the diff format needs to be; a simple recursive object comparison may be enough for the initial version).
+
+---
+
+## GlobalStrings population (deferred from M5)
+
+**Status:** 📋 Pending
+
+**Problem:** WoW addons and Blizzard XML files reference global string constants by name — e.g. `FontString text="OKAY"` or `button:SetText(CLOSE)`. Without these constants pre-populated in `_G`, such code will silently receive `nil` and render nothing.
+
+**Plan:** At sandbox bootstrap (before any addon code runs), populate `_G` with the 24k enUS GlobalStrings from `_reference/vscode-wow-api/src/data/globalstring/enUS.ts`. Extract the key-value pairs into a compact `src/lua/globalstrings.json` via a one-time dev script (similar to atlas manifest generation). In `createSandbox`, iterate the JSON and call `lua.global.set(key, value)` for each entry. Locale-awareness can be deferred; enUS is sufficient for all current use cases.
+
+**Why deferred from M5:** 24k entries ~1.5 MB — loading all of them in M5 would bloat the bundle before any rendering code exists to use them. The right point to add this is M7 (Frame Object Model), when `FontString` and `SetText` rendering will immediately exercise the strings.
+
+**Effort:** XS (extraction script + sandbox wiring once M7 is in progress).

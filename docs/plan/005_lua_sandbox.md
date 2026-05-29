@@ -1,8 +1,12 @@
 # Milestone 5 — Lua Sandbox + 5.1 Compat Shim
 
+**Status: ✅ Complete (2026-05-29)**
+
 ## Goal
 
 Embed wasmoon in the extension host, disable all stock Lua standard libraries, and load a WoW-compatible Lua 5.1 environment: `setfenv`/`getfenv` shim, compat aliases, `bit` library, and GlobalStrings. No frames, no WoW API yet — just a correct, sandboxed Lua 5.1-like execution environment.
+
+GlobalStrings deferred to M7 — see [backlog.md](backlog.md#globalstrings-population-deferred-from-m5).
 
 This is the **highest-risk step in the Lua runtime series** and must be validated before anything else is built on top.
 
@@ -158,6 +162,12 @@ Unit tests that exercise the shim surface directly:
 ## Dependencies
 
 None — wasmoon is a new npm dependency; the sandbox is self-contained.
+
+## Implementation Notes
+
+- `setfenv`/`getfenv` only works correctly on functions loaded via `load()` (or chunks entered via `doString`). Closures defined inline in the same chunk share `_ENV` with the outer scope — `setupvalue` on them would also redirect the caller's globals. WoW addons use `setfenv` on whole-file chunks loaded by the TOC executor (M8), which is exactly the `load()` pattern that works.
+- GlobalStrings (24k entries, ~1.5 MB) are deferred to M7 when `FontString text="GLOBAL_STRING"` rendering requires them. Loading them in M5 would bloat the bundle with no testable value yet.
+- `.lua` source files are bundled as inlined strings via esbuild `text` loader; `glue.wasm` is copied to `dist/` alongside the bundle so wasmoon can load it at runtime.
 
 ## Rough Effort
 
