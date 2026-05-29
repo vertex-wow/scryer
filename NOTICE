@@ -1,3 +1,9 @@
+## Lua References
+
+- [wasmoon](https://github.com/ceifa/wasmoon) by Gabriel Francisco, MIT. Lua 5.4 WASM with JS interop.
+- [Lua](https://www.lua.org/) by PUC Rio, MIT. Official Lua portable C interpreter. Versions 5.1 (2006; matches WoW) up to 5.5.0 (2026)
+- [Fengari](https://github.com/fengari-lua/fengari) by daurnimator and team, MIT. Full Lua 5.3 VM in the browser for javascript interop.
+
 ## CASC References
 
 - [wow.export](https://github.com/Kruithne/wow.export) by Kruithne, MIT. Javascript GUI for WoW CASC archives in a "batteries included" system.

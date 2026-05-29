@@ -764,3 +764,39 @@ Extended `src/flavors/defaults.json` and the `FlavorConfigLayer` / `ResolvedFlav
 3. **Text narrower than in-game (letter-spacing fudge)** — WoW's DirectWrite renderer (grayscale AA) produces ~6.3% wider advance widths than the browser's ClearType renderer for the same font file. Calibrated against `FRIZQT__.TTF` at height=12 by measuring "Example Bare Frame" (18 chars): WoW=151px vs browser=142px at 125% DPI → 7.2 CSS px gap → 0.4px per char → `0.4/12 = 0.033em`. Applied as `letter-spacing: 0.033em` on the span so it scales with font size.
 
 **Known remaining limitation:** The browser's ClearType subpixel AA makes text appear very slightly heavier/bolder than WoW's grayscale DirectWrite rendering. No CSS property available in the VS Code webview on Windows fully corrects this; it is an accepted approximation difference.
+
+---
+
+## TypeScriptToLua integration investigation
+
+**Status: 📋 Pending**
+
+TypeScriptToLua (TSTL) compiles TypeScript to Lua 5.1 and is widely used by WoW addon authors who want TypeScript's type system and modern syntax. From Scryer's perspective the output is ordinary Lua 5.1 — TSTL is a pre-compilation step the author performs before any Lua lands in the workspace. Scryer should run TSTL-compiled addons without special handling in the common case.
+
+However, there are a few integration questions worth answering before M8 (TOC Execution Pipeline) is in progress:
+
+1. **TSTL runtime library (`lualib_bundle`)** — TSTL emits a small runtime library (iterators, class system, `__TS__` helpers) that must load before addon code runs. Does the Scryer sandbox's load order accommodate it, or does it need an explicit entry point? Do any `lualib` patterns conflict with the WoW 5.1 shim (e.g. custom `__index` metamethods, use of `table.unpack`)?
+
+2. **WoW API type stubs and TSTL** — The TSTL community maintains `@warcraft/types` (WoW API TypeScript declarations). If an author uses these, the compiled output makes the same API calls our stubs must handle. No new stub surface should be needed, but it's worth confirming the call patterns match expectations.
+
+3. **Source maps** — TSTL can emit Lua source maps. If Scryer surfaces Lua errors (stack traces, sandbox violations), could source maps be used to point errors back to the TypeScript source? This would be a significant DX improvement for TSTL-authored addons.
+
+4. **Addon detection** — Should Scryer detect TSTL-compiled addons (e.g. presence of `lualib_bundle.lua` in the addon directory or a TSTL config file) and adjust any behavior, or is "just run the Lua" always sufficient?
+
+**Scope of this item:** Research and feasibility only. Answer questions 1–4, note any required sandbox or load-order changes, and decide whether any of them warrant a follow-up implementation task before or during M8.
+
+**Effort:** XS–S (research); implementation unknown until investigation is complete.
+
+---
+
+## Live panel frame diffing (deferred from M4)
+
+**Status:** 📋 Pending
+
+**Problem:** The M4 live panel sends the full frame tree to the webview on every Lua mutation. For addons with large frame hierarchies or frequent mutations (e.g. `OnUpdate` handlers updating many frames per tick), this is wasteful — most of the tree is unchanged.
+
+**Plan:** Track a shadow copy of the last-sent frame tree in `ScryerLivePanel`. On each mutation, compute a structural diff (added/removed/changed nodes) and send only the delta. The webview renderer applies incremental patches rather than rebuilding the DOM.
+
+**Why deferred:** Full re-render is correct, simple, and sufficient for M4's goal of "does the addon render at all." Diffing is an optimization that only matters once real addons are running and frame counts are known. Premature optimization here would complicate the initial panel architecture.
+
+**Effort:** S–M (depends on how complex the diff format needs to be; a simple recursive object comparison may be enough for the initial version).

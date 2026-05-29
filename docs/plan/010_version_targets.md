@@ -1,4 +1,4 @@
-# Milestone 5 — Multi-Version Target Runtimes
+# Milestone 10 — Multi-Version Target Runtimes
 
 ## Goal
 
@@ -123,7 +123,7 @@ Custom targets reference a known flavor bit + interface version. Unknown flavor 
 
 ## Dependencies
 
-**M4** (sandbox consumes flavor profile); **M3** (per-flavor asset dir).
+**M6** (WoW API stubs — flavor profile is applied at stub registration time); **M3** (per-flavor asset dir).
 
 ## Rough Effort
 

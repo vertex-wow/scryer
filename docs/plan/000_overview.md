@@ -39,10 +39,17 @@ Completed `↳` rows appear in chronological order before the first pending mile
 | ↳   | [WoW font loading (FRIZQT\_\_.TTF from CASC)](backlog.md#wow-font-loading-frizqtttf-from-casc)                         | ✅ Done (2026-05-28)        | Extend resolver for TTF/OTF; extract from CASC via full listfile; per-session dedup guard     | S      | —          |
 | ↳   | [FontString rendering fidelity](backlog.md#fontstring-rendering-fidelity)                                              | ✅ Done (2026-05-28)        | Fix justifyH/V defaults, zero-width rect, letter-spacing fudge for DirectWrite vs ClearType   | S      | —          |
 | ↳   | [All preview chrome values in defaults.json](backlog.md#all-preview-chrome-values-configurable-via-defaultsjson)       | ✅ Done (2026-05-29)        | Every magic value in the renderer configurable via flavorConfigPath; three-tier doc split     | S      | —          |
-| 4   | Lua Shim Runtime                                                                                                       | ⬜ Pending                  | Sandboxed Lua exec + WoW API stubs + frame object model                                       | M      | 1, 2       |
-| 5   | Multi-Version Targets                                                                                                  | ⬜ Pending                  | Selectable Classic/Cata/Retail API profiles                                                   | S–M    | 4          |
-| 6   | Hot Reload _(stretch)_                                                                                                 | ⬜ Pending                  | Re-parse/re-run on save with minimal repaint                                                  | M      | 2, 4       |
-| 7   | Test Suite _(stretch)_                                                                                                 | ⬜ Pending                  | Headless addon test runner + reporter                                                         | M      | 4          |
+| 4   | TOC Parser                                                                                                             | ⬜ Pending                  | Parse `.toc` → `TocFile` IR; file load order for XML and Lua execution                        | XS     | 1          |
+| 5   | Lua Sandbox + 5.1 Shim                                                                                                 | ⬜ Pending                  | wasmoon embed; disable-and-replace stdlib; `setfenv`/`getfenv` shim; compat aliases; `bit`    | S–M    | —          |
+| ↳   | [TypeScriptToLua integration investigation](backlog.md#typescripttolua-integration-investigation)                      | 📋 Pending                  | Research: does TSTL lualib conflict with 5.1 shim? source map support? addon detection?       | XS–S   | —          |
+| 6   | WoW API Stubs                                                                                                          | ⬜ Pending                  | TypeScript stubs into sandbox; C\_\* scaffolding from `globalapi.ts`; LibStub; C_Timer        | S      | 5          |
+| 7   | Frame Object Model                                                                                                     | ⬜ Pending                  | `CreateFrame` proxy; core widget methods; `ScryerLivePanel`; full re-render on mutation       | M      | 2, 5, 6    |
+| ↳   | [Live panel frame diffing](backlog.md#live-panel-frame-diffing-deferred-from-m4)                                       | 📋 Pending                  | Incremental frame-tree diffs to webview; full re-render used in M7                            | S–M    | —          |
+| 8   | TOC Execution Pipeline                                                                                                 | ⬜ Pending                  | `scryer.openLive` command; TOC load sequence; `ADDON_LOADED`; `PLAYER_LOGIN`                  | S      | 4, 7       |
+| 9   | Script Events                                                                                                          | ⬜ Pending                  | `OnLoad` through `OnUpdate`; `RegisterEvent`; webview→Lua event bridge; `OnUpdate` watchdog   | S–M    | 8          |
+| 10  | Multi-Version Targets                                                                                                  | ⬜ Pending                  | Selectable Classic/Cata/Retail API profiles                                                   | S–M    | 6          |
+| 11  | Hot Reload _(stretch)_                                                                                                 | ⬜ Pending                  | Re-parse/re-run on save with minimal repaint                                                  | M      | 2, 9       |
+| 12  | Test Suite _(stretch)_                                                                                                 | ⬜ Pending                  | Headless addon test runner + reporter                                                         | M      | 9          |
 | ↳   | [User-visible loading notifications](backlog.md#user-visible-loading-notifications)                                    | 📋 Pending                  | Progress notifications for atlas gen, extraction, preload                                     | S      | —          |
 | ↳   | [TGA texture decode](backlog.md#tga-texture-decode-deferred-from-m3)                                                   | 📋 Pending                  | Decode `.tga` textures via pure-JS decoder                                                    | S      | —          |
 | ↳   | [In-app asset setup guidance](backlog.md#in-app-asset-setup-guidance-for-end-users-deferred-from-m3)                   | 📋 Pending                  | One-time notification when no assets are configured                                           | S      | —          |
@@ -55,17 +62,17 @@ Completed `↳` rows appear in chronological order before the first pending mile
 
 ## Recommended Tech Stack
 
-| Layer           | Choice                   | Rationale                                                      |
-| --------------- | ------------------------ | -------------------------------------------------------------- |
-| Language        | TypeScript               | VSCode extension API is TS-first; existing repo tooling intent |
-| Bundler         | esbuild                  | Fast; two-entry build (host + webview)                         |
-| XML parser      | fast-xml-parser          | Zero native deps; preserves attribute order; configurable      |
-| Lua interpreter | wasmoon (primary)        | WASM Lua 5.4; good Node perf; + 5.1 compat shim                |
-| Lua fallback    | fengari                  | Pure JS Lua 5.3; runs in webview sandbox if needed             |
-| UI renderer     | DOM (M2), Canvas (later) | DOM = easy debug/inspect; Canvas = atlas slicing fidelity      |
-| BLP decoder     | js-blp 1.0.5 (pure JS)   | Zero external binary; CLI blp2png as optional fallback         |
+| Layer           | Choice                   | Rationale                                                             |
+| --------------- | ------------------------ | --------------------------------------------------------------------- |
+| Language        | TypeScript               | VSCode extension API is TS-first; existing repo tooling intent        |
+| Bundler         | esbuild                  | Fast; two-entry build (host + webview)                                |
+| XML parser      | fast-xml-parser          | Zero native deps; preserves attribute order; configurable             |
+| Lua interpreter | wasmoon                  | Official Lua C source → WASM; no subproject to own; + 5.1 compat shim |
+| Lua fallback    | fengari → Lua 5.1 WASM   | Fengari (pure JS 5.3) then self-compiled 5.1 if wasmoon blocked       |
+| UI renderer     | DOM (M2), Canvas (later) | DOM = easy debug/inspect; Canvas = atlas slicing fidelity             |
+| BLP decoder     | js-blp 1.0.5 (pure JS)   | Zero external binary; CLI blp2png as optional fallback                |
 
-**Lua version note:** WoW uses Lua 5.1 internally (confirmed by `.vscode/extensions.json` pinning `ketho.wow-api` + workspace `Lua.runtime.version: "Lua 5.1"`). Neither wasmoon (5.4) nor fengari (5.3) is a perfect match. A 5.1 compatibility shim (`unpack`, `setfenv`/`getfenv`, `math.mod`, etc.) is required.
+**Lua version note:** WoW has been on Lua 5.1 since approximately WoW version 2 and is not expected to change — all three live flavors (Retail, Classic, Classic Era) use the same embed. A Babel-style Lua transpiler is not worth the effort (see [ADR 009](../decisions/009_lua_version_and_tooling.md)). Neither wasmoon (5.4) nor fengari (5.3) is a perfect match; a 5.1 compatibility shim (`unpack`, `setfenv`/`getfenv`, `math.mod`, etc.) is required.
 
 ## Architecture (ASCII)
 
@@ -73,49 +80,51 @@ Completed `↳` rows appear in chronological order before the first pending mile
         VSCode Extension Host (Node)                        Webview (sandboxed)
   +----------------------------------------+          +-----------------------------+
   |  Activation / Commands                 |          |  Renderer (DOM divs)        |
-  |  Workspace + target config (M5)        |          |   - anchor/layout engine    |
+  |  Workspace + target config (M10)       |          |   - anchor/layout engine    |
   |                                        |          |   - strata/layer z-order    |
   |  Parser (M1) -----> IR/AST             | <=msg=>  |   - placeholder textures    |
   |  Include/TOC resolver                  |  JSON    |   - FontString (webfonts)   |
   |                                        |          |                             |
-  |  Lua Runtime (M4)                      |          |  Input -> events (OnClick)  |
-  |   - wasmoon / fengari                  |          +-----------------------------+
-  |   - WoW API sandbox + frame model      |                      ^
-  |   - mixins, C_Timer, events            |           asset:// (PNG from cache)
+  |  Lua Runtime (M5–M9)                   |          |  Input -> events (OnClick)  |
+  |   - wasmoon (M5 sandbox)              |          +-----------------------------+
+  |   - WoW API stubs (M6)                |                      ^
+  |   - frame model + panel (M7)          |           asset:// (PNG from cache)
+  |   - TOC execution (M8)                |
+  |   - script events (M9)                |
   |                                        |                      |
   |  Asset Pipeline (M3)                   |          +-----------------------------+
   |   - BLP->PNG, atlas, cache             | -------> |  cacheRoot/derived/ (PNG)   |
   +----------------------------------------+          +-----------------------------+
               |                  ^
-    reads (read-only)          file save -> Hot Reload (M6)
+    reads (read-only)          file save -> Hot Reload (M11)
               v                  |
-    WOW_DIR install / _live/Addons    Headless runner (M7, no webview)
+    WOW_DIR install / _live/Addons    Headless runner (M12, no webview)
 ```
 
 ## Cross-Cutting Concerns
 
-- **Multi-version runtime (M5):** single IR format with a swappable API profile per target version; TOC interface-version field validates against the selected target.
+- **Multi-version runtime (M10):** single IR format with a swappable API profile per target version; TOC interface-version field validates against the selected target.
 - **Asset pipeline (M3):** BLP is proprietary; conversion and caching are shared by both the webview renderer and the headless test runner.
 - **Security sandbox:** webview CSP locks origins; Lua sandbox removes `io`/`os.execute`; all filesystem reads restricted to user-configured `WOW_DIR` and workspace paths; no network requests.
 - **Relationship to `ketho.wow-api`:** `ketho.wow-api` (already recommended in `.vscode/extensions.json`) is an _editor-time_ extension (LuaLS completions). We are a _runtime_ extension (execution + preview). The two are complementary — recommend installing both via an `extensionPack` entry. We reuse ketho's _data corpus_ (not its live LuaLS settings): `flavor.ts` for per-flavor API availability, `event.ts` for typed event payloads, `globalapi.ts` for the C\_\* namespace list, and `compat.lua`/`bit.lua`/`basic.lua` as the canonical WoW Lua shim spec. Only the `Core/` annotation tree is in scope — `FrameXML/` Blizzard addon stubs are not needed.
 
 ## Stretch Goals
 
-- **Hot reload (M6):** the headline DX win — live-reload on save is impossible in real WoW.
-- **Test suite (M7):** headless, CI-friendly addon testing from within VSCode Test Explorer.
+- **Hot reload (M11):** the headline DX win — live-reload on save is impossible in real WoW.
+- **Test suite (M12):** headless, CI-friendly addon testing from within VSCode Test Explorer.
 - Future: Canvas/WebGL renderer, animation groups, SavedVariables emulation, frame inspector/devtools, multi-monitor UI simulation.
 
 ## Known Risks and Open Questions
 
-| Risk                                                 | Severity   | Mitigation                                                                                                                              |
-| ---------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Lua 5.1 vs 5.3/5.4 semantic gaps                     | Medium     | Mirror `compat.lua`/`bit.lua`/`basic.lua` shim from ketho (finite, enumerated); residual risk isolated to `setfenv`/`getfenv` emulation |
-| BLP decoding coverage in JS                          | Medium     | Pure-JS primary; CLI blp2png fallback; log unsupported variants                                                                         |
-| Retail assets live in CASC (not loose files)         | Medium     | Target an extracted-assets dir; document WoW.export/CASCExplorer                                                                        |
-| WoW API surface gaps                                 | Low–Medium | `flavor.ts` (7218 entries) + `globalapi.ts` (261 C\_\* namespaces) bound the surface; safe-default nil-return stubs for the rest        |
-| Blizzard template corpus (DefaultPanelTemplate etc.) | Medium     | Lazy-load from `_reference/wow-ui-source`; warn when missing                                                                            |
-| Atlas manifest acquisition per game build            | Medium     | JSON manifest generated from extracted data; version-tag it                                                                             |
-| Rotating Classic-progression flavor                  | Low        | Pin a versioned copy of `flavor.ts`; update when Classic season advances                                                                |
+| Risk                                                 | Severity   | Mitigation                                                                                                                                               |
+| ---------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lua 5.1 vs 5.4 semantic gaps (wasmoon)               | Low        | Finite shim from `compat.lua`/`bit.lua`/`basic.lua`; `setfenv`/`getfenv` solved via debug library upvalue shim (known work, not open risk) — see ADR 008 |
+| BLP decoding coverage in JS                          | Medium     | Pure-JS primary; CLI blp2png fallback; log unsupported variants                                                                                          |
+| Retail assets live in CASC (not loose files)         | Medium     | Target an extracted-assets dir; document WoW.export/CASCExplorer                                                                                         |
+| WoW API surface gaps                                 | Low–Medium | `flavor.ts` (7218 entries) + `globalapi.ts` (261 C\_\* namespaces) bound the surface; safe-default nil-return stubs for the rest                         |
+| Blizzard template corpus (DefaultPanelTemplate etc.) | Medium     | Lazy-load from `_reference/wow-ui-source`; warn when missing                                                                                             |
+| Atlas manifest acquisition per game build            | Medium     | JSON manifest generated from extracted data; version-tag it                                                                                              |
+| Rotating Classic-progression flavor                  | Low        | Pin a versioned copy of `flavor.ts`; update when Classic season advances                                                                                 |
 
 **Open questions:**
 

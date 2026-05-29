@@ -1,8 +1,8 @@
-# Milestone 7 — Automated Addon Test Suite (Stretch)
+# Milestone 12 — Automated Addon Test Suite (Stretch)
 
 ## Goal
 
-Run addon tests headlessly (no VSCode UI, no webview) against the same Lua runtime and WoW API mocks as M4, with CI-friendly output and integration into the VSCode Test Explorer.
+Run addon tests headlessly (no VSCode UI, no webview) against the same Lua runtime and WoW API mocks as M5–M9, with CI-friendly output and integration into the VSCode Test Explorer.
 
 ## Approach
 
@@ -54,7 +54,7 @@ T.advanceTime(1.5)          -- advance virtual clock by 1.5 seconds
 T.clickFrame("MyAddonButton")
 ```
 
-**Typed event payloads (M7 concern, not M4):** `_reference/vscode-wow-api/src/data/event.ts` defines 1739 typed WoW events with their argument signatures (7648 lines). A typed TypeScript `fireEvent` helper (validated against these signatures at build time) is useful for the host-side test runner — mismatched argument counts surface immediately. This is an M7 enhancement; the Lua-side `T.fireEvent` in M4 is untyped.
+**Typed event payloads (M12 concern, not M9):** `_reference/vscode-wow-api/src/data/event.ts` defines 1739 typed WoW events with their argument signatures (7648 lines). A typed TypeScript `fireEvent` helper (validated against these signatures at build time) is useful for the host-side test runner — mismatched argument counts surface immediately. This is an M7 enhancement; the Lua-side `T.fireEvent` in M4 is untyped.
 
 ## Headless Runner
 
@@ -64,9 +64,9 @@ Pure Node process (no VSCode, no webview):
 node dist/runner.js --toc path/to/MyAddon.toc --target retail
 ```
 
-1. Loads wasmoon + sandbox + API profile (M5) without the renderer.
+1. Loads wasmoon + sandbox + API profile (M10) without the renderer.
 2. Frame object model works but produces no visual output (all `Set*` calls are no-ops or recorded).
-3. Parses `.toc` (M4/M1 shared parser), runs files in order.
+3. Parses `.toc` (M4 TOC parser + M1 XML parser), runs files in order.
 4. Discovers test files by convention:
    - `Tests/**/*.test.lua` relative to the addon root, OR
    - `## X-Tests: Tests\Suite.test.lua` directive in the TOC.
@@ -146,7 +146,7 @@ The `## X-Tests` directive keeps test files out of the shipping TOC (they aren't
 
 ## Key Technical Decisions
 
-- **One runtime, two front-ends** — headless runner and webview renderer share the M4 sandbox (no code duplication).
+- **One runtime, two front-ends** — headless runner and webview renderer share the M5–M9 sandbox (no code duplication).
 - **TAP primary** (portable, works with any CI runner) + **JSON** for the editor.
 - **Hermetic per-suite sandbox reset** by default; opt-in shared sandbox for performance.
 
@@ -159,7 +159,7 @@ The `## X-Tests` directive keeps test files out of the shipping TOC (they aren't
 
 ## Dependencies
 
-**M4** (runtime/mocks); benefits from **M5** (API profiles for multi-version testing).
+**M9** (script events — Lua runtime complete); benefits from **M10** (API profiles for multi-version testing).
 
 ## Rough Effort
 

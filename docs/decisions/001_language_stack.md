@@ -62,12 +62,12 @@ Lua as a host language was rejected because WoW addon authors know the _WoW sand
 
 ## Consequences
 
-- Must implement a Lua 5.1 compatibility shim for `setfenv`/`getfenv`, `unpack`, `bit` library, and numeric edge cases. The `vscode-wow-api` annotation corpus (`compat.lua`, `bit.lua`, `basic.lua`) defines exactly what is needed — it is finite and enumerable. `setfenv`/`getfenv` remain the one open risk: Lua 5.4 removed them and there is no clean emulation.
+- Must implement a Lua 5.1 compatibility shim for `setfenv`/`getfenv`, `unpack`, `bit` library, and numeric edge cases. The `vscode-wow-api` annotation corpus (`compat.lua`, `bit.lua`, `basic.lua`) defines exactly what is needed — it is finite and enumerable. `setfenv`/`getfenv` are **known work with a known solution** (debug library shim) — see [ADR 008](008_lua_interpreter.md).
 - **CRITICAL — degree-based trig:** WoW's `cos`/`sin`/`atan2` global aliases take **degrees**, not radians. `compat.lua` wraps standard math functions with `* math.pi / 180` conversions. Providing standard radian trig under these names causes silent rendering errors. This must be part of the shim, not an afterthought.
 - Only the `Core/` annotation tree from `vscode-wow-api` is in scope (`Core/Lua/`, `Core/Widget/`, `Core/Events/`). `FrameXML/` contains stubs for Blizzard's own addon code (UIParent, ActionBars, etc.) — out of scope for our runtime.
-- Lua VM choice (fengari vs wasmoon) should be evaluated against the live addon corpus; fengari (5.3, pure JS) is the closer base to 5.1.
+- **Lua VM choice resolved: wasmoon.** See [ADR 008](008_lua_interpreter.md) for the full decision including the fallback ladder (Fengari → self-compiled Lua 5.1 WASM) and the rationale for why the 5.3 vs 5.4 version delta is irrelevant for WoW addon compatibility.
 - If profiling ever reveals a genuine bottleneck, the surgical fix is moving that one hot path to a Node worker thread or WASM module — not rewriting in Go.
-- CGo/PUC-Rio Lua 5.1 binding remains an option if gopher-lua–level fidelity is ever needed, but the cross-platform binary distribution cost must be weighed against the marginal fidelity gain.
+- CGo/PUC-Rio Lua 5.1 binding remains an option if all JS-based interpreter options hit unresolvable 5.1 compat roadblocks, but the cross-platform binary distribution cost must be weighed against the marginal fidelity gain.
 
 ## References
 

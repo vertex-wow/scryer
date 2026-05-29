@@ -1,4 +1,4 @@
-# Milestone 6 — Hot Reload (Stretch)
+# Milestone 11 — Hot Reload (Stretch)
 
 ## Goal
 
@@ -97,7 +97,7 @@ To avoid a full repaint (flash) on XML-only changes:
 
 ## Dependencies
 
-**M2** (renderer + DOM), **M4** (Lua runtime to reset and re-run), uses **M1** dependency graph.
+**M2** (renderer + DOM), **M9** (script events — full Lua runtime complete), uses **M1** dependency graph.
 
 ## Rough Effort
 
