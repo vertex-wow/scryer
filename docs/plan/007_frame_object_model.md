@@ -37,7 +37,7 @@ Real Lua tables (not userdata proxies) for all frame types:
 
 ### registerFrameModel (`src/lua/createframe.ts`)
 
-Injects ~60 JS helper globals then calls `lua.doString(frameClassLua)`. Helpers cover:
+Injects ~60 JS helper globals then calls `lua.doString(frameClassLua)`. Accepts an optional `blizzardTemplates` map; when provided, a `__scryer_apply_template` TS callback resolves template names via `resolveInheritance` and generates Lua code to apply the template's layers, size, anchors, and scripts to the newly created frame (see [template application backlog entry](backlog.md#template-application-in-runtime-createframe-deferred-from-m7)). Helpers cover:
 
 - Frame: `SetPoint`, `ClearAllPoints`, `SetAllPoints`, `SetSize`, `Show/Hide`, `SetAlpha/Scale`, `SetFrameStrata/Level`, `SetScript/GetScript/HookScript`, `RegisterEvent`, `SetAttribute`, `GetChildren`, `CreateTexture`, `CreateFontString`.
 - Button: `SetText/GetText`, `Enable/Disable`, `SetNormalTexture`.
@@ -81,17 +81,17 @@ Expands to TOPLEFT/TOPLEFT + BOTTOMRIGHT/BOTTOMRIGHT anchor pairs (same as the X
 
 ## Files changed
 
-| File                              | Change                          |
-| --------------------------------- | ------------------------------- |
-| `src/lua/frame-model.ts`          | New                             |
-| `src/lua/frame-registry.ts`       | New                             |
-| `src/lua/frame-class.lua`         | New                             |
-| `src/lua/createframe.ts`          | New                             |
-| `src/live-panel.ts`               | New                             |
-| `src/extension.ts`                | Added `scryer.openLive` command |
-| `jest.config.mjs`                 | Added `.js` moduleNameMapper    |
-| `test/lua/frame-registry.test.ts` | New (25 tests)                  |
-| `test/lua/createframe.test.ts`    | New (54 tests)                  |
+| File                              | Change                                                  |
+| --------------------------------- | ------------------------------------------------------- |
+| `src/lua/frame-model.ts`          | New                                                     |
+| `src/lua/frame-registry.ts`       | New                                                     |
+| `src/lua/frame-class.lua`         | New                                                     |
+| `src/lua/createframe.ts`          | New; template application added post-completion         |
+| `src/live-panel.ts`               | New; passes `blizzardTemplates` to `registerFrameModel` |
+| `src/extension.ts`                | Added `scryer.openLive` command                         |
+| `jest.config.mjs`                 | Added `.js` moduleNameMapper                            |
+| `test/lua/frame-registry.test.ts` | New (25 tests)                                          |
+| `test/lua/createframe.test.ts`    | New; template tests added post-completion (44 tests)    |
 
 ## Out of scope / deferred
 

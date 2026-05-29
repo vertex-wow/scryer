@@ -1026,15 +1026,19 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ## Template application in runtime CreateFrame (deferred from M7)
 
-**Status:** 📋 Pending
+**Status:** ✅ Done (2026-05-29)
 
-**Problem:** `CreateFrame("Button", "MyBtn", UIParent, "UIPanelButtonTemplate")` ignores the template argument. Addons that rely on templates to provide textures, scripts, and default sizing get a bare frame instead.
+**What was built:**
 
-**Plan:** In `registerFrameModel`, after creating the frame node, look up the template name in the Blizzard registry (loaded via `AssetService.loadBlizzardTemplates()`). If found, merge the template's textures, font strings, and scripts onto the new frame node (same merge logic as `resolveInheritance`). Multiple comma-separated templates should be supported.
+`src/lua/createframe.ts` — `registerFrameModel` gains an optional `blizzardTemplates?: Map<string, FrameIR>` parameter. A new `__scryer_apply_template(fid, templateStr)` TS callback is registered: it splits the comma-separated template string, resolves each template name against the blizzard registry via `resolveInheritance` (using a synthetic single-frame UiDocument to get the fully-merged IR), and generates a Lua code string that applies the template's layers (textures, fontstrings), size, anchors, and scripts to the existing frame. Inline script bodies are injected as `__scryer_xs${i}` Lua globals before the returned string is executed. A per-sandbox `templateCache` memoizes resolved templates to avoid repeated inheritance resolution for the same name.
 
-**Effort:** S — the merge logic already exists in `src/parser/inherit.ts`; the wiring is the new work.
+`src/lua/frame-class.lua` — `CreateFrame` captures `_apply_template` at bootstrap. After creating the frame table, if the 4th argument is a non-empty string, it sets `__scryer_tpl_frame = frame`, calls `_apply_template(fid, template)` to get the code string, runs it via `load(code)()`, then clears `__scryer_tpl_frame`. The `__scryer_apply_template` global is cleared with all other helpers at the end of the bootstrap block.
 
-**Depends on:** M7 (done); Blizzard template corpus (already done as part of M3).
+`src/live-panel.ts` — `loadBlizzardTemplates()` is now called before `registerFrameModel` so the templates are available for the full addon run.
+
+**Tests:** 7 tests in `test/lua/createframe.test.ts`: unknown template no-op, texture applied, size applied, fontstring applied, function-reference script registered, multiple comma-separated templates, global cleared after bootstrap.
+
+**Remaining limitation:** Template child frames (nested `<Frame>` elements defined within a template's `<Frames>` block) are not instantiated — only `layers` (textures/fontstrings), size, anchors, and scripts are applied. This covers the vast majority of Blizzard templates in practice.
 
 ---
 

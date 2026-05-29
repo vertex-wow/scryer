@@ -397,9 +397,9 @@ export class ScryerLivePanel {
         },
       });
 
-      await registerFrameModel(sandbox, registry);
-
       const blizzardTemplates = this.assets.loadBlizzardTemplates();
+
+      await registerFrameModel(sandbox, registry, blizzardTemplates);
 
       await runTocAddon({
         toc,

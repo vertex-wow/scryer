@@ -3,6 +3,7 @@ import { createSandbox } from "../../src/lua/sandbox";
 import { registerWowApi, VirtualClock } from "../../src/lua/wow-api";
 import { registerFrameModel } from "../../src/lua/createframe";
 import { FrameRegistry } from "../../src/lua/frame-registry";
+import type { FrameIR } from "../../src/parser/ir";
 import type { LuaEngine } from "wasmoon";
 
 const WASM_PATH = path.join(__dirname, "../../node_modules/wasmoon/dist/glue.wasm");
@@ -506,6 +507,237 @@ describe("serialize integration", () => {
     try {
       expect(await lua.doString(`return __scryer_frame_new`)).toBeNull();
       expect(await lua.doString(`return __scryer_tex_set_texture`)).toBeNull();
+    } finally {
+      lua.global.close();
+    }
+    void registry;
+  });
+});
+
+// ─── Template application ─────────────────────────────────────────────────────
+
+function makeBlizzardTemplates(...entries: [string, Partial<FrameIR>][]): Map<string, FrameIR> {
+  const base: FrameIR = {
+    kind: "Frame",
+    inherits: [],
+    mixin: [],
+    virtual: true,
+    sourceFile: "__test__",
+    anchors: [],
+    keyValues: [],
+    layers: [],
+    children: [],
+    scripts: [],
+    templateChain: [],
+  };
+  return new Map(entries.map(([name, partial]) => [name, { ...base, ...partial, name }]));
+}
+
+async function setupWithTemplates(
+  templates: Map<string, FrameIR>,
+  uiW = 1024,
+  uiH = 768,
+): Promise<{ lua: LuaEngine; registry: FrameRegistry }> {
+  const registry = new FrameRegistry(uiW, uiH);
+  const clock = new VirtualClock();
+  const lua = await createSandbox(WASM_PATH);
+  await registerWowApi(lua, { clock });
+  await registerFrameModel(lua, registry, templates);
+  return { lua, registry };
+}
+
+describe("template application via CreateFrame 4th arg", () => {
+  test("unknown template is a no-op (no error)", async () => {
+    const templates = makeBlizzardTemplates();
+    const { lua, registry } = await setupWithTemplates(templates);
+    try {
+      await expect(
+        lua.doString(`CreateFrame("Button", "NoTplBtn", UIParent, "UnknownTemplate")`),
+      ).resolves.not.toThrow();
+      const node = registry.getFrameByName("NoTplBtn");
+      expect(node).toBeDefined();
+      expect(node!.textures).toHaveLength(0);
+    } finally {
+      lua.global.close();
+    }
+  });
+
+  test("template texture is applied to frame", async () => {
+    const templates = makeBlizzardTemplates([
+      "MyBtnTemplate",
+      {
+        layers: [
+          {
+            level: "ARTWORK",
+            subLevel: 0,
+            objects: [
+              {
+                kind: "Texture",
+                name: "BG",
+                inherits: [],
+                mixin: [],
+                virtual: false,
+                sourceFile: "__test__",
+                anchors: [],
+                keyValues: [],
+                file: "Interface\\Buttons\\UI-Panel-Button-Up",
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    const { lua, registry } = await setupWithTemplates(templates);
+    try {
+      await lua.doString(`CreateFrame("Button", "TplBtn", UIParent, "MyBtnTemplate")`);
+      const node = registry.getFrameByName("TplBtn");
+      expect(node).toBeDefined();
+      expect(node!.textures).toHaveLength(1);
+      expect(node!.textures[0].file).toBe("Interface\\Buttons\\UI-Panel-Button-Up");
+    } finally {
+      lua.global.close();
+    }
+  });
+
+  test("template size is applied to frame", async () => {
+    const templates = makeBlizzardTemplates(["SizedTemplate", { size: { x: 120, y: 22 } }]);
+    const { lua, registry } = await setupWithTemplates(templates);
+    try {
+      await lua.doString(`CreateFrame("Frame", "SizedFrame", UIParent, "SizedTemplate")`);
+      const node = registry.getFrameByName("SizedFrame");
+      expect(node).toBeDefined();
+      expect(node!.width).toBe(120);
+      expect(node!.height).toBe(22);
+    } finally {
+      lua.global.close();
+    }
+  });
+
+  test("template fontstring is applied to frame", async () => {
+    const templates = makeBlizzardTemplates([
+      "LabelTemplate",
+      {
+        layers: [
+          {
+            level: "OVERLAY",
+            subLevel: 0,
+            objects: [
+              {
+                kind: "FontString",
+                name: "LabelText",
+                inherits: [],
+                mixin: [],
+                virtual: false,
+                sourceFile: "__test__",
+                anchors: [],
+                keyValues: [],
+                text: "Hello",
+                fontSize: 12,
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    const { lua, registry } = await setupWithTemplates(templates);
+    try {
+      await lua.doString(`CreateFrame("Frame", "LabelFrame", UIParent, "LabelTemplate")`);
+      const node = registry.getFrameByName("LabelFrame");
+      expect(node).toBeDefined();
+      expect(node!.fontStrings).toHaveLength(1);
+      expect(node!.fontStrings[0].text).toBe("Hello");
+    } finally {
+      lua.global.close();
+    }
+  });
+
+  test("function-reference script is registered on frame", async () => {
+    const templates = makeBlizzardTemplates([
+      "ScriptTemplate",
+      {
+        scripts: [{ event: "OnEnter", function: "GenericOnEnter" }],
+      },
+    ]);
+    const { lua, registry } = await setupWithTemplates(templates);
+    try {
+      await lua.doString(`
+        GenericOnEnter = function() end
+        CreateFrame("Frame", "ScriptedFrame", UIParent, "ScriptTemplate")
+      `);
+      const result = await lua.doString(`return ScriptedFrame:GetScript("OnEnter") ~= nil`);
+      expect(result).toBe(true);
+    } finally {
+      lua.global.close();
+    }
+  });
+
+  test("multiple comma-separated templates merged", async () => {
+    const templates = makeBlizzardTemplates(
+      [
+        "TemplateA",
+        {
+          layers: [
+            {
+              level: "ARTWORK",
+              subLevel: 0,
+              objects: [
+                {
+                  kind: "Texture",
+                  name: "TexA",
+                  inherits: [],
+                  mixin: [],
+                  virtual: false,
+                  sourceFile: "__test__",
+                  anchors: [],
+                  keyValues: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      [
+        "TemplateB",
+        {
+          layers: [
+            {
+              level: "OVERLAY",
+              subLevel: 0,
+              objects: [
+                {
+                  kind: "FontString",
+                  name: "FsB",
+                  inherits: [],
+                  mixin: [],
+                  virtual: false,
+                  sourceFile: "__test__",
+                  anchors: [],
+                  keyValues: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    );
+    const { lua, registry } = await setupWithTemplates(templates);
+    try {
+      await lua.doString(`CreateFrame("Button", "MultiTplBtn", UIParent, "TemplateA, TemplateB")`);
+      const node = registry.getFrameByName("MultiTplBtn");
+      expect(node).toBeDefined();
+      expect(node!.textures).toHaveLength(1);
+      expect(node!.fontStrings).toHaveLength(1);
+    } finally {
+      lua.global.close();
+    }
+  });
+
+  test("__scryer_apply_template global is cleared after bootstrap", async () => {
+    const templates = makeBlizzardTemplates();
+    const { lua, registry } = await setupWithTemplates(templates);
+    try {
+      const v = await lua.doString(`return __scryer_apply_template`);
+      expect(v).toBeNull();
     } finally {
       lua.global.close();
     }

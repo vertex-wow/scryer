@@ -2,6 +2,8 @@ import { type LuaEngine } from "wasmoon";
 import frameClassLua from "./frame-class.lua";
 import { FrameRegistry } from "./frame-registry.js";
 import type { FrameNode, TextureNode, FontStringNode, AnchorDef } from "./frame-model.js";
+import { resolveInheritance } from "../parser/inherit.js";
+import type { FrameIR, ScriptIR, TextureIR, FontStringIR, UiDocument } from "../parser/ir.js";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -53,6 +55,166 @@ function sizeNode(node: { size?: { x?: number; y?: number } }, w: unknown, h: un
   }
 }
 
+// ─── Template code generation ─────────────────────────────────────────────────
+
+function emitTplAnchor(
+  selfVar: string,
+  ir: { anchors: FrameIR["anchors"]; setAllPoints?: boolean },
+  lines: string[],
+): void {
+  if (ir.setAllPoints) {
+    const relTo = ir.anchors[0]?.relativeTo ?? ir.anchors[0]?.relativeKey;
+    lines.push(`${selfVar}:SetAllPoints(${relTo ? JSON.stringify(relTo) : "nil"})`);
+    return;
+  }
+  for (const a of ir.anchors) {
+    const relTo = a.relativeTo ?? a.relativeKey;
+    const relToExpr = relTo ? JSON.stringify(relTo) : "nil";
+    const relPoint = a.relativePoint ? JSON.stringify(a.relativePoint) : "nil";
+    lines.push(
+      `${selfVar}:SetPoint(${JSON.stringify(a.point)}, ${relToExpr}, ${relPoint}, ${a.x ?? 0}, ${a.y ?? 0})`,
+    );
+  }
+}
+
+function emitTplScript(
+  selfVar: string,
+  script: ScriptIR,
+  lines: string[],
+  lua: LuaEngine,
+  xsIdx: { n: number },
+): void {
+  if (script.inline) {
+    const i = xsIdx.n++;
+    const gname = `__scryer_xs${i}`;
+    lua.global.set(
+      gname,
+      `return function(self, event, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) ${script.inline} end`,
+    );
+    lines.push(`do`);
+    lines.push(`  local _src = ${gname}`);
+    lines.push(`  ${gname} = nil`);
+    lines.push(`  local _fn, _err = load(_src)`);
+    lines.push(
+      `  if _fn then ${selfVar}:SetScript(${JSON.stringify(script.event)}, _fn())` +
+        ` elseif _err then print("[Scryer] template script error: " .. tostring(_err)) end`,
+    );
+    lines.push(`end`);
+  } else if (script.function) {
+    lines.push(`${selfVar}:SetScript(${JSON.stringify(script.event)}, ${script.function})`);
+  }
+}
+
+/**
+ * Generate Lua code that applies a resolved template's layers (textures/fontstrings),
+ * size, anchors, and scripts to an existing frame referenced by `selfVar`.
+ * Inline script bodies are injected as Lua globals via `lua.global.set` before the
+ * caller executes the returned string.
+ */
+function generateTemplateBody(
+  tpl: FrameIR,
+  selfVar: string,
+  lua: LuaEngine,
+  xsIdx: { n: number },
+): string {
+  const lines: string[] = [];
+  let objIdx = 0;
+
+  if (tpl.size?.x !== undefined || tpl.size?.y !== undefined) {
+    lines.push(`${selfVar}:SetSize(${tpl.size?.x ?? 0}, ${tpl.size?.y ?? 0})`);
+  }
+
+  emitTplAnchor(selfVar, tpl, lines);
+
+  for (const layer of tpl.layers) {
+    for (const obj of layer.objects) {
+      const v = `_tpl${objIdx++}`;
+      if (obj.kind === "Texture" || obj.kind === "MaskTexture") {
+        const tex = obj as TextureIR;
+        const qname = tex.name ? JSON.stringify(tex.name) : "nil";
+        lines.push(
+          `local ${v} = ${selfVar}:CreateTexture(${qname}, ${JSON.stringify(layer.level)}, nil, ${layer.subLevel})`,
+        );
+        lines.push(`if ${v} then`);
+        if (tex.file) lines.push(`  ${v}:SetTexture(${JSON.stringify(tex.file)})`);
+        if (tex.atlas)
+          lines.push(
+            `  ${v}:SetAtlas(${JSON.stringify(tex.atlas)}, ${tex.useAtlasSize ? "true" : "false"})`,
+          );
+        if (tex.color) {
+          const { r, g, b, a = 1 } = tex.color;
+          lines.push(`  ${v}:SetColorTexture(${r}, ${g}, ${b}, ${a})`);
+        }
+        if (tex.texCoords) {
+          const { left, right, top, bottom } = tex.texCoords;
+          lines.push(`  ${v}:SetTexCoord(${left}, ${right}, ${top}, ${bottom})`);
+        }
+        if (tex.hidden) lines.push(`  ${v}:Hide()`);
+        if (tex.alpha !== undefined) lines.push(`  ${v}:SetAlpha(${tex.alpha})`);
+        if (tex.size?.x !== undefined || tex.size?.y !== undefined)
+          lines.push(`  ${v}:SetSize(${tex.size?.x ?? 0}, ${tex.size?.y ?? 0})`);
+        const texAnchorLines: string[] = [];
+        emitTplAnchor(`  ${v}`, tex, texAnchorLines);
+        for (const l of texAnchorLines) lines.push(l);
+        if (tex.parentKey) lines.push(`  ${selfVar}.${tex.parentKey} = ${v}`);
+        if (tex.parentArray) {
+          lines.push(`  ${selfVar}.${tex.parentArray} = ${selfVar}.${tex.parentArray} or {}`);
+          lines.push(`  table.insert(${selfVar}.${tex.parentArray}, ${v})`);
+        }
+        lines.push(`end`);
+      } else if (obj.kind === "FontString") {
+        const fs = obj as FontStringIR;
+        const qname = fs.name ? JSON.stringify(fs.name) : "nil";
+        lines.push(
+          `local ${v} = ${selfVar}:CreateFontString(${qname}, ${JSON.stringify(layer.level)})`,
+        );
+        lines.push(`if ${v} then`);
+        if (fs.text) lines.push(`  ${v}:SetText(${JSON.stringify(fs.text)})`);
+        if (fs.color) {
+          const { r, g, b, a = 1 } = fs.color;
+          lines.push(`  ${v}:SetTextColor(${r}, ${g}, ${b}, ${a})`);
+        }
+        if (fs.font && fs.fontSize !== undefined)
+          lines.push(`  ${v}:SetFont(${JSON.stringify(fs.font)}, ${fs.fontSize})`);
+        if (fs.justifyH) lines.push(`  ${v}:SetJustifyH(${JSON.stringify(fs.justifyH)})`);
+        if (fs.justifyV) lines.push(`  ${v}:SetJustifyV(${JSON.stringify(fs.justifyV)})`);
+        if (fs.hidden) lines.push(`  ${v}:Hide()`);
+        if (fs.alpha !== undefined) lines.push(`  ${v}:SetAlpha(${fs.alpha})`);
+        if (fs.size?.x !== undefined || fs.size?.y !== undefined)
+          lines.push(`  ${v}:SetSize(${fs.size?.x ?? 0}, ${fs.size?.y ?? 0})`);
+        const fsAnchorLines: string[] = [];
+        emitTplAnchor(`  ${v}`, fs, fsAnchorLines);
+        for (const l of fsAnchorLines) lines.push(l);
+        if (fs.parentKey) lines.push(`  ${selfVar}.${fs.parentKey} = ${v}`);
+        if (fs.parentArray) {
+          lines.push(`  ${selfVar}.${fs.parentArray} = ${selfVar}.${fs.parentArray} or {}`);
+          lines.push(`  table.insert(${selfVar}.${fs.parentArray}, ${v})`);
+        }
+        lines.push(`end`);
+      }
+    }
+  }
+
+  const onLoadScripts: ScriptIR[] = [];
+  for (const script of tpl.scripts) {
+    if (script.event === "OnLoad") {
+      onLoadScripts.push(script);
+    } else {
+      emitTplScript(selfVar, script, lines, lua, xsIdx);
+    }
+  }
+  for (const script of onLoadScripts) {
+    emitTplScript(selfVar, script, lines, lua, xsIdx);
+  }
+  if (onLoadScripts.length > 0) {
+    lines.push(
+      `if type(__scryer_dispatch_script) == "function" then __scryer_dispatch_script(${selfVar}.__id, "OnLoad") end`,
+    );
+  }
+
+  return lines.join("\n");
+}
+
 // ─── Registration ─────────────────────────────────────────────────────────────
 
 /**
@@ -62,11 +224,69 @@ function sizeNode(node: { size?: { x?: number; y?: number } }, w: unknown, h: un
  *
  * Must be called after registerWowApi().
  */
-export async function registerFrameModel(lua: LuaEngine, registry: FrameRegistry): Promise<void> {
+export async function registerFrameModel(
+  lua: LuaEngine,
+  registry: FrameRegistry,
+  blizzardTemplates?: Map<string, FrameIR>,
+): Promise<void> {
   // ── UIParent / WorldFrame IDs ──────────────────────────────────────────────
   // Expose as globals so frame-class.lua can capture them as upvalues.
   lua.global.set("__scryer_ui_parent_id", registry.uiParentId);
   lua.global.set("__scryer_world_frame_id", registry.worldFrameId);
+
+  // ── Template application ───────────────────────────────────────────────────
+  // Cache of resolved templates (key = comma-joined template names).
+  const templateCache = new Map<string, FrameIR | null>();
+
+  function resolveTemplateNames(names: string[]): FrameIR | null {
+    if (!blizzardTemplates) return null;
+    const key = names.join(",");
+    if (templateCache.has(key)) return templateCache.get(key)!;
+    const hasAny = names.some((n) => blizzardTemplates.has(n));
+    if (!hasAny) {
+      templateCache.set(key, null);
+      return null;
+    }
+    const synthFrame: FrameIR = {
+      kind: "Frame",
+      inherits: names,
+      mixin: [],
+      virtual: true,
+      sourceFile: "__apply_template__",
+      anchors: [],
+      keyValues: [],
+      layers: [],
+      children: [],
+      scripts: [],
+      templateChain: [],
+    };
+    const synthDoc: UiDocument = {
+      source: "__apply_template__",
+      frames: [synthFrame],
+      templates: new Map(),
+      scriptFiles: [],
+      includes: [],
+    };
+    const [resolved] = resolveInheritance([synthDoc], blizzardTemplates, {});
+    const result = resolved.frames[0] ?? null;
+    templateCache.set(key, result);
+    return result;
+  }
+
+  const xsIdx = { n: 0 };
+
+  lua.global.set("__scryer_apply_template", (_fid: unknown, templateStr: unknown): string => {
+    if (typeof templateStr !== "string" || !templateStr.trim()) return "";
+    const names = templateStr
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (names.length === 0) return "";
+    const resolved = resolveTemplateNames(names);
+    if (!resolved) return "";
+    xsIdx.n = 0;
+    return generateTemplateBody(resolved, "__scryer_tpl_frame", lua, xsIdx);
+  });
 
   // ── Frame helpers ──────────────────────────────────────────────────────────
 

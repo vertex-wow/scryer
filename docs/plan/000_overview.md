@@ -231,7 +231,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog.md#parentkey--parentarray-wiring-for-runtime-frames-deferred-from-m7">parentKey / parentArray wiring</a></td>
+  <td colspan="5">✅ <a href="backlog.md#parentkey--parentarray-wiring-for-runtime-frames-deferred-from-m7">parentKey / parentArray wiring</a>, <a href="backlog.md#template-application-in-runtime-createframe-deferred-from-m7">Template application in runtime CreateFrame</a></td>
 </tr>
 <tr>
   <td>↳</td>
@@ -246,14 +246,6 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td><a href="backlog.md#statusbar-fill-texture-rendering-deferred-from-m7">StatusBar fill texture rendering</a></td>
   <td>📋 Pending</td>
   <td>Synthesise fill bar from value/min/max at serialization; apply color/texture</td>
-  <td>S</td>
-  <td>—</td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td><a href="backlog.md#template-application-in-runtime-createframe-deferred-from-m7">Template application in runtime CreateFrame</a></td>
-  <td>📋 Pending</td>
-  <td>Apply Blizzard template textures/scripts when 4th arg to <code>CreateFrame</code> is set</td>
   <td>S</td>
   <td>—</td>
 </tr>

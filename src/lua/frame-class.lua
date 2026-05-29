@@ -89,6 +89,7 @@ do
   local _ui_parent_id            = __scryer_ui_parent_id
   local _event_listeners         = __scryer_event_listeners
   local _world_frame_id          = __scryer_world_frame_id
+  local _apply_template          = __scryer_apply_template
 
   -- Shared reference cache: id → Lua table.
   local _refs = {}
@@ -560,19 +561,29 @@ do
   _G["WorldFrame"] = WorldFrame
 
   -- ── CreateFrame ──────────────────────────────────────────────────────────────
-  function CreateFrame(frameType, name, parent, _template, _id)
+  function CreateFrame(frameType, name, parent, template, _id)
     local parentId = nil
     if type(parent) == "table" and parent.__id then
       parentId = parent.__id
     elseif parent == nil then
       parentId = _ui_parent_id
     end
-    local fid = _frame_new(frameType, name, parentId, _template)
+    local fid = _frame_new(frameType, name, parentId, template)
     if fid == nil then return nil end
     local mt = _mtByType[frameType] or FrameMT
     local frame = setmetatable({ __id = fid }, mt)
     _refs[fid] = frame
     if type(name) == "string" and #name > 0 then _G[name] = frame end
+    if type(template) == "string" and #template > 0 and _apply_template then
+      __scryer_tpl_frame = frame
+      local _code = _apply_template(fid, template)
+      if type(_code) == "string" and #_code > 0 then
+        local _fn, _err = load(_code)
+        if _fn then _fn()
+        else print("[Scryer] template apply error: " .. tostring(_err)) end
+      end
+      __scryer_tpl_frame = nil
+    end
     return frame
   end
 
@@ -717,4 +728,5 @@ do
   __scryer_ui_parent_id            = nil
   __scryer_world_frame_id          = nil
   __scryer_event_listeners         = nil
+  __scryer_apply_template          = nil
 end
