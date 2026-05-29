@@ -53,7 +53,10 @@
 
     "_comment_layout": "Layout solver parameters. epsilon is the floating-point tolerance used when checking whether two anchor point-fractions differ on an axis; maxIterations caps the iterative dependency-resolution pass.",
     "layoutEpsilon": 1e-9,
-    "layoutMaxIterations": 64
+    "layoutMaxIterations": 64,
+
+    "_comment_sandboxTimeout": "Per-call Lua execution timeout in milliseconds. Each JS→Lua call (doString, event dispatch) is killed if it exceeds this limit, preventing infinite loops from hanging VS Code. Applies per-call, not to the total session.",
+    "sandboxTimeout": 5000
   },
   "retail": {},
   "classic": {},

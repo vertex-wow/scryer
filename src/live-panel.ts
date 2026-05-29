@@ -305,7 +305,7 @@ export class ScryerLivePanel {
       const wasmPath = vscode.Uri.joinPath(this.context.extensionUri, "dist", "glue.wasm").fsPath;
       const registry = new FrameRegistry(flavorConfig.uiParentWidth, flavorConfig.uiParentHeight);
       const clock = new VirtualClock();
-      const sandbox = await createSandbox(wasmPath);
+      const sandbox = await createSandbox(wasmPath, { timeout: flavorConfig.sandboxTimeout });
 
       try {
         await registerWowApi(sandbox, {
@@ -334,6 +334,7 @@ export class ScryerLivePanel {
           addonDir,
           sandbox,
           blizzardTemplates,
+          timeout: flavorConfig.sandboxTimeout,
           readFile: async (absPath) => {
             // Prefer open document buffer (unsaved changes) over disk
             const docUri = vscode.Uri.file(absPath);

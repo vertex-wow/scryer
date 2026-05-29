@@ -291,6 +291,10 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
+  <td colspan="5">✅ <a href="backlog.md#lua-sandbox-execution-timeout-deferred-from-m6">Lua sandbox execution timeout</a></td>
+</tr>
+<tr>
+  <td>↳</td>
   <td><a href="backlog.md#xml--lua-coupling-in-static-preview">XML + Lua coupling in static preview</a></td>
   <td>📋 Pending</td>
   <td>How much Lua to run for static XML preview; design boundary between static/live modes</td>
@@ -304,14 +308,6 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td><code>scryer.run</code> command + F5 keybinding to launch full TOC execution pipeline</td>
   <td>S</td>
   <td>8, 9</td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td><a href="backlog.md#lua-sandbox-execution-timeout-deferred-from-m6">Lua sandbox execution timeout</a></td>
-  <td>📋 Pending</td>
-  <td>wasmoon <code>functionTimeout</code> to kill infinite loops in addon code; surface as output-channel error</td>
-  <td>XS</td>
-  <td>8</td>
 </tr>
 </tbody>
 </table>

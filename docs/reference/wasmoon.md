@@ -155,15 +155,23 @@ await lua.doString("return arr[3]"); // → 30 (JS index 2)
 
 `factory.createEngine(opts)` accepts:
 
-| Option             | Default     | Notes                                                                                                                                     |
-| ------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `openStandardLibs` | `true`      | Load `math`, `string`, `table`, `debug`, etc.                                                                                             |
-| `injectObjects`    | `false`     | Expose JS `null` and `Error` as Lua userdata. **Do not enable** — null as userdata evaluates to `true` in Lua, breaking addon nil checks. |
-| `enableProxy`      | `true`      | Enable `ProxyTypeExtension` for JS object bridging. Required for our API stub approach.                                                   |
-| `traceAllocations` | `false`     | Track all allocations for leak debugging. Slow.                                                                                           |
-| `functionTimeout`  | `undefined` | Millisecond timeout for JS→Lua calls. Useful for guarding against infinite loops in untrusted addon code.                                 |
+| Option             | Default     | Notes                                                                                                                                            |
+| ------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `openStandardLibs` | `true`      | Load `math`, `string`, `table`, `debug`, etc.                                                                                                    |
+| `injectObjects`    | `false`     | Expose JS `null` and `Error` as Lua userdata. **Do not enable** — null as userdata evaluates to `true` in Lua, breaking addon nil checks.        |
+| `enableProxy`      | `true`      | Enable `ProxyTypeExtension` for JS object bridging. Required for our API stub approach.                                                          |
+| `traceAllocations` | `false`     | Track all allocations for leak debugging. Slow.                                                                                                  |
+| `functionTimeout`  | `undefined` | Millisecond timeout for JS→Lua _function_ calls via the type-extension proxy path. Does **not** protect `doString` from tight loops (see below). |
 
-We do not set `functionTimeout` today. See [backlog: Lua sandbox execution timeout](../plan/backlog.md#lua-sandbox-execution-timeout-deferred-from-m6).
+We set `functionTimeout` via `defaults.json → sandboxTimeout` (default 5 000 ms), threaded through `createSandbox`. This guards the case where Lua code calls back into a JS-registered function in a loop.
+
+**`functionTimeout` does not protect `doString` from tight loops.** `engine.doString` runs via `thread.run(0)` without a timeout option, so the instruction-count hook is never installed. A bare `while true do end` at top-level would hang regardless of `functionTimeout`.
+
+**`doStringWithTimeout` is what actually kills tight loops.** Exported from `src/lua/sandbox.ts`, it replicates `doString` using `lua.global.newThread() + thread.loadString() + thread.run(0, { timeout })`. The `{ timeout }` option calls `thread.setTimeout`, which installs a `lua_sethook` with `LuaEventMasks.Count` (fires every 1 000 opcodes). When the deadline passes, the hook pushes a `LuaTimeoutError` and calls `lua_error`, which unwinds the Lua stack.
+
+The error propagated from `doStringWithTimeout` is a generic `Error` (from `assertOk`) whose message contains `"thread timeout exceeded"`. Use `isLuaTimeout(e)` from `src/lua/sandbox.ts` to detect it — it handles both this wrapped path and any direct `LuaTimeoutError` throw (coroutine-yield path).
+
+`toc-runner.ts` uses `doStringWithTimeout` for all execution when `opts.timeout` is set.
 
 ---
 

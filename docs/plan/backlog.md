@@ -988,7 +988,7 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ## Lua sandbox execution timeout (deferred from M6)
 
-**Status:** 📋 Pending
+**Status:** ✅ Complete (2026-05-29)
 
 **Problem:** wasmoon's `createEngine` accepts a `functionTimeout` option (milliseconds) that kills any JS→Lua call that exceeds the limit. Without it, a buggy or malicious addon containing an infinite loop (`while true do end`) will hang the extension host process indefinitely — blocking all VS Code UI until the user force-quits.
 

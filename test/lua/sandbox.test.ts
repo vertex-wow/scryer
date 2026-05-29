@@ -1,6 +1,5 @@
 import * as path from "path";
-import { createSandbox } from "../../src/lua/sandbox";
-import type { LuaEngine } from "wasmoon";
+import { createSandbox, doStringWithTimeout, isLuaTimeout } from "../../src/lua/sandbox";
 
 const WASM_PATH = path.join(__dirname, "../../node_modules/wasmoon/dist/glue.wasm");
 
@@ -12,6 +11,32 @@ async function lua(script: string): Promise<unknown> {
     sandbox.global.close();
   }
 }
+
+// ─── Execution timeout ───────────────────────────────────────────────────────
+describe("execution timeout", () => {
+  test("doStringWithTimeout kills infinite loop", async () => {
+    const sandbox = await createSandbox(WASM_PATH);
+    try {
+      const error = await doStringWithTimeout(sandbox, "while true do end", 200).then(
+        () => null,
+        (e: unknown) => e,
+      );
+      expect(error).toBeInstanceOf(Error);
+      expect(isLuaTimeout(error)).toBe(true);
+    } finally {
+      sandbox.global.close();
+    }
+  }, 10000);
+
+  test("doStringWithTimeout completes normally for fast scripts", async () => {
+    const sandbox = await createSandbox(WASM_PATH);
+    try {
+      await expect(doStringWithTimeout(sandbox, "return 1 + 1", 5000)).resolves.toBeUndefined();
+    } finally {
+      sandbox.global.close();
+    }
+  });
+});
 
 // ─── Dangerous globals removed ───────────────────────────────────────────────
 describe("dangerous globals removed", () => {

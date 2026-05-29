@@ -72,6 +72,8 @@ export interface FlavorConfigLayer {
   layoutEpsilon?: number;
   /** Maximum iterations for the iterative layout dependency pass. */
   layoutMaxIterations?: number;
+  /** Per-call Lua execution timeout in milliseconds. Each JS→Lua call is killed if it exceeds this limit. */
+  sandboxTimeout?: number;
 }
 
 /** Shape of a flavor config JSON file (defaults.json or user-supplied). */
@@ -120,6 +122,7 @@ export interface ResolvedFlavorConfig {
   placeholderLabelOpacity: number;
   layoutEpsilon: number;
   layoutMaxIterations: number;
+  sandboxTimeout: number;
 }
 
 // Absolute fallback — matches the values in src/flavors/defaults.json.
@@ -159,6 +162,7 @@ const HARD_DEFAULTS: Required<FlavorConfigLayer> = {
   placeholderLabelOpacity: 0.7,
   layoutEpsilon: 1e-9,
   layoutMaxIterations: 64,
+  sandboxTimeout: 5000,
 };
 
 // Built-in per-flavor config — mirrors src/flavors/defaults.json exactly.
@@ -199,6 +203,7 @@ const BUILTIN_CONFIG: FlavorConfigFile = {
     placeholderLabelOpacity: 0.7,
     layoutEpsilon: 1e-9,
     layoutMaxIterations: 64,
+    sandboxTimeout: 5000,
   },
   retail: {},
   classic: {},

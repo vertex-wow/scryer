@@ -168,16 +168,17 @@ The file shape mirrors `src/flavors/defaults.json`. Include only the keys you wa
 
 These fields control how Scryer models the WoW environment. Change them to match your monitor setup or to simulate a different in-game configuration.
 
-| Field              | Default                               | Description                                                         |
-| ------------------ | ------------------------------------- | ------------------------------------------------------------------- |
-| `screenWidth`      | `1920`                                | Physical monitor width in pixels — determines UIParent aspect ratio |
-| `screenHeight`     | `1080`                                | Physical monitor height in pixels                                   |
-| `uiParentHeight`   | `768`                                 | WoW UIParent logical height (fixed by the engine; rarely changed)   |
-| `defaultFont`      | `Fonts/FRIZQT__.TTF`                  | WoW-relative path to the default font file                          |
-| `defaultFontSize`  | `12`                                  | Default font size when none is specified                            |
-| `defaultFontFlags` | _(empty)_                             | WoW font rendering flags (e.g. `OUTLINE`, `THICKOUTLINE`)           |
-| `defaultTextColor` | `{ r: 1.0, g: 0.82, b: 0.0, a: 1.0 }` | Default FontString color — WoW gold                                 |
-| `frameScale`       | `1.0`                                 | Global scale applied to the preview viewport (CSS transform)        |
+| Field              | Default                               | Description                                                                                                                                                          |
+| ------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `screenWidth`      | `1920`                                | Physical monitor width in pixels — determines UIParent aspect ratio                                                                                                  |
+| `screenHeight`     | `1080`                                | Physical monitor height in pixels                                                                                                                                    |
+| `uiParentHeight`   | `768`                                 | WoW UIParent logical height (fixed by the engine; rarely changed)                                                                                                    |
+| `defaultFont`      | `Fonts/FRIZQT__.TTF`                  | WoW-relative path to the default font file                                                                                                                           |
+| `defaultFontSize`  | `12`                                  | Default font size when none is specified                                                                                                                             |
+| `defaultFontFlags` | _(empty)_                             | WoW font rendering flags (e.g. `OUTLINE`, `THICKOUTLINE`)                                                                                                            |
+| `defaultTextColor` | `{ r: 1.0, g: 0.82, b: 0.0, a: 1.0 }` | Default FontString color — WoW gold                                                                                                                                  |
+| `frameScale`       | `1.0`                                 | Global scale applied to the preview viewport (CSS transform)                                                                                                         |
+| `sandboxTimeout`   | `5000`                                | Per-call Lua execution timeout (ms). Kills any single `doString` call that exceeds this limit — prevents infinite loops from hanging VS Code. Set to `0` to disable. |
 
 ### Rendering calibration fields
 

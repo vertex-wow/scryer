@@ -63,6 +63,7 @@ Two changes to `frame-class.lua` support ADDON_LOADED / PLAYER_LOGIN dispatch:
 - Parse errors in `.xml` files → same.
 - Lua runtime errors → logged with error message; load continues.
 - Missing files listed in `.toc` → warned and skipped.
+- Lua execution timeout → `doStringWithTimeout` (via `opts.timeout`) kills the call after a configurable deadline (default 5 000 ms from `defaults.json → sandboxTimeout`). Detected by `isLuaTimeout(e)` and reported as a distinct "[TOC] Lua timeout in …" message. See the wasmoon reference for why `engine.doString` alone cannot protect against tight loops.
 
 ## ScryerLivePanel Lifecycle
 
@@ -78,8 +79,9 @@ Two changes to `frame-class.lua` support ADDON_LOADED / PLAYER_LOGIN dispatch:
 | `src/lua/wow-api.ts`          | Initialize `__scryer_event_listeners = {}` at end of `registerWowApi`                                                                             |
 | `src/lua/frame-class.lua`     | `_scripts` Lua table; updated `SetScript`/`GetScript`/`HookScript`/`RegisterEvent`/`UnregisterEvent`/`UnregisterAllEvents`; `__scryer_fire_event` |
 | `src/lua/xml-importer.ts`     | New — XML file → Lua code generation + execution                                                                                                  |
-| `src/lua/toc-runner.ts`       | New — TOC load sequence orchestration                                                                                                             |
-| `src/live-panel.ts`           | Rewritten — accepts `.toc` URI, uses `runTocAddon`                                                                                                |
+| `src/lua/toc-runner.ts`       | New — TOC load sequence orchestration; `opts.timeout` wires per-call deadline to `doStringWithTimeout`                                            |
+| `src/lua/sandbox.ts`          | `doStringWithTimeout` + `isLuaTimeout` — hook-based tight-loop killer; `createSandbox` accepts `opts.timeout` for `functionTimeout`               |
+| `src/live-panel.ts`           | Rewritten — accepts `.toc` URI, uses `runTocAddon`; passes `flavorConfig.sandboxTimeout`                                                          |
 | `src/extension.ts`            | `scryer.openLive` now validates `.toc` extension                                                                                                  |
 | `package.json`                | Added `scryer.openLive` command + `.toc` context menus                                                                                            |
 | `test/lua/toc-runner.test.ts` | New — integration tests for full TOC pipeline                                                                                                     |
