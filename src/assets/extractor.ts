@@ -20,7 +20,6 @@ export interface ExtractorOptions {
   cascToolPath?: string;
   listfileDir?: string;
   output: vscode.LogOutputChannel;
-  logLevel: vscode.LogLevel;
 }
 
 export interface AtlasGenWrapperOptions {
@@ -29,7 +28,6 @@ export interface AtlasGenWrapperOptions {
   /** Directory containing listfile.csv (e.g. <cacheRoot>/downloads). */
   listfileDir?: string;
   output: vscode.LogOutputChannel;
-  logLevel: vscode.LogLevel;
 }
 
 /**
@@ -63,22 +61,9 @@ function safeLog(
   }
 }
 
-/**
- * Log a line from subprocess output, routing to trace or debug based on indentation.
- * We check the setting ourselves because LogOutputChannel's built-in logLevel defaults
- * to Info and silently drops trace/debug calls regardless of scryer.logLevel.
- */
-function writeLogLine(
-  output: vscode.LogOutputChannel,
-  logLevel: vscode.LogLevel,
-  line: string,
-): void {
+function writeLogLine(output: vscode.LogOutputChannel, line: string): void {
   const level = classifyLine(line);
-  if (level === "trace") {
-    if (logLevel <= vscode.LogLevel.Trace) safeLog(output, "trace", line);
-  } else {
-    if (logLevel <= vscode.LogLevel.Debug) safeLog(output, "debug", line);
-  }
+  safeLog(output, level, line);
 }
 
 function makeCoreOpts(opts: ExtractorOptions): ExtractCoreOptions {
@@ -88,7 +73,7 @@ function makeCoreOpts(opts: ExtractorOptions): ExtractCoreOptions {
     wowDir: opts.wowDir!,
     cascToolPath: opts.cascToolPath,
     listfileDir: opts.listfileDir ?? "",
-    log: (line: string) => writeLogLine(opts.output, opts.logLevel, line),
+    log: (line: string) => writeLogLine(opts.output, line),
   };
 }
 

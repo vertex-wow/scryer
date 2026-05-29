@@ -25,18 +25,6 @@ import { collectTexturePaths } from "../parser/collect-textures.js";
 import { loadAtlasManifest, type AtlasManifest } from "./atlas-manifest.js";
 import type { FrameIR } from "../parser/ir.js";
 
-function parseLogLevel(s: string): vscode.LogLevel {
-  const map: Record<string, vscode.LogLevel> = {
-    off: vscode.LogLevel.Off,
-    trace: vscode.LogLevel.Trace,
-    debug: vscode.LogLevel.Debug,
-    info: vscode.LogLevel.Info,
-    warning: vscode.LogLevel.Warning,
-    error: vscode.LogLevel.Error,
-  };
-  return map[s] ?? vscode.LogLevel.Warning;
-}
-
 /** Resolve the Interface/AddOns path case-insensitively (extraction tools may lowercase it). */
 function resolveAddonsDir(sourceDir: string): string {
   const candidates = [
@@ -72,7 +60,6 @@ export interface AssetServiceOptions {
   /** Path to the CASC extraction tool binary (e.g. rustydemon-cli). Empty = auto-detect from PATH. */
   cascToolPath: string;
   output: vscode.LogOutputChannel;
-  logLevel: vscode.LogLevel;
 }
 
 /**
@@ -265,10 +252,6 @@ export class AssetService {
 
     fs.mkdirSync(path.dirname(this.atlasManifestPath), { recursive: true });
 
-    const logLevel = this.opts.logLevel;
-    // genAtlas silently skips when the listfile is absent. Only log "generating"
-    // here if the listfile is ready, so we don't emit the message on every render
-    // while extraction is still running.
     const listfileReady = fs.existsSync(path.join(this.downloadsDir, "listfile.csv"));
     if (listfileReady) {
       try {
@@ -282,7 +265,6 @@ export class AssetService {
       manifestPath: this.atlasManifestPath,
       listfileDir: this.downloadsDir,
       output: this.opts.output,
-      logLevel,
     });
 
     return fs.existsSync(this.atlasManifestPath);
@@ -332,7 +314,6 @@ export class AssetService {
       cascToolPath: this.opts.cascToolPath,
       listfileDir: this.downloadsDir,
       output: this.opts.output,
-      logLevel: this.opts.logLevel,
     });
     this.writeBuildStampIfConfigured();
 
@@ -413,7 +394,6 @@ export class AssetService {
       cascToolPath: this.opts.cascToolPath,
       listfileDir: this.downloadsDir,
       output: this.opts.output,
-      logLevel: this.opts.logLevel,
     });
     this.writeBuildStampIfConfigured();
   }
@@ -450,7 +430,6 @@ export class AssetService {
     const installDir = cfg.get<string>("installDir") ?? "";
     const flavor = cfg.get<string>("flavor") || "retail";
     const cascToolPath = cfg.get<string>("cascToolPath") ?? "";
-    const logLevel = parseLogLevel(cfg.get<string>("logLevel") ?? "warning");
 
     const flavorRoot = path.join(cacheRoot, flavor);
     const installFlavorDir = installDir ? path.join(installDir, flavorSubdir(flavor)) : "";
@@ -465,7 +444,6 @@ export class AssetService {
       flavor,
       cascToolPath,
       output,
-      logLevel,
     });
   }
 }

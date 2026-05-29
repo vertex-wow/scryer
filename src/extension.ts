@@ -22,8 +22,7 @@ export function activate(context: vscode.ExtensionContext): void {
         e.affectsConfiguration("scryer.installDir") ||
         e.affectsConfiguration("scryer.cacheLocation") ||
         e.affectsConfiguration("scryer.cacheDir") ||
-        e.affectsConfiguration("scryer.cascToolPath") ||
-        e.affectsConfiguration("scryer.logLevel")
+        e.affectsConfiguration("scryer.cascToolPath")
       ) {
         assets = AssetService.fromConfig(context, output);
         assets.checkBuildVersion();

@@ -115,20 +115,7 @@ How eagerly Scryer pre-warms texture assets for the addon currently being previe
 
 ## Logging
 
-### `scryer.logLevel`
-
-**Default:** `warning`
-
-Controls how much diagnostic output Scryer writes to the **Scryer** Output channel (`View > Output`, then select "Scryer" from the dropdown).
-
-| Value     | Output                                                           |
-| --------- | ---------------------------------------------------------------- |
-| `off`     | No output                                                        |
-| `trace`   | All messages including trace-level diagnostics                   |
-| `debug`   | Verbose diagnostics, corpus stats, template chains               |
-| `info`    | Info and above                                                   |
-| `warning` | Unknown templates, missing assets, resolution failures (default) |
-| `error`   | Errors only                                                      |
+Scryer writes diagnostic output to the **Scryer** Output channel (`View > Output`, then select "Scryer" from the dropdown). Use VS Code's built-in log level selector in the Output panel to control verbosity — the default is Warning.
 
 ---
 

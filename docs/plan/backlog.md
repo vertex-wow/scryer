@@ -383,22 +383,17 @@ Controls how eagerly Scryer pre-warms texture assets for the addon currently bei
 
 ---
 
-## Output channel logging and `scryer.logLevel` setting
+## Output channel logging
 
-**Status: Done** (2026-05-26)
+**Status: Done** (2026-05-26, revised 2026-05-29)
 
 **What was built:**
 
 `src/parser/inherit.ts` — `resolveInheritance` now accepts an options object `{ warnings?, pending?, warn? }` as its third parameter (replaces the old positional `warnings` + `pending` args). All `console.warn`/`console.log` calls removed; messages are routed through the optional `warn?: (msg: string) => void` callback instead. This keeps `inherit.ts` a pure module with no VSCode dependency and makes it fully testable without mocking.
 
-`package.json` — Added `scryer.logLevel` enum setting (`"off"` / `"warn"` / `"verbose"`, default `"warn"`).
+`src/panel.ts` and `src/assets/` — Use `vscode.LogOutputChannel` (`createOutputChannel("Scryer", { log: true })`). All output calls use the typed channel methods (`output.warn`, `output.debug`, `output.error`, `output.trace`) unconditionally. Users control verbosity via VS Code's built-in log level selector in the Output panel.
 
-`src/panel.ts` — Switched to `vscode.LogOutputChannel` (`createOutputChannel("Scryer", { log: true })`). Two helpers: `logLevel()` reads `scryer.logLevel` and returns the matching `vscode.LogLevel` enum value; `isEnabled(messageLevel)` returns true when the current level is not `Off` and is ≤ `messageLevel`. All output calls use the typed channel methods (`output.warn`, `output.debug`, `output.error`) gated on `isEnabled`:
-
-- `Warning` and above: unknown-template and asset-not-found messages via the `warnCb` passed to `resolveInheritance`, and direct `output.warn()` for missing assets.
-- `Debug` and above: Blizzard registry size, per-render frame/texture counts, and per-frame template chains.
-- `Error`: render errors (also calls `output.show(true)` to surface the panel).
-- `Off`: nothing written.
+No `scryer.logLevel` setting is exposed — `LogOutputChannel.logLevel` is read-only and cannot be set programmatically, so a custom setting would have no effect on what the channel actually displays.
 
 `test/parser/inherit.test.ts` — "unknown template" tests updated to use the new options-object API and assert on the warn callback messages rather than console spies.
 
@@ -634,24 +629,6 @@ Atlas references (e.g. `atlas="glues-characterselect-tophud-middle-bg"`) name a 
 
 ---
 
-## Apply scryer.logLevel setting to LogOutputChannel log level
-
-**Status: 📋 Pending**
-
-**Problem:** `LogOutputChannel` (created with `{ log: true }`) has a native `logLevel` property that VSCode uses to filter messages at the channel level. Currently `panel.ts` implements a parallel `isEnabled(messageLevel)` guard and never sets `channel.logLevel`, so VSCode's own log-level UI (the level selector in the Output panel) has no effect and the channel's built-in filtering is bypassed entirely.
-
-**Plan:**
-
-1. After creating the output channel and on every `onDidChangeConfiguration` change to `scryer.logLevel`, call `output.logLevel = logLevel()` to keep the channel's native level in sync.
-2. Remove `isEnabled()` call-site guards from `panel.ts` — the channel suppresses lower-priority calls natively, so double-gating is redundant.
-3. Verify `"off"` correctly silences the channel by setting `output.logLevel = vscode.LogLevel.Off`.
-
-The `isEnabled()` helper and `logLevel()` mapper can remain for any callers that need to branch on level (e.g. deciding whether to build an expensive log string), but should not be the primary filter mechanism.
-
-**Effort:** XS — config wiring + guard removal; no new logic.
-
----
-
 ## User-visible loading notifications
 
 **Status: 📋 Pending**
@@ -662,7 +639,7 @@ The `isEnabled()` helper and `logLevel()` mapper can remain for any callers that
 - **Blizzard file extraction** — `ensureBlizzardFiles()` can trigger a CASC extraction pass. The output channel logs it, but the panel shows no in-panel status.
 - **Startup preload** — `scryer.startupContent` tier execution logs to the output channel but there is no status bar or panel indicator that background work is ongoing.
 
-The output channel (`scryer.logLevel`) is a power-user tool. Regular users never open it, so they have no visibility into why the preview is showing placeholders.
+The output channel is a power-user tool. Regular users never open it, so they have no visibility into why the preview is showing placeholders.
 
 **Plan:**
 

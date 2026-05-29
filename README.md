@@ -85,7 +85,6 @@ The key defaults out of the box:
 | `scryer.cacheLocation`    | `global`    | Cache stored in VS Code global storage (shared across workspaces) |
 | `scryer.startupContent`   | `none`      | Nothing preloaded at startup                                      |
 | `scryer.userAddonPreload` | `on-demand` | Textures resolved when the webview requests them                  |
-| `scryer.logLevel`         | `warning`   | Warnings and above written to the Scryer Output channel           |
 
 For the complete settings reference — cache options, per-flavor display overrides, CASC tool paths, preload tiers, and more — see **[docs/configuration.md](docs/configuration.md)**.
 

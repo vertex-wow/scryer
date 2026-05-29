@@ -260,30 +260,10 @@ export class ScryerPanel {
     }
   }
 
-  private logLevel(): vscode.LogLevel {
-    const s = vscode.workspace.getConfiguration("scryer").get<string>("logLevel") ?? "warning";
-    const map: Record<string, vscode.LogLevel> = {
-      off: vscode.LogLevel.Off,
-      trace: vscode.LogLevel.Trace,
-      debug: vscode.LogLevel.Debug,
-      info: vscode.LogLevel.Info,
-      warning: vscode.LogLevel.Warning,
-      error: vscode.LogLevel.Error,
-    };
-    return map[s] ?? vscode.LogLevel.Warning;
-  }
-
-  private isEnabled(messageLevel: vscode.LogLevel): boolean {
-    const l = this.logLevel();
-    return l !== vscode.LogLevel.Off && l <= messageLevel;
-  }
-
   private async resolveAndSendAsset(rawPath: string, addonDir: string): Promise<void> {
     const absPath = await this.assets.resolveToAbsPath(rawPath, addonDir);
     if (!absPath) {
-      if (this.isEnabled(vscode.LogLevel.Warning)) {
-        this.output.warn(`Asset not found: ${rawPath}`);
-      }
+      this.output.warn(`Asset not found: ${rawPath}`);
       if (!this.retryInProgress && !this.extractionTriedPaths.has(rawPath)) {
         this.missingPaths.set(rawPath, addonDir);
         this.scheduleMissingExtract();
@@ -389,13 +369,9 @@ export class ScryerPanel {
 
       // Load Blizzard template registry (disk-cached; fast after first parse).
       const blizzardRegistry = this.assets.loadBlizzardTemplates();
-      if (this.isEnabled(vscode.LogLevel.Debug)) {
-        this.output.debug(`Blizzard registry: ${blizzardRegistry.size} templates`);
-      }
+      this.output.debug(`Blizzard registry: ${blizzardRegistry.size} templates`);
 
-      const warnCb = this.isEnabled(vscode.LogLevel.Warning)
-        ? (msg: string) => this.output.warn(msg)
-        : undefined;
+      const warnCb = (msg: string) => this.output.warn(msg);
 
       const warns = { count: 0 };
       const [resolved] = resolveInheritance([doc], blizzardRegistry, {
@@ -414,14 +390,12 @@ export class ScryerPanel {
 
       const texturePaths = collectTexturePaths(renderFrames);
 
-      if (this.isEnabled(vscode.LogLevel.Debug)) {
-        this.output.debug(`Render: ${renderFrames.length} frames, ${texturePaths.length} textures`);
-        for (const frame of renderFrames) {
-          if (frame.templateChain.length > 0) {
-            this.output.debug(
-              `  ${frame.name ?? "<anonymous>"}: inherits [${frame.templateChain.filter(Boolean).join(" → ")}]`,
-            );
-          }
+      this.output.debug(`Render: ${renderFrames.length} frames, ${texturePaths.length} textures`);
+      for (const frame of renderFrames) {
+        if (frame.templateChain.length > 0) {
+          this.output.debug(
+            `  ${frame.name ?? "<anonymous>"}: inherits [${frame.templateChain.filter(Boolean).join(" → ")}]`,
+          );
         }
       }
 
@@ -478,10 +452,8 @@ export class ScryerPanel {
         void this.prewarmWorkspace(uri, blizzardRegistry);
       }
     } catch (err) {
-      if (this.isEnabled(vscode.LogLevel.Error)) {
-        this.output.error(`Error rendering ${uri.fsPath}: ${String(err)}`);
-        this.output.show(true);
-      }
+      this.output.error(`Error rendering ${uri.fsPath}: ${String(err)}`);
+      this.output.show(true);
     }
   }
 
