@@ -1,14 +1,20 @@
 import * as fs from "fs";
 import * as path from "path";
 
-export type AssetKind = "png" | "blp" | "tga";
+export type AssetKind = "png" | "blp" | "tga" | "font";
 
 export interface ResolvedAsset {
   absPath: string;
   kind: AssetKind;
 }
 
-const EXT_KIND: Record<string, AssetKind> = { png: "png", blp: "blp", tga: "tga" };
+const EXT_KIND: Record<string, AssetKind> = {
+  png: "png",
+  blp: "blp",
+  tga: "tga",
+  ttf: "font",
+  otf: "font",
+};
 
 /** Lower-case, backslash→slash. Does NOT strip leading `interface/`. */
 export function normalizePath(rawPath: string): string {
@@ -38,7 +44,7 @@ function probe(absPath: string): ResolvedAsset | null {
  */
 function candidates(norm: string, dir: string): string[] {
   const withoutInterface = norm.replace(/^interface\//, "");
-  const hasExt = /\.(blp|tga|png)$/.test(norm);
+  const hasExt = /\.(blp|tga|png|ttf|otf)$/.test(norm);
   const exts = hasExt ? [""] : [".blp", ".tga", ".png"];
 
   const stems = [norm];

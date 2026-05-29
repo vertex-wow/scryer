@@ -227,7 +227,8 @@ function spawnRustydemon(
 
 async function extractRetailPaths(paths: string[], opts: ExtractCoreOptions): Promise<void> {
   const cascTool = findCascTool(opts.cascToolPath);
-  const listfilePath = await ensureFilteredListfile(opts.listfileDir, opts.log);
+  // Use the full listfile: paths extracted here may be outside Interface/ (e.g. Fonts/).
+  const listfilePath = await ensureListfile(opts.listfileDir, opts.log);
   await fs.promises.mkdir(opts.outDir, { recursive: true });
 
   opts.log?.(`Targeted retail extraction via rustydemon-cli...`);

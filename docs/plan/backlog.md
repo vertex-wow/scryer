@@ -547,7 +547,7 @@ el.style.backgroundPosition = `${-left * bgW}px ${-top * bgH}px`;
 **Design:**
 
 - **Built-in config** (`src/flavors/<flavor>.json` or a single `src/flavors/defaults.json` with nested sections): a JSON file with a `default` section and per-flavor overrides (`retail`, `classic`, `classic_era`). The `default` section is applied when no flavor-specific entry exists.
-- **Config keys (initial set):** `uiParentWidth`, `uiParentHeight` (reference resolution, default `1024` × `768`), `defaultFont` (WoW-relative path, e.g. `Fonts/FRIZQT__.TTF`), `defaultFontSize` (number), `defaultFontFlags` (e.g. `""`, `"OUTLINE"`, `"THICKOUTLINE"`), `defaultTextColor` (RGBA), `frameScale` (global preview scale).
+- **Config keys (initial set):** `screenWidth`, `screenHeight` (physical screen resolution, default `1920` × `1080` — `uiParentWidth/Height` are derived: `uiParentHeight=768`, `uiParentWidth=round(768*screenWidth/screenHeight)`), `defaultFont` (WoW-relative path, e.g. `Fonts/FRIZQT__.TTF`), `defaultFontSize` (number), `defaultFontFlags` (e.g. `""`, `"OUTLINE"`, `"THICKOUTLINE"`), `defaultTextColor` (RGBA), `frameScale` (global preview scale).
 - **User config:** a new extension setting `scryer.flavorConfigPath` (string, default empty) points to a user-supplied JSON file with the same shape. When set, it is loaded and merged additively on top of the built-in config: built-in `default` → built-in per-flavor → user `default` → user per-flavor. Later layers win per-key.
 - **Consumption:** the webview renderer reads the resolved config object (passed in the initial `render` message or as a separate `configUpdate` message) and applies font/size/resolution defaults wherever an explicit frame attribute is absent. FontString elements without `font=` or `fontsize=` fall back to the resolved defaults.
 
@@ -717,3 +717,38 @@ The output channel (`scryer.logLevel`) is a power-user tool. Regular users never
 **Depends on:** Having a WoW install configured (`scryer.installDir`) so the DB2 files can be extracted. Falls back to wago.tools download if not.
 
 **Effort:** M (WDC4 parser for two specific schemas: S; DB2 extraction plumbing + fallback logic: S; testing across retail/classic builds: S).
+
+---
+
+## WoW font loading (FRIZQT\_\_.TTF from CASC)
+
+**Status: ✅ Done (2026-05-28)**
+
+**Problem:** WoW fonts (e.g. `Fonts/FRIZQT__.TTF`) are packed in CASC archives, not present as loose files in the install directory. The asset resolver only handled image extensions, so font paths were never found, and FontStrings fell back to the system serif font.
+
+**What was built:**
+
+- `src/assets/resolver.ts` — extended `AssetKind` to include `"font"` for `.ttf`/`.otf`; added both extensions to the `hasExt` regex and `EXT_KIND` map.
+- `src/assets/index.ts` — `_resolve()` now passes `font` kind through directly (no BLP conversion); added `claimExtraction(rawPath): boolean` — a per-session dedup guard backed by a `Set<string>` that prevents concurrent renders from triggering duplicate extraction attempts for the same path.
+- `src/assets/extract-core.ts` — `extractRetailPaths()` switched from `ensureFilteredListfile` to `ensureListfile` (full community listfile). The interface-filtered listfile omits non-`Interface/` paths like `Fonts/`; font extraction requires the full CSV.
+- `src/panel.ts` — after resolving the flavor config, attempts to resolve `flavorConfig.defaultFont`; if absent and no extraction has been claimed yet for that path, calls `extractMissing([defaultFont])`, invalidates the asset cache, and re-resolves. Resolved URI is injected into the webview HTML as a `@font-face "WoWDefaultFont"` rule.
+
+**Fallback:** When the font is unavailable, the CSS font stack falls back to `sans-serif` (matching WoW's own default appearance more closely than serif).
+
+---
+
+## FontString rendering fidelity
+
+**Status: ✅ Done (2026-05-28)**
+
+**Problem:** FontStrings in the preview differed from in-game in three ways: (1) left-aligned when they should be centered, (2) collapsed to zero width when no explicit size was set, (3) text was noticeably narrower than in-game for the same string.
+
+**Root causes and fixes:**
+
+1. **Wrong `justifyH` default** — WoW defaults `justifyH` to `CENTER` (not `LEFT`). `renderFontString` now applies `fs.justifyH ?? "CENTER"` and `fs.justifyV ?? "MIDDLE"`.
+
+2. **Zero-width rect for unsized FontStrings** — A FontString with only a vertical anchor and no `<Size>` produces a `0×0` rect from the layout engine. WoW's default behaviour in this case is full parent width, auto height. `renderFontString` now detects `rect.width === 0` and applies `left: 0; width: 100%` instead of the explicit pixel values.
+
+3. **Text narrower than in-game (letter-spacing fudge)** — WoW's DirectWrite renderer (grayscale AA) produces ~6.3% wider advance widths than the browser's ClearType renderer for the same font file. Calibrated against `FRIZQT__.TTF` at height=12 by measuring "Example Bare Frame" (18 chars): WoW=151px vs browser=142px at 125% DPI → 7.2 CSS px gap → 0.4px per char → `0.4/12 = 0.033em`. Applied as `letter-spacing: 0.033em` on the span so it scales with font size.
+
+**Known remaining limitation:** The browser's ClearType subpixel AA makes text appear very slightly heavier/bolder than WoW's grayscale DirectWrite rendering. No CSS property available in the VS Code webview on Windows fully corrects this; it is an accepted approximation difference.

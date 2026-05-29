@@ -1,8 +1,8 @@
 {
   "_comment": "Built-in flavor defaults for the Scryer preview. Copy this file and point scryer.flavorConfigPath at your copy to override any values. Later layers win per key: built-in default → built-in per-flavor → user default → user per-flavor.",
   "default": {
-    "uiParentWidth": 1024,
-    "uiParentHeight": 768,
+    "screenWidth": 1920,
+    "screenHeight": 1080,
     "defaultFont": "Fonts/FRIZQT__.TTF",
     "defaultFontSize": 12,
     "defaultFontFlags": "",

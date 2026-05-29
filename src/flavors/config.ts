@@ -2,8 +2,9 @@ import * as fs from "fs";
 
 /** One layer of flavor config — all keys optional so layers can be sparse. */
 export interface FlavorConfigLayer {
-  uiParentWidth?: number;
-  uiParentHeight?: number;
+  /** Physical monitor resolution. WoW UIParent units are derived from these. */
+  screenWidth?: number;
+  screenHeight?: number;
   /** WoW-relative path to the default font file, e.g. "Fonts/FRIZQT__.TTF". */
   defaultFont?: string;
   defaultFontSize?: number;
@@ -21,7 +22,11 @@ export interface FlavorConfigFile {
 
 /** Fully resolved config — every field present after all layers are merged. */
 export interface ResolvedFlavorConfig {
+  screenWidth: number;
+  screenHeight: number;
+  /** Derived from screenWidth/screenHeight: Math.round(768 * screenWidth / screenHeight) */
   uiParentWidth: number;
+  /** Always 768 — WoW's fixed UIParent height in logical units. */
   uiParentHeight: number;
   defaultFont: string;
   defaultFontSize: number;
@@ -32,8 +37,8 @@ export interface ResolvedFlavorConfig {
 
 // Absolute fallback — matches the values in src/flavors/defaults.json.
 const HARD_DEFAULTS: Required<FlavorConfigLayer> = {
-  uiParentWidth: 1024,
-  uiParentHeight: 768,
+  screenWidth: 1920,
+  screenHeight: 1080,
   defaultFont: "Fonts/FRIZQT__.TTF",
   defaultFontSize: 12,
   defaultFontFlags: "",
@@ -44,8 +49,8 @@ const HARD_DEFAULTS: Required<FlavorConfigLayer> = {
 // Built-in per-flavor config — mirrors src/flavors/defaults.json exactly.
 const BUILTIN_CONFIG: FlavorConfigFile = {
   default: {
-    uiParentWidth: 1024,
-    uiParentHeight: 768,
+    screenWidth: 1920,
+    screenHeight: 1080,
     defaultFont: "Fonts/FRIZQT__.TTF",
     defaultFontSize: 12,
     defaultFontFlags: "",
@@ -91,5 +96,9 @@ export function resolveFlavorConfig(flavor: string, userConfigPath?: string): Re
   resolved = mergeLayer(resolved, user.default);
   resolved = mergeLayer(resolved, user[flavor]);
 
-  return resolved as ResolvedFlavorConfig;
+  // WoW UIParent height is always 768 logical units; width scales with aspect ratio.
+  const uiParentHeight = 768;
+  const uiParentWidth = Math.round((uiParentHeight * resolved.screenWidth) / resolved.screenHeight);
+
+  return { ...resolved, uiParentWidth, uiParentHeight };
 }

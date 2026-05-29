@@ -87,6 +87,8 @@ export class AssetService {
   private blizzardFilesEnsured = false;
   /** Set once the atlas manifest generation pass has run (or been skipped). Cleared by invalidate(). */
   private atlasManifestEnsured = false;
+  /** Paths for which a one-shot extraction has already been attempted this session. */
+  private readonly extractionAttempted = new Set<string>();
 
   constructor(opts: AssetServiceOptions) {
     this.opts = opts;
@@ -216,7 +218,7 @@ export class AssetService {
     const found = resolveTexturePath(rawPath, this.searchDirs, addonDir);
     if (!found) return null;
 
-    if (found.kind === "png") {
+    if (found.kind === "png" || found.kind === "font") {
       return found.absPath;
     }
 
@@ -396,6 +398,13 @@ export class AssetService {
    * The caller should call invalidate() after this returns so the resolver
    * picks up newly written files.
    */
+  /** Returns true if extraction for this path has not yet been attempted this session. Marks it attempted. */
+  claimExtraction(rawPath: string): boolean {
+    if (this.extractionAttempted.has(rawPath)) return false;
+    this.extractionAttempted.add(rawPath);
+    return true;
+  }
+
   async extractMissing(paths: string[]): Promise<void> {
     await extractMissing(paths, {
       flavor: this.opts.flavor,

@@ -339,6 +339,9 @@ export class ScryerPanel {
     const flavor = cfg.get<string>("flavor") ?? "retail";
     const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
     const flavorConfig = resolveFlavorConfig(flavor, userConfigPath);
+    this.output.trace(
+      `viewport: UIParent ${flavorConfig.uiParentWidth}×${flavorConfig.uiParentHeight} (screen ${flavorConfig.screenWidth}×${flavorConfig.screenHeight})`,
+    );
 
     try {
       let content: string;
@@ -430,9 +433,17 @@ export class ScryerPanel {
       // Resolve the default font from the asset cache so the webview can inject @font-face.
       let defaultFontUri: string | undefined;
       if (flavorConfig.defaultFont) {
-        const fontAbsPath = await this.assets.resolveToAbsPath(flavorConfig.defaultFont, "");
+        let fontAbsPath = await this.assets.resolveToAbsPath(flavorConfig.defaultFont, "");
+        if (!fontAbsPath && this.assets.claimExtraction(flavorConfig.defaultFont)) {
+          // Font not in cache — extract it from CASC and retry once per session.
+          await this.assets.extractMissing([flavorConfig.defaultFont]);
+          this.assets.invalidateAfterBlizzardExtraction();
+          fontAbsPath = await this.assets.resolveToAbsPath(flavorConfig.defaultFont, "");
+        }
+        this.output.trace(`font resolve: "${flavorConfig.defaultFont}" → ${fontAbsPath ?? "null"}`);
         if (fontAbsPath) {
           defaultFontUri = this.panel.webview.asWebviewUri(vscode.Uri.file(fontAbsPath)).toString();
+          this.output.trace(`font URI: ${defaultFontUri}`);
         }
       }
 

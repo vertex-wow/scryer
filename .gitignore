@@ -2,6 +2,7 @@ _reference/
 _live/
 dev/config.local.sh
 dev/config.local.json
+dev/flavor-config.local.json
 dev/listfile.csv
 
 # ephemeral task scratchpad — see docs/ for permanent docs

@@ -2,8 +2,8 @@ import type { Color, FontStringIR, FrameIR, TextureIR } from "../parser/ir.js";
 import type { ResolvedFlavorConfig, Viewport } from "../protocol.js";
 import type { Rect } from "./layout.js";
 import { layoutAll } from "./layout.js";
-import { frameZ, layerZ } from "./strata.js";
 import { makePlaceholder } from "./placeholder.js";
+import { frameZ, layerZ } from "./strata.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -97,7 +97,7 @@ function renderTexture(tex: TextureIR, rect: Rect): HTMLElement {
 
 // CSS font-family stack for WoW text. "WoWDefaultFont" is populated by an
 // @font-face rule injected by main.ts when the asset is available.
-const WOW_FONT_STACK = '"WoWDefaultFont","Palatino Linotype","Book Antiqua",serif';
+const WOW_FONT_STACK = '"WoWDefaultFont",sans-serif';
 
 function renderFontString(fs: FontStringIR, rect: Rect, config: ResolvedFlavorConfig): HTMLElement {
   const el = document.createElement("div");
@@ -106,7 +106,7 @@ function renderFontString(fs: FontStringIR, rect: Rect, config: ResolvedFlavorCo
   el.style.cssText = "position:absolute;overflow:hidden;display:flex;";
 
   // justifyH → text-align + flexbox justify
-  const jh = fs.justifyH ?? "LEFT";
+  const jh = fs.justifyH ?? "CENTER";
   const jv = fs.justifyV ?? "MIDDLE";
 
   const textAlignMap: Record<string, string> = { LEFT: "left", CENTER: "center", RIGHT: "right" };
@@ -136,17 +136,30 @@ function renderFontString(fs: FontStringIR, rect: Rect, config: ResolvedFlavorCo
     `font-family:${WOW_FONT_STACK}`,
     `font-size:${fontSize}px`,
     `color:${color}`,
+    // FUDGE: WoW's DirectWrite renderer produces ~6.3% wider advance widths than
+    // the browser's ClearType renderer for the same font file. Calibrated against
+    // FRIZQT__.TTF at height=12 by measuring "Example Bare Frame" (18 chars):
+    // WoW=151px vs browser=142px at 125% DPI → 7.2 CSS px gap → 0.4px per char
+    // → 0.4/12 = 0.033em. Applied as letter-spacing so it scales with font size.
+    "letter-spacing:0.033em",
     "pointer-events:none",
   ].join(";");
 
   el.appendChild(span);
 
-  if (rect.width > 0 || rect.height > 0) {
+  // WoW FontStrings with no explicit size default to full parent width, auto height.
+  // A zero-size rect means the anchor computed position but no size was given.
+  el.style.inset = "";
+  el.style.top = `${Math.round(rect.top)}px`;
+  if (rect.width > 0) {
     el.style.left = `${Math.round(rect.left)}px`;
-    el.style.top = `${Math.round(rect.top)}px`;
     el.style.width = `${Math.round(rect.width)}px`;
+  } else {
+    el.style.left = "0";
+    el.style.width = "100%";
+  }
+  if (rect.height > 0) {
     el.style.height = `${Math.round(rect.height)}px`;
-    el.style.inset = "";
   }
 
   if (fs.hidden) el.style.opacity = "0.4";
