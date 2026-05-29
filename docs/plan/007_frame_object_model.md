@@ -97,11 +97,11 @@ Expands to TOPLEFT/TOPLEFT + BOTTOMRIGHT/BOTTOMRIGHT anchor pairs (same as the X
 
 - Script event dispatch (OnLoad, OnEvent, OnUpdate) → M9
 - TOC load sequence → M8
-- parentKey / parentArray wiring → backlog
-- Template application in CreateFrame → backlog
+- ~~parentKey / parentArray wiring~~ → ✅ done (2026-05-29)
+- ~~Template application in CreateFrame~~ → ✅ done (2026-05-29)
 - Incremental frame tree diffing → [backlog](backlog.md#live-panel-frame-diffing-deferred-from-m4)
-- StatusBar fill texture rendering → future
-- GlobalStrings population → [backlog](backlog.md#globalstrings-population-deferred-from-m5)
+- StatusBar fill texture rendering → [backlog](backlog.md#statusbar-fill-texture-rendering-deferred-from-m7)
+- GlobalStrings population → ✅ done (2026-05-29)
 
 ## Dependencies
 
