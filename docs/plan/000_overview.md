@@ -228,7 +228,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tr>
   <td>7</td>
   <td><strong>Frame Object Model</strong></td>
-  <td>⬜ Pending</td>
+  <td>✅ Complete (2026-05-29)</td>
   <td><code>CreateFrame</code> proxy; core widget methods; <code>ScryerLivePanel</code>; full re-render on mutation</td>
   <td>M</td>
   <td>2, 5, 6</td>
@@ -239,6 +239,30 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>📋 Pending</td>
   <td>Incremental frame-tree diffs to webview; full re-render used in M7</td>
   <td>S–M</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#parentkey--parentarray-wiring-for-runtime-frames-deferred-from-m7">parentKey / parentArray wiring</a></td>
+  <td>📋 Pending</td>
+  <td>Set <code>parent[parentKey] = child</code> after <code>CreateFrame</code>; enables child access by key</td>
+  <td>XS</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#statusbar-fill-texture-rendering-deferred-from-m7">StatusBar fill texture rendering</a></td>
+  <td>📋 Pending</td>
+  <td>Synthesise fill bar from value/min/max at serialization; apply color/texture</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#template-application-in-runtime-createframe-deferred-from-m7">Template application in runtime CreateFrame</a></td>
+  <td>📋 Pending</td>
+  <td>Apply Blizzard template textures/scripts when 4th arg to <code>CreateFrame</code> is set</td>
+  <td>S</td>
   <td>—</td>
 </tr>
 <tr>

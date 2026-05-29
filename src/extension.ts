@@ -3,6 +3,7 @@ import { AssetService } from "./assets/index.js";
 import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
 import { ADDON_NAMES, SHARED_ADDON_NAMES } from "./parser/blizzard-registry.js";
 import { ScryerPanel } from "./panel.js";
+import { ScryerLivePanel } from "./live-panel.js";
 
 export function activate(context: vscode.ExtensionContext): void {
   // Single shared output channel and asset service for the entire extension session.
@@ -73,6 +74,21 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   context.subscriptions.push(cmd);
+
+  const liveCmd = vscode.commands.registerCommand("scryer.openLive", (uri?: vscode.Uri) => {
+    const resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
+    if (!resolved) {
+      void vscode.window.showErrorMessage("Scryer: open a .lua file first.");
+      return;
+    }
+    if (!resolved.fsPath.endsWith(".lua")) {
+      void vscode.window.showErrorMessage("Scryer: active file is not a Lua file.");
+      return;
+    }
+    ScryerLivePanel.create(context, resolved, assets, output);
+  });
+
+  context.subscriptions.push(liveCmd);
 
   // Pre-warm template registry and/or texture caches at activation so the first panel
   // open is fast. Deferred past activate() via a resolved promise so activation is

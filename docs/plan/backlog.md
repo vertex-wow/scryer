@@ -999,6 +999,48 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ---
 
+## parentKey / parentArray wiring for runtime frames (deferred from M7)
+
+**Status:** 📋 Pending
+
+**Problem:** When Lua code does `parent.Icon = child` via `parentKey`, or appends to `parent.Icons` via `parentArray`, the frame object model needs to set those fields on the Lua parent table. Currently `CreateFrame` ignores template `parentKey`/`parentArray` metadata entirely. Addons that access children via `parent.Icon:SetTexture(...)` will get a nil error.
+
+**Plan:** In `frame-class.lua`, after `_frame_new` returns the new frame ID, check for `parentKey` and `parentArray` values (passed as extra args or via a second helper). Set `parent[parentKey] = frame` and `table.insert(parent[parentArray] or {}, frame)` respectively. Mirror the behaviour from the XML inheritance resolution in `src/parser/inherit.ts`.
+
+**Effort:** XS — wiring in the Lua class and optionally a helper for the array case.
+
+**Depends on:** M7 (done).
+
+---
+
+## StatusBar fill texture rendering (deferred from M7)
+
+**Status:** 📋 Pending
+
+**Problem:** `StatusBar` frames created via `CreateFrame("StatusBar", ...)` render as plain frames — no fill bar is visible. `SetValue(75)` / `SetMinMaxValues(0, 100)` sets internal state but produces no visual output.
+
+**Plan:** In `frameNodeToIR` (or `statusBarNodeToIR`), when `statusBarValue` is set and the frame has an explicit width, synthesise a fill texture in the ARTWORK layer with width proportional to `(value - min) / (max - min)`. Apply `statusBarColor` or `statusBarTexturePath` as the fill appearance. For the case where width is not yet known at serialization time, add a `data-*` attribute to the rendered DOM element and let the webview apply the fill percentage via CSS after layout.
+
+**Effort:** S — the serialization-time approach is straightforward; the post-layout percentage approach requires a small webview-side addition.
+
+**Depends on:** M7 (done).
+
+---
+
+## Template application in runtime CreateFrame (deferred from M7)
+
+**Status:** 📋 Pending
+
+**Problem:** `CreateFrame("Button", "MyBtn", UIParent, "UIPanelButtonTemplate")` ignores the template argument. Addons that rely on templates to provide textures, scripts, and default sizing get a bare frame instead.
+
+**Plan:** In `registerFrameModel`, after creating the frame node, look up the template name in the Blizzard registry (loaded via `AssetService.loadBlizzardTemplates()`). If found, merge the template's textures, font strings, and scripts onto the new frame node (same merge logic as `resolveInheritance`). Multiple comma-separated templates should be supported.
+
+**Effort:** S — the merge logic already exists in `src/parser/inherit.ts`; the wiring is the new work.
+
+**Depends on:** M7 (done); Blizzard template corpus (already done as part of M3).
+
+---
+
 ## GlobalStrings population (deferred from M5)
 
 **Status:** 📋 Pending

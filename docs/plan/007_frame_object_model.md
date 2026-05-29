@@ -1,105 +1,108 @@
 # Milestone 7 — Frame Object Model + ScryerLivePanel
 
+## Status
+
+**Complete (2026-05-29)**
+
 ## Goal
 
-Implement `CreateFrame` and the core widget object model backed by the render tree. Open a new `ScryerLivePanel` webview. On each Lua mutation, send the full frame tree to the webview for rendering. First visual payoff: frames created in Lua appear in the preview.
+Implement `CreateFrame` and the core WoW widget object model backed by the render tree. Open a new `ScryerLivePanel` webview. On each Lua mutation, send the full frame tree to the webview for rendering. First visual payoff: frames created in Lua appear in the preview.
 
-## ScryerLivePanel
+## What was built
 
-A **new, separate panel** — not a reuse of `ScryerPanel`. The static preview panel (`scryer.open`) is a fast "fake it" tool and stays around as-is. The live panel is the beginning of a full sandbox that will diverge significantly as later milestones are added.
+### FrameRegistry (`src/lua/frame-registry.ts`)
 
-Fork `panel.ts` as a starting point if convenient; the two panels share the same webview HTML shell, asset-serving protocol, and message types from M2. Diverge freely from there.
+Manages all mutable runtime state:
 
-**Full re-render on mutation:** on each Lua mutation, serialize the complete frame tree to the webview as a JSON message — no diffing. Frame-diff optimization is a future backlog item. This is correct, simple, and sufficient for M7's goal.
+- Sequential ID space shared across frames, textures, font strings.
+- `UIParent` (viewport-sized) and `WorldFrame` pre-created at construction.
+- Named-frame lookup via `_nameIndex` map.
+- `serialize()` walks UIParent's subtree and returns `FrameIR[]` for the renderer.
+- Dirty flag for tracking mutations.
 
-## CreateFrame
+### Frame/Texture/FontString nodes (`src/lua/frame-model.ts`)
 
-`CreateFrame(type, name, parent, template)` is the primary entry point for all Lua-driven UI.
+Mutable TypeScript state objects with `toIR()` serialization to `FrameIR` / `TextureIR` / `FontStringIR`. Textures and font strings are embedded in their owner's arrays (not separate top-level nodes).
 
-```ts
-// TypeScript side: CreateFrame registered as a Lua global via wasmoon
-lua.global.set("CreateFrame", (type, name, parent, template) => {
-  const frame = frameRegistry.create(type, name, parent, template);
-  return frame.luaProxy; // a Lua table with method callbacks
-});
-```
+### Lua class bootstrap (`src/lua/frame-class.lua`)
 
-Each frame object is a Lua table whose methods are TypeScript functions registered via wasmoon. Mutations update the TypeScript frame tree and schedule a re-render.
+Real Lua tables (not userdata proxies) for all frame types:
 
-## Frame Registry
+- `Frame`, `Button`, `CheckButton`, `StatusBar`, `ScrollFrame`, `Slider`, `EditBox`, `GameTooltip` metatables — all inheriting `FrameMT`.
+- `Texture` and `FontString` metatables.
+- All JS helpers captured as upvalues in a `do...end` block then cleared from `_G`.
+- `CreateFrame(type, name, parent, template)` global.
+- `UIParent`, `WorldFrame` Lua tables with pre-assigned `__id` from the registry.
+- `Mixin`, `CreateFromMixins`, `CreateAndInitFromMixin`, `GetFrameMetatable`, `nop`/`noop`/`donothing`.
 
-- `UIParent` and `WorldFrame` are pre-created at bootstrap.
-- Named frames are registered by name in a global map; `GetFrame("name")` returns them.
-- Anonymous frames (no name) exist only via Lua variable references.
+### registerFrameModel (`src/lua/createframe.ts`)
 
-## Core Widget Methods (all frame types)
+Injects ~60 JS helper globals then calls `lua.doString(frameClassLua)`. Helpers cover:
 
-**Size/position:**
-`GetWidth`/`SetWidth`, `GetHeight`/`SetHeight`, `SetSize(w,h)`, `GetSize()`
+- Frame: `SetPoint`, `ClearAllPoints`, `SetAllPoints`, `SetSize`, `Show/Hide`, `SetAlpha/Scale`, `SetFrameStrata/Level`, `SetScript/GetScript/HookScript`, `RegisterEvent`, `SetAttribute`, `GetChildren`, `CreateTexture`, `CreateFontString`.
+- Button: `SetText/GetText`, `Enable/Disable`, `SetNormalTexture`.
+- StatusBar: `SetMinMaxValues`, `SetValue`, `SetStatusBarTexture`, `SetStatusBarColor`, `SetOrientation`.
+- Texture: `SetTexture`, `SetAtlas`, `SetTexCoord` (4- and 8-float forms), `SetVertexColor`, `SetColorTexture`, `SetBlendMode`, `SetAlpha`, `Show/Hide`, `SetSize`, `SetPoint`.
+- FontString: `SetText`, `SetTextColor`, `SetFont`, `SetJustifyH/V`, `SetAlpha`, `Show/Hide`, `SetSize`, `SetPoint`.
 
-**Anchors:**
-`SetPoint(point, [relativeTo, relativePoint, x, y])`, `ClearAllPoints()`, `SetAllPoints([frame])`, `GetRect()`
+### ScryerLivePanel (`src/live-panel.ts`)
 
-**Visibility:**
-`Show()`, `Hide()`, `IsShown()`, `IsVisible()`, `SetShown(bool)`, `SetAlpha(a)`, `GetAlpha()`
+- Opens on a `.lua` file via `scryer.openLive` command.
+- Per-render cycle: fresh sandbox + registry, `registerWowApi` + `registerFrameModel`, execute Lua source, advance clock 1ms, serialize frame tree.
+- Re-renders on file change (400ms debounce).
+- Asset pipeline (atlas, texture resolve/extract) identical to `ScryerPanel`.
+- Same webview HTML shell as `ScryerPanel`.
 
-**Hierarchy:**
-`GetParent()`, `SetParent(frame)`, `GetName()`, `GetID()`
+### jest.config.mjs
 
-**Scripts (wired in M9):**
-`SetScript(event, fn)`, `GetScript(event)`, `HookScript(event, fn)` — store handlers on the frame object; dispatch is M9.
+Added `"^(\\.{1,2}/.+)\\.js$": "$1"` moduleNameMapper so that `.js` extension imports in source files resolve correctly in Jest tests.
 
-**Children:**
-`CreateTexture([name, layer, inherits, subLevel])`, `CreateFontString([name, layer, inherits])`
+## Key design decisions
 
-## Widget-Type-Specific Methods
+### Lua table objects (not userdata proxies)
 
-**Texture:** `SetTexture(path)`, `SetAtlas(atlasName, useAtlasSize)`, `SetTexCoord(...)`, `SetVertexColor(r,g,b,a)`, `SetColorTexture(r,g,b,a)`, `SetBlendMode(mode)`
+All objects are real Lua tables (`setmetatable({__id = n}, MT)`): `type(frame) == "table"`, `pairs` works, addon code can set arbitrary fields.
 
-**FontString:** `SetText(text)`, `GetText()`, `SetTextColor(r,g,b,a)`, `SetFont(face, height, flags)`
+### Single shared ID space
 
-**Button:** `SetNormalTexture(path)`, `GetPushedTexture()`, `SetText(text)`, `GetText()`, `Click()` (fires OnClick — M9)
+Frames, textures, and font strings share a sequential counter. The Lua-side `_refs` table caches all objects for `GetParent()` / `GetChildren()`.
 
-## parentKey / parentArray Wiring
+### Full re-render on mutation
 
-When a frame has `parentKey="Icon"`, set `parent.Icon = frameObject` after creation. `parentArray` appends to `parent.Icons` table. This mirrors the XML IR parentKey logic from M1 and is required for any addon that references child frames by key.
+Each `runAndRender()` serializes the entire frame tree. No diffing — see [backlog](backlog.md#live-panel-frame-diffing-deferred-from-m4).
 
-## Mixin System
+### Fresh sandbox per render
 
-```lua
--- WoW built-ins to provide (registered as TypeScript Lua globals):
-Mixin(target, source1, source2, ...)           -- copy fields onto target, return target
-CreateFromMixins(mixin1, mixin2, ...)          -- create new table, apply mixins
-CreateAndInitFromMixin(mixin, ...)             -- create + call :Init(...)
-secureMixin(target, source1, ...)              -- stub ok (secure taint not simulated)
-```
+A new sandbox is created each render cycle. Avoids accumulated state; startup cost is paid on each save. Optimization deferred.
 
-When a frame has `mixin="FooMixin"`:
+### SetAllPoints → two explicit anchors
 
-1. Look up `FooMixin` in `_G` (must be defined before use in TOC load order).
-2. Copy all mixin fields onto the frame's Lua table.
-3. `OnLoad` fires if defined (M9 for full dispatch; M7 can call it directly at creation time as a bootstrap convenience).
+Expands to TOPLEFT/TOPLEFT + BOTTOMRIGHT/BOTTOMRIGHT anchor pairs (same as the XML parser).
 
-## Render Protocol
+## Files changed
 
-On each Lua mutation (SetPoint, SetSize, Show, Hide, SetTexture, etc.), collect the updated frame tree and send it to the webview via the existing M2 message protocol. The webview re-renders the full tree. No per-mutation diffs.
+| File                              | Change                          |
+| --------------------------------- | ------------------------------- |
+| `src/lua/frame-model.ts`          | New                             |
+| `src/lua/frame-registry.ts`       | New                             |
+| `src/lua/frame-class.lua`         | New                             |
+| `src/lua/createframe.ts`          | New                             |
+| `src/live-panel.ts`               | New                             |
+| `src/extension.ts`                | Added `scryer.openLive` command |
+| `jest.config.mjs`                 | Added `.js` moduleNameMapper    |
+| `test/lua/frame-registry.test.ts` | New (25 tests)                  |
+| `test/lua/createframe.test.ts`    | New (54 tests)                  |
 
-The existing M2 renderer (`src/webview/`) handles layout and painting — no webview-side changes needed for M7 beyond ensuring the full-tree message format is compatible.
+## Out of scope / deferred
 
-## Testing
-
-- `CreateFrame("Frame", "MyFrame", UIParent)` returns a Lua object with methods
-- `frame:SetPoint("CENTER")` — frame appears centered in the webview
-- `frame:SetSize(200, 100)` — frame dimensions update
-- `frame:Hide()` / `frame:Show()` — frame toggles visibility
-- `frame:CreateTexture()` returns a Texture object; `texture:SetColorTexture(1,0,0,1)` renders a red rect
-- `parentKey` wiring: `parent.Icon` is set correctly after child creation
-- `Mixin` copies fields onto a target table
+- Script event dispatch (OnLoad, OnEvent, OnUpdate) → M9
+- TOC load sequence → M8
+- parentKey / parentArray wiring → backlog
+- Template application in CreateFrame → backlog
+- Incremental frame tree diffing → [backlog](backlog.md#live-panel-frame-diffing-deferred-from-m4)
+- StatusBar fill texture rendering → future
+- GlobalStrings population → [backlog](backlog.md#globalstrings-population-deferred-from-m5)
 
 ## Dependencies
 
-**M2** (renderer + DOM; render protocol); **M5** (sandbox); **M6** (stubs; UIParent/WorldFrame registered there).
-
-## Rough Effort
-
-**M** — the largest step in the series. ~40–60 widget methods across several frame types, plus the proxy wiring, mixin system, and panel fork.
+M2 (renderer + webview protocol), M5 (sandbox), M6 (WoW API stubs).
