@@ -85,8 +85,8 @@ export function collectAddonTexturePaths(addonsDir: string, addonNames: string[]
     const toc = parseToc(tocContent);
 
     for (const file of toc.files) {
-      if (file.toLowerCase().endsWith(".xml")) {
-        loadXmlTextures(resolveCI(addonDir, file), out, visited);
+      if (file.type === "xml") {
+        loadXmlTextures(resolveCI(addonDir, file.path), out, visited);
       }
     }
   }

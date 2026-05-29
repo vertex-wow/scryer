@@ -79,9 +79,7 @@ function tocXmlFiles(tocPath: string): string[] {
     return [];
   }
   const toc = parseToc(content);
-  return toc.files
-    .filter((f) => f.toLowerCase().endsWith(".xml"))
-    .map((f) => resolveCI(addonDir, f));
+  return toc.files.filter((f) => f.type === "xml").map((f) => resolveCI(addonDir, f.path));
 }
 
 /**
@@ -238,8 +236,8 @@ export function discoverBlizzardPaths(
       const toc = parseToc(content);
       const addonDir = path.dirname(abs);
       for (const f of toc.files) {
-        if (f.toLowerCase().endsWith(".xml")) {
-          probe(resolveCI(addonDir, f));
+        if (f.type === "xml") {
+          probe(resolveCI(addonDir, f.path));
         }
       }
     }

@@ -1,4 +1,4 @@
-# Milestone 4 — TOC Parser
+# Milestone 4 — TOC Parser ✅ Complete (2026-05-29)
 
 ## Goal
 
@@ -49,7 +49,7 @@ interface TocFile {
 
 ## Activation-Time Detection
 
-Before fully parsing, use a lightweight check to confirm a file is a WoW TOC: any line `startsWith("##")` AND (lowercased) `includes("interface")` AND `includes(":")`. This mirrors the pattern from `ketho.wow-api/src/extension.ts:hasTocFile()`. Do **not** fully parse every TOC during activation — only on preview open.
+Exported as `isTocFile(content: string): boolean`. Scans lines for any that `startsWith("##")` AND (lowercased) `includes("interface")` AND `includes(":")`. Mirrors the pattern from `ketho.wow-api/src/extension.ts:hasTocFile()`. Do **not** fully parse every TOC during activation — only on preview open.
 
 ## Testing
 
