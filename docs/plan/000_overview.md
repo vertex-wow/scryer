@@ -187,11 +187,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#globalstrings-population-deferred-from-m5">GlobalStrings population</a></td>
-  <td>📋 Pending</td>
-  <td>Load 24k enUS GlobalStrings into <code>_G</code> before addon code runs; needed for FontString/SetText</td>
-  <td>XS</td>
-  <td>7</td>
+  <td colspan="5">✅ <a href="backlog.md#globalstrings-population-deferred-from-m5">GlobalStrings population</a></td>
 </tr>
 <tr>
   <td>↳</td>

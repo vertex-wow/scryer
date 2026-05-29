@@ -1046,7 +1046,7 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ## GlobalStrings population (deferred from M5)
 
-**Status:** 📋 Pending
+**Status:** ✅ Complete (2026-05-29)
 
 **Problem:** WoW addons and Blizzard XML files reference global string constants by name — e.g. `FontString text="OKAY"` or `button:SetText(CLOSE)`. Without these constants pre-populated in `_G`, such code will silently receive `nil` and render nothing.
 
@@ -1055,3 +1055,5 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 **Why deferred from M5:** 24k entries ~1.5 MB — loading all of them in M5 would bloat the bundle before any rendering code exists to use them. The right point to add this is M7 (Frame Object Model), when `FontString` and `SetText` rendering will immediately exercise the strings.
 
 **Effort:** XS (extraction script + sandbox wiring once M7 is in progress).
+
+**Implementation:** `dev/gen-globalstrings.ts` imports `enUS.ts` via esbuild and writes `src/lua/globalstrings.json` (23,955 entries, ~1.5 MB). `createSandbox` loads it via `require` and calls `lua.global.set(key, value)` for each entry. Run `pnpm run gen-globalstrings` to regenerate if the reference corpus updates.

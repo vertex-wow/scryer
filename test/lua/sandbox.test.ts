@@ -273,6 +273,25 @@ describe("bit library", () => {
   });
 });
 
+// ─── GlobalStrings ────────────────────────────────────────────────────────────
+describe("GlobalStrings", () => {
+  test("OKAY is populated in _G", async () => {
+    expect(await lua("return OKAY")).toBe("Okay");
+  });
+
+  test("CLOSE is populated in _G", async () => {
+    expect(await lua("return CLOSE")).toBe("Close");
+  });
+
+  test("CANCEL is populated in _G", async () => {
+    expect(await lua("return CANCEL")).toBe("Cancel");
+  });
+
+  test("unknown global is nil", async () => {
+    expect(await lua("return SCRYER_NONEXISTENT_XYZ")).toBeNull();
+  });
+});
+
 // ─── 5.1 global gaps ─────────────────────────────────────────────────────────
 describe("Lua 5.1 global gaps", () => {
   test("unpack works", async () => {

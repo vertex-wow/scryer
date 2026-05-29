@@ -23,4 +23,9 @@ await Promise.all([
   esbuild.build({ ...shared, entryPoints: ["dev/extract.ts"], outfile: "dist/extract.js" }),
   esbuild.build({ ...shared, entryPoints: ["dev/links.ts"], outfile: "dist/links.js" }),
   esbuild.build({ ...shared, entryPoints: ["dev/assets.ts"], outfile: "dist/assets.js" }),
+  esbuild.build({
+    ...shared,
+    entryPoints: ["dev/gen-globalstrings.ts"],
+    outfile: "dist/gen-globalstrings.js",
+  }),
 ]);

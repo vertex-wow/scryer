@@ -221,6 +221,7 @@
     "gen-atlas": "node dev/bench.build.mjs && node dist/gen-atlas.js",
     "links": "node dev/bench.build.mjs && node dist/links.js",
     "assets": "node dev/bench.build.mjs && node dist/assets.js",
+    "gen-globalstrings": "node dev/bench.build.mjs && node dist/gen-globalstrings.js",
     "package": "pnpm run build && vsce package --no-dependencies",
     "publish": "pnpm run build && vsce publish --no-dependencies",
     "prepare": "husky"

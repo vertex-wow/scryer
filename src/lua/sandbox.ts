@@ -1,6 +1,8 @@
 import { LuaFactory, LuaTimeoutError, type LuaEngine } from "wasmoon";
 import compatLua from "./compat.lua";
 
+import globalstrings from "./globalstrings.json";
+
 export async function createSandbox(
   wasmPath: string,
   opts?: { timeout?: number },
@@ -27,6 +29,11 @@ export async function createSandbox(
 
   // Bootstrap WoW Lua 5.1 compat: extensions, shim, aliases, bit library.
   await lua.doString(compatLua);
+
+  // Populate _G with enUS GlobalStrings so addon code can reference them by name.
+  for (const [key, value] of Object.entries(globalstrings)) {
+    lua.global.set(key, value);
+  }
 
   return lua;
 }
