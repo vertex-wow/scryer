@@ -212,7 +212,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tr>
   <td>6</td>
   <td><strong>WoW API Stubs</strong></td>
-  <td>⬜ Pending</td>
+  <td>✅ Complete (2026-05-29)</td>
   <td>TypeScript stubs into sandbox; C_* scaffolding from <code>globalapi.ts</code>; LibStub; C_Timer</td>
   <td>S</td>
   <td>5</td>
@@ -280,6 +280,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td><code>scryer.run</code> command + F5 keybinding to launch full TOC execution pipeline</td>
   <td>S</td>
   <td>8, 9</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#lua-sandbox-execution-timeout-deferred-from-m6">Lua sandbox execution timeout</a></td>
+  <td>📋 Pending</td>
+  <td>wasmoon <code>functionTimeout</code> to kill infinite loops in addon code; surface as output-channel error</td>
+  <td>XS</td>
+  <td>8</td>
 </tr>
 </tbody>
 </table>

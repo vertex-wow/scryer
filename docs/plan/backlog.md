@@ -983,6 +983,22 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ---
 
+## Lua sandbox execution timeout (deferred from M6)
+
+**Status:** 📋 Pending
+
+**Problem:** wasmoon's `createEngine` accepts a `functionTimeout` option (milliseconds) that kills any JS→Lua call that exceeds the limit. Without it, a buggy or malicious addon containing an infinite loop (`while true do end`) will hang the extension host process indefinitely — blocking all VS Code UI until the user force-quits.
+
+**Plan:** Thread a `sandboxTimeout` option through `createSandbox` (default value in `defaults.json`). Pass it as `functionTimeout` to `factory.createEngine`. Catch `LuaTimeoutError` in the execution pipeline (M8) and surface a user-visible error in the output channel. Start with a conservative default (e.g. 5 000 ms) that covers normal addon init without hitting legitimate long-running code.
+
+**Note:** `functionTimeout` applies per JS→Lua call, not to the total session lifetime. Accumulated time across many short calls is not bounded by this. Full protection requires re-entering the sandbox via a watchdog pattern; that is out of scope here — the basic timeout handles the obvious case (tight loop at top level).
+
+**Effort:** XS — wiring the option and catching the error is ~10 lines; choosing a sensible default requires testing against a few real addons.
+
+**Depends on:** M8 (TOC Execution Pipeline), where addon Lua first runs end-to-end.
+
+---
+
 ## GlobalStrings population (deferred from M5)
 
 **Status:** 📋 Pending

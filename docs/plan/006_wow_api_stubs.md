@@ -4,94 +4,89 @@
 
 Register TypeScript functions into the M5 sandbox that implement the WoW API: essential globals, auto-generated C\_\* namespace stubs, LibStub, FunctionContainer, and C_Timer. After this milestone, addon library code (LibStub, AceLibrary, etc.) loads without crashing.
 
-## Stub Model
+## What was built
 
-WoW's API lives in C++ and is exposed to the Lua VM via the C API. We do the same: TypeScript functions are registered into the wasmoon sandbox via its JS↔Lua API.
+**`src/lua/wow-api.ts`** — `registerWowApi(lua, opts)` injects all WoW API stubs into an existing M5 sandbox. Also exports `VirtualClock` and `FunctionContainerHandle`.
 
-```ts
-lua.global.set("GetTime", () => virtualClock.now());
-lua.global.set("date", (fmt: string, time?: number) => formatDate(fmt, time));
-lua.global.set("print", (...args: unknown[]) => outputChannel.appendLine(args.join("\t")));
-```
+### C\_\* Namespace Stubs
 
-## C\_\* Namespace Auto-Generation
+`_reference/vscode-wow-api/src/data/globalapi.ts` lists 208 `C_*` namespace names (not 261 as originally estimated — the estimate was stale). The namespace names are embedded as a static `const` array in `wow-api.ts`.
 
-All 261 `C_*` namespaces from `_reference/vscode-wow-api/src/data/globalapi.ts` are pre-generated as stub tables where every function returns `nil` (with optional debug log). Flavor-gated availability (M10) is layered on top later; for M6 all functions are present regardless of flavor.
-
-```ts
-// Auto-generated from globalapi.ts:
-for (const [namespace, fns] of cNamespaces) {
-  const table: Record<string, () => null> = {};
-  for (const fn of fns) table[fn] = () => null;
-  lua.global.set(namespace, table);
-}
-```
-
-## Priority Stubs
-
-Behavioral stubs (not just nil-return) required for any non-trivial addon to load:
-
-| API                                                   | Behavior                         |
-| ----------------------------------------------------- | -------------------------------- |
-| `GetTime()`                                           | Returns virtual clock time       |
-| `date(fmt, time)`                                     | Wraps JS `Date`                  |
-| `print(...)` / `DEFAULT_CHAT_FRAME:AddMessage`        | Writes to VS Code output channel |
-| `IsAddOnLoaded(name)` _(deprecated mainline)_         | Returns `true` for loaded addons |
-| `GetAddOnMetadata(name, key)` _(deprecated mainline)_ | Reads from parsed `TocFile`      |
-
-**Deprecated functions must still be stubbed** — deprecated-since-10.0 means removed from mainline but still present in Classic flavors, and many mainline addons call them via compat layers.
-
-## LibStub
-
-LibStub is a simple registry table. It must be present before any other library attempts to register itself:
+Each namespace is a real Lua table (not a JS proxy) with an `__index` metamethod that returns a nil-returning stub function for any key:
 
 ```lua
-LibStub = LibStub or {
-    libs = {},
-    minors = {},
-}
-function LibStub:NewLibrary(major, minor)
-    -- standard LibStub implementation
-end
-function LibStub:GetLibrary(major, silent)
-    -- standard LibStub implementation
-end
+C_AccountInfo = setmetatable({}, { __index = function() return function() return nil end end })
 ```
 
-Provide the canonical LibStub implementation as a Lua string loaded during bootstrap. Do not attempt to load LibStub from `_live/` — it must be present before any file in the TOC runs.
+This approach was chosen over enumerating per-namespace function names because:
 
-## FunctionContainer
+- `globalapi.ts` contains only namespace names, not function signatures
+- The `__index` approach is robust to undocumented or new functions
+- `type(C_AccountInfo)` correctly returns `"table"` (important for addon compat checks)
 
-`C_Timer.After` / `C_Timer.NewTicker` (and many other callback-registration APIs) return a `FunctionContainer`. Addons store and call `:Cancel()`:
+`C_Timer` is excluded from this block and is given a real implementation below.
 
-```lua
--- FunctionContainer (from Annotations/Core/Type/FunctionContainer.lua)
-{ Cancel(), IsCancelled() -> boolean, Invoke() }
-```
+### Priority Stubs
 
-Omitting this causes nil-method crashes in any addon that cancels its timers. Provide as a TypeScript-constructed Lua table.
+| API                                                      | Behavior                                                                        |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `GetTime()`                                              | Returns `VirtualClock.now()`                                                    |
+| `date(fmt, time)`                                        | Wraps JS `Date`; supports `"*t"` table, `"!"` UTC prefix, common `%` directives |
+| `print(...)`                                             | Calls `opts.print` callback (defaults to `console.log`)                         |
+| `DEFAULT_CHAT_FRAME:AddMessage`                          | Routes to the same print callback                                               |
+| `IsAddOnLoaded(name)`                                    | Calls `opts.isAddonLoaded` callback; defaults to always-true                    |
+| `GetAddOnMetadata(name, key)`                            | Calls `opts.getAddonMetadata` callback; defaults to nil                         |
+| `securecall` / `securecallfunction`                      | pcall-style wrappers; swallow errors                                            |
+| `hooksecurefunc` / `geterrorhandler` / `seterrorhandler` | No-op stubs to prevent nil crashes                                              |
 
-## C_Timer
+`securecall` and the error handler stubs were not in the original plan but are required for CallbackHandler-1.0 (and by extension most Ace libraries) to parse without errors.
 
-```ts
-// C_Timer.After(seconds, fn) — queues fn on virtual clock
-// C_Timer.NewTicker(interval, fn, iterations) — repeating; returns FunctionContainer
-```
+`DEFAULT_CHAT_FRAME` and `C_Timer` are built as real Lua tables (not JS proxies) to ensure `type() == "table"` and to avoid wasmoon's proxy method self-stripping behavior. See `docs/reference/wasmoon.md` for details.
 
-The virtual clock is a simple counter advanced explicitly during the execution loop. C_Timer callbacks fire when the clock advances past their scheduled time. Infinite ticker protection: respect the `iterations` parameter; default to a safe cap if omitted.
+### LibStub
+
+Canonical LibStub implementation embedded as a Lua string constant (`LIBSTUB_LUA`). Loaded during `registerWowApi`. Supports `NewLibrary`, `GetLibrary`, `IterateLibraries`, and the `__call` metatable shortcut (`LibStub("name")`).
+
+### VirtualClock
+
+`VirtualClock` is a simple time counter with a timer queue. `advance(dt)` fires all due timers in chronological order; repeating timers (NewTicker) can fire multiple times per `advance` call. A one-pass approach was insufficient for large `dt` values — the implementation uses a loop that picks the earliest due timer on each iteration.
+
+### C_Timer
+
+Built as a real Lua table (see note above). Methods:
+
+- `C_Timer.After(seconds, fn)` — one-shot; schedules via `VirtualClock.schedule`
+- `C_Timer.NewTicker(interval, fn, iterations)` — repeating; defaults to a 10 000-iteration cap
+- `C_Timer.NewTimer(seconds, fn)` — alias for `After`
+
+All methods return a `FunctionContainerHandle` JS object with `Cancel()`, `IsCancelled()`, `Invoke()`. This object is a wasmoon proxy userdata in Lua; `type()` returns `"userdata"`, but colon-method calls work correctly because the methods take no meaningful arguments (wasmoon strips the implicit self).
 
 ## Testing
 
-- Load actual LibStub source from `_live/Addons/` and verify it self-registers without error
-- `C_Timer.After(0, fn)` queues `fn`; advancing the clock fires it
-- `C_Timer.NewTicker(0.1, fn, 3)`:Cancel()` stops after 3 iterations
-- All C\_\* namespaces exist and their functions return nil without error
-- `print("hello")` writes to output channel
+`test/lua/wow-api.test.ts` — covers:
+
+- All C\_\* namespaces are Lua tables; any function call returns nil
+- `GetTime` reflects clock advances
+- `print` and `DEFAULT_CHAT_FRAME:AddMessage` capture output
+- `date` with format strings and `"*t"` table (including UTC)
+- `IsAddOnLoaded` / `GetAddOnMetadata` callbacks
+- **LibStub** — NewLibrary / GetLibrary / IterateLibraries / `__call`; plus loading `_live/Addons/Altoholic/Libs/CallbackHandler-1.0/CallbackHandler-1.0.lua` and verifying it self-registers without error. (LibStub itself is not present as a standalone file in `_live/`; CallbackHandler is the earliest consumer available.)
+- **C_Timer** — After fires, After(0) fires on next advance, Cancel prevents fire, IsCancelled reflects state, NewTicker fires correct iteration count, NewTicker:Cancel stops future fires
+- **VirtualClock** — starts at 0, advance increments, one-shot fires once, repeating fires correct count
+
+## wasmoon gotchas encountered
+
+Several non-obvious wasmoon behaviors were discovered during implementation. All are documented in `docs/reference/wasmoon.md`. Key issues that affected the implementation:
+
+- JS `null` return crashes PromiseTypeExtension — all stubs return `undefined` (void)
+- JS objects set via `global.set` are Lua userdata — `DEFAULT_CHAT_FRAME` and `C_Timer` built as Lua tables
+- Proxy colon-calls strip the Lua `self` argument — avoided via Lua table wrappers
+- `doString` returns only the first return value — tests use single-value returns or tables
 
 ## Dependencies
 
 **M5** (sandbox must be set up before stubs can be registered).
 
-## Rough Effort
+## Effort
 
-**S** — C\_\* auto-generation is mechanical; behavioral stubs are few; LibStub and C_Timer are well-specified.
+**S** — as estimated. C\_\* generation was mechanical; wasmoon proxy behavior added unexpected complexity.
