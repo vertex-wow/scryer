@@ -250,6 +250,79 @@ The listfile CSV has **2,172,924 entries** (cached at `<cacheRoot>/downloads/lis
 
 ---
 
+### Q1b: How fast can we pre-filter listfile.csv to Interface-only entries?
+
+**Answer: `grep -F` (subprocess from Node) wins at ~110–118 ms. Among CLI tools, `xan search` (cell-aware, comma output) is the closest Rust-native competitor at ~152 ms, followed by `xan grep` (row-level, preserves delimiter) at ~166 ms. SQLite CSV virtual table extensions (sqlite-xsv, sqlean vsv) land at ~790–930 ms — faster than the naive `@libsql/client` path but 7–9× behind grep. `awk` is always the wrong choice.**
+
+**Context:** The community listfile has 2,172,924 entries (140 MB). Only 169,862 (7.8%) start with `interface/`. Pre-filtering at download time reduces the file `rustydemon-cli` must parse by ~12×, and eliminates parse overhead entirely for our own JS consumers (`atlas-gen.ts`). This is a one-time operation per listfile download.
+
+**Note on CSV virtual table:** SQLite's CSV virtual table (`CREATE VIRTUAL TABLE t USING csv(...)`) would allow a single-pass filter with no intermediate INSERT step. It is not compiled into the Ubuntu system sqlite3 3.45.1, node:sqlite (3.53.0), better-sqlite3 (3.49.2), node-sqlite3-wasm (3.53.1), or @libsql/client. It requires a custom SQLite build or a loadable extension compiled from `ext/misc/csv.c`.
+
+**Measured (2026-05-28):** All approaches measured from within a running Node.js process (subprocess approaches use `child_process.spawn`; in-process approaches run directly). Warm OS page cache, 2 warmup + 5 measured runs, output written to disk, AMD Ryzen 5 3600X (12 cores), WSL2.
+
+**Stream/shell approaches (no SQLite):**
+
+| Approach                                      | Mean       | Stddev  | vs fastest |
+| --------------------------------------------- | ---------- | ------- | ---------- |
+| `grep -F` (subprocess)                        | **110 ms** | ±2 ms   | 1.00×      |
+| `grep` (subprocess)                           | 118 ms     | ±4 ms   | 1.08×      |
+| `sed` (subprocess)                            | 290 ms     | ±5 ms   | 2.64×      |
+| Node.js stream + byte scan (1BRC-style)       | 547 ms     | ±22 ms  | 4.98×      |
+| Node.js worker threads (1BRC-style, 12 cores) | 599 ms     | ±49 ms  | 5.45×      |
+| Node.js Buffer scan (in-process)              | 1 022 ms   | ±39 ms  | 9.30×      |
+| Node.js `readFileSync` + split (in-process)   | 1 038 ms   | ±89 ms  | 9.44×      |
+| Node.js readline stream (in-process)          | 1 050 ms   | ±26 ms  | 9.55×      |
+| `awk` (subprocess)                            | 3 219 ms   | ±160 ms | 29.29×     |
+
+**SQLite/LibSQL approaches (INSERT all matching rows, then SELECT):**
+
+| Approach                                                        | Mean       | Stddev  | vs grep -F | Notes                                                      |
+| --------------------------------------------------------------- | ---------- | ------- | ---------- | ---------------------------------------------------------- |
+| `sqlite3 CLI` `.import "\|grep pipe"` + SELECT                  | **244 ms** | ±4 ms   | 2.22×      | grep does the filtering; SQLite only structures output     |
+| `node:sqlite` stream+bytes + tx INSERT + SELECT                 | 903 ms     | ±37 ms  | 8.21×      | built-in, no deps, manual BEGIN/COMMIT                     |
+| `better-sqlite3` stream+bytes + tx INSERT + SELECT              | 926 ms     | ±35 ms  | 8.42×      | native binding, `.transaction()` helper                    |
+| `node:sqlite` readFileSync + tx INSERT + SELECT                 | 971 ms     | ±39 ms  | 8.83×      |                                                            |
+| `better-sqlite3` readFileSync + tx INSERT + SELECT              | 1 037 ms   | ±71 ms  | 9.43×      |                                                            |
+| `sqlite3 CLI` `.import` all 2.17M rows + SELECT WHERE           | 2 272 ms   | ±158 ms | 20.66×     | pays full import cost before filtering                     |
+| `@libsql/client` (Turso embedded) stream+bytes + batch + SELECT | 4 665 ms   | ±290 ms | 42.41×     | async HTTP-like client design; poor fit for local bulk ops |
+
+**SQLite CSV extension approaches (sqlite-xsv + sqlean vsv, virtual table pointing at file on disk):**
+
+| Approach                                                   | Mean     | Stddev | vs grep -F | Notes                           |
+| ---------------------------------------------------------- | -------- | ------ | ---------- | ------------------------------- |
+| `sqlite-xsv` + node:sqlite — file direct, LIKE             | 790 ms   | ±30 ms | 7.5×       |                                 |
+| `sqlean vsv` + better-sqlite3 — file direct, LIKE          | 795 ms   | ±18 ms | 7.6×       |                                 |
+| `sqlean vsv` + node:sqlite — file direct, LIKE             | 811 ms   | ±41 ms | 7.7×       |                                 |
+| `sqlean vsv` + node:sqlite — file direct, substr           | 863 ms   | ±10 ms | 8.2×       |                                 |
+| `sqlite-xsv` + node:sqlite — file direct, substr           | 885 ms   | ±12 ms | 8.4×       |                                 |
+| `sqlite-xsv` + node:sqlite — Node reads, INSERT, SELECT    | 896 ms   | ±35 ms | 8.5×       | stream+bytes filter then INSERT |
+| `sqlean vsv` + better-sqlite3 — file direct, substr        | 923 ms   | ±22 ms | 8.8×       |                                 |
+| `sqlite-xsv` + better-sqlite3 — file direct, LIKE          | 929 ms   | ±75 ms | 8.8×       |                                 |
+| `sqlite-xsv` + better-sqlite3 — file direct, substr        | 948 ms   | ±58 ms | 9.0×       |                                 |
+| `sqlite-xsv` + better-sqlite3 — Node reads, INSERT, SELECT | 1 086 ms | ±40 ms | 10.3×      |                                 |
+
+**CSV-aware CLI tools (cell-aware filtering, spawned from Node):**
+
+| Approach                          | Mean   | Stddev | vs grep -F | Notes                              |
+| --------------------------------- | ------ | ------ | ---------- | ---------------------------------- |
+| `grep -F` (subprocess, reference) | 118 ms | ±17 ms | 1.00×      | row-level, preserves `;` delimiter |
+| `xan search -s 1 '^interface/'`   | 152 ms | ±6 ms  | 1.28×      | cell-aware, comma output ⚠         |
+| `xan grep ';interface/'`          | 166 ms | ±7 ms  | 1.40×      | row-level, preserves `;` delimiter |
+| `xsv search -s 2 '^interface/'`   | 257 ms | ±13 ms | 2.17×      | cell-aware, comma output ⚠         |
+| `qsv search -s 2 '^interface/'`   | 312 ms | ±13 ms | 2.63×      | cell-aware, comma output ⚠         |
+
+**Notes:**
+
+- All approaches produce identical output (169,862 rows). `grep`/`sed` preserve source CRLF; Node.js and SQLite approaches normalize to LF.
+- The **1BRC-style stream + byte scan** (raw `Buffer.indexOf`, no `readline`/`String.split`) is the fastest pure-Node in-process approach — see `dev/bench-listfile-filter.mjs` for the preserved reference implementation. Worker threads do not help — the bottleneck is I/O, not CPU; 12-core parallelism is eaten by spawn and concatenation overhead.
+- **SQLite CSV virtual table extensions** (`sqlite-xsv` npm package, `sqlean vsv` at `external/sqlean-linux-x64/vsv.so`): both allow SQLite to read the CSV directly with no intermediate INSERT step. Neither significantly outperforms the Node-reads+INSERT pattern — the bottleneck is vtable row-crossing overhead regardless. LIKE wins over `substr()` because SQLite has a prefix short-circuit that exits early on non-matches. The `sqlite-xsv` `xsv_reader` table-valued function panics in v0.2.1-alpha.13; only the virtual table module is usable.
+- **CSV-aware CLI tools:** `xan search`, `xsv search`, and `qsv search` normalize output to comma-delimited regardless of input delimiter — not directly usable for our `;`-delimited format without post-processing. `xan grep` and `grep` are row-level scanners that preserve the original delimiter and are directly usable. `xsv` (BurntSushi) is the original; its maintainer now recommends `qsv` (dathere) and `xan` (medialab). `cargo install qsv` fails on Rust 1.95.0; installed from prebuilt binary.
+- **SQLite adds overhead for the one-shot filter use case** because every approach pays both a read/parse cost and an INSERT cost. SQLite becomes the right choice for the [Listfile fast index](plan/backlog.md#listfile-fast-index-in-process--post-rustydemon-era) use case: store the 169K rows once, then do sub-millisecond point lookups by FileDataID. That is a completely different access pattern.
+- **`@libsql/client` (Turso)** is designed for the cloud product; its async batch API has significant overhead for local in-memory bulk operations. Not competitive for this workload.
+- **Decision:** for the short-term `rustydemon-cli` era, use `grep -F` spawned from `ensureListfile()`. When the in-process CASC reader lands and only `atlas-gen.ts` consumes the listfile, 1BRC-style stream+bytes is the in-process alternative with no subprocess dependency.
+
+---
+
 ### Q2: Is it worth extracting all Blizzard addon data upfront?
 
 **Answer: Yes for the text files (XML/Lua/TOC) — but the one-time CASC overhead (~5 s extraction + ~30 s listfile parsing) means it should be done lazily at first preview and cached, not at every activation.**
@@ -380,6 +453,23 @@ node dev/bench-diff.mjs dev/bench-baseline.json dev/bench-results.json
 ```
 
 Compares two result files. Refuses to diff mismatched corpus hashes, CPU models, or Node major versions (cross-config comparisons are invalid). Reports per-scenario median delta with a regression flag when change exceeds `max(10%, 2 × CV_baseline)`. Exits non-zero on any regression so it can later gate a hook or CI step.
+
+### `dev/bench-listfile-filter.mjs` (listfile filter approaches)
+
+Standalone `.mjs` — no build step. Measures the cost of filtering `listfile.csv` to `interface/` entries using several Node.js approaches, all timed from within a running Node.js process (including subprocess spawn cost for shell tools).
+
+```bash
+node dev/bench-listfile-filter.mjs \
+  ~/.vscode-server/data/User/globalStorage/vertex-wow.wow-scryer/downloads/listfile.csv
+```
+
+**Approaches covered:** `grep -F`, `grep`, `node stream+bytes (1BRC-style)`, `node readFileSync+split`, `node readline`.
+
+The `nodeStreamBytes` function in this script is also the reference implementation for the future in-process filter path (see [Listfile pre-filter backlog entry](plan/backlog.md#listfile-pre-filter-rustydemon-era)).
+
+**One-off explorations (not committed as permanent fixtures):**
+
+A separate benchmark session tested SQLite virtual table extensions (`sqlite-xsv` npm package, `sqlean vsv`), plain INSERT+SELECT approaches (`node:sqlite`, `better-sqlite3`, `@libsql/client`), the `sqlite3` CLI, and CSV-aware CLI tools (`xan`, `xsv`, `qsv`). Results are in Q1b above. The `nodeStreamBytes` implementation from those sessions is preserved as `dev/bench-listfile-filter.mjs` (the committed benchmark script above). The `node:sqlite` built-in (`DatabaseSync`) requires Node ≥ 22.5. None of the tested packages include the SQLite CSV virtual table; it requires a custom build from `ext/misc/csv.c`.
 
 ### `hyperfine` (shell-based extraction)
 

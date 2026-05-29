@@ -114,6 +114,49 @@ export async function ensureListfile(
   return listfilePath;
 }
 
+/** Spawn grep -F to extract interface/ rows from the full listfile into filteredPath. */
+function filterListfile(
+  fullPath: string,
+  filteredPath: string,
+  log?: (line: string) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    log?.(`Filtering listfile to interface/ entries...`);
+    const proc = cp.spawn("grep", ["-F", ";interface/", fullPath]);
+    const ws = fs.createWriteStream(filteredPath);
+    proc.stdout.pipe(ws);
+    proc.stderr.resume();
+    proc.on("error", reject);
+    ws.on("error", reject);
+    ws.on("finish", resolve);
+    proc.on("close", (code) => {
+      if ((code ?? 0) > 1) reject(new Error(`grep exited with code ${code}`));
+    });
+  });
+}
+
+/**
+ * Ensure a pre-filtered listfile containing only interface/ entries is present.
+ * Regenerated whenever listfile.csv is newer than the filtered copy.
+ * Returns the absolute path to listfile-interface.csv.
+ */
+export async function ensureFilteredListfile(
+  listfileDir: string,
+  log?: (line: string) => void,
+): Promise<string> {
+  const fullPath = await ensureListfile(listfileDir, log);
+  const filteredPath = path.join(listfileDir, "listfile-interface.csv");
+
+  const filteredStat = fs.existsSync(filteredPath) ? fs.statSync(filteredPath) : null;
+  if (filteredStat) {
+    const fullStat = fs.statSync(fullPath);
+    if (filteredStat.mtimeMs >= fullStat.mtimeMs) return filteredPath;
+  }
+
+  await filterListfile(fullPath, filteredPath, log);
+  return filteredPath;
+}
+
 // ---------------------------------------------------------------------------
 // CASC tool detection
 // ---------------------------------------------------------------------------
@@ -184,7 +227,7 @@ function spawnRustydemon(
 
 async function extractRetailPaths(paths: string[], opts: ExtractCoreOptions): Promise<void> {
   const cascTool = findCascTool(opts.cascToolPath);
-  const listfilePath = await ensureListfile(opts.listfileDir, opts.log);
+  const listfilePath = await ensureFilteredListfile(opts.listfileDir, opts.log);
   await fs.promises.mkdir(opts.outDir, { recursive: true });
 
   opts.log?.(`Targeted retail extraction via rustydemon-cli...`);
@@ -203,7 +246,7 @@ async function extractRetailPaths(paths: string[], opts: ExtractCoreOptions): Pr
 
 async function extractRetailBulk(type: ExtractType, opts: ExtractCoreOptions): Promise<void> {
   const cascTool = findCascTool(opts.cascToolPath);
-  const listfilePath = await ensureListfile(opts.listfileDir, opts.log);
+  const listfilePath = await ensureFilteredListfile(opts.listfileDir, opts.log);
   await fs.promises.mkdir(opts.outDir, { recursive: true });
 
   const globs = [

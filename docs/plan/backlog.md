@@ -232,26 +232,47 @@ N is clamped to available fixtures (no cycling). When fewer fixtures are on disk
 
 ---
 
-## Listfile cache speed-up (SQLite or equivalent)
+## Listfile pre-filter (rustydemon era)
+
+**Status: ✅ Done** (2026-05-28)
+
+**Problem:** `rustydemon-cli` reads the full community listfile CSV (2,172,924 entries, 140 MB) on every process launch and parses it internally — costing ~25–33 s CPU per invocation. We cannot change this; it is a fixed cost of the external binary. However, we control which file we pass via `-l`. The listfile contains entries for every WoW asset type (sounds, models, maps, etc.); only 169,862 entries (7.8%) start with `interface/`. The other 92% are irrelevant to Scryer and slow `rustydemon-cli` down for no benefit.
+
+**What was built:**
+
+`src/assets/extract-core.ts` — two new functions:
+
+- `filterListfile` (private) — spawns `grep -F ';interface/'` and pipes stdout to `listfile-interface.csv`. Benchmarked at ~110–118 ms from Node.js.
+- `ensureFilteredListfile` (exported) — calls `ensureListfile` to guarantee the full CSV exists, then skips re-filtering if `listfile-interface.csv` is already at least as new as `listfile.csv` (mtime comparison). Only re-filters after a fresh download.
+
+`extractRetailPaths` and `extractRetailBulk` now pass `listfile-interface.csv` to rustydemon-cli instead of the full 140 MB file. `ensureListfile` is unchanged — `atlas-gen.ts` still receives the full file for FileDataID lookups across all asset types.
+
+**Measured win:** Reduces input from 2.17 M to 169 K rows (~12×). `rustydemon-cli`'s internal parse time expected to drop from ~25–33 s to ~2–3 s.
+
+See [measurements.md Q1b](../measurements.md#q1b-how-fast-can-we-pre-filter-listfilecsv-to-interface-only-entries) for the full benchmark comparing grep, xan, xsv, qsv, and Node.js stream approaches.
+
+---
+
+## Listfile fast index (in-process / post-rustydemon era)
 
 **Status: 📋 Pending**
 
-**Problem:** The community listfile (`<cacheRoot>/downloads/listfile.csv`) has 2,172,924 entries and is 140 MB. Parsing and hashing it takes ~25 s CPU even with the file warm in OS page cache. Two consumers pay this cost today:
+**Prerequisite:** [In-process CASC reader](#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli) (or at minimum, a Node.js-native extraction path that doesn't call `rustydemon-cli`).
 
-- **`rustydemon-cli`** — reads the CSV on every process launch. With the current single-batch extraction strategy this is ~28 s per extraction run. We cannot change this; it is a fixed cost of the external binary.
-- **`dev/gen-atlas.mjs`** — reads the CSV once per atlas manifest generation to join FileDataIDs to Interface paths. Currently acceptable (~25 s, runs rarely), but will become worse if the manifest needs regenerating after every game patch.
+**Problem:** Once `rustydemon-cli` is gone, the community listfile is only needed by `atlas-gen.ts` (FileDataID → `Interface/` path join for the atlas manifest). That consumer reads the entire CSV as a full linear scan — currently ~837 ms in-process for 169 K pre-filtered rows, or several seconds for the full 2.17 M row file. This is acceptable today (atlas gen runs rarely), but becomes a regression if the manifest needs regenerating after every game patch.
 
-**Goal:** Convert the CSV to a binary index on first download, stored at `<cacheRoot>/downloads/listfile.db` (SQLite) or a lighter key→value format. Subsequent reads do point lookups instead of a full linear parse.
+**Goal:** Convert the CSV to a binary index on first use — either SQLite or a lightweight flat binary format — so that FileDataID lookups are sub-millisecond point queries rather than a full scan.
 
 **Options to evaluate:**
 
-1. **SQLite** (`better-sqlite3` or the built-in `node:sqlite` module added in Node 22.5) — `SELECT path FROM listfile WHERE id = ?` is ~sub-millisecond after the first open. Widely understood, easy to inspect. Adds a native or pure-JS dependency.
-2. **Flat binary hash map** — write a custom file format: sorted `(u32 id, u32 offset)` index + packed string table. Pure JS, zero deps, ~5–10 ms read overhead. More implementation work than SQLite.
-3. **Pre-filtered CSV** — strip all non-`Interface/` entries at download time; reduces from 2.17 M to roughly 200–400 K entries (estimated), cutting `rustydemon-cli` parse time 5–10×. No dep change, immediate win, but only helps the external binary path and doesn't help point-lookup use cases.
+1. **SQLite** (`better-sqlite3` or the built-in `node:sqlite` module added in Node 22.5) — `SELECT path FROM listfile WHERE id = ?` is sub-millisecond after the first open. Widely understood, easy to inspect. Adds a native or pure-JS dependency.
+2. **Flat binary hash map** — sorted `(u32 id, u32 offset)` index + packed string table. Pure JS, zero deps, ~5–10 ms read overhead. More implementation work than SQLite.
 
-**Scope note:** The [in-process CASC reader](#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli) eliminates `rustydemon-cli` entirely and uses the TVFS manifest for path resolution — making the community listfile unnecessary for extraction. The listfile remains needed for `gen-atlas.mjs` (FileDataID → path join) until the [Atlas manifest from DB2](#atlas-manifest-from-db2-replace-wagotools) item lands. Doing the SQLite conversion now is worthwhile only if the listfile parse latency is actively blocking work.
+**Scope note:** The listfile becomes fully unnecessary once [Atlas manifest from DB2](#atlas-manifest-from-db2-replace-wagotools) lands (DB2 files carry FileDataIDs natively). If that item lands before this one, skip this entirely.
 
-**Effort:** S (SQLite or pre-filtered CSV); M (custom binary format).
+See [measurements.md Q1b](../measurements.md#q1b-how-fast-can-we-pre-filter-listfilecsv-to-interface-only-entries) for the full benchmark that covers SQLite virtual table extensions (sqlite-xsv, sqlean vsv), INSERT+SELECT approaches (node:sqlite, better-sqlite3, @libsql/client), and the baseline Node.js stream approach — these are the starting points for evaluating the write-once/point-lookup pattern.
+
+**Effort:** S (SQLite); M (custom binary format).
 
 ---
 
