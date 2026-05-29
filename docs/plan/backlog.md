@@ -1004,15 +1004,9 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ## parentKey / parentArray wiring for runtime frames (deferred from M7)
 
-**Status:** 📋 Pending
+**Status:** ✅ Done (2026-05-29)
 
-**Problem:** When Lua code does `parent.Icon = child` via `parentKey`, or appends to `parent.Icons` via `parentArray`, the frame object model needs to set those fields on the Lua parent table. Currently `CreateFrame` ignores template `parentKey`/`parentArray` metadata entirely. Addons that access children via `parent.Icon:SetTexture(...)` will get a nil error.
-
-**Plan:** In `frame-class.lua`, after `_frame_new` returns the new frame ID, check for `parentKey` and `parentArray` values (passed as extra args or via a second helper). Set `parent[parentKey] = frame` and `table.insert(parent[parentArray] or {}, frame)` respectively. Mirror the behaviour from the XML inheritance resolution in `src/parser/inherit.ts`.
-
-**Effort:** XS — wiring in the Lua class and optionally a helper for the array case.
-
-**Depends on:** M7 (done).
+**What was built:** Wiring is emitted in `src/lua/xml-importer.ts` during Lua code generation for XML frames. After each texture, fontstring, or child frame is created, the importer now emits `parent.Key = child` (parentKey) and `parent.Array = parent.Array or {}; table.insert(parent.Array, child)` (parentArray). The actual plan (frame-class.lua + extra args to CreateFrame) was superseded — the cleaner solution is in the code-generation layer since that's where the parentKey metadata is available. Covered by 6 tests in `test/lua/xml-importer.test.ts`.
 
 ---
 

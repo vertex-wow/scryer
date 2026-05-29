@@ -104,6 +104,11 @@ function generateTextureCode(
   if (tex.size?.x !== undefined || tex.size?.y !== undefined)
     lines.push(`  ${v}:SetSize(${tex.size?.x ?? 0}, ${tex.size?.y ?? 0})`);
   emitAnchorCode(`  ${v}`, tex, parentVar, lines);
+  if (tex.parentKey) lines.push(`  ${parentVar}.${tex.parentKey} = ${v}`);
+  if (tex.parentArray) {
+    lines.push(`  ${parentVar}.${tex.parentArray} = ${parentVar}.${tex.parentArray} or {}`);
+    lines.push(`  table.insert(${parentVar}.${tex.parentArray}, ${v})`);
+  }
   lines.push(`end`);
 }
 
@@ -132,6 +137,11 @@ function generateFontStringCode(
   if (fs.size?.x !== undefined || fs.size?.y !== undefined)
     lines.push(`  ${v}:SetSize(${fs.size?.x ?? 0}, ${fs.size?.y ?? 0})`);
   emitAnchorCode(`  ${v}`, fs, parentVar, lines);
+  if (fs.parentKey) lines.push(`  ${parentVar}.${fs.parentKey} = ${v}`);
+  if (fs.parentArray) {
+    lines.push(`  ${parentVar}.${fs.parentArray} = ${parentVar}.${fs.parentArray} or {}`);
+    lines.push(`  table.insert(${parentVar}.${fs.parentArray}, ${v})`);
+  }
   lines.push(`end`);
 }
 
@@ -207,6 +217,12 @@ function generateFrameCode(
   lines.push(
     `  if type(__scryer_dispatch_script) == "function" then __scryer_dispatch_script(${v}.__id, "OnLoad") end`,
   );
+
+  if (frame.parentKey) lines.push(`  ${parentExpr}.${frame.parentKey} = ${v}`);
+  if (frame.parentArray) {
+    lines.push(`  ${parentExpr}.${frame.parentArray} = ${parentExpr}.${frame.parentArray} or {}`);
+    lines.push(`  table.insert(${parentExpr}.${frame.parentArray}, ${v})`);
+  }
 
   lines.push(`end`); // close "if v then"
 }

@@ -231,18 +231,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
+  <td colspan="5">✅ <a href="backlog.md#parentkey--parentarray-wiring-for-runtime-frames-deferred-from-m7">parentKey / parentArray wiring</a></td>
+</tr>
+<tr>
+  <td>↳</td>
   <td><a href="backlog.md#live-panel-frame-diffing-deferred-from-m4">Live panel frame diffing</a></td>
   <td>📋 Pending</td>
   <td>Incremental frame-tree diffs to webview; full re-render used in M7</td>
   <td>S–M</td>
-  <td>—</td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td><a href="backlog.md#parentkey--parentarray-wiring-for-runtime-frames-deferred-from-m7">parentKey / parentArray wiring</a></td>
-  <td>📋 Pending</td>
-  <td>Set <code>parent[parentKey] = child</code> after <code>CreateFrame</code>; enables child access by key</td>
-  <td>XS</td>
   <td>—</td>
 </tr>
 <tr>
