@@ -1,0 +1,7 @@
+## Interface: 110002
+## Title: Simple Addon
+## Version: 1.0
+## SavedVariables: SimpleAddonDB
+
+SimpleAddon.xml
+SimpleAddon.lua

@@ -78,11 +78,11 @@ export function activate(context: vscode.ExtensionContext): void {
   const liveCmd = vscode.commands.registerCommand("scryer.openLive", (uri?: vscode.Uri) => {
     const resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
     if (!resolved) {
-      void vscode.window.showErrorMessage("Scryer: open a .lua file first.");
+      void vscode.window.showErrorMessage("Scryer: open a .toc file first.");
       return;
     }
-    if (!resolved.fsPath.endsWith(".lua")) {
-      void vscode.window.showErrorMessage("Scryer: active file is not a Lua file.");
+    if (!resolved.fsPath.endsWith(".toc")) {
+      void vscode.window.showErrorMessage("Scryer: active file is not a TOC file.");
       return;
     }
     ScryerLivePanel.create(context, resolved, assets, output);

@@ -1,0 +1,32 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Frame name="SimpleAddonFrame" parent="UIParent">
+    <Size>
+      <AbsDimension x="400" y="300"/>
+    </Size>
+    <Anchors>
+      <Anchor point="CENTER"/>
+    </Anchors>
+    <Scripts>
+      <OnLoad>
+        self:RegisterEvent("ADDON_LOADED")
+        self:RegisterEvent("PLAYER_LOGIN")
+        SimpleAddonFrameLoaded = true
+      </OnLoad>
+      <OnEvent>
+        if event == "ADDON_LOADED" and arg1 == "SimpleAddon" then
+          SimpleAddonLoadedEvent = true
+        end
+        if event == "PLAYER_LOGIN" then
+          SimpleAddonLoginEvent = true
+        end
+      </OnEvent>
+    </Scripts>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture name="SimpleAddonTexture">
+          <Color r="0.1" g="0.1" b="0.1" a="0.9"/>
+        </Texture>
+      </Layer>
+    </Layers>
+  </Frame>
+</Ui>

@@ -87,6 +87,9 @@ do
   local _fs_clear_points         = __scryer_fs_clear_points
   local _fs_set_all_points       = __scryer_fs_set_all_points
   local _ui_parent_id            = __scryer_ui_parent_id
+  local _event_listeners         = __scryer_event_listeners
+  -- Lua-side script storage avoids JS round-trip (wasmoon null crash on GetScript)
+  local _scripts                 = {}  -- { [frameId] = { [event] = fn } }
   local _world_frame_id          = __scryer_world_frame_id
 
   -- Shared reference cache: id → Lua table.
@@ -246,13 +249,44 @@ do
   function FrameMT:GetDebugName()
     return _frame_get_name(self.__id) or ("Frame" .. tostring(self.__id))
   end
-  function FrameMT:SetScript(e, fn)     _frame_set_script(self.__id, e, fn)               end
-  function FrameMT:GetScript(e)  return _frame_get_script(self.__id, e)                    end
-  function FrameMT:HookScript(e, fn)    _frame_hook_script(self.__id, e, fn)              end
+  function FrameMT:SetScript(e, fn)
+    _frame_set_script(self.__id, e, fn)
+    local id = self.__id
+    if not _scripts[id] then _scripts[id] = {} end
+    _scripts[id][e] = fn
+  end
+  function FrameMT:GetScript(e)
+    local id = self.__id
+    if _scripts[id] then return _scripts[id][e] end
+    return _frame_get_script(self.__id, e)
+  end
+  function FrameMT:HookScript(e, fn)
+    _frame_hook_script(self.__id, e, fn)
+    local id = self.__id
+    if not _scripts[id] then _scripts[id] = {} end
+    _scripts[id][e] = fn
+  end
   function FrameMT:HasScript()   return true                                                end
-  function FrameMT:RegisterEvent(e)     _frame_register_event(self.__id, e)               end
-  function FrameMT:UnregisterEvent(e)   _frame_unregister_event(self.__id, e)             end
-  function FrameMT:UnregisterAllEvents() _frame_unregister_all(self.__id)                  end
+  function FrameMT:RegisterEvent(e)
+    _frame_register_event(self.__id, e)
+    if not _event_listeners[e] then _event_listeners[e] = {} end
+    local list = _event_listeners[e]
+    for i = 1, #list do if list[i] == self then return end end
+    table.insert(list, self)
+  end
+  function FrameMT:UnregisterEvent(e)
+    _frame_unregister_event(self.__id, e)
+    local list = _event_listeners[e]
+    if list then
+      for i = #list, 1, -1 do if list[i] == self then table.remove(list, i) end end
+    end
+  end
+  function FrameMT:UnregisterAllEvents()
+    _frame_unregister_all(self.__id)
+    for _, list in pairs(_event_listeners) do
+      for i = #list, 1, -1 do if list[i] == self then table.remove(list, i) end end
+    end
+  end
   function FrameMT:RegisterAllEvents()  end
   function FrameMT:SetAttribute(k,v)    _frame_set_attr(self.__id, k, v)                  end
   function FrameMT:GetAttribute(k) return _frame_get_attr(self.__id, k)                    end
@@ -492,6 +526,25 @@ do
   noop       = nop
   donothing  = nop
 
+  -- ── Event dispatch (used by toc-runner after TOC load sequence) ──────────
+  function __scryer_fire_event(eventName, ...)
+    local list = _event_listeners[eventName]
+    if not list then return end
+    local args = {...}
+    for i = 1, #list do
+      local frame = list[i]
+      -- Read from Lua-side _scripts to avoid JS round-trip (wasmoon null crash on GetScript)
+      local frameScripts = _scripts[frame.__id]
+      local fn = frameScripts and frameScripts["OnEvent"]
+      if fn then
+        local ok, err = pcall(fn, frame, eventName, table.unpack(args))
+        if not ok then
+          print("[Scryer] OnEvent error (" .. tostring(eventName) .. "): " .. tostring(err))
+        end
+      end
+    end
+  end
+
   -- ── Clear all helper globals ──────────────────────────────────────────────────
   __scryer_frame_new               = nil
   __scryer_frame_get_name          = nil
@@ -576,4 +629,5 @@ do
   __scryer_fs_set_all_points       = nil
   __scryer_ui_parent_id            = nil
   __scryer_world_frame_id          = nil
+  __scryer_event_listeners         = nil
 end

@@ -2,10 +2,12 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { AssetService } from "./assets/index.js";
 import type { AtlasManifest } from "./assets/atlas-manifest.js";
+import { parseToc } from "./parser/toc.js";
 import { createSandbox } from "./lua/sandbox.js";
 import { registerWowApi, VirtualClock } from "./lua/wow-api.js";
 import { registerFrameModel } from "./lua/createframe.js";
 import { FrameRegistry } from "./lua/frame-registry.js";
+import { runTocAddon } from "./lua/toc-runner.js";
 import { resolveFlavorConfig } from "./flavors/config.js";
 import type { HostMessage, Viewport } from "./protocol.js";
 import type { FrameIR, TextureIR } from "./parser/ir.js";
@@ -15,6 +17,11 @@ function getNonce(): string {
   let result = "";
   for (let i = 0; i < 32; i++) result += chars[Math.floor(Math.random() * chars.length)];
   return result;
+}
+
+/** Strip WoW color codes like |cAARRGGBBtext|r from a string. */
+function stripWowColorCodes(s: string): string {
+  return s.replace(/\|c[0-9a-fA-F]{8}(.*?)\|r/g, "$1").replace(/\|c[0-9a-fA-F]{8}/g, "");
 }
 
 const RENDER_DEBOUNCE_MS = 400;
@@ -164,10 +171,16 @@ export class ScryerLivePanel {
       this.disposables,
     );
 
-    // Re-render when the Lua file changes.
+    // Re-render when any .lua, .xml, or .toc file in the addon directory changes.
+    const addonDir = path.normalize(path.dirname(uri.fsPath));
     vscode.workspace.onDidChangeTextDocument(
       (e) => {
-        if (e.document.uri.toString() === uri.toString()) {
+        const docPath = e.document.uri.fsPath;
+        const ext = path.extname(docPath).toLowerCase();
+        if (
+          (ext === ".lua" || ext === ".xml" || ext === ".toc") &&
+          path.normalize(path.dirname(docPath)) === addonDir
+        ) {
           if (this.renderDebounce !== undefined) clearTimeout(this.renderDebounce);
           this.renderDebounce = setTimeout(() => {
             this.renderDebounce = undefined;
@@ -178,6 +191,21 @@ export class ScryerLivePanel {
       null,
       this.disposables,
     );
+
+    // Update panel title once the TOC is parsed (async, best-effort)
+    void this.updateTitle(uri);
+  }
+
+  private async updateTitle(uri: vscode.Uri): Promise<void> {
+    try {
+      const content = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf-8");
+      const toc = parseToc(content, uri.fsPath);
+      if (toc.title) {
+        this.panel.title = `Scryer: ${stripWowColorCodes(toc.title)}`;
+      }
+    } catch {
+      // Non-fatal — panel title stays as filename
+    }
   }
 
   private rulerMessage(): HostMessage {
@@ -268,15 +296,12 @@ export class ScryerLivePanel {
     const flavorConfig = resolveFlavorConfig(flavor, userConfigPath);
 
     try {
-      // Read the Lua source (prefer open document over disk)
-      const openDoc = vscode.workspace.textDocuments.find(
-        (d) => d.uri.toString() === uri.toString(),
-      );
-      const luaSrc = openDoc
-        ? openDoc.getText()
-        : Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf-8");
+      // Read the TOC file
+      const tocContent = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf-8");
+      const toc = parseToc(tocContent, uri.fsPath);
+      const addonDir = path.dirname(uri.fsPath);
 
-      // Build a fresh sandbox + registry for each render cycle.
+      // Build a fresh sandbox + registry for each render cycle
       const wasmPath = vscode.Uri.joinPath(this.context.extensionUri, "dist", "glue.wasm").fsPath;
       const registry = new FrameRegistry(flavorConfig.uiParentWidth, flavorConfig.uiParentHeight);
       const clock = new VirtualClock();
@@ -287,14 +312,45 @@ export class ScryerLivePanel {
           clock,
           print: (msg) => this.output.info(`[Lua] ${msg}`),
           isAddonLoaded: () => true,
+          getAddonMetadata: (name, key) => {
+            if (
+              name.toLowerCase() ===
+              path.basename(toc.sourceFile, path.extname(toc.sourceFile)).toLowerCase()
+            ) {
+              return toc.rawMeta[key] ?? null;
+            }
+            return null;
+          },
         });
 
         await registerFrameModel(sandbox, registry);
 
-        // Execute the Lua file
-        await sandbox.doString(luaSrc);
+        // Load blizzard templates (disk-cached; fast after first parse)
+        const blizzardTemplates = this.assets.loadBlizzardTemplates();
 
-        // Advance clock a tick to fire any immediate timers (C_Timer.After(0, ...))
+        // Run the TOC load sequence
+        await runTocAddon({
+          toc,
+          addonDir,
+          sandbox,
+          blizzardTemplates,
+          readFile: async (absPath) => {
+            // Prefer open document buffer (unsaved changes) over disk
+            const docUri = vscode.Uri.file(absPath);
+            const openDoc = vscode.workspace.textDocuments.find(
+              (d) => d.uri.toString() === docUri.toString(),
+            );
+            if (openDoc) return openDoc.getText();
+            return Buffer.from(await vscode.workspace.fs.readFile(docUri)).toString("utf-8");
+          },
+          output: {
+            info: (msg) => this.output.info(msg),
+            warn: (msg) => this.output.warn(msg),
+            error: (msg) => this.output.error(msg),
+          },
+        });
+
+        // Advance clock one tick to fire any immediate timers (C_Timer.After(0, ...))
         clock.advance(0.001);
       } finally {
         sandbox.global.close();
@@ -303,7 +359,6 @@ export class ScryerLivePanel {
       // Serialize frame tree → FrameIR[]
       registry.clearDirty();
       const frames = registry.serialize();
-      const addonDir = path.dirname(uri.fsPath);
 
       // Resolve atlas names
       const atlasManifest = this.assets.loadAtlasManifest();

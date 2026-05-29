@@ -621,4 +621,10 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     __scryer_timer_after  = nil
     __scryer_timer_ticker = nil
   end`);
+
+  // ── Event listener registry ───────────────────────────────────────────────
+  // Initialized here so frame-class.lua can capture it as a local upvalue.
+  // frame-class.lua populates it via RegisterEvent/UnregisterEvent.
+  // toc-runner uses __scryer_fire_event (defined in frame-class.lua) to dispatch.
+  await lua.doString("__scryer_event_listeners = {}");
 }

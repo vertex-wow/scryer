@@ -284,7 +284,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tr>
   <td>8</td>
   <td><strong>TOC Execution Pipeline</strong></td>
-  <td>⬜ Pending</td>
+  <td>✅ Complete (2026-05-29)</td>
   <td><code>scryer.openLive</code> command; TOC load sequence; <code>ADDON_LOADED</code>; <code>PLAYER_LOGIN</code></td>
   <td>S</td>
   <td>4, 7</td>

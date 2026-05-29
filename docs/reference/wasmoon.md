@@ -202,11 +202,20 @@ external: ["path", "fs", "child_process", "crypto", "url", "module"];
 
 ---
 
+### 8. Lua function round-trip through JS crashes
+
+When a Lua function is stored in a JS value (e.g., via `__scryer_frame_set_script`) and then returned from a JS function back to Lua (e.g., via `__scryer_frame_get_script`), wasmoon's `PromiseTypeExtension.pushValue` is called on the stored value. If the stored value is a Lua-function wrapper (which JS represents as a callable object), the extension's `Promise.resolve(target) !== target` check passes, and then `typeof target.then` throws TypeError — the same null crash as gotcha #1.
+
+**Rule:** never round-trip Lua functions through JS. If a Lua function is registered via a JS helper, retrieve it from a Lua-side table, not from the JS helper.
+
+**Where we apply it:** `frame-class.lua` maintains a `_scripts` Lua table (`{ [frameId] = { [event] = fn } }`). `SetScript` writes to both the TS Map (for TS introspection) and `_scripts`. `GetScript`/`HookScript` read from `_scripts` only. Event dispatch via `__scryer_fire_event` reads `_scripts` directly.
+
 ## Our workarounds summary
 
-| Gotcha                   | Where we work around it                                               |
-| ------------------------ | --------------------------------------------------------------------- |
-| `null` crash             | `wow-api.ts` — all stubs `return` (void) instead of `return null`     |
-| Method self-stripping    | `wow-api.ts` — `DEFAULT_CHAT_FRAME` and `C_Timer` built as Lua tables |
-| `type() == "userdata"`   | `wow-api.ts` — `C_Timer` built as Lua table via `doString`            |
-| `doString` single return | Tests use single-value returns or return a table                      |
+| Gotcha                        | Where we work around it                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------ |
+| `null` crash                  | `wow-api.ts` — all stubs `return` (void) instead of `return null`              |
+| Method self-stripping         | `wow-api.ts` — `DEFAULT_CHAT_FRAME` and `C_Timer` built as Lua tables          |
+| `type() == "userdata"`        | `wow-api.ts` — `C_Timer` built as Lua table via `doString`                     |
+| `doString` single return      | Tests use single-value returns or return a table                               |
+| Lua function round-trip crash | `frame-class.lua` — `_scripts` Lua table; `GetScript` never calls back into JS |
