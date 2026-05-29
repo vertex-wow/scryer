@@ -832,16 +832,19 @@ The current M2 static XML preview ignores any `.lua` files referenced in the sam
 
 1. **None (current)** — parse and render the XML literally; Lua side-effects are absent but the preview is predictable and instant.
 2. **Template-only execution** — run just enough Lua to register virtual frames and templates that XML `inherits=` attributes reference, but skip all `OnLoad`/event handlers.
-3. **Full execution on preview** — the static preview becomes the live preview (M7+), removing the distinction entirely.
+3. **Run-and-freeze** — execute the full TOC load sequence (XML parse + Lua execution through `ADDON_LOADED` / `PLAYER_LOGIN`) exactly once, then tear down the Lua VM and leave the resulting frame snapshot frozen in the webview. No event loop, no `OnUpdate`, no interactivity. The panel becomes a static snapshot of what the addon looked like after load, not a live session.
+4. **Full execution on preview** — the static preview becomes the live preview (M7+), removing the distinction entirely.
+
+Option 3 is an attractive middle ground: it gives correct initial state (text populated, visibility set, templates resolved) without the overhead or complexity of a live session. The tradeoff is that anything requiring ongoing event dispatch — progress bars, conditional visibility on player state, `OnUpdate` animations — won't reflect correctly. The panel being non-interactable is intentional: no clicks, no keyboard events, no `OnEvent` callbacks fire after the initial load.
 
 **What this item covers:**
 
 1. **Audit real addons** — look at 5–10 popular addons in `_live/` or `_reference/wow-cookbook` and note how many XML files have meaningful Lua coupling (templates defined in Lua, text set in `OnLoad`, etc.). This determines how bad the current gap is in practice.
-2. **Decide the static/live boundary** — document the decision: is the static preview (M2) intentionally "Lua-free," or should it gain partial Lua execution before M7? If the latter, define exactly what "partial" means.
+2. **Decide the static/live boundary** — document the decision as one of the four options above; option 3 (run-and-freeze) is the most likely candidate if any Lua execution is added to the static path.
 3. **Surface the gap to users** — if a previewed XML file has a TOC with Lua entries, show a status bar note: "Lua files not executed — use _Run_ for live preview." This sets expectations without requiring a full implementation.
 4. **Write ADR** if the static/live boundary changes from the current assumption.
 
-**Effort:** S (audit + decision + status bar note). Full Lua execution in the static path is M7 scope.
+**Effort:** S (audit + decision + status bar note). Implementing option 3 would be an additional S–M on top, gated on M8.
 
 ---
 

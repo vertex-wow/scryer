@@ -23,7 +23,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tbody>
 <tr>
   <td>1</td>
-  <td><strong>WoW XML Parser</strong></td>
+  <td><strong><a href="001_xml_parser.md">WoW XML Parser</a></strong></td>
   <td>✅ Complete (2026-05-24)</td>
   <td>Parse <code>.xml</code> → typed IR; resolve templates/inheritance</td>
   <td>M</td>
@@ -43,7 +43,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tbody>
 <tr>
   <td>2</td>
-  <td><strong>Static XML Preview</strong></td>
+  <td><strong><a href="002_static_xml_preview.md">Static XML Preview</a></strong></td>
   <td>✅ Complete (2026-05-24)</td>
   <td>Render IR in a DOM webview with WoW anchor layout</td>
   <td>M</td>
@@ -71,7 +71,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tbody>
 <tr>
   <td>3</td>
-  <td><strong>Asset Pipeline</strong></td>
+  <td><strong><a href="003_asset_pipeline.md">Asset Pipeline</a></strong></td>
   <td>✅ Complete (2026-05-25)</td>
   <td>BLP→PNG conversion, path/atlas resolution, cache</td>
   <td>M</td>
@@ -163,7 +163,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tbody>
 <tr>
   <td>4</td>
-  <td><strong>TOC Parser</strong></td>
+  <td><strong><a href="004_toc_parser.md">TOC Parser</a></strong></td>
   <td>✅ Complete (2026-05-29)</td>
   <td>Parse <code>.toc</code> → <code>TocFile</code> IR; file load order for XML and Lua execution</td>
   <td>XS</td>
@@ -179,7 +179,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tbody>
 <tr>
   <td>5</td>
-  <td><strong>Lua Sandbox + 5.1 Shim</strong></td>
+  <td><strong><a href="005_lua_sandbox.md">Lua Sandbox + 5.1 Shim</a></strong></td>
   <td>✅ Complete (2026-05-29)</td>
   <td>wasmoon embed; disable-and-replace stdlib; <code>setfenv</code>/<code>getfenv</code> shim; compat aliases; <code>bit</code></td>
   <td>S–M</td>
@@ -211,7 +211,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tbody>
 <tr>
   <td>6</td>
-  <td><strong>WoW API Stubs</strong></td>
+  <td><strong><a href="006_wow_api_stubs.md">WoW API Stubs</a></strong></td>
   <td>✅ Complete (2026-05-29)</td>
   <td>TypeScript stubs into sandbox; C_* scaffolding from <code>globalapi.ts</code>; LibStub; C_Timer</td>
   <td>S</td>
@@ -227,7 +227,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tbody>
 <tr>
   <td>7</td>
-  <td><strong>Frame Object Model</strong></td>
+  <td><strong><a href="007_frame_object_model.md">Frame Object Model</a></strong></td>
   <td>✅ Complete (2026-05-29)</td>
   <td><code>CreateFrame</code> proxy; core widget methods; <code>ScryerLivePanel</code>; full re-render on mutation</td>
   <td>M</td>
@@ -283,7 +283,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tbody>
 <tr>
   <td>8</td>
-  <td><strong>TOC Execution Pipeline</strong></td>
+  <td><strong><a href="008_toc_execution.md">TOC Execution Pipeline</a></strong></td>
   <td>✅ Complete (2026-05-29)</td>
   <td><code>scryer.openLive</code> command; TOC load sequence; <code>ADDON_LOADED</code>; <code>PLAYER_LOGIN</code></td>
   <td>S</td>
@@ -323,7 +323,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tbody>
 <tr>
   <td>9</td>
-  <td><strong>Script Events</strong></td>
+  <td><strong><a href="009_script_events.md">Script Events</a></strong></td>
   <td>⬜ Pending</td>
   <td><code>OnLoad</code> through <code>OnUpdate</code>; <code>RegisterEvent</code>; webview→Lua event bridge; <code>OnUpdate</code> watchdog</td>
   <td>S–M</td>
@@ -355,7 +355,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tbody>
 <tr>
   <td>10</td>
-  <td><strong>Multi-Version Targets</strong></td>
+  <td><strong><a href="010_version_targets.md">Multi-Version Targets</a></strong></td>
   <td>⬜ Pending</td>
   <td>Selectable Classic/Cata/Retail API profiles</td>
   <td>S–M</td>
@@ -371,7 +371,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tbody>
 <tr>
   <td>11</td>
-  <td><strong>Hot Reload</strong> <em>(stretch)</em></td>
+  <td><strong><a href="011_hot_reload.md">Hot Reload</a></strong> <em>(stretch)</em></td>
   <td>⬜ Pending</td>
   <td>Re-parse/re-run on save with minimal repaint</td>
   <td>M</td>
@@ -387,7 +387,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tbody>
 <tr>
   <td>12</td>
-  <td><strong>Test Suite</strong> <em>(stretch)</em></td>
+  <td><strong><a href="012_test_suite.md">Test Suite</a></strong> <em>(stretch)</em></td>
   <td>⬜ Pending</td>
   <td>Headless addon test runner + reporter</td>
   <td>M</td>
