@@ -803,6 +803,45 @@ However, there are a few integration questions worth answering before M8 (TOC Ex
 
 ---
 
+## Center frame content on open
+
+**Status:** 📋 Pending
+
+**Problem:** When a WoW XML file is opened, the preview canvas starts scrolled to the origin (top-left). Frames are anchored relative to UIParent and can appear anywhere on the virtual canvas — often centered or offset. The user must manually scroll to find their frames after every open.
+
+**Plan:**
+
+1. After `layoutAll` runs in the webview, compute the union bounding box of all top-level frame elements.
+2. Derive a scroll offset that centers that bounding box within the visible panel area.
+3. Apply the offset to the outer scroll container.
+4. Persist scroll position across re-renders of the same file (hot-reload and Lua mutation should not jump).
+
+The centering logic should live in the webview (`main.ts`) and trigger once after the first `render` message for a given file. A `data-file-key` or similar marker on the render payload can distinguish "new file opened" from "same file re-rendered."
+
+**Effort:** XS–S.
+
+---
+
+## Canvas scroll in all directions and always-show scrollbars
+
+**Status:** 📋 Pending
+
+**Problem:** The preview canvas currently restricts scrolling to non-negative coordinates — you can scroll right and down, but not left or up past the origin. Any frame element positioned in negative coordinate space (anchored above or to the left of UIParent's origin) is unreachable. Additionally, scrollbars only appear when content overflows, making it non-obvious that the canvas is scrollable.
+
+**Goal:** Mirror WoW's unbounded virtual canvas: scroll in all four directions, with scrollbars always visible so the user knows the canvas is navigable.
+
+**Plan:**
+
+1. Add padding on all four sides of the inner scroll container — at minimum one full UIParent dimension in each direction (e.g. 768 WoW px up, 1024 WoW px left, matching the configured `uiParentHeight`/`uiParentWidth`). This gives the scrollbar room to travel in the negative direction.
+2. Initialize `scrollTop` and `scrollLeft` to the padding values so the virtual origin is not flush against the scroll boundary on open.
+3. Set `overflow: scroll` (not `overflow: auto`) on the outer container so scrollbars are always rendered regardless of content size.
+4. Coordinate with the [[center-frame-content-on-open]] item — initial scroll position should center frame content, which now means landing somewhere inside the padding band rather than at raw zero.
+5. Verify that `updateRulers` still tracks correctly; it uses `getBoundingClientRect()` which accounts for scroll, so it likely works automatically. Confirm ruler coordinates remain in WoW logical pixels and don't shift by the padding amount.
+
+**Effort:** S.
+
+---
+
 ## Preview background philosophy
 
 **Status:** 📋 Pending

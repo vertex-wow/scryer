@@ -61,6 +61,22 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>XS</td>
   <td>—</td>
 </tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#center-frame-content-on-open">Center frame content on open</a></td>
+  <td>📋 Pending</td>
+  <td>Scroll preview canvas to center rendered frames after every file open</td>
+  <td>XS–S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#canvas-scroll-in-all-directions-and-always-show-scrollbars">Canvas scroll in all directions + always-show scrollbars</a></td>
+  <td>📋 Pending</td>
+  <td>Allow negative-direction (up/left) scrolling; always-visible scrollbars</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
 </tbody>
 </table>
 
