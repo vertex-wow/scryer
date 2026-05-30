@@ -98,6 +98,20 @@ Configuration documentation is split across three files so users see only what i
 - Before running any `sed` or `awk` command that modifies a file, use `AskUserQuestion` to show the exact command and get approval first.
 - `sed` and `awk` are fine for read-only operations (grepping, inspecting) without asking.
 
+## WoW API stub philosophy
+
+Only stub things that do not exist in any Blizzard Lua file we load. See `docs/decisions/011_blizzard_lua_load_philosophy.md` for the full decision.
+
+**Legitimate stubs** (C-layer only — no Blizzard Lua file defines these):
+- `C_*` namespaces, `Mixin`, `CreateFromMixins`, `issecure`, `wipe`/`table.wipe`, `table.count`, `string.trim`/`strtrim`, `strsplit`, `strjoin`, `GenerateClosure`, `nop`
+- Game state queries: `GetTime`, `GetLocale`, `UnitRace`, `UnitSex`, `IsAddOnLoaded`, etc.
+- Globally C-populated tables: `Enum`, `Constants`
+- Error/callstack internals: `SetErrorCallstackHeight`, `GetCallstackHeight`, etc.
+
+**Not stubbed** — anything provided by a Blizzard Lua file we load (SharedXMLBase, Blizzard_Colors, SharedXML). If a Blizzard file fails, that is a hard error — not a reason to add a stub. Fix the missing C stub or fix the load order instead.
+
+**Load order:** SharedXMLBase → Blizzard_Colors → SharedXML. If a file in our load list calls something from an addon we don't load, the fix is to add that addon to our preload list, not to shadow its exports.
+
 ## Tooling
 
 - **Package manager: `pnpm` only.** Never use `npm install` or `yarn` — they bypass the `onlyBuiltDependencies` allowlist and `minimum-release-age` security settings.

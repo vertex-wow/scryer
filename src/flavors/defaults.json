@@ -11,9 +11,6 @@
 
     "_comment_wow": "WoW engine constant: UIParent is always 768 logical units tall; width is derived from screen aspect ratio.",
     "uiParentHeight": 768,
-    "_comment_mathUtilEpsilon": "Blizzard-defined MathUtil.Epsilon constant (Blizzard_SharedXMLBase/MathUtil.lua). Used by scroll frame code for boundary comparisons. May differ between WoW flavors; override per-flavor if needed.",
-    "mathUtilEpsilon": 1e-5,
-
     "_comment_rendering": "WoW rendering calibration values. See inline notes for derivation.",
     "_comment_fontLetterSpacing": "WoW's DirectWrite renderer produces ~6.3% wider advance widths than the browser's ClearType renderer for the same font file. Calibrated against FRIZQT__.TTF at height=12 by measuring 'Example Bare Frame' (18 chars): WoW=151px vs browser=142px at 125% DPI → 7.2 CSS px gap → 0.4px per char → 0.4/12 = 0.033em. Change this when using a non-default font.",
     "fontLetterSpacing": "0.033em",

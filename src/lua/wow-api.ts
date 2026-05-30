@@ -529,8 +529,6 @@ export interface WowApiOptions {
   isAddonLoaded?: (name: string) => boolean;
   /** Returns TOC metadata for a loaded addon. Defaults to null. */
   getAddonMetadata?: (name: string, key: string) => string | null;
-  /** Blizzard-defined MathUtil.Epsilon constant. Defaults to 1e-5 (retail value). */
-  mathUtilEpsilon?: number;
   /** Atlas manifest for C_Texture.GetAtlasInfo. When provided, atlas lookups return full sprite data. */
   atlasManifest?: Record<
     string,
@@ -564,179 +562,86 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
   ).join("\n");
   await lua.doString(namespaceLua);
 
-  // ── Blizzard SharedXML utilities ─────────────────────────────────────────
-  // Pre-stubs for globals used by many Blizzard Lua files. Defined here so
-  // files load in order without aborting on first-use errors.
+  // ── WoW C-layer globals ───────────────────────────────────────────────────
+  // These are provided by the WoW C layer before any Lua loads.
+  // Only things that do NOT exist in any Blizzard Lua file belong here.
+  // See docs/decisions/011_blizzard_lua_load_philosophy.md.
   await lua.doString(`
-    -- Texture kit string formatter (TextureUtil.lua)
-    function GetFinalNameFromTextureKit(fmt, textureKits)
-      if type(textureKits) == "table" then
-        return fmt:format(unpack(textureKits))
-      else
-        return fmt:format(textureKits)
+    -- Mixin system — C API; Blizzard_SharedXMLBase/Mixin.lua wraps these but they
+    -- must exist first so Mixin.lua itself can capture them as local upvalues.
+    function Mixin(t, ...)
+      for i = 1, select("#", ...) do
+        local m = select(i, ...)
+        for k, v in pairs(m) do t[k] = v end
       end
+      return t
+    end
+    function CreateFromMixins(...)
+      return Mixin({}, ...)
     end
 
-    -- Secure template environment accessor (WoW internal); return _G as a safe stand-in.
+    -- Security — always non-secure outside the real game client.
+    function issecure() return false end
+    function issecretvalue() return false end
+    function secureexecuterange(tbl, fn, ...)
+      for _, v in ipairs(tbl) do fn(v, ...) end
+    end
+
+    -- WoW-specific Lua library extensions injected by the C layer.
+    table.wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
+    wipe = table.wipe
+    table.count = function(t) local n = 0; for _ in pairs(t) do n = n + 1 end return n end
+    string.trim = function(s) return (s:gsub("^%s*(.-)%s*$", "%1")) end
+    strtrim = string.trim
+
+    function strsplit(sep, str, limit)
+      local parts, n = {}, 0
+      local pat = "([^" .. sep .. "]*)" .. sep .. "?"
+      for part in (str .. sep):gmatch("([^" .. sep .. "]+)") do
+        n = n + 1
+        parts[n] = part
+        if limit and n >= limit then break end
+      end
+      if n == 0 then return str end
+      return unpack(parts)
+    end
+    function strjoin(sep, ...) return table.concat({...}, sep) end
+
+    -- Closure / function utilities (C API).
+    function GenerateClosure(fn, ...)
+      local args = {...}
+      return function(...) return fn(unpack(args), ...) end
+    end
+    function nop() end
+
+    -- Error / callstack (WoW C debugging internals; no-ops in preview).
+    function SetErrorCallstackHeight() end
+    function GetCallstackHeight() return 0 end
+    function ProcessExceptionClient() end
+    function AddSourceLocationExclude() end
+
+    -- Secure template environment accessor (WoW C internal).
     function GetCurrentEnvironment() return _G end
 
-    -- Global enum table; Blizzard code indexes into sub-tables like Enum.ItemQuality.
-    -- Use a recursive __index proxy so any depth of access returns an empty table.
-    local function _enum_proxy()
-      return setmetatable({}, { __index = function(_, k)
-        local t = _enum_proxy()
-        rawset(_, k, t)
-        return t
-      end })
-    end
-    Enum = _enum_proxy()
-
-    -- Enum utility used by scrollbox and friends.
-    EnumUtil = {
-      MakeEnum = function(...)
-        local t = {}
-        for i = 1, select('#', ...) do
-          local v = select(i, ...)
-          t[v] = i - 1
-        end
-        return t
-      end,
-    }
-
-    -- Table utilities used by scrollbox.lua.
-    function CopyValuesAsKeys(t)
-      local r = {}
-      for _, v in pairs(t) do r[v] = v end
-      return r
-    end
-    function CopyTable(t, deep)
-      local r = {}
-      for k, v in pairs(t) do
-        r[k] = (deep and type(v) == "table") and CopyTable(v, true) or v
-      end
-      return r
-    end
-
-    -- CallbackRegistry stub (Blizzard_SharedXMLBase/CallbackRegistry.lua).
-    -- Provides GenerateCallbackEvents so mixin files that call it at module level
-    -- don't abort. The actual callback dispatch is not needed for static preview.
-    -- If the real file loads from SharedXMLBase, it will override these stubs.
-    CallbackRegistryMixin = {}
-    function CallbackRegistryMixin:GenerateCallbackEvents(events)
-      self.Event = self.Event or {}
-      for _, e in ipairs(events or {}) do self.Event[e] = e end
-    end
-    function CallbackRegistryMixin:RegisterCallback() end
-    function CallbackRegistryMixin:UnregisterCallback() end
-    function CallbackRegistryMixin:TriggerEvent() end
-    function CallbackRegistryMixin:OnLoad() end
-    CallbackRegistrantMixin = CallbackRegistryMixin  -- alias used by some files
-
-    -- Frame pool stubs (FrameXML pool system)
-    function CreateFramePoolCollection() return {} end
-    function CreateObjectPool() return {} end
-    function CreateFramePool() return {} end
-
-    -- Constants table — game constants indexed by sub-table (e.g. Constants.Item.MaxBagSize)
-    local function _const_proxy()
+    -- Enum and Constants are populated by the C layer before any addon Lua loads.
+    -- Recursive proxy so any depth of indexing returns a consistent sub-table.
+    local function _deep_proxy()
       return setmetatable({}, { __index = function(t, k)
-        local v = _const_proxy(); rawset(t, k, v); return v
+        local v = _deep_proxy(); rawset(t, k, v); return v
       end })
     end
-    Constants = _const_proxy()
+    Enum = _deep_proxy()
+    Constants = _deep_proxy()
 
-    -- MathUtil stub (Blizzard_SharedXMLBase/MathUtil.lua); overridden when real file loads
-    MathUtil = { Lerp = function(a, b, t) return a + (b - a) * t end, Epsilon = ${opts.mathUtilEpsilon ?? 1e-5} }
-
-    -- FlagsMixin + FlagsUtil — Blizzard_SharedXML bitflag utilities.
-    -- FlagsUtil.MakeFlags assigns sequential power-of-2 values to named flag constants.
-    -- FlagsMixin tracks a bitmask and exposes Set/Clear/IsSet.
-    FlagsMixin = {}
-    function FlagsMixin:OnLoad() self.flags = 0 end
-    function FlagsMixin:Set(flag) self.flags = bit.bor(self.flags, flag) end
-    function FlagsMixin:Clear(flag) self.flags = bit.band(self.flags, bit.bnot(flag)) end
-    function FlagsMixin:Toggle(flag) self.flags = bit.bxor(self.flags, flag) end
-    function FlagsMixin:IsSet(flag) return bit.band(self.flags, flag) == flag end
-
-    FlagsUtil = {}
-    function FlagsUtil.MakeFlags(...)
-      local result = {}
-      local mask = 1
-      for _, name in ipairs({...}) do
-        result[name] = mask
-        mask = bit.lshift(mask, 1)
-      end
-      return result
-    end
-
-    -- ColorMixin + CreateColor (Color.lua); overridden when the real Blizzard file loads.
-    -- GenerateHexColor returns AARRGGBB (8 hex chars) matching WoW's colorStr format.
-    ColorMixin = {}
-    function ColorMixin:GenerateHexColor()
-      return string.format("%02x%02x%02x%02x",
-        math.floor((self.a or 1) * 255 + 0.5),
-        math.floor(self.r * 255 + 0.5),
-        math.floor(self.g * 255 + 0.5),
-        math.floor(self.b * 255 + 0.5))
-    end
-    function ColorMixin:GenerateHexColorMarkup()
-      return "|c" .. self:GenerateHexColor()
-    end
-    function ColorMixin:WrapTextInColorCode(text)
-      return self:GenerateHexColorMarkup() .. text .. "|r"
-    end
-    function ColorMixin:GetRGB() return self.r, self.g, self.b end
-    function ColorMixin:GetRGBA() return self.r, self.g, self.b, self.a or 1 end
-    function ColorMixin:GetRGBAsBytes()
-      return self.r * 255, self.g * 255, self.b * 255
-    end
-    function ColorMixin:GetRGBAAsBytes()
-      return self.r * 255, self.g * 255, self.b * 255, (self.a or 1) * 255
-    end
-    function ColorMixin:SetRGBA(r, g, b, a)
-      self.r = r; self.g = g; self.b = b; self.a = a
-      self.colorStr = self:GenerateHexColor()
-    end
-    function ColorMixin:SetRGB(r, g, b) self:SetRGBA(r, g, b) end
-    function ColorMixin:IsEqualTo(other)
-      return self.r == other.r and self.g == other.g and self.b == other.b
-        and (self.a or 1) == (other.a or 1)
-    end
-    function CreateColor(r, g, b, a)
-      local c = setmetatable({}, { __index = ColorMixin })
-      c:SetRGBA(r, g, b, a)
-      return c
-    end
-    -- GenerateHexColorFromHexValues(r, g, b) — byte values 0–255, returns AARRGGBB
-    function GenerateHexColorFromHexValues(r, g, b)
-      return string.format("ff%02x%02x%02x", r, g, b)
-    end
-    function WrapTextInColorCode(text, colorHexString)
-      return "|c" .. colorHexString .. text .. "|r"
-    end
-
-    -- Faction color tables referenced in sharedcolorconstants.lua
-    local _default_color = CreateColor(1, 1, 1, 1)
-    PLAYER_FACTION_COLOR_HORDE    = _default_color
-    PLAYER_FACTION_COLOR_ALLIANCE = _default_color
-
-    -- Misc WoW globals used by some SharedXML files
+    -- Game state C APIs — return fixed values for the static preview context.
     function UnitRace() return "Human", "Human" end
     function UnitSex() return 2 end
     function GetLocale() return "enUS" end
 
-    -- SlashCmdList: populated by addons via SLASH_X1 = "/cmd" + SlashCmdList["X"] = fn.
+    -- SlashCmdList is a C-layer-seeded global; addons append to it.
     if SlashCmdList == nil then SlashCmdList = {} end
 
-    -- EventRegistry (Blizzard_SharedXMLBase); overridden when the real file loads.
-    -- gamerulesutil.lua calls RegisterCallback/TriggerEvent at module level.
-    EventRegistry = {}
-    function EventRegistry:RegisterCallback() end
-    function EventRegistry:UnregisterCallback() end
-    function EventRegistry:TriggerEvent() end
-    function EventRegistry:RegisterFrameEventAndCallback() end
-
-    -- C_ScriptedAnimations.GetAllScriptedAnimationEffects must return a table, not nil,
+    -- C_ScriptedAnimations.GetAllScriptedAnimationEffects must return a table (not nil)
     -- or scriptedanimationeffects.lua crashes on #effectDescriptions at module level.
     C_ScriptedAnimations.GetAllScriptedAnimationEffects = function() return {} end
   `);

@@ -405,7 +405,6 @@ export class ScryerLivePanel {
           }
           return null;
         },
-        mathUtilEpsilon: flavorConfig.mathUtilEpsilon,
         atlasManifest,
       });
 
@@ -418,12 +417,12 @@ export class ScryerLivePanel {
 
       await registerFrameModel(sandbox, registry, blizzardTemplates);
 
-      // Load Blizzard SharedXML Lua files in dependency order before running the user's addon.
-      // SharedXMLBase first (defines CallbackRegistry, EnumUtil, MathUtil, etc.),
-      // then SharedXML (NineSlice, templates, etc.).
-      // Errors in individual files are silently skipped — many files depend on
-      // WoW internals that are not fully stubbed yet.
-      for (const addonName of ["Blizzard_SharedXMLBase", "Blizzard_SharedXML"]) {
+      // Load Blizzard Lua in dependency order before running the user's addon.
+      // SharedXMLBase → Blizzard_Colors (needed by SharedColorConstants.lua) → SharedXML.
+      // Per ADR 011: every file in this list must succeed — failures are hard errors,
+      // not silent skips. If a file fails, fix the missing C stub or add the dependency
+      // addon to this list; do not add a shadow stub in wow-api.ts.
+      for (const addonName of ["Blizzard_SharedXMLBase", "Blizzard_Colors", "Blizzard_SharedXML"]) {
         for (const luaPath of this.assets.blizzardAddonLuaFiles(addonName)) {
           try {
             const content = Buffer.from(
@@ -431,7 +430,11 @@ export class ScryerLivePanel {
             ).toString("utf-8");
             await sandbox.doString(content);
           } catch (e) {
-            this.output.debug(`[Live] Blizzard Lua skipped: ${path.basename(luaPath)}: ${e}`);
+            this.output.warn(`[Live] Blizzard Lua failed: ${path.basename(luaPath)}: ${e}`);
+            throw new Error(
+              `Blizzard Lua file failed to load: ${path.basename(luaPath)}. ` +
+                `Fix the missing C-layer stub or load-order issue rather than adding a shadow stub. See docs/decisions/011_blizzard_lua_load_philosophy.md`,
+            );
           }
         }
       }
