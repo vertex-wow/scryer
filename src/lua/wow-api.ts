@@ -725,6 +725,9 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     function UnitSex() return 2 end
     function GetLocale() return "enUS" end
 
+    -- SlashCmdList: populated by addons via SLASH_X1 = "/cmd" + SlashCmdList["X"] = fn.
+    if SlashCmdList == nil then SlashCmdList = {} end
+
     -- EventRegistry (Blizzard_SharedXMLBase); overridden when the real file loads.
     -- gamerulesutil.lua calls RegisterCallback/TriggerEvent at module level.
     EventRegistry = {}
