@@ -174,6 +174,62 @@ function applyAsset(rawPath: string, uri: string): void {
   }
 }
 
+/**
+ * Scroll so the union bounding box of all top-level frames is centered in the
+ * visible panel area. Falls back to the WoW origin if no frames are renderable.
+ */
+function centerOnContent(config: ResolvedFlavorConfig): void {
+  const wowVp = document.getElementById("wow-viewport");
+  if (!wowVp) return;
+
+  const scale = config.frameScale;
+  const padH = Math.round(config.uiParentWidth * scale);
+  const padV = Math.round(config.uiParentHeight * scale);
+
+  // Union bbox of top-level frame elements in WoW logical pixels (pre-scale).
+  let minL = Infinity,
+    minT = Infinity,
+    maxR = -Infinity,
+    maxB = -Infinity;
+  for (const child of wowVp.children) {
+    const el = child as HTMLElement;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    if (w > 0 || h > 0) {
+      const l = el.offsetLeft;
+      const t = el.offsetTop;
+      minL = Math.min(minL, l);
+      minT = Math.min(minT, t);
+      maxR = Math.max(maxR, l + w);
+      maxB = Math.max(maxB, t + h);
+    }
+  }
+
+  if (!isFinite(minL)) {
+    window.scrollTo(padH, padV);
+    return;
+  }
+
+  // Page (scroll-document) coordinates of #wow-viewport's top-left corner.
+  const vpRect = wowVp.getBoundingClientRect();
+  const vpPageX = vpRect.left + window.scrollX;
+  const vpPageY = vpRect.top + window.scrollY;
+
+  // Bbox center in page coordinates (scale converts WoW logical → CSS px).
+  const bboxCenterX = vpPageX + ((minL + maxR) / 2) * scale;
+  const bboxCenterY = vpPageY + ((minT + maxB) / 2) * scale;
+
+  // Fixed UI overlaying the top of the visible area (status bar + ruler if shown).
+  const fixedH =
+    config.statusBarHeight +
+    (document.body.classList.contains("show-ruler") ? config.rulerSize : 0);
+
+  window.scrollTo(
+    bboxCenterX - window.innerWidth / 2,
+    bboxCenterY - (window.innerHeight + fixedH) / 2,
+  );
+}
+
 window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
   const msg = event.data;
   switch (msg.type) {
@@ -203,13 +259,8 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         currentConfig = msg.flavorConfig;
         currentScale = currentConfig.frameScale;
         if (currentWowViewport) updateRulers(currentWowViewport, currentScale, currentConfig);
-        // On first render (not hot-reload), scroll so the WoW origin sits at the
-        // natural gutter position rather than flush against the scroll boundary.
-        if (msg.type === "render") {
-          const padH = Math.round(msg.flavorConfig.uiParentWidth * msg.flavorConfig.frameScale);
-          const padV = Math.round(msg.flavorConfig.uiParentHeight * msg.flavorConfig.frameScale);
-          window.scrollTo(padH, padV);
-        }
+        // On first render (not hot-reload), center the frame content in view.
+        if (msg.type === "render") centerOnContent(msg.flavorConfig);
         let suffix = " OK";
         if (msg.extractionPending)
           suffix = msg.pendingFiles > 0 ? ` — ${msg.pendingFiles} file(s) pending` : ` — pending`;

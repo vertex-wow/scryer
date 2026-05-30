@@ -806,7 +806,7 @@ However, there are a few integration questions worth answering before M8 (TOC Ex
 
 ## Center frame content on open
 
-**Status:** 📋 Pending
+**Status:** ✅ Done (2026-05-30)
 
 **Problem:** When a WoW XML file is opened, the preview canvas starts scrolled to the origin (top-left). Frames are anchored relative to UIParent and can appear anywhere on the virtual canvas — often centered or offset. The user must manually scroll to find their frames after every open.
 
@@ -820,6 +820,29 @@ However, there are a few integration questions worth answering before M8 (TOC Ex
 The centering logic should live in the webview (`main.ts`) and trigger once after the first `render` message for a given file. A `data-file-key` or similar marker on the render payload can distinguish "new file opened" from "same file re-rendered."
 
 **Effort:** XS–S.
+
+---
+
+## Grab pan and zoom on the preview canvas
+
+**Status:** 📋 Pending
+
+**Problem:** Scrollbars work but are slow for large navigation jumps. There is no way to zoom in on dense frame hierarchies or zoom out to see the whole layout at once. Both are common actions during addon development.
+
+**Plan:**
+
+1. **Grab pan** — listen for `mousedown` on the body (or a transparent overlay) and translate `mousemove` deltas into `window.scrollBy` calls while the button is held. Trigger on middle-click (button 1) unconditionally, and on left-click when `Space` is held (Figma-style). Show a `grab`/`grabbing` cursor during drag. Suppress any `click` event that fires at the end of a drag so interactive frames don't misfire.
+
+2. **Scroll-wheel zoom** — intercept `wheel` events with `ctrlKey` (standard browser zoom gesture, also triggered by pinch-to-zoom on trackpads). Convert the wheel delta to a scale multiplier and update `flavorConfig.frameScale`. To keep the point under the cursor stationary: record the cursor's page coordinates before the scale change, apply the new scale (which changes element sizes and therefore scroll extents), then adjust `window.scrollTo` so the same page point is back under the cursor.
+
+3. **Scale state** — `frameScale` lives in `ResolvedFlavorConfig` which is currently host-owned. Options:
+   - Keep scale host-owned: send a `webviewMessage` back to the host when zoom changes; host re-renders with the new config. Simple but causes a full re-render on every zoom step, which may be too slow for smooth pinch.
+   - Make scale webview-local: apply a CSS `transform:scale()` on the `#wow-viewport` element directly in the webview, independent of the host-side config. Fast and smooth; the host never needs to know. On the next full `render` message the host resets to its config value, which is acceptable.
+   - Recommended: webview-local CSS scale for interactive zoom, with a "reset zoom" button or keyboard shortcut that snaps back to `frameScale` from config.
+
+4. **Reset** — double-click or `Ctrl+0` restores default scale and re-centers content.
+
+**Effort:** S.
 
 ---
 
