@@ -646,8 +646,54 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     -- MathUtil stub (Blizzard_SharedXMLBase/MathUtil.lua); overridden when real file loads
     MathUtil = { Lerp = function(a, b, t) return a + (b - a) * t end }
 
+    -- ColorMixin + CreateColor (Color.lua); overridden when the real Blizzard file loads.
+    -- GenerateHexColor returns AARRGGBB (8 hex chars) matching WoW's colorStr format.
+    ColorMixin = {}
+    function ColorMixin:GenerateHexColor()
+      return string.format("%02x%02x%02x%02x",
+        math.floor((self.a or 1) * 255 + 0.5),
+        math.floor(self.r * 255 + 0.5),
+        math.floor(self.g * 255 + 0.5),
+        math.floor(self.b * 255 + 0.5))
+    end
+    function ColorMixin:GenerateHexColorMarkup()
+      return "|c" .. self:GenerateHexColor()
+    end
+    function ColorMixin:WrapTextInColorCode(text)
+      return self:GenerateHexColorMarkup() .. text .. "|r"
+    end
+    function ColorMixin:GetRGB() return self.r, self.g, self.b end
+    function ColorMixin:GetRGBA() return self.r, self.g, self.b, self.a or 1 end
+    function ColorMixin:GetRGBAsBytes()
+      return self.r * 255, self.g * 255, self.b * 255
+    end
+    function ColorMixin:GetRGBAAsBytes()
+      return self.r * 255, self.g * 255, self.b * 255, (self.a or 1) * 255
+    end
+    function ColorMixin:SetRGBA(r, g, b, a)
+      self.r = r; self.g = g; self.b = b; self.a = a
+      self.colorStr = self:GenerateHexColor()
+    end
+    function ColorMixin:SetRGB(r, g, b) self:SetRGBA(r, g, b) end
+    function ColorMixin:IsEqualTo(other)
+      return self.r == other.r and self.g == other.g and self.b == other.b
+        and (self.a or 1) == (other.a or 1)
+    end
+    function CreateColor(r, g, b, a)
+      local c = setmetatable({}, { __index = ColorMixin })
+      c:SetRGBA(r, g, b, a)
+      return c
+    end
+    -- GenerateHexColorFromHexValues(r, g, b) — byte values 0–255, returns AARRGGBB
+    function GenerateHexColorFromHexValues(r, g, b)
+      return string.format("ff%02x%02x%02x", r, g, b)
+    end
+    function WrapTextInColorCode(text, colorHexString)
+      return "|c" .. colorHexString .. text .. "|r"
+    end
+
     -- Faction color tables referenced in sharedcolorconstants.lua
-    local _default_color = { colorStr = "ffffffff", r = 1, g = 1, b = 1, a = 1 }
+    local _default_color = CreateColor(1, 1, 1, 1)
     PLAYER_FACTION_COLOR_HORDE    = _default_color
     PLAYER_FACTION_COLOR_ALLIANCE = _default_color
 

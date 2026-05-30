@@ -324,6 +324,47 @@ describe("C_Timer", () => {
   });
 });
 
+// ─── CreateColor / ColorMixin ─────────────────────────────────────────────────
+describe("CreateColor", () => {
+  test("GenerateHexColor returns AARRGGBB", async () => {
+    expect(await run("return CreateColor(1, 0, 0, 1):GenerateHexColor()")).toBe("ffff0000");
+  });
+
+  test("GenerateHexColor uses alpha channel", async () => {
+    // 0.5 * 255 + 0.5 = 128.0 → 0x80
+    expect(await run("return CreateColor(1, 1, 1, 0.5):GenerateHexColor()")).toBe("80ffffff");
+  });
+
+  test("GenerateHexColorMarkup prefixes |c", async () => {
+    expect(await run("return CreateColor(1, 0, 0, 1):GenerateHexColorMarkup()")).toBe("|cffff0000");
+  });
+
+  test("WrapTextInColorCode wraps with |c and |r", async () => {
+    expect(await run('return CreateColor(1, 0, 0, 1):WrapTextInColorCode("hi")')).toBe(
+      "|cffff0000hi|r",
+    );
+  });
+
+  test("GetRGB returns r g b", async () => {
+    expect(await run("local c = CreateColor(0.5,0.25,0.1); return c.r, c.g, c.b")).toBe(0.5);
+    expect(await run("local c = CreateColor(0.5,0.25,0.1); local _,g = c:GetRGB(); return g")).toBe(
+      0.25,
+    );
+  });
+
+  test("GenerateHexColorFromHexValues returns ffRRGGBB", async () => {
+    expect(await run("return GenerateHexColorFromHexValues(255, 0, 0)")).toBe("ffff0000");
+  });
+
+  test("WrapTextInColorCode global", async () => {
+    expect(await run('return WrapTextInColorCode("hi", "ffff0000")')).toBe("|cffff0000hi|r");
+  });
+
+  test("colorStr set on construction", async () => {
+    expect(await run("return CreateColor(1, 0, 0, 1).colorStr")).toBe("ffff0000");
+  });
+});
+
 // ─── VirtualClock ─────────────────────────────────────────────────────────────
 describe("VirtualClock", () => {
   test("starts at 0", () => {

@@ -1199,11 +1199,15 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ## `Color:GenerateHexColor` stub — unblocks `sharedcolorconstants.lua`
 
-**Status:** 📋 Pending
+**Status:** ✅ Done (2026-05-30)
 
 **Problem:** `sharedcolorconstants.lua` fails on load: `attempt to call a nil value (method 'GenerateHexColor')`. This file defines the global color constants every WoW addon relies on — `NORMAL_FONT_COLOR`, `HIGHLIGHT_FONT_COLOR`, `RED_FONT_COLOR`, etc. Because the file is skipped, these constants are nil when user addons run, breaking any addon that uses standard WoW text coloring.
 
-**Plan:** The `Color` class/mixin in `wow-api.ts` needs `GenerateHexColor()` returning an 8-char AARRGGBB hex string, and `GenerateHexColorFromHexValues(r, g, b)` where values are 0–255. Both are pure math on the stored r/g/b/a fields — no new state required. Once the method exists, `sharedcolorconstants.lua` should load cleanly and populate all global color table entries.
+**What was built:**
+
+`src/lua/wow-api.ts` — Added a full `ColorMixin` table and `CreateColor(r, g, b, a)` function to the SharedXML pre-stubs block. Uses `setmetatable({}, { __index = ColorMixin })` rather than `Mixin()` to avoid a dependency on `frame-class.lua` at stub-load time. Methods implemented: `GenerateHexColor()` (AARRGGBB, 8 hex chars), `GenerateHexColorMarkup()` (`|cAARRGGBB`), `WrapTextInColorCode(text)`, `GetRGB()`, `GetRGBA()`, `GetRGBAsBytes()`, `GetRGBAAsBytes()`, `SetRGB()`, `SetRGBA()`, `IsEqualTo()`. Also added `GenerateHexColorFromHexValues(r, g, b)` (byte values 0–255) and `WrapTextInColorCode(text, hexStr)` as standalone globals. The faction color table stubs (`PLAYER_FACTION_COLOR_HORDE` / `PLAYER_FACTION_COLOR_ALLIANCE`) were updated to use `CreateColor` instead of bare tables. When the real `Color.lua` loads from the Blizzard asset cache, it overrides these stubs.
+
+8 tests added in `test/lua/wow-api.test.ts`.
 
 **Effort:** XS
 
