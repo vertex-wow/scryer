@@ -659,15 +659,14 @@ The output channel is a power-user tool. Regular users never open it, so they ha
 
 ## Texture placeholder hover tooltip
 
-**Status: ✅ Done**
+**Status: ✅ Done (2026-05-30)**
 
-**Problem:** Unloaded or missing textures render as colored placeholder elements with the texture path (or atlas name) as visible text. When the name is long, it is truncated by the element's bounds with no way to read the full path without inspecting the DOM.
+**Problem:** Unloaded or missing textures render as colored placeholder elements with the texture path (or atlas name) as visible text. When the name is long, it is truncated by the element's bounds with no way to read the full path without inspecting the DOM. Additionally, Blizzard template frames with child frames on top of background textures blocked tooltip detection — `mouseover` + `closest()` can only walk _up_ the DOM from the event target, missing sibling placeholders hidden beneath stacked frames.
 
-**Plan:** Add a `title` attribute to each placeholder element in the webview renderer, set to the full, un-truncated texture path or atlas name. The browser then shows it as a native tooltip on hover — no JS required.
+**What was built:**
 
-**Implemented:** `div.title = label ?? path` added to `makePlaceholder` in [src/webview/placeholder.ts](../../src/webview/placeholder.ts) — one line, no JS, no new protocol.
-
-**Effort:** XS — attribute addition in the renderer HTML generation; no new protocol, no new styles.
+- `src/webview/placeholder.ts` — `makePlaceholder` sets `div.dataset.phLabel` (the full un-truncated path or label) on the placeholder container div.
+- `src/webview/main.ts` — a custom tooltip overlay div (`phTooltip`) is appended to `document.body`, positioned via `mousemove` and hidden via `mouseleave`. Detection uses `document.elementsFromPoint(x, y)` on every `mousemove`, which returns all elements at the cursor in z-order regardless of `pointer-events` — including placeholders visually beneath child frames. The first element inside the viewport container that has `data-ph-label` wins.
 
 ---
 
@@ -699,7 +698,7 @@ The output channel is a power-user tool. Regular users never open it, so they ha
 
 ## WoW font loading (FRIZQT\_\_.TTF from CASC)
 
-**Status: ✅ Done (2026-05-28)**
+**Status: ✅ Done (2026-05-28; non-blocking fix 2026-05-30)**
 
 **Problem:** WoW fonts (e.g. `Fonts/FRIZQT__.TTF`) are packed in CASC archives, not present as loose files in the install directory. The asset resolver only handled image extensions, so font paths were never found, and FontStrings fell back to the system serif font.
 
@@ -708,7 +707,9 @@ The output channel is a power-user tool. Regular users never open it, so they ha
 - `src/assets/resolver.ts` — extended `AssetKind` to include `"font"` for `.ttf`/`.otf`; added both extensions to the `hasExt` regex and `EXT_KIND` map.
 - `src/assets/index.ts` — `_resolve()` now passes `font` kind through directly (no BLP conversion); added `claimExtraction(rawPath): boolean` — a per-session dedup guard backed by a `Set<string>` that prevents concurrent renders from triggering duplicate extraction attempts for the same path.
 - `src/assets/extract-core.ts` — `extractRetailPaths()` switched from `ensureFilteredListfile` to `ensureListfile` (full community listfile). The interface-filtered listfile omits non-`Interface/` paths like `Fonts/`; font extraction requires the full CSV.
-- `src/panel.ts` — after resolving the flavor config, attempts to resolve `flavorConfig.defaultFont`; if absent and no extraction has been claimed yet for that path, calls `extractMissing([defaultFont])`, invalidates the asset cache, and re-resolves. Resolved URI is injected into the webview HTML as a `@font-face "WoWDefaultFont"` rule.
+- `src/panel.ts` — font resolution is **non-blocking**: `renderFile()` resolves the font from cache immediately (fast path), and if absent, calls `extractAndSendFont()` as a fire-and-forget. When extraction completes, a `{ type: "fontResolved" }` message injects the `@font-face` rule in the webview without triggering a full re-render. `protocol.ts` — added `fontResolved` host→webview message type. `main.ts` — handles `fontResolved` by calling `applyDefaultFont()`.
+
+**Why non-blocking matters:** The original blocking implementation awaited `extractMissing([font])` inside `renderFile()`. On cold start, font extraction takes ~6 minutes (full listfile download + CASC open). Meanwhile, Blizzard addon extraction would complete and call `renderFile()` again, posting a render with texture placeholders and kicking off their extraction. When the font finally resolved, the original `renderFile()` continuation posted a third render, wiping the DOM exactly as texture `assetResolved` messages were arriving. Textures targeted elements that no longer existed; the preview remained blank until the user closed and reopened. The non-blocking approach eliminates this spurious re-render entirely.
 
 **Fallback:** When the font is unavailable, the CSS font stack falls back to `sans-serif` (matching WoW's own default appearance more closely than serif).
 

@@ -34,6 +34,7 @@ function renderTexture(tex: TextureIR, rect: Rect, config: ResolvedFlavorConfig)
 
   if (tex.color) {
     el.style.background = cssColor(tex.color);
+    el.style.pointerEvents = "none";
   } else if (tex.resolvedAtlas) {
     const ra = tex.resolvedAtlas;
     el.dataset.assetPath = ra.file;
@@ -51,18 +52,22 @@ function renderTexture(tex: TextureIR, rect: Rect, config: ResolvedFlavorConfig)
     const ph = makePlaceholder(ra.file, config);
     ph.dataset.placeholder = "1";
     el.appendChild(ph);
+    el.style.pointerEvents = "auto";
   } else if (tex.file) {
     el.dataset.assetPath = tex.file;
     const ph = makePlaceholder(tex.file, config);
     ph.dataset.placeholder = "1";
     el.appendChild(ph);
+    el.style.pointerEvents = "auto";
   } else if (tex.atlas) {
     // Atlas name present but no manifest entry — show labeled placeholder
     el.dataset.atlasName = tex.atlas;
     el.appendChild(makePlaceholder(tex.atlas, config, `[atlas] ${tex.atlas}`));
+    el.style.pointerEvents = "auto";
   } else {
     // No file or color — transparent slot; still show a faint outline
     el.style.outline = "1px dashed rgba(255,255,255,0.15)";
+    el.style.pointerEvents = "none";
   }
 
   if (tex.texCoords) {
@@ -220,7 +225,7 @@ function renderFrame(
   for (const layer of frame.layers) {
     const layerEl = document.createElement("div");
     layerEl.dataset.layer = layer.level;
-    layerEl.style.cssText = `position:absolute;inset:0;z-index:${layerZ(layer.level, layer.subLevel)};`;
+    layerEl.style.cssText = `position:absolute;inset:0;z-index:${layerZ(layer.level, layer.subLevel)};pointer-events:none;`;
 
     // Layout all objects in the layer together so relativeKey references between
     // sibling render objects (e.g. Middle anchored to Left/Right) can resolve.
@@ -261,7 +266,7 @@ function renderFrame(
   if (stateTextures.length > 0) {
     const stateEl = document.createElement("div");
     stateEl.dataset.layer = "state-textures";
-    stateEl.style.cssText = "position:absolute;inset:0;z-index:1;";
+    stateEl.style.cssText = "position:absolute;inset:0;z-index:1;pointer-events:none;";
     for (const tex of stateTextures) {
       stateEl.appendChild(
         renderTexture(

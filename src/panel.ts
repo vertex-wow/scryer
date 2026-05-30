@@ -272,9 +272,13 @@ export class ScryerPanel {
       return;
     }
 
-    const uri = this.panel.webview.asWebviewUri(vscode.Uri.file(absPath)).toString();
-    const msg: HostMessage = { type: "assetResolved", path: rawPath, uri };
-    void this.panel.webview.postMessage(msg);
+    try {
+      const uri = this.panel.webview.asWebviewUri(vscode.Uri.file(absPath)).toString();
+      const msg: HostMessage = { type: "assetResolved", path: rawPath, uri };
+      void this.panel.webview.postMessage(msg);
+    } catch {
+      // Panel was disposed before the asset resolved — nothing to update.
+    }
   }
 
   private scheduleMissingExtract(): void {
@@ -406,19 +410,17 @@ export class ScryerPanel {
       };
 
       // Resolve the default font from the asset cache so the webview can inject @font-face.
+      // If not cached yet, kick off extraction non-blocking and deliver via "fontResolved"
+      // so that the render is not delayed and a spurious re-render is not triggered later.
       let defaultFontUri: string | undefined;
       if (flavorConfig.defaultFont) {
-        let fontAbsPath = await this.assets.resolveToAbsPath(flavorConfig.defaultFont, "");
-        if (!fontAbsPath && this.assets.claimExtraction(flavorConfig.defaultFont)) {
-          // Font not in cache — extract it from CASC and retry once per session.
-          await this.assets.extractMissing([flavorConfig.defaultFont]);
-          this.assets.invalidateAfterBlizzardExtraction();
-          fontAbsPath = await this.assets.resolveToAbsPath(flavorConfig.defaultFont, "");
-        }
+        const fontAbsPath = await this.assets.resolveToAbsPath(flavorConfig.defaultFont, "");
         this.output.trace(`font resolve: "${flavorConfig.defaultFont}" → ${fontAbsPath ?? "null"}`);
         if (fontAbsPath) {
           defaultFontUri = this.panel.webview.asWebviewUri(vscode.Uri.file(fontAbsPath)).toString();
           this.output.trace(`font URI: ${defaultFontUri}`);
+        } else if (this.assets.claimExtraction(flavorConfig.defaultFont)) {
+          void this.extractAndSendFont(flavorConfig.defaultFont);
         }
       }
 
@@ -527,6 +529,22 @@ export class ScryerPanel {
       } catch {
         // Not a WoW addon XML file; skip silently
       }
+    }
+  }
+
+  private async extractAndSendFont(fontPath: string): Promise<void> {
+    await this.assets.extractMissing([fontPath]);
+    this.assets.invalidateAfterBlizzardExtraction();
+    const fontAbsPath = await this.assets.resolveToAbsPath(fontPath, "");
+    this.output.trace(`font resolve: "${fontPath}" → ${fontAbsPath ?? "null"}`);
+    if (!fontAbsPath) return;
+    const fontUri = this.panel.webview.asWebviewUri(vscode.Uri.file(fontAbsPath)).toString();
+    this.output.trace(`font URI: ${fontUri}`);
+    try {
+      const msg: HostMessage = { type: "fontResolved", uri: fontUri };
+      void this.panel.webview.postMessage(msg);
+    } catch {
+      // Panel was disposed before the font resolved.
     }
   }
 

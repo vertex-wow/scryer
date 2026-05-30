@@ -32,6 +32,7 @@ export type HostMessage =
       defaultFontUri?: string;
     }
   | { type: "assetResolved"; path: string; uri: string }
+  | { type: "fontResolved"; uri: string }
   | { type: "setRuler"; show: boolean };
 
 // Webview → extension host

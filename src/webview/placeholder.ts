@@ -22,7 +22,7 @@ export function makePlaceholder(
   label?: string,
 ): HTMLDivElement {
   const div = document.createElement("div");
-  div.title = label ?? path;
+  div.dataset.phLabel = label ?? path;
   div.style.cssText = [
     "position:absolute",
     "inset:0",

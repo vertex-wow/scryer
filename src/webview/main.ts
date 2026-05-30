@@ -25,6 +25,55 @@ dbg("script loaded — waiting for ready handshake");
 
 initRulers();
 
+// Tooltip for placeholder elements — custom overlay, immune to the DOM
+// mutations that reset native title-attribute tooltip dwell timers.
+const phTooltip = document.createElement("div");
+phTooltip.style.cssText = [
+  "position:fixed",
+  "z-index:99999",
+  "background:rgba(15,15,15,0.92)",
+  "color:#e8e8e8",
+  "font:11px/1.4 monospace",
+  "padding:3px 7px",
+  "border-radius:3px",
+  "border:1px solid rgba(255,255,255,0.15)",
+  "pointer-events:none",
+  "white-space:pre-wrap",
+  "max-width:400px",
+  "word-break:break-all",
+  "display:none",
+].join(";");
+document.body.appendChild(phTooltip);
+
+function positionPhTooltip(x: number, y: number): void {
+  phTooltip.style.left = `${x + 12}px`;
+  phTooltip.style.top = `${y + 16}px`;
+}
+
+viewport!.addEventListener("mousemove", (e: MouseEvent) => {
+  // elementsFromPoint finds placeholders that are visually beneath stacked child frames,
+  // which closest() on the event target alone cannot reach.
+  const elements = document.elementsFromPoint(e.clientX, e.clientY);
+  let label: string | undefined;
+  for (const el of elements) {
+    if (!viewport!.contains(el)) continue;
+    if (el instanceof HTMLElement && el.dataset.phLabel) {
+      label = el.dataset.phLabel;
+      break;
+    }
+  }
+  if (label !== undefined) {
+    phTooltip.textContent = label;
+    phTooltip.style.display = "block";
+    positionPhTooltip(e.clientX, e.clientY);
+  } else {
+    phTooltip.style.display = "none";
+  }
+});
+viewport!.addEventListener("mouseleave", () => {
+  phTooltip.style.display = "none";
+});
+
 document.getElementById("ruler-toggle")?.addEventListener("click", () => {
   vscode.postMessage({ type: "toggleRuler" });
 });
@@ -123,6 +172,7 @@ function applyAsset(rawPath: string, uri: string): void {
 
     const ph = el.querySelector("[data-placeholder]");
     if (ph) ph.remove();
+    el.style.pointerEvents = "none";
   }
 }
 
@@ -169,6 +219,11 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
 
     case "assetResolved": {
       applyAsset(msg.path, msg.uri);
+      break;
+    }
+
+    case "fontResolved": {
+      applyDefaultFont(msg.uri);
       break;
     }
 
