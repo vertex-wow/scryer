@@ -825,19 +825,13 @@ The centering logic should live in the webview (`main.ts`) and trigger once afte
 
 ## Canvas scroll in all directions and always-show scrollbars
 
-**Status:** 📋 Pending
+**Status:** ✅ Done (2026-05-30)
 
 **Problem:** The preview canvas currently restricts scrolling to non-negative coordinates — you can scroll right and down, but not left or up past the origin. Any frame element positioned in negative coordinate space (anchored above or to the left of UIParent's origin) is unreachable. Additionally, scrollbars only appear when content overflows, making it non-obvious that the canvas is scrollable.
 
 **Goal:** Mirror WoW's unbounded virtual canvas: scroll in all four directions, with scrollbars always visible so the user knows the canvas is navigable.
 
-**Plan:**
-
-1. Add padding on all four sides of the inner scroll container — at minimum one full UIParent dimension in each direction (e.g. 768 WoW px up, 1024 WoW px left, matching the configured `uiParentHeight`/`uiParentWidth`). This gives the scrollbar room to travel in the negative direction.
-2. Initialize `scrollTop` and `scrollLeft` to the padding values so the virtual origin is not flush against the scroll boundary on open.
-3. Set `overflow: scroll` (not `overflow: auto`) on the outer container so scrollbars are always rendered regardless of content size.
-4. Coordinate with the [[center-frame-content-on-open]] item — initial scroll position should center frame content, which now means landing somewhere inside the padding band rather than at raw zero.
-5. Verify that `updateRulers` still tracks correctly; it uses `getBoundingClientRect()` which accounts for scroll, so it likely works automatically. Confirm ruler coordinates remain in WoW logical pixels and don't shift by the padding amount.
+**Implementation:** Body padding expanded to one UIParent dimension on each side (`padH = uiParentWidth * frameScale`, `padV = uiParentHeight * frameScale` in CSS px). `overflow:scroll` on body ensures scrollbars are always visible. On initial render (`msg.type === "render"`, not hot-reload), `window.scrollTo(padH, padV)` places the WoW origin at the natural 8px gutter position. Note: CSS propagates `overflow` from `<body>` to the viewport when `<html>` has default overflow, so `document.body.scrollLeft` is a no-op — `window.scrollTo()` is required. `body.show-ruler` padding is updated to add ruler size on top of the scroll padding rather than replacing it. Rulers continue to work via `getBoundingClientRect()`.
 
 **Effort:** S.
 

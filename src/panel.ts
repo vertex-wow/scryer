@@ -577,6 +577,10 @@ export class ScryerPanel {
     const BP = 8;
     const sbH = c.statusBarHeight;
     const rsz = c.rulerSize;
+    // Scroll padding in CSS px — one UIParent dimension per side so frames can be
+    // scrolled fully off-screen in any direction.
+    const padH = Math.round(c.uiParentWidth * c.frameScale);
+    const padV = Math.round(c.uiParentHeight * c.frameScale);
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -587,7 +591,7 @@ export class ScryerPanel {
   <title>Scryer Preview</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{background:${c.rulerBg};display:flex;flex-direction:column;align-items:flex-start;padding:${BP}px;padding-top:${sbH + BP}px;overflow:auto}
+    body{background:${c.rulerBg};display:flex;flex-direction:column;align-items:flex-start;padding:${padV + BP}px ${padH + BP}px;padding-top:${padV + sbH + BP}px;overflow:scroll}
     #viewport{position:relative}
     #status-bar{position:fixed;top:0;left:0;right:0;height:${sbH}px;background:${c.statusBarBg};display:flex;align-items:center;z-index:10001;border-bottom:1px solid ${c.rulerBorder};font:${c.statusBarFont};color:${c.statusBarColor};white-space:nowrap;overflow:hidden}
     #ruler-toggle{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;font:14px/${sbH}px system-ui;padding:0 5px;height:${sbH}px}
@@ -598,7 +602,7 @@ export class ScryerPanel {
     #ruler-top{position:fixed;top:${sbH}px;left:0;right:0;height:${rsz}px;z-index:9999;display:none}
     #ruler-left{position:fixed;top:${sbH}px;left:0;bottom:0;width:${rsz}px;z-index:9999;display:none}
     #ruler-corner{position:fixed;top:${sbH}px;left:0;width:${rsz}px;height:${rsz}px;z-index:10000;background:${c.rulerBg};border-right:1px solid ${c.rulerBorder};border-bottom:1px solid ${c.rulerBorder};display:none}
-    body.show-ruler{padding-top:${sbH + rsz + BP}px;padding-left:${rsz + BP}px}
+    body.show-ruler{padding-top:${padV + sbH + rsz + BP}px;padding-left:${padH + rsz + BP}px}
     body.show-ruler #ruler-top,body.show-ruler #ruler-left,body.show-ruler #ruler-corner{display:block}
   </style>
 </head>

@@ -203,6 +203,13 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         currentConfig = msg.flavorConfig;
         currentScale = currentConfig.frameScale;
         if (currentWowViewport) updateRulers(currentWowViewport, currentScale, currentConfig);
+        // On first render (not hot-reload), scroll so the WoW origin sits at the
+        // natural gutter position rather than flush against the scroll boundary.
+        if (msg.type === "render") {
+          const padH = Math.round(msg.flavorConfig.uiParentWidth * msg.flavorConfig.frameScale);
+          const padV = Math.round(msg.flavorConfig.uiParentHeight * msg.flavorConfig.frameScale);
+          window.scrollTo(padH, padV);
+        }
         let suffix = " OK";
         if (msg.extractionPending)
           suffix = msg.pendingFiles > 0 ? ` — ${msg.pendingFiles} file(s) pending` : ` — pending`;
