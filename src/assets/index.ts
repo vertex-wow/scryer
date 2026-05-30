@@ -7,9 +7,11 @@ import { extractInterface, extractMissing, genAtlas } from "./extractor.js";
 import {
   ADDON_NAMES,
   SHARED_ADDON_NAMES,
+  blizzardAddonLuaFiles,
   clearRegistryCache,
   discoverBlizzardPaths,
   loadBlizzardRegistry,
+  resolveCI,
 } from "../parser/blizzard-registry.js";
 import {
   clearFlavorCache,
@@ -131,6 +133,9 @@ export class AssetService {
     const stamped = readBuildStamp(this.opts.cacheRoot, this.opts.flavor);
     if (stamped === current) return;
     clearFlavorCache(this.opts.cacheRoot, this.opts.flavor);
+    // Write the stamp immediately so subsequent sessions don't re-clear the cache
+    // before extraction has had a chance to run.
+    writeBuildStamp(this.opts.cacheRoot, this.opts.flavor, current);
     this.invalidate();
     try {
       this.opts.output.info(
@@ -357,6 +362,36 @@ export class AssetService {
       vscode.workspace.getConfiguration("scryer").get<string>("startupContent") ?? "none";
     const addonNames = startupContent === "shared-templates" ? SHARED_ADDON_NAMES : ADDON_NAMES;
     return loadBlizzardRegistry(addonsDir, this.opts.registryDir, addonNames);
+  }
+
+  /**
+   * Return all Lua files for a Blizzard addon in TOC-defined order.
+   * Only files that exist on disk are included. Returns empty array if the addon
+   * is not extracted or its TOC is missing.
+   */
+  blizzardAddonLuaFiles(addonName: string): string[] {
+    if (!this.opts.sourceDir) return [];
+    const addonsDir = resolveAddonsDir(this.opts.sourceDir);
+    return blizzardAddonLuaFiles(addonsDir, addonName);
+  }
+
+  /**
+   * Resolve a list of paths relative to the Blizzard addons directory and return only
+   * those that exist on disk. Used to locate specific Lua files before running the sandbox.
+   */
+  resolveBlizzardLuaFiles(relPaths: string[]): string[] {
+    if (!this.opts.sourceDir) return [];
+    const addonsDir = resolveAddonsDir(this.opts.sourceDir);
+    return relPaths
+      .map((p) => resolveCI(addonsDir, p))
+      .filter((p) => {
+        try {
+          fs.statSync(p);
+          return true;
+        } catch {
+          return false;
+        }
+      });
   }
 
   /**

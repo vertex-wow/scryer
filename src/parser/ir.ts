@@ -131,6 +131,10 @@ export interface TextureIR extends LayoutFrameBase {
   file?: string;
   atlas?: string;
   useAtlasSize?: boolean;
+  /** Set by SetHorizTile at runtime; overrides the atlas manifest's tiling flag when present. */
+  horizTile?: boolean;
+  /** Set by SetVertTile at runtime; overrides the atlas manifest's tiling flag when present. */
+  vertTile?: boolean;
   /** Populated at render-time from the atlas manifest; absent when manifest is missing or name unknown. */
   resolvedAtlas?: ResolvedAtlasInfo;
   alphaMode?: AlphaMode;

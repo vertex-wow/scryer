@@ -1095,3 +1095,145 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 **Effort:** XS (extraction script + sandbox wiring once M7 is in progress).
 
 **Implementation:** `dev/gen-globalstrings.ts` imports `enUS.ts` via esbuild and writes `src/lua/globalstrings.json` (23,955 entries, ~1.5 MB). `createSandbox` loads it via `require` and calls `lua.global.set(key, value)` for each entry. Run `pnpm run gen-globalstrings` to regenerate if the reference corpus updates.
+
+---
+
+## Texture tiling on dynamically created textures (NineSlice stub follow-up)
+
+**Status:** ✅ Complete (2026-05-30)
+
+**Problem:** `SetHorizTile` and `SetVertTile` were no-ops on `TextureMT`. The NineSlice renderer calls them on each border/edge texture piece after reading tiling flags from `C_Texture.GetAtlasInfo`.
+
+**Implementation:** Added `horizTile`/`vertTile` fields to `TextureNode` and `TextureIR`. Added `__scryer_tex_set_horiz_tile`/`__scryer_tex_set_vert_tile` host bindings in `createframe.ts`, wired through `frame-class.lua`. In the webview renderer, these flags override the atlas manifest's `tilesH`/`tilesV` when set (`tex.horizTile ?? ra.tilesH`).
+
+---
+
+## `SetDrawLayer` on dynamically created textures (NineSlice stub follow-up)
+
+**Status:** ✅ Complete (2026-05-30)
+
+**Problem:** `SetDrawLayer` was a no-op on `TextureMT`. NineSlice pieces were left in the default `ARTWORK` layer rather than `BORDER`.
+
+**Implementation:** Added `__scryer_tex_set_draw_layer(id, layer, subLevel)` host binding in `createframe.ts`, wired through `frame-class.lua`. Updates `TextureNode.layer` and `TextureNode.subLevel` in the registry; `textureNodeToIR` already reads these fields, so no IR or renderer changes were needed.
+
+---
+
+## Full Blizzard_SharedXML Lua corpus loading
+
+**Status:** ✅ Complete (2026-05-30)
+
+**Problem:** Only `NineSlice.lua` and `NineSliceLayouts.lua` were loaded before running the user's addon.
+
+**Implementation:** Added `blizzardAddonLuaFiles(addonsDir, addonName)` to `blizzard-registry.ts` — parses the addon's `_Mainline.toc` (via `findTocPath` + `parseToc`) and returns all Lua file paths in TOC order. Added `AssetService.blizzardAddonLuaFiles(addonName)` as a convenience wrapper. In `live-panel.ts`, replaced the hardcoded two-file list with a TOC-driven loop over `Blizzard_SharedXML`. Files that error at runtime are silently skipped (`debug` log only) so a broken stub doesn't abort the load.
+
+---
+
+## `C_Texture.GetAtlasInfo` full field set
+
+**Status:** ✅ Complete (2026-05-30)
+
+**Problem:** The stub returned only `{ tilesHorizontally, tilesVertically }`. It also returned nil when no atlas manifest was available, causing `SetAtlas` to never be called (because NineSlice gates on `if info then`). Atlas names with `_`/`!` tiling-hint prefixes also failed to look up.
+
+**Implementation:** `C_Texture.GetAtlasInfo` is now always overridden. Lookup tries the original (lowercased, prefix-intact) name first, then stripped variants — matches the manifest key format which preserves `_`/`!`. Tiling flags are forced true from the prefix (`_` → `tilesHorizontally`, `!` → `tilesVertically`) independent of manifest metadata, since the manifest `tilesH/V` fields do not reliably reflect WoW's prefix convention. With manifest: returns full `{ tilesHorizontally, tilesVertically, width, height, leftTexCoord, rightTexCoord, topTexCoord, bottomTexCoord }`. Without manifest: returns `{ tilesHorizontally, tilesVertically }` derived from prefix so `SetAtlas` is still called. Same prefix-aware lookup applied to `resolveAtlasInTexture` in `panel.ts`/`live-panel.ts`.
+
+---
+
+## Texture-to-texture SetPoint anchor resolution
+
+**Status:** ✅ Complete (2026-05-30)
+
+**Problem:** When `piece:SetPoint(point, otherTexture, ...)` was called (e.g. NineSlice edges anchoring to corner pieces), `resolveRelTo` only looked up frames by ID, not textures. The anchor got `relativeTo: undefined`, causing edges to fall back to the parent frame — completely wrong sizing.
+
+**Plan:** Give each runtime texture a synthetic name `$tex:<id>`. `registry.resolveRelTo` now also checks `_textureNodes` and returns `"$tex:<id>"` for texture IDs. `textureNodeToIR` assigns `name: tex.name ?? "$tex:${tex.id}"` so the layout engine's `collectNames` registers the synthetic name and sibling anchors resolve correctly.
+
+**Effort:** XS
+
+---
+
+## Cross-layer NineSlice layout
+
+**Status:** ✅ Complete (2026-05-30)
+
+**Problem:** The renderer called `layoutAll` separately for each draw layer. NineSlice places the Center in `BACKGROUND` and the corners/edges in `BORDER`. Because each layer's `layoutAll` only built a registry from its own objects, the Center's two opposing anchors (targeting BORDER-layer corners) were unresolvable — they fell back to the viewport rect, producing a negative-size rect. The Center then rendered at atlas intrinsic size (64×64) at the wrong position instead of spanning the tooltip interior.
+
+**Implementation:** Before rendering any layer, `renderFrame` now collects all layer objects via `flatMap` and runs a single `layoutAll` over the combined list. Each texture's synthetic `$tex:<id>` name is registered once; cross-layer anchor resolution works because all textures share the same registry and rect map.
+
+---
+
+## Atlas manifest prefix-aware lookup in `resolveAtlasInTexture`
+
+**Status:** ✅ Complete (2026-05-30)
+
+**Problem:** `resolveAtlasInTexture` in `panel.ts` and `live-panel.ts` stripped the `_`/`!` tiling-hint prefix from atlas names before looking them up in the manifest. The manifest stores keys with the prefix intact (`"_tooltip-nineslice-edgetop"`), so edge textures returned no manifest entry — `resolvedAtlas` stayed undefined, `tex.size` was never pre-filled, and the constrained axis (height for horizontal edges, width for vertical edges) collapsed to 0.
+
+**Implementation:** Lookup now tries the original lowercased name first (`manifest[origLower]`), then the stripped variants as fallback. Edge textures now resolve correctly: `size: {x:16, y:7}` for top/bottom edges and `size: {x:7, y:16}` for left/right edges, giving them the correct thickness and proper position.
+
+---
+
+## `useAtlasSize` render-time dimension override in `applyAsset`
+
+**Status:** ✅ Complete (2026-05-30)
+
+**Problem:** When an atlas image loaded asynchronously, `applyAsset` in `main.ts` checked `crop.useAtlasSize` and, if true, overrode the element's CSS `width`/`height` to the atlas sprite dimensions. The layout engine had already computed correct sizes via opposing anchors (NineSlice Center: 234×154 for a 240×160 frame), but `applyAsset` shrank it back to the raw atlas size (64×64), making the Center appear as a small square at the top-left of the frame.
+
+**Implementation:** Removed the `useAtlasSize` dimension override from `applyAsset`. The function now always uses `el.offsetWidth`/`el.offsetHeight` (the layout-computed CSS size) for the background-scale calculation, with `crop.width`/`crop.height` as a fallback only when `offsetWidth` is zero. This makes atlas images fill their layout-assigned element regardless of the original atlas sprite size.
+
+---
+
+## `Color:GenerateHexColor` stub — unblocks `sharedcolorconstants.lua`
+
+**Status:** 📋 Pending
+
+**Problem:** `sharedcolorconstants.lua` fails on load: `attempt to call a nil value (method 'GenerateHexColor')`. This file defines the global color constants every WoW addon relies on — `NORMAL_FONT_COLOR`, `HIGHLIGHT_FONT_COLOR`, `RED_FONT_COLOR`, etc. Because the file is skipped, these constants are nil when user addons run, breaking any addon that uses standard WoW text coloring.
+
+**Plan:** The `Color` class/mixin in `wow-api.ts` needs `GenerateHexColor()` returning an 8-char AARRGGBB hex string, and `GenerateHexColorFromHexValues(r, g, b)` where values are 0–255. Both are pure math on the stored r/g/b/a fields — no new state required. Once the method exists, `sharedcolorconstants.lua` should load cleanly and populate all global color table entries.
+
+**Effort:** XS
+
+---
+
+## `FlagsUtil` stub — unblocks `scrollutil.lua`
+
+**Status:** 📋 Pending
+
+**Problem:** `scrollutil.lua` fails: `attempt to index a nil value (global 'FlagsUtil')`. `FlagsUtil` is a table of bit-flag utilities used by scroll frame code. Its absence also chains into `scrollbox.lua`, which depends on scroll utilities. Both files being skipped means `ScrollBox`, `ScrollUtil`, and associated frame templates are unavailable.
+
+**Plan:** Add `FlagsUtil = {}` with the methods `scrollutil.lua` actually calls: `FlagsUtil.CreateMask(...)`, `FlagsUtil.IsSet(mask, flag)`, etc. Reading the skipped file's error trace will show exactly which fields are accessed first. The implementations are trivial bitwise operations.
+
+**Effort:** XS–S
+
+---
+
+## `MathUtil.Epsilon` constant — unblocks `scrollbox.lua`
+
+**Status:** 📋 Pending
+
+**Problem:** `scrollbox.lua` fails: `attempt to perform arithmetic on a nil value (field 'Epsilon')`. This is `MathUtil.Epsilon`, a small floating-point constant (typically `1e-5`) used in scroll-position comparisons. `scrollbox.lua` failing blocks `ScrollBox` frame templates from loading.
+
+**Plan:** `MathUtil` is likely already partially stubbed. Add `MathUtil.Epsilon = 1e-5` (or whatever value the reference source uses). May also require other `MathUtil` fields accessed in the same file.
+
+**Effort:** XS
+
+---
+
+## `EventRegistry` stub — unblocks `gamerulesutil.lua`
+
+**Status:** 📋 Pending
+
+**Problem:** `gamerulesutil.lua` fails: `attempt to index a nil value (global 'EventRegistry')`. `EventRegistry` is the Blizzard global event-registration table used by several Blizzard shared utilities. The actual `gamerulesutil.lua` content (game rule query helpers) is unlikely to be needed for addon preview, but its failure at load time means any other file that `#include`s it or depends on it also skips.
+
+**Plan:** Add a minimal `EventRegistry = {}` stub with `EventRegistry:RegisterCallback(...)` and `EventRegistry:TriggerEvent(...)` as no-ops. These are the methods the file calls at module level.
+
+**Effort:** XS
+
+---
+
+## `UnitSex` stub — unblocks `modelframemixin.lua`
+
+**Status:** 📋 Pending
+
+**Problem:** `modelframemixin.lua` fails: `attempt to call a nil value (global 'UnitSex')`. `UnitSex` returns the gender of a unit (1 = male, 2 = female) and is used in model frame setup. Without it, 3D model frame functionality (e.g. character dressing room frames) cannot initialise.
+
+**Plan:** Add `UnitSex = function(unit) return 2 end` to the WoW API stubs — a constant stub is sufficient since Scryer has no real unit state. Low priority since model frames are rarely used by typical addon UIs being previewed.
+
+**Effort:** XS

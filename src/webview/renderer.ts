@@ -45,8 +45,8 @@ function renderTexture(tex: TextureIR, rect: Rect, config: ResolvedFlavorConfig)
       height: ra.height,
       sheetW: ra.sheetW,
       sheetH: ra.sheetH,
-      tilesH: ra.tilesH,
-      tilesV: ra.tilesV,
+      tilesH: tex.horizTile ?? ra.tilesH,
+      tilesV: tex.vertTile ?? ra.tilesV,
       useAtlasSize: tex.useAtlasSize ?? false,
     });
     const ph = makePlaceholder(ra.file, config);
@@ -221,23 +221,38 @@ function renderFrame(
     });
   }
 
+  // Inject atlas size for useAtlasSize textures across all layers before layout.
+  // This mirrors WoW: SetAtlas(name, true) sets the initial size; opposing anchors
+  // may then override on the constrained axis.
+  for (const layer of frame.layers) {
+    for (const obj of layer.objects) {
+      if (obj.kind === "Texture" || obj.kind === "MaskTexture") {
+        const tex = obj as TextureIR;
+        if (tex.useAtlasSize && tex.resolvedAtlas && !tex.size) {
+          tex.size = { x: tex.resolvedAtlas.width, y: tex.resolvedAtlas.height };
+        }
+      }
+    }
+  }
+
+  // Single layout pass across ALL layer objects so cross-layer anchor references
+  // resolve correctly (e.g. NineSlice Center anchors to BORDER-layer corners).
+  const allObjects = frame.layers.flatMap((l) => l.objects);
+  const globalRectMap = layoutAll(
+    allObjects as unknown as FrameIR[],
+    { w: frameRect.width, h: frameRect.height },
+    { epsilon: config.layoutEpsilon, maxIterations: config.layoutMaxIterations },
+  );
+
   // Render layers (back → front)
   for (const layer of frame.layers) {
     const layerEl = document.createElement("div");
     layerEl.dataset.layer = layer.level;
     layerEl.style.cssText = `position:absolute;inset:0;z-index:${layerZ(layer.level, layer.subLevel)};pointer-events:none;`;
 
-    // Layout all objects in the layer together so relativeKey references between
-    // sibling render objects (e.g. Middle anchored to Left/Right) can resolve.
-    const layerObjRectMap = layoutAll(
-      layer.objects as unknown as FrameIR[],
-      { w: frameRect.width, h: frameRect.height },
-      { epsilon: config.layoutEpsilon, maxIterations: config.layoutMaxIterations },
-    );
-
     for (const obj of layer.objects) {
       const objFrameIR = obj as unknown as FrameIR;
-      const objRect = layerObjRectMap.get(objFrameIR) ?? {
+      const objRect = globalRectMap.get(objFrameIR) ?? {
         left: 0,
         top: 0,
         width: frameRect.width,

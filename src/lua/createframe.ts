@@ -745,6 +745,31 @@ export async function registerFrameModel(
     registry.markDirty();
   });
 
+  lua.global.set("__scryer_tex_set_horiz_tile", (id: unknown, v: unknown): void => {
+    const t = tex(id);
+    if (!t) return;
+    t.horizTile = v !== false && v != null ? true : false;
+    registry.markDirty();
+  });
+
+  lua.global.set("__scryer_tex_set_vert_tile", (id: unknown, v: unknown): void => {
+    const t = tex(id);
+    if (!t) return;
+    t.vertTile = v !== false && v != null ? true : false;
+    registry.markDirty();
+  });
+
+  lua.global.set(
+    "__scryer_tex_set_draw_layer",
+    (id: unknown, layer: unknown, subLevel: unknown): void => {
+      const t = tex(id);
+      if (!t) return;
+      if (typeof layer === "string") t.layer = layer;
+      if (typeof subLevel === "number") t.subLevel = subLevel;
+      registry.markDirty();
+    },
+  );
+
   lua.global.set("__scryer_tex_set_alpha", (id: unknown, a: unknown): void => {
     const t = tex(id);
     if (!t) return;

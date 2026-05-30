@@ -34,8 +34,14 @@ const EXTRACT_DEBOUNCE_MS = 300;
 
 function resolveAtlasInTexture(tex: TextureIR, manifest: AtlasManifest): void {
   if (!tex.atlas) return;
-  const lower = tex.atlas.toLowerCase();
-  const entry = manifest[tex.atlas] ?? manifest[lower] ?? manifest[lower + "-2x"];
+  const origLower = tex.atlas.toLowerCase();
+  const stripped = tex.atlas.replace(/^[_!]+/, "");
+  const strippedLower = stripped.toLowerCase();
+  const entry =
+    manifest[origLower] ??
+    manifest[stripped] ??
+    manifest[strippedLower] ??
+    manifest[strippedLower + "-2x"];
   if (!entry) return;
   tex.resolvedAtlas = {
     file: entry.file,

@@ -173,6 +173,37 @@ function generateFrameCode(
   emitAnchorCode(v, frame, parentExpr, anchorLines);
   for (const l of anchorLines) lines.push(`  ${l}`);
 
+  // Apply mixins before layers/scripts so mixin methods are available to OnLoad
+  if (frame.mixin.length > 0) {
+    lines.push(`  Mixin(${v}, ${frame.mixin.join(", ")})`);
+  }
+
+  // KeyValues: assign on the frame object so Lua code can read them (e.g. self.layoutType)
+  for (const kv of frame.keyValues) {
+    const key = JSON.stringify(kv.key);
+    let luaVal: string;
+    switch (kv.type) {
+      case "string":
+        luaVal = JSON.stringify(kv.value);
+        break;
+      case "number":
+        luaVal = kv.value;
+        break;
+      case "boolean":
+        luaVal = kv.value === "true" ? "true" : "false";
+        break;
+      case "nil":
+        luaVal = "nil";
+        break;
+      case "global":
+        luaVal = kv.value;
+        break;
+      default:
+        continue;
+    }
+    lines.push(`  ${v}[${key}] = ${luaVal}`);
+  }
+
   // Layers: textures and font strings
   for (const layer of frame.layers) {
     for (const obj of layer.objects) {

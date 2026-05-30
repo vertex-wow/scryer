@@ -229,6 +229,50 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>S</td>
   <td>5</td>
 </tr>
+<tr>
+  <td>↳</td>
+  <td colspan="5">✅ <a href="backlog.md#c_texturegetatlasinfo-full-field-set"><code>C_Texture.GetAtlasInfo</code> full field set</a>, <a href="backlog.md#atlas-manifest-prefix-aware-lookup-in-resolveatlasintexture">Atlas manifest prefix-aware lookup</a>, <a href="backlog.md#useatlassize-render-time-dimension-override-in-applyasset"><code>useAtlasSize</code> render-time override fix</a></td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#colorgeneratehexcolor-stub--unblocks-sharedcolorconstantslua"><code>Color:GenerateHexColor</code> stub</a></td>
+  <td>📋 Pending</td>
+  <td>Unblocks <code>sharedcolorconstants.lua</code>; global color constants nil without it</td>
+  <td>XS</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#flagsutil-stub--unblocks-scrollutillua"><code>FlagsUtil</code> stub</a></td>
+  <td>📋 Pending</td>
+  <td>Unblocks <code>scrollutil.lua</code> and <code>scrollbox.lua</code> (chained); enables scroll frame templates</td>
+  <td>XS–S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#mathutilEpsilon-constant--unblocks-scrollboxlua"><code>MathUtil.Epsilon</code> constant</a></td>
+  <td>📋 Pending</td>
+  <td>Unblocks <code>scrollbox.lua</code>; small float constant used in scroll-position comparisons</td>
+  <td>XS</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#eventregistry-stub--unblocks-gamerulesutillua"><code>EventRegistry</code> stub</a></td>
+  <td>📋 Pending</td>
+  <td>Unblocks <code>gamerulesutil.lua</code>; no-op callback table</td>
+  <td>XS</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#unitsex-stub--unblocks-modelframemixinlua"><code>UnitSex</code> stub</a></td>
+  <td>📋 Pending</td>
+  <td>Unblocks <code>modelframemixin.lua</code>; constant stub, low priority</td>
+  <td>XS</td>
+  <td>—</td>
+</tr>
 </tbody>
 </table>
 
@@ -247,7 +291,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog.md#parentkey--parentarray-wiring-for-runtime-frames-deferred-from-m7">parentKey / parentArray wiring</a>, <a href="backlog.md#template-application-in-runtime-createframe-deferred-from-m7">Template application in runtime CreateFrame</a></td>
+  <td colspan="5">✅ <a href="backlog.md#parentkey--parentarray-wiring-for-runtime-frames-deferred-from-m7">parentKey / parentArray wiring</a>, <a href="backlog.md#template-application-in-runtime-createframe-deferred-from-m7">Template application in runtime CreateFrame</a>, <a href="backlog.md#texture-tiling-on-dynamically-created-textures-nineslice-stub-follow-up">Texture tiling on dynamic textures</a>, <a href="backlog.md#setdrawlayer-on-dynamically-created-textures-nineslice-stub-follow-up">SetDrawLayer on dynamic textures</a>, <a href="backlog.md#texture-to-texture-setpoint-anchor-resolution">Texture-to-texture SetPoint anchors</a>, <a href="backlog.md#cross-layer-nineslice-layout">Cross-layer NineSlice layout</a></td>
 </tr>
 <tr>
   <td>↳</td>
@@ -291,7 +335,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog.md#lua-sandbox-execution-timeout-deferred-from-m6">Lua sandbox execution timeout</a></td>
+  <td colspan="5">✅ <a href="backlog.md#lua-sandbox-execution-timeout-deferred-from-m6">Lua sandbox execution timeout</a>, <a href="backlog.md#full-blizzard_sharedxml-lua-corpus-loading">Full Blizzard_SharedXML Lua corpus loading</a></td>
 </tr>
 <tr>
   <td>↳</td>

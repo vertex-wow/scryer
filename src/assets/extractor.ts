@@ -130,7 +130,11 @@ export async function extractInterface(opts: ExtractorOptions): Promise<void> {
       () => extractBulk("interface", makeCoreOpts(opts)),
     );
   } catch (err) {
-    safeLog(opts.output, "info", `[Scryer] Interface extraction failed: ${String(err)}`);
+    safeLog(
+      opts.output,
+      "debug",
+      `[Scryer] Interface extraction failed: ${String(err)} — individual file errors logged above at trace level`,
+    );
   }
 }
 

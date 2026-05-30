@@ -5,8 +5,8 @@ import { parseToc } from "./toc.js";
 import { parseXmlFile } from "./xml.js";
 
 // Addons to scan, in dependency order (base templates first).
-export const ADDON_NAMES = ["Blizzard_SharedXML", "Blizzard_FrameXML"];
-export const SHARED_ADDON_NAMES = ["Blizzard_SharedXML"];
+export const ADDON_NAMES = ["Blizzard_SharedXMLBase", "Blizzard_SharedXML", "Blizzard_FrameXML"];
+export const SHARED_ADDON_NAMES = ["Blizzard_SharedXMLBase", "Blizzard_SharedXML"];
 
 // TOC filename suffixes to probe, in preference order.
 const TOC_SUFFIXES = ["_Mainline.toc", ".toc"];
@@ -80,6 +80,35 @@ function tocXmlFiles(tocPath: string): string[] {
   }
   const toc = parseToc(content);
   return toc.files.filter((f) => f.type === "xml").map((f) => resolveCI(addonDir, f.path));
+}
+
+/**
+ * Return all Lua file paths for a Blizzard addon in TOC-defined order.
+ * Only paths that exist on disk are included. Returns empty array if the addon
+ * is not extracted or has no TOC.
+ */
+export function blizzardAddonLuaFiles(addonsDir: string, addonName: string): string[] {
+  const tocPath = findTocPath(resolveCI(addonsDir, addonName), addonName);
+  if (!tocPath) return [];
+  const addonDir = path.dirname(tocPath);
+  let content: string;
+  try {
+    content = fs.readFileSync(tocPath, "utf-8");
+  } catch {
+    return [];
+  }
+  const toc = parseToc(content);
+  return toc.files
+    .filter((f) => f.type === "lua")
+    .map((f) => resolveCI(addonDir, f.path))
+    .filter((p) => {
+      try {
+        fs.accessSync(p, fs.constants.R_OK);
+        return true;
+      } catch {
+        return false;
+      }
+    });
 }
 
 /**

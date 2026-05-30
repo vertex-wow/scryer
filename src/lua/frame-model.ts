@@ -25,6 +25,8 @@ export interface TextureNode {
   file?: string;
   atlas?: string;
   useAtlasSize?: boolean;
+  horizTile?: boolean;
+  vertTile?: boolean;
   color?: { r: number; g: number; b: number; a: number };
   texCoords?: { left: number; right: number; top: number; bottom: number };
   alphaMode?: string;
@@ -150,13 +152,16 @@ export function textureNodeToIR(tex: TextureNode): TextureIR {
     setAllPoints: tex.setAllPoints,
     keyValues: [],
     sourceFile: "__runtime__",
-    name: tex.name,
+    // Unnamed runtime textures get a synthetic name so texture-to-texture SetPoint anchors resolve
+    name: tex.name ?? `$tex:${tex.id}`,
     size: tex.size,
     hidden: !tex.shown ? true : undefined,
     alpha: tex.alpha !== 1 ? tex.alpha : undefined,
     file: tex.file,
     atlas: tex.atlas,
     useAtlasSize: tex.useAtlasSize,
+    horizTile: tex.horizTile,
+    vertTile: tex.vertTile,
     color: tex.color,
     texCoords: tex.texCoords,
     alphaMode: tex.alphaMode as TextureIR["alphaMode"],

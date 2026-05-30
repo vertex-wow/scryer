@@ -60,9 +60,11 @@ Any time future work is identified — during implementation, writing reference 
 
 **Signal to watch for:** if you write the words "future", "later", "eventually", "TODO", "not yet", or "out of scope" anywhere in a document or comment, stop and ask: does this belong in the backlog instead?
 
+**Both steps below are required. Do not do step 2 without step 1.**
+
 To record a deferred item:
-1. Add a `↳` backlog row in the milestone table in `docs/plan/000_overview.md`, placed under the milestone that most naturally enables or precedes the work.
-2. Add a full entry in `docs/plan/backlog.md` with a short description, the problem it solves, a rough plan, and an effort estimate.
+1. **`docs/plan/000_overview.md` first** — add a pending `↳` row to the milestone table under the milestone that most naturally enables or precedes the work. This is the visibility step; skipping it means the item is invisible to anyone scanning the roadmap.
+2. **`docs/plan/backlog.md` second** — add a full entry with a short description, the problem it solves, a rough plan, and an effort estimate. The overview row links here.
 
 Do not silently discard deferred items or bury them in reference doc prose. They belong in `docs/plan/` so they are visible and prioritizable rather than lost in a document someone may never re-read.
 

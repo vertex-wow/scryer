@@ -136,14 +136,12 @@ function applyAsset(rawPath: string, uri: string): void {
         tilesV: boolean;
         useAtlasSize: boolean;
       };
-      // When useAtlasSize is set, override the element's dimensions to the atlas region size.
-      if (crop.useAtlasSize) {
-        el.style.width = `${crop.width}px`;
-        el.style.height = `${crop.height}px`;
-      }
-      // Scale the sheet so that the region exactly fills the element.
-      const elemW = crop.useAtlasSize ? crop.width : el.offsetWidth;
-      const elemH = crop.useAtlasSize ? crop.height : el.offsetHeight;
+      // Scale the sheet so that the atlas region exactly fills the element.
+      // Never override the element's CSS dimensions here — the layout engine has
+      // already set them correctly (e.g. NineSlice Center spans the full inner area
+      // via two opposing anchors; overriding to atlas size would shrink it to 64×64).
+      const elemW = el.offsetWidth || crop.width;
+      const elemH = el.offsetHeight || crop.height;
       const scaleX = elemW / crop.width;
       const scaleY = elemH / crop.height;
       const bgW = crop.sheetW * scaleX;

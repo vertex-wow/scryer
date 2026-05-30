@@ -163,10 +163,33 @@ export class FrameRegistry {
       .map((node) => frameNodeToIR(node, getter, this.uiParentId));
   }
 
-  /** Resolve a SetPoint relTo: number ID → frame name, string → as-is. */
+  /**
+   * Remove all frames/textures/fontstrings created during Blizzard Lua loading,
+   * leaving only UIParent so the user's addon starts with a clean registry.
+   * Lua proxies in _refs that pointed to cleared IDs silently no-op on method calls.
+   */
+  clearBlizzardFrames(): void {
+    const uiParentNode = this._frameNodes.get(this.uiParentId);
+    this._frameNodes.clear();
+    this._textureNodes.clear();
+    this._fontStringNodes.clear();
+    this._nameIndex.clear();
+    if (uiParentNode) {
+      uiParentNode.childIds = [];
+      this._frameNodes.set(this.uiParentId, uiParentNode);
+      this._nameIndex.set("uiparent", this.uiParentId);
+    }
+    this._dirty = true;
+  }
+
+  /** Resolve a SetPoint relTo: number ID → frame name or synthetic texture ref, string → as-is. */
   resolveRelTo(relToIdOrName: number | string | null | undefined): string | undefined {
     if (typeof relToIdOrName === "number") {
-      return this._frameNodes.get(relToIdOrName)?.name;
+      const frameName = this._frameNodes.get(relToIdOrName)?.name;
+      if (frameName) return frameName;
+      // Fall back to a synthetic name for texture-to-texture anchors
+      if (this._textureNodes.has(relToIdOrName)) return `$tex:${relToIdOrName}`;
+      return undefined;
     }
     if (typeof relToIdOrName === "string") return relToIdOrName;
     return undefined;

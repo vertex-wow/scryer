@@ -61,6 +61,9 @@ do
   local _tex_set_texcoord        = __scryer_tex_set_texcoord
   local _tex_set_vertex_color    = __scryer_tex_set_vertex_color
   local _tex_set_color_tex       = __scryer_tex_set_color_texture
+  local _tex_set_horiz_tile      = __scryer_tex_set_horiz_tile
+  local _tex_set_vert_tile       = __scryer_tex_set_vert_tile
+  local _tex_set_draw_layer      = __scryer_tex_set_draw_layer
   local _tex_set_blend           = __scryer_tex_set_blend_mode
   local _tex_set_alpha           = __scryer_tex_set_alpha
   local _tex_get_alpha           = __scryer_tex_get_alpha
@@ -185,6 +188,11 @@ do
   function TextureMT:SetRotation()     end
   function TextureMT:SetGradient()     end
   function TextureMT:SetGradientAlpha() end
+  function TextureMT:SetDrawLayer(layer, subLevel) _tex_set_draw_layer(self.__id, layer, subLevel) end
+  function TextureMT:SetHorizTile(v)               _tex_set_horiz_tile(self.__id, v)               end
+  function TextureMT:SetVertTile(v)                _tex_set_vert_tile(self.__id, v)                 end
+  function TextureMT:SetTexelSnappingBias() end
+  function TextureMT:SetSnapToPixelGrid()   end
   function TextureMT:GetWidth()        return 0 end
   function TextureMT:GetHeight()       return 0 end
 
@@ -700,6 +708,9 @@ do
   __scryer_tex_set_texcoord        = nil
   __scryer_tex_set_vertex_color    = nil
   __scryer_tex_set_color_texture   = nil
+  __scryer_tex_set_horiz_tile      = nil
+  __scryer_tex_set_vert_tile       = nil
+  __scryer_tex_set_draw_layer      = nil
   __scryer_tex_set_blend_mode      = nil
   __scryer_tex_set_alpha           = nil
   __scryer_tex_get_alpha           = nil

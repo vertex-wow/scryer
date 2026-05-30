@@ -11,6 +11,9 @@ export function activate(context: vscode.ExtensionContext): void {
   // only runs once per session rather than on every new panel.
   const output = vscode.window.createOutputChannel("Scryer", { log: true });
   context.subscriptions.push(output);
+  output.info(
+    "[Scryer] activated — set log level via the Output panel filter to control verbosity",
+  );
   let assets = AssetService.fromConfig(context, output);
   assets.checkBuildVersion();
   assets.detectAndLogFlavors();

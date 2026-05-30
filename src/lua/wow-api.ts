@@ -529,6 +529,20 @@ export interface WowApiOptions {
   isAddonLoaded?: (name: string) => boolean;
   /** Returns TOC metadata for a loaded addon. Defaults to null. */
   getAddonMetadata?: (name: string, key: string) => string | null;
+  /** Atlas manifest for C_Texture.GetAtlasInfo. When provided, atlas lookups return full sprite data. */
+  atlasManifest?: Record<
+    string,
+    {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      sheetW: number;
+      sheetH: number;
+      tilesH: boolean;
+      tilesV: boolean;
+    }
+  > | null;
 }
 
 // ─── Registration ─────────────────────────────────────────────────────────────
@@ -547,6 +561,150 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
       `${ns} = setmetatable({}, { __index = function() return function() return nil end end })`,
   ).join("\n");
   await lua.doString(namespaceLua);
+
+  // ── Blizzard SharedXML utilities ─────────────────────────────────────────
+  // Pre-stubs for globals used by many Blizzard Lua files. Defined here so
+  // files load in order without aborting on first-use errors.
+  await lua.doString(`
+    -- Texture kit string formatter (TextureUtil.lua)
+    function GetFinalNameFromTextureKit(fmt, textureKits)
+      if type(textureKits) == "table" then
+        return fmt:format(unpack(textureKits))
+      else
+        return fmt:format(textureKits)
+      end
+    end
+
+    -- Secure template environment accessor (WoW internal); return _G as a safe stand-in.
+    function GetCurrentEnvironment() return _G end
+
+    -- Global enum table; Blizzard code indexes into sub-tables like Enum.ItemQuality.
+    -- Use a recursive __index proxy so any depth of access returns an empty table.
+    local function _enum_proxy()
+      return setmetatable({}, { __index = function(_, k)
+        local t = _enum_proxy()
+        rawset(_, k, t)
+        return t
+      end })
+    end
+    Enum = _enum_proxy()
+
+    -- Enum utility used by scrollbox and friends.
+    EnumUtil = {
+      MakeEnum = function(...)
+        local t = {}
+        for i = 1, select('#', ...) do
+          local v = select(i, ...)
+          t[v] = i - 1
+        end
+        return t
+      end,
+    }
+
+    -- Table utilities used by scrollbox.lua.
+    function CopyValuesAsKeys(t)
+      local r = {}
+      for _, v in pairs(t) do r[v] = v end
+      return r
+    end
+    function CopyTable(t, deep)
+      local r = {}
+      for k, v in pairs(t) do
+        r[k] = (deep and type(v) == "table") and CopyTable(v, true) or v
+      end
+      return r
+    end
+
+    -- CallbackRegistry stub (Blizzard_SharedXMLBase/CallbackRegistry.lua).
+    -- Provides GenerateCallbackEvents so mixin files that call it at module level
+    -- don't abort. The actual callback dispatch is not needed for static preview.
+    -- If the real file loads from SharedXMLBase, it will override these stubs.
+    CallbackRegistryMixin = {}
+    function CallbackRegistryMixin:GenerateCallbackEvents(events)
+      self.Event = self.Event or {}
+      for _, e in ipairs(events or {}) do self.Event[e] = e end
+    end
+    function CallbackRegistryMixin:RegisterCallback() end
+    function CallbackRegistryMixin:UnregisterCallback() end
+    function CallbackRegistryMixin:TriggerEvent() end
+    function CallbackRegistryMixin:OnLoad() end
+    CallbackRegistrantMixin = CallbackRegistryMixin  -- alias used by some files
+
+    -- Frame pool stubs (FrameXML pool system)
+    function CreateFramePoolCollection() return {} end
+    function CreateObjectPool() return {} end
+    function CreateFramePool() return {} end
+
+    -- Constants table — game constants indexed by sub-table (e.g. Constants.Item.MaxBagSize)
+    local function _const_proxy()
+      return setmetatable({}, { __index = function(t, k)
+        local v = _const_proxy(); rawset(t, k, v); return v
+      end })
+    end
+    Constants = _const_proxy()
+
+    -- MathUtil stub (Blizzard_SharedXMLBase/MathUtil.lua); overridden when real file loads
+    MathUtil = { Lerp = function(a, b, t) return a + (b - a) * t end }
+
+    -- Faction color tables referenced in sharedcolorconstants.lua
+    local _default_color = { colorStr = "ffffffff", r = 1, g = 1, b = 1, a = 1 }
+    PLAYER_FACTION_COLOR_HORDE    = _default_color
+    PLAYER_FACTION_COLOR_ALLIANCE = _default_color
+
+    -- Misc WoW globals used by some SharedXML files
+    function UnitRace() return "Human", "Human" end
+    function GetLocale() return "enUS" end
+  `);
+
+  // C_Texture.GetAtlasInfo — always overridden so NineSlice and similar code get a
+  // truthy result for any non-empty atlas name (allowing SetAtlas to be called).
+  // WoW atlas names may carry _/! tiling-hint prefixes that are stripped before lookup.
+  // With manifest: returns full WoW-compatible info table.
+  // Without manifest: returns minimal {tilesHorizontally=false,tilesVertically=false}.
+  {
+    const manifest = opts.atlasManifest ?? null;
+    lua.global.set("__scryer_atlas_getinfo", (name: unknown) => {
+      if (typeof name !== "string" || !name) return;
+      // WoW uses _ and ! prefixes as tiling hints; the manifest may store keys with
+      // or without them. Try the original name first, then the stripped variant.
+      const origLower = name.toLowerCase();
+      const stripped = name.replace(/^[_!]+/, "");
+      const strippedLower = stripped.toLowerCase();
+      // The _ prefix means tile horizontally, ! means tile vertically.
+      const prefixTilesH = name.startsWith("_");
+      const prefixTilesV = name.startsWith("!");
+      if (manifest) {
+        const entry =
+          manifest[origLower] ??
+          manifest[stripped] ??
+          manifest[strippedLower] ??
+          manifest[strippedLower + "-2x"];
+        if (entry) {
+          const { x, y, width, height, sheetW, sheetH, tilesH, tilesV } = entry;
+          // texcoords in 0–1 UV space
+          return {
+            tilesHorizontally: tilesH || prefixTilesH,
+            tilesVertically: tilesV || prefixTilesV,
+            width,
+            height,
+            leftTexCoord: x / sheetW,
+            rightTexCoord: (x + width) / sheetW,
+            topTexCoord: y / sheetH,
+            bottomTexCoord: (y + height) / sheetH,
+          };
+        }
+      }
+      // No manifest entry — return minimal truthy value so SetAtlas is still called
+      return { tilesHorizontally: prefixTilesH, tilesVertically: prefixTilesV };
+    });
+    await lua.doString(`do
+      local _getinfo = __scryer_atlas_getinfo
+      C_Texture.GetAtlasInfo = function(name)
+        return _getinfo(name)
+      end
+      __scryer_atlas_getinfo = nil
+    end`);
+  }
 
   // ── Priority globals ─────────────────────────────────────────────────────
   lua.global.set("GetTime", () => clock.now());

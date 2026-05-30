@@ -36,8 +36,17 @@ const EXTRACT_DEBOUNCE_MS = 300;
 
 function resolveAtlasInTexture(tex: TextureIR, manifest: AtlasManifest): void {
   if (!tex.atlas) return;
-  const lower = tex.atlas.toLowerCase();
-  const entry = manifest[tex.atlas] ?? manifest[lower] ?? manifest[lower + "-2x"];
+  // WoW atlas names may carry tiling-hint prefixes (_ = tile H, ! = tile V).
+  // The manifest stores keys both with and without these prefixes, so try the
+  // original name first (lowercased), then the stripped variants as fallback.
+  const origLower = tex.atlas.toLowerCase();
+  const stripped = tex.atlas.replace(/^[_!]+/, "");
+  const strippedLower = stripped.toLowerCase();
+  const entry =
+    manifest[origLower] ??
+    manifest[stripped] ??
+    manifest[strippedLower] ??
+    manifest[strippedLower + "-2x"];
   if (!entry) return;
   tex.resolvedAtlas = {
     file: entry.file,
@@ -381,6 +390,7 @@ export class ScryerLivePanel {
       const registry = new FrameRegistry(flavorConfig.uiParentWidth, flavorConfig.uiParentHeight);
       const clock = new VirtualClock();
       const sandbox = await createSandbox(wasmPath, { timeout: flavorConfig.sandboxTimeout });
+      const atlasManifest = this.assets.loadAtlasManifest();
 
       await registerWowApi(sandbox, {
         clock,
@@ -395,11 +405,38 @@ export class ScryerLivePanel {
           }
           return null;
         },
+        atlasManifest,
       });
+
+      // Ensure Blizzard source files are present before attempting to load Lua from them.
+      // Fire-and-forget extraction like the static panel does; if files are already there
+      // this returns immediately. We await so the Lua load below sees the files on disk.
+      await this.assets.ensureBlizzardFiles();
 
       const blizzardTemplates = this.assets.loadBlizzardTemplates();
 
       await registerFrameModel(sandbox, registry, blizzardTemplates);
+
+      // Load Blizzard SharedXML Lua files in dependency order before running the user's addon.
+      // SharedXMLBase first (defines CallbackRegistry, EnumUtil, MathUtil, etc.),
+      // then SharedXML (NineSlice, templates, etc.).
+      // Errors in individual files are silently skipped — many files depend on
+      // WoW internals that are not fully stubbed yet.
+      for (const addonName of ["Blizzard_SharedXMLBase", "Blizzard_SharedXML"]) {
+        for (const luaPath of this.assets.blizzardAddonLuaFiles(addonName)) {
+          try {
+            const content = Buffer.from(
+              await vscode.workspace.fs.readFile(vscode.Uri.file(luaPath)),
+            ).toString("utf-8");
+            await sandbox.doString(content);
+          } catch (e) {
+            this.output.debug(`[Live] Blizzard Lua skipped: ${path.basename(luaPath)}: ${e}`);
+          }
+        }
+      }
+      // Blizzard Lua files may create frames as side-effects of module-level code.
+      // Clear them so the user's addon starts with a clean frame tree.
+      registry.clearBlizzardFrames();
 
       await runTocAddon({
         toc,
@@ -453,7 +490,6 @@ export class ScryerLivePanel {
       engine.start();
 
       // Send initial render
-      const atlasManifest = this.assets.loadAtlasManifest();
       if (atlasManifest) resolveAtlasNames(frames, atlasManifest);
 
       const viewport: Viewport = {

@@ -54,7 +54,8 @@
       "Bash(awk:*)",
       "Bash(mkdir -p /tmp/*)",
       "Bash(npm show *)",
-      "Bash(pnpm run *)"
+      "Bash(pnpm run *)",
+      "Bash(find:*)"
     ],
     "additionalDirectories": [
       "/tmp"
