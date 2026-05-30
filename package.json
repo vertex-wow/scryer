@@ -101,7 +101,7 @@
         },
         {
           "command": "scryer.openLiveFolder",
-          "when": "resourcePath in scryer.tocFolderPaths",
+          "when": "explorerResourceIsFolder",
           "group": "navigation"
         }
       ]
