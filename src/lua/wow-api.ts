@@ -529,6 +529,8 @@ export interface WowApiOptions {
   isAddonLoaded?: (name: string) => boolean;
   /** Returns TOC metadata for a loaded addon. Defaults to null. */
   getAddonMetadata?: (name: string, key: string) => string | null;
+  /** Blizzard-defined MathUtil.Epsilon constant. Defaults to 1e-5 (retail value). */
+  mathUtilEpsilon?: number;
   /** Atlas manifest for C_Texture.GetAtlasInfo. When provided, atlas lookups return full sprite data. */
   atlasManifest?: Record<
     string,
@@ -644,7 +646,7 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     Constants = _const_proxy()
 
     -- MathUtil stub (Blizzard_SharedXMLBase/MathUtil.lua); overridden when real file loads
-    MathUtil = { Lerp = function(a, b, t) return a + (b - a) * t end }
+    MathUtil = { Lerp = function(a, b, t) return a + (b - a) * t end, Epsilon = ${opts.mathUtilEpsilon ?? 1e-5} }
 
     -- FlagsMixin + FlagsUtil — Blizzard_SharedXML bitflag utilities.
     -- FlagsUtil.MakeFlags assigns sequential power-of-2 values to named flag constants.

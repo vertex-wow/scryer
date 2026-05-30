@@ -405,6 +405,7 @@ export class ScryerLivePanel {
           }
           return null;
         },
+        mathUtilEpsilon: flavorConfig.mathUtilEpsilon,
         atlasManifest,
       });
 

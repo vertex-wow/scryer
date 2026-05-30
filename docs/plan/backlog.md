@@ -1227,11 +1227,11 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ## `MathUtil.Epsilon` constant — unblocks `scrollbox.lua`
 
-**Status:** 📋 Pending
+**Status:** ✅ Done
 
 **Problem:** `scrollbox.lua` fails: `attempt to perform arithmetic on a nil value (field 'Epsilon')`. This is `MathUtil.Epsilon`, a small floating-point constant (typically `1e-5`) used in scroll-position comparisons. `scrollbox.lua` failing blocks `ScrollBox` frame templates from loading.
 
-**Plan:** `MathUtil` is likely already partially stubbed. Add `MathUtil.Epsilon = 1e-5` (or whatever value the reference source uses). May also require other `MathUtil` fields accessed in the same file.
+**Plan:** Added `Epsilon = 1e-5` to the existing `MathUtil` stub in `src/lua/wow-api.ts`. The field is used by `scrollbox.lua`, `scrollcontroller.lua`, `scrollutil.lua`, and `scrollbar.lua` — all resolved by the same constant.
 
 **Effort:** XS
 

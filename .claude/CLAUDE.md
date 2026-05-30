@@ -107,4 +107,4 @@ Configuration documentation is split across three files so users see only what i
 - Commit between each milestone completion.
 - Include `docs/` updates in the same commit as the code they describe.
 - Never commit implementation without updating the relevant plan file if the approach changed.
-- **When ready to commit:** invoke the `caveman-commit` skill to generate the commit message, then issue a single Bash tool call that chains `git add <files> && git commit -m "..."` — the tool permission prompt is the user's approval mechanism. Do not stage and commit in separate steps.
+- **When ready to commit:** wait for the user to explicitly say "commit" (or equivalent). Do not invoke `caveman-commit` or run any `git add`/`git commit` command proactively. When the user does ask: invoke the `caveman-commit` skill to generate the commit message, show it, then immediately issue a single Bash tool call that chains `git add <files> && git commit -m "..."` — the tool permission prompt is the user's approval mechanism. Do not stage and commit in separate steps. Do not ask "Proceed?" or seek any additional confirmation; "commit" is already the approval.

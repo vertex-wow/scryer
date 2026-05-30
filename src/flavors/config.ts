@@ -7,6 +7,8 @@ export interface FlavorConfigLayer {
   screenHeight?: number;
   /** WoW engine constant: UIParent logical height (width is derived from aspect ratio). */
   uiParentHeight?: number;
+  /** Blizzard-defined MathUtil.Epsilon constant — used by scroll frame code for boundary comparisons. May vary by flavor. */
+  mathUtilEpsilon?: number;
   /** WoW-relative path to the default font file, e.g. "Fonts/FRIZQT__.TTF". */
   defaultFont?: string;
   defaultFontSize?: number;
@@ -94,6 +96,8 @@ export interface ResolvedFlavorConfig {
   uiParentWidth: number;
   /** WoW engine constant: UIParent logical height (768 for all known flavors). */
   uiParentHeight: number;
+  /** Blizzard-defined MathUtil.Epsilon constant — used by scroll frame code for boundary comparisons. */
+  mathUtilEpsilon: number;
   defaultFont: string;
   defaultFontSize: number;
   defaultFontFlags: string;
@@ -136,6 +140,7 @@ const HARD_DEFAULTS: Required<FlavorConfigLayer> = {
   screenWidth: 1920,
   screenHeight: 1080,
   uiParentHeight: 768,
+  mathUtilEpsilon: 1e-5,
   defaultFont: "Fonts/FRIZQT__.TTF",
   defaultFontSize: 12,
   defaultFontFlags: "",
@@ -179,6 +184,7 @@ const BUILTIN_CONFIG: FlavorConfigFile = {
     screenWidth: 1920,
     screenHeight: 1080,
     uiParentHeight: 768,
+    mathUtilEpsilon: 1e-5,
     defaultFont: "Fonts/FRIZQT__.TTF",
     defaultFontSize: 12,
     defaultFontFlags: "",
