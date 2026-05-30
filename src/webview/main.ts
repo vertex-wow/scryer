@@ -191,7 +191,7 @@ function centerOnContent(config: ResolvedFlavorConfig): void {
     minT = Infinity,
     maxR = -Infinity,
     maxB = -Infinity;
-  for (const child of wowVp.children) {
+  for (const child of Array.from(wowVp.children)) {
     const el = child as HTMLElement;
     const w = el.offsetWidth;
     const h = el.offsetHeight;
