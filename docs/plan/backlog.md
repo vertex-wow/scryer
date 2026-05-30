@@ -1239,7 +1239,7 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ## `EventRegistry` stub — unblocks `gamerulesutil.lua`
 
-**Status:** 📋 Pending
+**Status:** ✅ Done (2026-05-30)
 
 **Problem:** `gamerulesutil.lua` fails: `attempt to index a nil value (global 'EventRegistry')`. `EventRegistry` is the Blizzard global event-registration table used by several Blizzard shared utilities. The actual `gamerulesutil.lua` content (game rule query helpers) is unlikely to be needed for addon preview, but its failure at load time means any other file that `#include`s it or depends on it also skips.
 
@@ -1251,10 +1251,22 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ## `UnitSex` stub — unblocks `modelframemixin.lua`
 
-**Status:** 📋 Pending
+**Status:** ✅ Done (2026-05-30)
 
 **Problem:** `modelframemixin.lua` fails: `attempt to call a nil value (global 'UnitSex')`. `UnitSex` returns the gender of a unit (1 = male, 2 = female) and is used in model frame setup. Without it, 3D model frame functionality (e.g. character dressing room frames) cannot initialise.
 
 **Plan:** Add `UnitSex = function(unit) return 2 end` to the WoW API stubs — a constant stub is sufficient since Scryer has no real unit state. Low priority since model frames are rarely used by typical addon UIs being previewed.
+
+**Effort:** XS
+
+---
+
+## `C_ScriptedAnimations.GetAllScriptedAnimationEffects` stub — unblocks `scriptedanimationeffects.lua`
+
+**Status:** ✅ Done (2026-05-30)
+
+**Problem:** `scriptedanimationeffects.lua` fails: `attempt to get length of a nil value (local 'effectDescriptions')`. `C_ScriptedAnimations` is stubbed as an empty namespace table, so `GetAllScriptedAnimationEffects` is `nil`; calling it returns `nil`, then `#nil` crashes at module level before `ScriptedAnimationEffectsUtil` is defined.
+
+**Plan:** Add `C_ScriptedAnimations.GetAllScriptedAnimationEffects = function() return {} end` in `wow-api.ts` after the C\_\* namespace tables are set up.
 
 **Effort:** XS

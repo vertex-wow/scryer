@@ -722,7 +722,20 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
 
     -- Misc WoW globals used by some SharedXML files
     function UnitRace() return "Human", "Human" end
+    function UnitSex() return 2 end
     function GetLocale() return "enUS" end
+
+    -- EventRegistry (Blizzard_SharedXMLBase); overridden when the real file loads.
+    -- gamerulesutil.lua calls RegisterCallback/TriggerEvent at module level.
+    EventRegistry = {}
+    function EventRegistry:RegisterCallback() end
+    function EventRegistry:UnregisterCallback() end
+    function EventRegistry:TriggerEvent() end
+    function EventRegistry:RegisterFrameEventAndCallback() end
+
+    -- C_ScriptedAnimations.GetAllScriptedAnimationEffects must return a table, not nil,
+    -- or scriptedanimationeffects.lua crashes on #effectDescriptions at module level.
+    C_ScriptedAnimations.GetAllScriptedAnimationEffects = function() return {} end
   `);
 
   // C_Texture.GetAtlasInfo — always overridden so NineSlice and similar code get a
