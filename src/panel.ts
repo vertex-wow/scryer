@@ -38,6 +38,7 @@ function resolveAtlasInTexture(tex: TextureIR, manifest: AtlasManifest): void {
   const stripped = tex.atlas.replace(/^[_!]+/, "");
   const strippedLower = stripped.toLowerCase();
   const entry =
+    manifest[tex.atlas] ??
     manifest[origLower] ??
     manifest[stripped] ??
     manifest[strippedLower] ??
