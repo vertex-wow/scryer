@@ -196,7 +196,13 @@ function renderFrame(
   el.dataset.kind = frame.kind;
   el.style.position = "absolute";
   el.style.overflow = "hidden";
-  el.style.zIndex = String(frameZ(frame.frameStrata, frame.frameLevel));
+  // useParentLevel frames share the parent's frame level in WoW — their content should
+  // composite below the parent's ARTWORK layer. CSS stacking can't split a child's layers
+  // across parent layers, so we approximate by placing the whole child div in the BORDER
+  // z-range (28), above parent BACKGROUND (8) but below parent ARTWORK (48).
+  el.style.zIndex = frame.useParentLevel
+    ? String(layerZ("BORDER", 0))
+    : String(frameZ(frame.frameStrata, frame.frameLevel));
 
   applyRect(el, frameRect, parentRect);
 

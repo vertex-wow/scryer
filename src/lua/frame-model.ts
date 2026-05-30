@@ -272,5 +272,6 @@ export function frameNodeToIR(
     buttonText: node.buttonText,
     interactive: interactive || undefined,
     runtimeId: interactive ? node.id : undefined,
+    useParentLevel: node.attributes.get("__scryer_useParentLevel") === true ? true : undefined,
   };
 }

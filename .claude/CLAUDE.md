@@ -2,6 +2,10 @@
 
 World of Warcraft Addon Preview — Preview the result of XML frame definitions and Lua code.
 
+## Session start
+
+Invoke `/caveman` at start of every conversation. If user turns it off during chat, leave it off — don't re-enable.
+
 ## Directory rules
 
 - `_live/` and `_reference/` — **read-only reference**. Never edit or write to these directories. They exist for reading/diffing only.

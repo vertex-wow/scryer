@@ -179,6 +179,7 @@ function applyTemplate(concrete: FrameIR, template: FrameIR): FrameIR {
   if (concrete.highlightFont !== undefined) result.highlightFont = concrete.highlightFont;
   if (concrete.disabledFont !== undefined) result.disabledFont = concrete.disabledFont;
   if (concrete.setAllPoints !== undefined) result.setAllPoints = concrete.setAllPoints;
+  if (concrete.useParentLevel !== undefined) result.useParentLevel = concrete.useParentLevel;
   if (concrete.size !== undefined) result.size = { ...concrete.size };
 
   // Concrete anchors override entirely if present

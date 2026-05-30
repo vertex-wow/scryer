@@ -47,7 +47,7 @@
       },
       {
         "command": "scryer.openLive",
-        "title": "Open Scryer Live View",
+        "title": "Open WoW Live View",
         "category": "Scryer",
         "icon": "$(run)"
       },

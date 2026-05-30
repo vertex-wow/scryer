@@ -20,7 +20,7 @@ Cross-cutting items deferred from completed milestones, or tooling debt that doe
 
 **Discovery strategy:** TOC-driven rather than hand-curated. `Blizzard_SharedXML` and `Blizzard_FrameXML` TOC files enumerate all XML files; the loader follows `<Include>` directives recursively to catch flavour-specific subdirectory files (e.g. `Mainline/SharedUIPanelTemplates.xml`). Missing or unparseable files are silently skipped (handles flavour differences between retail/classic/classic_era extractions).
 
-**Remaining limitation:** Code-driven templates (`NineSlicePanelTemplate` → `NineSliceCodeTemplate`) have no XML textures; nine-slice borders still require M4 (Lua runtime) to render correctly. All purely XML-defined templates (DefaultPanelTemplate, InsetFrameTemplate, BasicFrameTemplate, etc.) now render correctly.
+**Remaining limitation (resolved):** Code-driven templates (`NineSlicePanelTemplate` → `NineSliceCodeTemplate`) had no XML textures; borders were driven entirely by `NineSlicePanelMixin:OnLoad`. This now works: XML script `method="OnLoad"` is emitted as a `HookScript` delegation, so the mixin's `OnLoad` fires at frame creation time. `useParentLevel` z-ordering is also resolved — such frames receive a CSS z-index in the BORDER layer range (28) so parent ARTWORK content renders above them.
 
 **Follow-up fixes (same work session):**
 

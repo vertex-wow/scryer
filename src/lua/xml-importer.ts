@@ -69,6 +69,15 @@ function emitScriptCode(
   } else if (script.function) {
     // Reference to a named global function
     lines.push(`${varName}:SetScript(${JSON.stringify(script.event)}, ${script.function})`);
+  } else if (script.method) {
+    // method="OnLoad" → delegate to self:Method() when the script fires.
+    // Used by Blizzard mixin templates (e.g. <OnLoad method="OnLoad"/> in NineSliceCodeTemplate).
+    // HookScript so the method call stacks with any previously-registered handlers rather than
+    // replacing them.
+    const m = script.method;
+    lines.push(
+      `${varName}:HookScript(${JSON.stringify(script.event)}, function(self, ...) if type(self.${m}) == "function" then self:${m}(...) end end)`,
+    );
   }
 }
 
@@ -167,6 +176,7 @@ function generateFrameCode(
   if (frame.scale !== undefined) lines.push(`  ${v}:SetScale(${frame.scale})`);
   if (frame.frameStrata) lines.push(`  ${v}:SetFrameStrata(${JSON.stringify(frame.frameStrata)})`);
   if (frame.frameLevel !== undefined) lines.push(`  ${v}:SetFrameLevel(${frame.frameLevel})`);
+  if (frame.useParentLevel) lines.push(`  ${v}:SetAttribute("__scryer_useParentLevel", true)`);
 
   // Anchors (indented lines need the prefix handled carefully — emit as top-level within if block)
   const anchorLines: string[] = [];

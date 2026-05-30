@@ -5,17 +5,15 @@
 
   <!--
     test_blizz_lua_mixin_templates.xml
-    Documents the code-driven template limitation that persists until M4.
+    Verifies code-driven mixin templates render correctly.
     NineSlicePanelTemplate inherits NineSliceCodeTemplate, which defines no XML
     textures — the nine-slice border pieces are set entirely by NineSlicePanelMixin
     Lua code at runtime, reading the layoutType KeyValue to pick the texture kit.
+    The mixin fires via <OnLoad method="OnLoad"/> in NineSliceCodeTemplate.
 
     ✓  BACKGROUND: solid color fill (semi-transparent black tint on inner frame)
-    ✓  ARTWORK: GameFontNormal FontString  (title label, no font loaded yet)
-    ✗  NineSlicePanelTemplate border      (code-driven — requires M4 Lua runtime)
-
-    Once M4 lands, the TooltipDefaultLayout nine-slice border should appear
-    around ExampleFrameTooltip.
+    ✓  ARTWORK: GameFontNormal FontString  (title label, rendered above NineSlice)
+    ✓  NineSlicePanelTemplate border      (code-driven via mixin OnLoad)
   -->
   <Frame name="ExampleFrameTooltip" parent="UIParent"
          enableMouse="true"

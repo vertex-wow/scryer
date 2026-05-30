@@ -106,7 +106,7 @@ Contains `Script`, `Include`, and any frame/render elements at the top level.
 - `movable`, `resizable`, `clampedToScreen`
 - `enableKeyboard`, `id` (integer tag)
 - `intrinsic="true"` — engine-level intrinsic frame (no Lua equivalent; rare)
-- `useParentLevel` — inherit parent's frame level
+- `useParentLevel` — inherit parent's frame level; Scryer approximates by rendering the child at BORDER z-range so parent ARTWORK content remains visible above it
 - `clipChildren` — clip child rendering to this frame's bounds
 
 **Child elements:**
@@ -182,7 +182,7 @@ Child elements of `Scripts` block are named by event (e.g. `<OnLoad>`, `<OnClick
 
 - Inline body text: compiled as `function(self, ...) <body> end`
 - `function="GlobalFunctionName"` — resolves from `_G`
-- `method="MixinMethodName"` — resolves from the frame's mixin table
+- `method="MixinMethodName"` — resolves from the frame's mixin table; emitted as `HookScript` delegation so the mixin method fires at frame creation
 - `inherit="prepend|append|none"` — controls inheritance merge with base template scripts
 - `intrinsicOrder="precall|postcall|none"` — for intrinsic frames
 
