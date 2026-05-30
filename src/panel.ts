@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { AssetService } from "./assets/index.js";
@@ -481,8 +482,18 @@ export class ScryerPanel {
 
       const kept: vscode.Uri[] = [...repoless];
       for (const [repo, repoUris] of byRepo) {
-        const ignored = await repo.checkIgnore(repoUris.map((u) => u.fsPath));
+        const checkable: vscode.Uri[] = [];
         for (const uri of repoUris) {
+          try {
+            if (fs.realpathSync(uri.fsPath) === uri.fsPath) checkable.push(uri);
+            else kept.push(uri); // under a symlink — treat as not ignored
+          } catch {
+            checkable.push(uri);
+          }
+        }
+        if (checkable.length === 0) continue;
+        const ignored = await repo.checkIgnore(checkable.map((u) => u.fsPath));
+        for (const uri of checkable) {
           if (!ignored.has(uri.fsPath)) kept.push(uri);
         }
       }
