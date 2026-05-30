@@ -60,6 +60,12 @@
         "command": "scryer.toggleRuler",
         "title": "Toggle Pixel Ruler",
         "category": "Scryer"
+      },
+      {
+        "command": "scryer.openLiveFolder",
+        "title": "Open WoW Live View",
+        "category": "Scryer",
+        "icon": "$(run)"
       }
     ],
     "menus": {
@@ -91,6 +97,11 @@
         {
           "command": "scryer.openLive",
           "when": "resourceExtname == .toc",
+          "group": "navigation"
+        },
+        {
+          "command": "scryer.openLiveFolder",
+          "when": "resourcePath in scryer.tocFolderPaths",
           "group": "navigation"
         }
       ]

@@ -5,6 +5,20 @@ import { ADDON_NAMES, SHARED_ADDON_NAMES } from "./parser/blizzard-registry.js";
 import { ScryerPanel } from "./panel.js";
 import { ScryerLivePanel } from "./live-panel.js";
 
+async function refreshTocFolderPaths(): Promise<void> {
+  const tocFiles = await vscode.workspace.findFiles("**/*.toc");
+  const paths: string[] = [];
+  for (const tocUri of tocFiles) {
+    const folderUri = vscode.Uri.joinPath(tocUri, "..");
+    const folderName = folderUri.fsPath.split(/[\\/]/).pop()!;
+    const tocName = tocUri.fsPath.split(/[\\/]/).pop()!;
+    if (tocName === `${folderName}.toc`) {
+      paths.push(folderUri.fsPath);
+    }
+  }
+  await vscode.commands.executeCommand("setContext", "scryer.tocFolderPaths", paths);
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   // Single shared output channel and asset service for the entire extension session.
   // Sharing AssetService preserves blizzardFilesEnsured across panel opens so extraction
@@ -92,6 +106,39 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   context.subscriptions.push(liveCmd);
+
+  const liveFolderCmd = vscode.commands.registerCommand(
+    "scryer.openLiveFolder",
+    async (uri?: vscode.Uri) => {
+      if (!uri) {
+        void vscode.window.showErrorMessage("Scryer: no folder selected.");
+        return;
+      }
+      const folderName = uri.fsPath.split(/[\\/]/).pop()!;
+      const tocUri = vscode.Uri.joinPath(uri, `${folderName}.toc`);
+      try {
+        await vscode.workspace.fs.stat(tocUri);
+      } catch {
+        void vscode.window.showErrorMessage(
+          `Scryer: no matching TOC file found (${folderName}.toc).`,
+        );
+        return;
+      }
+      ScryerLivePanel.create(context, tocUri, assets, output);
+    },
+  );
+
+  context.subscriptions.push(liveFolderCmd);
+
+  void refreshTocFolderPaths();
+  const tocWatcher = vscode.workspace.createFileSystemWatcher("**/*.toc");
+  const onTocChange = () => void refreshTocFolderPaths();
+  context.subscriptions.push(
+    tocWatcher,
+    tocWatcher.onDidCreate(onTocChange),
+    tocWatcher.onDidDelete(onTocChange),
+    tocWatcher.onDidChange(onTocChange),
+  );
 
   // Pre-warm template registry and/or texture caches at activation so the first panel
   // open is fast. Deferred past activate() via a resolved promise so activation is
