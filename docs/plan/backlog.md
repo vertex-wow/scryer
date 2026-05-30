@@ -1215,11 +1215,11 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ## `FlagsUtil` stub — unblocks `scrollutil.lua`
 
-**Status:** 📋 Pending
+**Status:** ✅ Done (2026-05-30)
 
 **Problem:** `scrollutil.lua` fails: `attempt to index a nil value (global 'FlagsUtil')`. `FlagsUtil` is a table of bit-flag utilities used by scroll frame code. Its absence also chains into `scrollbox.lua`, which depends on scroll utilities. Both files being skipped means `ScrollBox`, `ScrollUtil`, and associated frame templates are unavailable.
 
-**Plan:** Add `FlagsUtil = {}` with the methods `scrollutil.lua` actually calls: `FlagsUtil.CreateMask(...)`, `FlagsUtil.IsSet(mask, flag)`, etc. Reading the skipped file's error trace will show exactly which fields are accessed first. The implementations are trivial bitwise operations.
+**What was built:** Added `FlagsMixin` (table with `OnLoad`/`Set`/`Clear`/`Toggle`/`IsSet` using `bit.*`) and `FlagsUtil.MakeFlags(...)` (assigns sequential power-of-2 values to named flags) to `src/lua/wow-api.ts`. `scrollutil.lua` uses only `FlagsUtil.MakeFlags`; `FlagsMixin` is also used by `minimalslider.lua`. 4 tests added in `test/lua/wow-api.test.ts`.
 
 **Effort:** XS–S
 

@@ -324,6 +324,63 @@ describe("C_Timer", () => {
   });
 });
 
+// ─── FlagsUtil / FlagsMixin ───────────────────────────────────────────────────
+describe("FlagsUtil", () => {
+  test("MakeFlags assigns sequential power-of-2 values", async () => {
+    expect(await run('local f = FlagsUtil.MakeFlags("A","B","C"); return f.A, f.B, f.C')).toBe(1);
+    expect(
+      await run('local f = FlagsUtil.MakeFlags("A","B","C"); local _,b = f.A, f.B; return f.B'),
+    ).toBe(2);
+    expect(await run('local f = FlagsUtil.MakeFlags("A","B","C"); return f.C')).toBe(4);
+  });
+
+  test("FlagsMixin Set and IsSet", async () => {
+    expect(
+      await run(`
+        local m = setmetatable({}, {__index = FlagsMixin})
+        m:OnLoad()
+        local Flags = FlagsUtil.MakeFlags("X","Y")
+        m:Set(Flags.X)
+        return m:IsSet(Flags.X), m:IsSet(Flags.Y)
+      `),
+    ).toBe(true);
+    expect(
+      await run(`
+        local m = setmetatable({}, {__index = FlagsMixin})
+        m:OnLoad()
+        local Flags = FlagsUtil.MakeFlags("X","Y")
+        m:Set(Flags.X)
+        local _, r = m:IsSet(Flags.X), m:IsSet(Flags.Y)
+        return r
+      `),
+    ).toBe(false);
+  });
+
+  test("FlagsMixin Clear removes a flag", async () => {
+    expect(
+      await run(`
+        local m = setmetatable({}, {__index = FlagsMixin})
+        m:OnLoad()
+        local Flags = FlagsUtil.MakeFlags("X","Y")
+        m:Set(Flags.X); m:Set(Flags.Y)
+        m:Clear(Flags.X)
+        return m:IsSet(Flags.X), m:IsSet(Flags.Y)
+      `),
+    ).toBe(false);
+  });
+
+  test("scrollutil SelectionBehaviorFlags pattern", async () => {
+    expect(
+      await run(`
+        SelectionBehaviorFlags = FlagsUtil.MakeFlags("Deselectable","Intrusive","MultiSelect")
+        return SelectionBehaviorFlags.Deselectable,
+               SelectionBehaviorFlags.Intrusive,
+               SelectionBehaviorFlags.MultiSelect
+      `),
+    ).toBe(1);
+  });
+});
+
 // ─── CreateColor / ColorMixin ─────────────────────────────────────────────────
 describe("CreateColor", () => {
   test("GenerateHexColor returns AARRGGBB", async () => {

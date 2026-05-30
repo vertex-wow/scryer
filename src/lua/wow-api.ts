@@ -646,6 +646,27 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     -- MathUtil stub (Blizzard_SharedXMLBase/MathUtil.lua); overridden when real file loads
     MathUtil = { Lerp = function(a, b, t) return a + (b - a) * t end }
 
+    -- FlagsMixin + FlagsUtil — Blizzard_SharedXML bitflag utilities.
+    -- FlagsUtil.MakeFlags assigns sequential power-of-2 values to named flag constants.
+    -- FlagsMixin tracks a bitmask and exposes Set/Clear/IsSet.
+    FlagsMixin = {}
+    function FlagsMixin:OnLoad() self.flags = 0 end
+    function FlagsMixin:Set(flag) self.flags = bit.bor(self.flags, flag) end
+    function FlagsMixin:Clear(flag) self.flags = bit.band(self.flags, bit.bnot(flag)) end
+    function FlagsMixin:Toggle(flag) self.flags = bit.bxor(self.flags, flag) end
+    function FlagsMixin:IsSet(flag) return bit.band(self.flags, flag) == flag end
+
+    FlagsUtil = {}
+    function FlagsUtil.MakeFlags(...)
+      local result = {}
+      local mask = 1
+      for _, name in ipairs({...}) do
+        result[name] = mask
+        mask = bit.lshift(mask, 1)
+      end
+      return result
+    end
+
     -- ColorMixin + CreateColor (Color.lua); overridden when the real Blizzard file loads.
     -- GenerateHexColor returns AARRGGBB (8 hex chars) matching WoW's colorStr format.
     ColorMixin = {}
