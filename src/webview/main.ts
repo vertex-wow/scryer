@@ -19,9 +19,10 @@ let currentConfig: ResolvedFlavorConfig | null = null;
 
 function dbg(msg: string): void {
   if (debug) debug.textContent = msg;
+  vscode.postMessage({ type: "dbg", text: msg });
 }
 
-dbg("script loaded — waiting for ready handshake");
+dbg("view ready, waiting for scryer");
 
 initRulers();
 
@@ -235,9 +236,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
   switch (msg.type) {
     case "render":
     case "reload": {
-      dbg(
-        `render received — ${msg.frames.length} frame(s), viewport ${msg.viewport.w}x${msg.viewport.h}`,
-      );
+      dbg(`received ${msg.frames.length} frame${msg.frames.length === 1 ? "" : "s"}`);
       try {
         if (msg.defaultFontUri) applyDefaultFont(msg.defaultFontUri);
         viewport!.innerHTML = "";
@@ -261,11 +260,15 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         if (currentWowViewport) updateRulers(currentWowViewport, currentScale, currentConfig);
         // On first render (not hot-reload), center the frame content in view.
         if (msg.type === "render") centerOnContent(msg.flavorConfig);
-        let suffix = " OK";
+        let suffix = " ✓";
         if (msg.extractionPending)
-          suffix = msg.pendingFiles > 0 ? ` — ${msg.pendingFiles} file(s) pending` : ` — pending`;
-        else if (msg.warnings > 0) suffix = ` — ${msg.warnings} warning(s)`;
-        dbg(`rendered ${msg.frames.length} frame(s)${suffix}`);
+          suffix =
+            msg.pendingFiles > 0
+              ? ` — ${msg.pendingFiles} texture${msg.pendingFiles === 1 ? "" : "s"} pending`
+              : ` — pending`;
+        else if (msg.warnings > 0)
+          suffix = ` — ${msg.warnings} warning${msg.warnings === 1 ? "" : "s"}`;
+        dbg(`rendered ${msg.frames.length} frame${msg.frames.length === 1 ? "" : "s"}${suffix}`);
         requestRenderedAssets();
       } catch (e) {
         dbg(`render error: ${String(e)}`);
@@ -293,5 +296,5 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
 });
 
 // Tell the host we're ready
-dbg("posting ready");
+dbg("scryer ready, waiting for content");
 vscode.postMessage({ type: "ready" });

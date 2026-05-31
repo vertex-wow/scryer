@@ -98,6 +98,11 @@ export async function extractMissing(paths: string[], opts: ExtractorOptions): P
     return;
   }
   const normalized = paths.map(normalizeForExtraction);
+  safeLog(
+    opts.output,
+    "trace",
+    `notif: Scryer: extracting ${paths.length} file${paths.length === 1 ? "" : "s"}…`,
+  );
   try {
     await vscode.window.withProgress(
       {
@@ -117,7 +122,7 @@ export async function extractMissing(paths: string[], opts: ExtractorOptions): P
  * Much faster than per-file extraction for the initial Blizzard corpus setup.
  * Errors when wowDir is not configured — it is required for extraction to work.
  */
-export async function extractInterface(opts: ExtractorOptions): Promise<void> {
+export async function extractBlizzardShared(opts: ExtractorOptions): Promise<void> {
   if (!opts.wowDir) {
     safeLog(
       opts.output,
@@ -126,12 +131,13 @@ export async function extractInterface(opts: ExtractorOptions): Promise<void> {
     );
     return;
   }
+  safeLog(opts.output, "trace", `notif: Scryer: extracting Blizzard shared templates…`);
   let result: ExtractionResult | undefined;
   try {
     result = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: "Scryer: extracting Blizzard addon files…",
+        title: "Scryer: extracting Blizzard shared templates…",
         cancellable: false,
       },
       () => extractBulk("interface", makeCoreOpts(opts)),
@@ -140,14 +146,14 @@ export async function extractInterface(opts: ExtractorOptions): Promise<void> {
     safeLog(
       opts.output,
       "error",
-      `asset-extraction failed: "${opts.flavor}/interface" → ${String(err)} — individual file errors logged above at trace level`,
+      `assets-extraction failed: "${opts.flavor}/shared" → ${String(err)} — individual file errors logged above at trace level`,
     );
     return;
   }
   safeLog(
     opts.output,
     "info",
-    `assets-extraction: Blizzard addons extracted (${result.exported} exported, ${result.skippedExists} cached, ${result.errors} ignored)`,
+    `assets-extraction: Blizzard shared extracted (${result.exported} exported, ${result.skippedExists} cached, ${result.errors} ignored)`,
   );
 }
 
@@ -164,6 +170,7 @@ export async function genAtlas(opts: AtlasGenWrapperOptions): Promise<void> {
     return;
   }
 
+  safeLog(opts.output, "trace", `notif: Scryer: generating atlas manifest…`);
   try {
     await vscode.window.withProgress(
       {

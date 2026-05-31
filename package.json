@@ -176,7 +176,7 @@
           ],
           "enumDescriptions": [
             "Nothing preloaded at startup (default)",
-            "Blizzard_SharedXML templates only; ~2.1 MB",
+            "Blizzard shared templates + fonts; ~5 MB",
             "All Blizzard addon templates; ~41 MB",
             "All templates + Blizzard_SharedXML textures; ~2 MB, <1s",
             "All templates + full Blizzard texture tree; ~452 MB, ~40s"

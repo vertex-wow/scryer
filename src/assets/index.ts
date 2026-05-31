@@ -3,7 +3,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { blpToPng } from "./blp.js";
 import { cacheKey, getCachedPath, writeCached } from "./cache.js";
-import { extractInterface, extractMissing, genAtlas } from "./extractor.js";
+import { extractBlizzardShared, extractMissing, genAtlas } from "./extractor.js";
 import {
   ADDON_NAMES,
   SHARED_ADDON_NAMES,
@@ -302,8 +302,11 @@ export class AssetService {
     this.blizzardFilesEnsured = true; // set early to prevent concurrent calls
 
     const addonsDir = resolveAddonsDir(this.opts.sourceDir);
-    const before = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
-    if (before.length === 0) {
+    const missingAddons = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
+    const fontsDir = path.join(this.opts.sourceDir, "Fonts");
+    const fontsMissing = !fs.existsSync(fontsDir);
+
+    if (missingAddons.length === 0 && !fontsMissing) {
       try {
         this.opts.output.info(`cache-hit: shared templates found`);
       } catch {
@@ -312,14 +315,13 @@ export class AssetService {
       return false;
     }
 
+    const missingCount = missingAddons.length + (fontsMissing ? 1 : 0);
     try {
-      this.opts.output.info(
-        `assets-start-extraction: all Blizzard addons (${before.length} missing)`,
-      );
+      this.opts.output.info(`assets-start-extraction: shared templates (${missingCount} missing)`);
     } catch {
       /* channel disposed */
     }
-    await extractInterface({
+    await extractBlizzardShared({
       flavor: this.opts.flavor,
       outDir: this.opts.sourceDir,
       wowDir: this.opts.installDir,
@@ -331,8 +333,9 @@ export class AssetService {
 
     // Re-check: only signal re-render if extraction actually produced new files.
     // If it didn't (no script, failed extraction, etc.) we stop here rather than loop.
-    const after = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
-    return after.length < before.length;
+    const afterAddons = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
+    const afterFontsMissing = !fs.existsSync(fontsDir);
+    return afterAddons.length < missingAddons.length || (fontsMissing && !afterFontsMissing);
   }
 
   /**

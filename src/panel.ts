@@ -265,6 +265,10 @@ export class ScryerPanel {
         void cfg.update("showRuler", !current, vscode.ConfigurationTarget.Workspace);
         break;
       }
+
+      case "dbg":
+        this.output.trace(`status: ${(message as { type: string; text?: string }).text ?? ""}`);
+        break;
     }
   }
 
@@ -428,9 +432,6 @@ export class ScryerPanel {
         const fontAbsPath = await this.assets.resolveToAbsPath(flavorConfig.defaultFont, "");
         if (fontAbsPath) {
           defaultFontUri = this.panel.webview.asWebviewUri(vscode.Uri.file(fontAbsPath)).toString();
-          this.output.trace(
-            `cache-hit: "${flavorConfig.defaultFont}" → ${path.basename(fontAbsPath)}`,
-          );
         } else if (this.assets.claimExtraction(flavorConfig.defaultFont)) {
           void this.extractAndSendFont(flavorConfig.defaultFont);
         }

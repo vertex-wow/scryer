@@ -1,3 +1,4 @@
+import * as path from "path";
 import * as vscode from "vscode";
 import { AssetService } from "./assets/index.js";
 import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
@@ -78,6 +79,7 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.window.showErrorMessage("Scryer: active file is not an XML file.");
       return;
     }
+    output.info(`Viewing ${path.basename(resolved.fsPath)}`);
     ScryerPanel.create(context, resolved, assets, output);
   });
 
@@ -93,6 +95,7 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.window.showErrorMessage("Scryer: active file is not a TOC file.");
       return;
     }
+    output.info(`Viewing Live ${path.basename(resolved.fsPath)}`);
     ScryerLivePanel.create(context, resolved, assets, output);
   });
 
@@ -115,6 +118,7 @@ export function activate(context: vscode.ExtensionContext): void {
         );
         return;
       }
+      output.info(`Viewing Live ${path.basename(tocUri.fsPath)}`);
       ScryerLivePanel.create(context, tocUri, assets, output);
     },
   );

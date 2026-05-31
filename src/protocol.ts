@@ -40,6 +40,7 @@ export type WebviewMessage =
   | { type: "ready" }
   | { type: "requestAsset"; path?: string; atlas?: string }
   | { type: "toggleRuler" }
+  | { type: "dbg"; text: string }
   | {
       type: "frameEvent";
       frameId: number;

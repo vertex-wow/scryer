@@ -56,6 +56,7 @@ const INTERFACE_GLOBS = [
   "Interface/AddOns/Blizzard_SharedXMLBase/**",
   "Interface/AddOns/Blizzard_SharedXML/**",
   "Interface/AddOns/Blizzard_FrameXML/**",
+  "Fonts/**",
 ];
 
 // ---------------------------------------------------------------------------
@@ -121,15 +122,15 @@ export async function ensureListfile(
   return listfilePath;
 }
 
-/** Spawn grep -F to extract interface/ rows from the full listfile into filteredPath. */
+/** Spawn grep to extract interface/ and fonts/ rows from the full listfile into filteredPath. */
 function filterListfile(
   fullPath: string,
   filteredPath: string,
   log?: (line: string) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    log?.(`Filtering listfile to interface/ entries...`);
-    const proc = cp.spawn("grep", ["-F", ";interface/", fullPath]);
+    log?.(`Filtering listfile to interface/ and fonts/ entries...`);
+    const proc = cp.spawn("grep", ["-F", "-e", ";interface/", "-e", ";fonts/", fullPath]);
     const ws = fs.createWriteStream(filteredPath);
     proc.stdout.pipe(ws);
     proc.stderr.resume();
@@ -145,14 +146,14 @@ function filterListfile(
 /**
  * Ensure a pre-filtered listfile containing only interface/ entries is present.
  * Regenerated whenever listfile.csv is newer than the filtered copy.
- * Returns the absolute path to listfile-interface.csv.
+ * Returns the absolute path to listfile-templates.csv.
  */
 export async function ensureFilteredListfile(
   listfileDir: string,
   log?: (line: string) => void,
 ): Promise<string> {
   const fullPath = await ensureListfile(listfileDir, log);
-  const filteredPath = path.join(listfileDir, "listfile-interface.csv");
+  const filteredPath = path.join(listfileDir, "listfile-templates.csv");
 
   const filteredStat = fs.existsSync(filteredPath) ? fs.statSync(filteredPath) : null;
   if (filteredStat) {
@@ -258,7 +259,7 @@ async function extractRetailPaths(
   await fs.promises.mkdir(opts.outDir, { recursive: true });
 
   const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
-  opts.log?.(`asset-extraction: "${opts.flavor}/assets" → vscode global cache "${shortOut}"`);
+  opts.log?.(`assets-extraction: "${opts.flavor}/assets" → global cache "${shortOut}"`);
 
   const totals: ExtractionResult = { exported: 0, skippedExists: 0, errors: 0 };
   for (const p of paths) {
@@ -288,7 +289,7 @@ async function extractRetailBulk(
   ];
 
   const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
-  opts.log?.(`asset-extraction: "${opts.flavor}/${type}" → vscode global cache "${shortOut}"`);
+  opts.log?.(`assets-extraction: "${opts.flavor}/${type}" → global cache "${shortOut}"`);
 
   const totals: ExtractionResult = { exported: 0, skippedExists: 0, errors: 0 };
   for (const glob of globs) {
@@ -355,7 +356,7 @@ async function extractLoosePaths(
   await fs.promises.mkdir(opts.outDir, { recursive: true });
 
   const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
-  opts.log?.(`asset-extraction: "${opts.flavor}/assets" → vscode global cache "${shortOut}"`);
+  opts.log?.(`assets-extraction: "${opts.flavor}/assets" → global cache "${shortOut}"`);
 
   let exported = 0;
   let errors = 0;
@@ -415,7 +416,7 @@ async function extractLooseBulk(
   if (type === "interface" || type === "all") LOOSE_INTERFACE_EXTS.forEach((e) => exts.add(e));
 
   const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
-  opts.log?.(`asset-extraction: "${opts.flavor}/${type}" → vscode global cache "${shortOut}"`);
+  opts.log?.(`assets-extraction: "${opts.flavor}/${type}" → global cache "${shortOut}"`);
 
   const exported = await copyFilesRecursive(interfaceDir, opts.outDir, exts);
   return { exported, skippedExists: 0, errors: 0 };
