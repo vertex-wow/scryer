@@ -386,7 +386,7 @@ See [measurements.md Q1b](../measurements.md#q1b-how-fast-can-we-pre-filter-list
 
 ## Preload settings — `scryer.startupContent` + `scryer.userAddonPreload`
 
-**Status: Settings contributed** (2026-05-27) — `package.json` contributions added; implementation pending.
+**Status: Done** (2026-05-31) — All tiers and modes fully implemented; degradation warning added for texture tiers when source is unpopulated.
 
 **Supersedes:** The earlier single-setting `scryer.preloadScope` design. That design conflated two orthogonal axes (static Blizzard library scope vs. dynamic per-edit addon scope) into one enum, making it impossible to express e.g. "all Blizz templates but on-demand for my addon."
 

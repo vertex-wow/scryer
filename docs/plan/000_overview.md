@@ -79,7 +79,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog.md#devextractsh--wow-asset-extraction-for-contributors-deferred-from-m3">dev/extract.sh contributor script</a>, <a href="backlog.md#on-demand-texture-extraction-from-the-preview-deferred-from-m3">On-demand texture extraction</a>, <a href="backlog.md#extract-blizzard-interface-addon-files-from-users-wow-installation">Extract Blizzard addon files</a>, <a href="backlog.md#blizzard-framexml-template-corpus-loading-pre-m4">Blizzard FrameXML corpus loading</a>, <a href="backlog.md#output-channel-logging-and-scryer.loglevel-setting">Output channel logging</a>, <a href="backlog.md#tsconfig-solution-style-refactor-ide-tooling-debt">tsconfig solution-style refactor</a>, <a href="backlog.md#extraction-benchmarks">Extraction benchmarks</a>, <a href="backlog.md#addon-texture-manifest-builder">Addon texture manifest builder</a>, <a href="backlog.md#progressive-tier-execution-for-scryer.startupcontent">Progressive startupContent tier execution</a>, <a href="backlog.md#wow-build-version-tracking-and-cache-invalidation">WoW build version tracking</a>, <a href="backlog.md#dynamic-flavor-detection-from-buildinfo">Dynamic flavor detection</a>, <a href="backlog.md#flavor-configuration-file--per-flavor-display-defaults">Flavor configuration file</a>, <a href="backlog.md#atlas-texture-resolution">Atlas texture resolution</a>, <a href="backlog.md#js-entry-point-runners-replace-dev-shell-scripts">JS entry-point runners</a>, <a href="backlog.md#listfile-pre-filter-rustydemon-era">Listfile pre-filter</a>, <a href="backlog.md#wow-font-loading-frizqtttf-from-casc">WoW font loading</a>, <a href="backlog.md#in-app-asset-setup-guidance-for-end-users-deferred-from-m3">In-app asset setup guidance</a></td>
+  <td colspan="5">✅ <a href="backlog.md#devextractsh--wow-asset-extraction-for-contributors-deferred-from-m3">dev/extract.sh contributor script</a>, <a href="backlog.md#on-demand-texture-extraction-from-the-preview-deferred-from-m3">On-demand texture extraction</a>, <a href="backlog.md#extract-blizzard-interface-addon-files-from-users-wow-installation">Extract Blizzard addon files</a>, <a href="backlog.md#blizzard-framexml-template-corpus-loading-pre-m4">Blizzard FrameXML corpus loading</a>, <a href="backlog.md#output-channel-logging-and-scryer.loglevel-setting">Output channel logging</a>, <a href="backlog.md#tsconfig-solution-style-refactor-ide-tooling-debt">tsconfig solution-style refactor</a>, <a href="backlog.md#extraction-benchmarks">Extraction benchmarks</a>, <a href="backlog.md#addon-texture-manifest-builder">Addon texture manifest builder</a>, <a href="backlog.md#progressive-tier-execution-for-scryer.startupcontent">Progressive startupContent tier execution</a>, <a href="backlog.md#wow-build-version-tracking-and-cache-invalidation">WoW build version tracking</a>, <a href="backlog.md#dynamic-flavor-detection-from-buildinfo">Dynamic flavor detection</a>, <a href="backlog.md#flavor-configuration-file--per-flavor-display-defaults">Flavor configuration file</a>, <a href="backlog.md#atlas-texture-resolution">Atlas texture resolution</a>, <a href="backlog.md#js-entry-point-runners-replace-dev-shell-scripts">JS entry-point runners</a>, <a href="backlog.md#listfile-pre-filter-rustydemon-era">Listfile pre-filter</a>, <a href="backlog.md#wow-font-loading-frizqtttf-from-casc">WoW font loading</a>, <a href="backlog.md#in-app-asset-setup-guidance-for-end-users-deferred-from-m3">In-app asset setup guidance</a>, <a href="backlog.md#preload-settings--scryer.startupcontent--scryer.useraddonpreload">Preload settings</a></td>
 </tr>
 <tr>
   <td>↳</td>
@@ -110,14 +110,6 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td><a href="backlog.md#preload-workspace-textures-at-startup">Preload workspace textures</a></td>
   <td>📋 Pending</td>
   <td>Pre-warm asset cache at extension startup</td>
-  <td>S</td>
-  <td>—</td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td><a href="backlog.md#preload-settings--scryer.startupcontent--scryer.useraddonpreload">Preload settings</a></td>
-  <td>🔧 Partial</td>
-  <td><code>scryer.startupContent</code> + <code>scryer.userAddonPreload</code> enums</td>
   <td>S</td>
   <td>—</td>
 </tr>

@@ -197,13 +197,19 @@ export function activate(context: vscode.ExtensionContext): void {
       assets.loadBlizzardTemplates();
       if (cancelled) return;
       if (tierIdx >= TIER_ORDER.indexOf("all-templates-shared-textures")) {
-        await assets.prewarmBlizzardTextures(SHARED_ADDON_NAMES);
-        output.info("cache-warmup: shared Blizzard textures pre-warmed");
-      }
-      if (cancelled) return;
-      if (tierIdx >= TIER_ORDER.indexOf("all-templates-textures")) {
-        await assets.prewarmBlizzardTextures(ADDON_NAMES);
-        output.info("cache-warmup: all Blizzard textures pre-warmed");
+        if (!(await assets.hasExtractedAssets())) {
+          output.warn(
+            `cache-warmup: startupContent="${startupContent}" requests textures but no extracted assets found — skipping texture pre-warm. Set scryer.installDir to enable extraction.`,
+          );
+        } else {
+          await assets.prewarmBlizzardTextures(SHARED_ADDON_NAMES);
+          output.info("cache-warmup: shared Blizzard textures pre-warmed");
+          if (cancelled) return;
+          if (tierIdx >= TIER_ORDER.indexOf("all-templates-textures")) {
+            await assets.prewarmBlizzardTextures(ADDON_NAMES);
+            output.info("cache-warmup: all Blizzard textures pre-warmed");
+          }
+        }
       }
     });
   }
