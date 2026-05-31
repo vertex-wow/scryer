@@ -12,10 +12,136 @@ const viewport = document.getElementById("viewport");
 const debug = document.getElementById("debug");
 if (!viewport) throw new Error("Missing #viewport element");
 
-// Current WoW viewport element, scale, and config — retained so scroll/resize can redraw rulers.
+// Current WoW viewport element, scale, and config — retained so resize/zoom can redraw rulers.
 let currentWowViewport: HTMLElement | null = null;
 let currentScale = 1;
 let currentConfig: ResolvedFlavorConfig | null = null;
+
+// ---------------------------------------------------------------------------
+// Pan / zoom state
+// ---------------------------------------------------------------------------
+
+let panX = 0;
+let panY = 0;
+let panZoom = 1;
+
+type CanvasMode = "grab" | "interact";
+let canvasMode: CanvasMode = "grab";
+
+const grabBtn = document.getElementById("grab-toggle");
+const interactBtn = document.getElementById("interact-toggle");
+const zoomSelect = document.getElementById("zoom-select") as HTMLSelectElement | null;
+
+const ZOOM_PRESETS = [25, 50, 75, 100, 150, 200, 400];
+
+function applyTransform(): void {
+  viewport!.style.transform = `translate(${panX}px,${panY}px) scale(${panZoom})`;
+}
+
+function updateZoomDisplay(): void {
+  if (!zoomSelect) return;
+  const pct = Math.round(panZoom * 100);
+  const match = ZOOM_PRESETS.find((p) => p === pct);
+  if (match !== undefined) {
+    zoomSelect.value = String(match);
+  } else {
+    let customOpt = zoomSelect.querySelector<HTMLOptionElement>('option[value="custom"]');
+    if (!customOpt) {
+      customOpt = document.createElement("option");
+      customOpt.value = "custom";
+      zoomSelect.insertBefore(customOpt, zoomSelect.firstChild);
+    }
+    customOpt.textContent = `${pct}%`;
+    zoomSelect.value = "custom";
+  }
+}
+
+function zoomAt(newZoom: number, mx: number, my: number): void {
+  const vpx = (mx - panX) / panZoom;
+  const vpy = (my - panY) / panZoom;
+  panZoom = newZoom;
+  panX = mx - vpx * panZoom;
+  panY = my - vpy * panZoom;
+  applyTransform();
+  updateZoomDisplay();
+  if (currentWowViewport && currentConfig)
+    updateRulers(currentWowViewport, currentScale, currentConfig);
+}
+
+function zoomToFit(config: ResolvedFlavorConfig): void {
+  const wowW = config.uiParentWidth * config.frameScale;
+  const wowH = config.uiParentHeight * config.frameScale;
+  const availW = window.innerWidth;
+  const availH = window.innerHeight - config.statusBarHeight;
+  panZoom = Math.min(availW / wowW, availH / wowH) * 0.92;
+  panX = (availW - wowW * panZoom) / 2;
+  panY = config.statusBarHeight + (availH - wowH * panZoom) / 2;
+  applyTransform();
+  updateZoomDisplay();
+  if (currentWowViewport) updateRulers(currentWowViewport, currentScale, config);
+}
+
+function centerOnContent(config: ResolvedFlavorConfig): void {
+  const wowVp = document.getElementById("wow-viewport");
+  const scale = config.frameScale;
+
+  let minL = Infinity,
+    minT = Infinity,
+    maxR = -Infinity,
+    maxB = -Infinity;
+  if (wowVp) {
+    for (const child of Array.from(wowVp.children)) {
+      const el = child as HTMLElement;
+      const w = el.offsetWidth,
+        h = el.offsetHeight;
+      if (w > 0 || h > 0) {
+        minL = Math.min(minL, el.offsetLeft);
+        minT = Math.min(minT, el.offsetTop);
+        maxR = Math.max(maxR, el.offsetLeft + w);
+        maxB = Math.max(maxB, el.offsetTop + h);
+      }
+    }
+  }
+
+  // Bbox center in #viewport-local CSS px (frameScale converts WoW logical → CSS px).
+  const bboxCssX = isFinite(minL)
+    ? ((minL + maxR) / 2) * scale
+    : (config.uiParentWidth * scale) / 2;
+  const bboxCssY = isFinite(minT)
+    ? ((minT + maxB) / 2) * scale
+    : (config.uiParentHeight * scale) / 2;
+
+  const visH = window.innerHeight - config.statusBarHeight;
+  panX = window.innerWidth / 2 - bboxCssX * panZoom;
+  panY = config.statusBarHeight + visH / 2 - bboxCssY * panZoom;
+  applyTransform();
+  if (currentWowViewport) updateRulers(currentWowViewport, currentScale, config);
+}
+
+// ---------------------------------------------------------------------------
+// Mode
+// ---------------------------------------------------------------------------
+
+function updateTempGrabCursor(): void {
+  if (canvasMode === "grab") return; // CSS handles it via body classes
+  document.body.style.cursor = isDragging ? "grabbing" : spaceDown ? "grab" : "";
+}
+
+function setMode(mode: CanvasMode): void {
+  canvasMode = mode;
+  document.body.classList.toggle("mode-grab", mode === "grab");
+  document.body.classList.toggle("mode-interact", mode === "interact");
+  grabBtn?.classList.toggle("active", mode === "grab");
+  interactBtn?.classList.toggle("active", mode === "interact");
+}
+
+setMode("grab");
+applyTransform();
+updateZoomDisplay();
+
+// ---------------------------------------------------------------------------
+// Debug
+// ---------------------------------------------------------------------------
 
 function dbg(msg: string): void {
   if (debug) debug.textContent = msg;
@@ -26,8 +152,10 @@ dbg("view ready, waiting for scryer");
 
 initRulers();
 
-// Tooltip for placeholder elements — custom overlay, immune to the DOM
-// mutations that reset native title-attribute tooltip dwell timers.
+// ---------------------------------------------------------------------------
+// Placeholder tooltip
+// ---------------------------------------------------------------------------
+
 const phTooltip = document.createElement("div");
 phTooltip.style.cssText = [
   "position:fixed",
@@ -75,19 +203,146 @@ viewport!.addEventListener("mouseleave", () => {
   phTooltip.style.display = "none";
 });
 
+// ---------------------------------------------------------------------------
+// Toolbar button handlers
+// ---------------------------------------------------------------------------
+
 document.getElementById("ruler-toggle")?.addEventListener("click", () => {
   vscode.postMessage({ type: "toggleRuler" });
 });
 
-window.addEventListener("scroll", () => {
+grabBtn?.addEventListener("click", () => setMode("grab"));
+interactBtn?.addEventListener("click", () => setMode("interact"));
+
+document.getElementById("recenter-btn")?.addEventListener("click", () => {
+  if (currentConfig) centerOnContent(currentConfig);
+});
+
+zoomSelect?.addEventListener("change", () => {
+  const val = zoomSelect.value;
+  if (val === "fit") {
+    if (currentConfig) zoomToFit(currentConfig);
+  } else if (val !== "custom") {
+    const pct = parseInt(val, 10);
+    if (!isNaN(pct)) {
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      zoomAt(pct / 100, cx, cy);
+    }
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Drag pan
+// ---------------------------------------------------------------------------
+
+let isDragging = false;
+let dragStartX = 0,
+  dragStartY = 0;
+let panStartX = 0,
+  panStartY = 0;
+let spaceDown = false;
+
+function isGrabActive(e: MouseEvent): boolean {
+  return canvasMode === "grab" || e.button === 1 || spaceDown;
+}
+
+document.body.addEventListener("mousedown", (e: MouseEvent) => {
+  if (e.button === 2) return;
+  if ((e.target as HTMLElement)?.closest?.("#status-bar")) return;
+  if (!isGrabActive(e)) return;
+  e.preventDefault();
+  isDragging = true;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  panStartX = panX;
+  panStartY = panY;
+  document.body.classList.add("panning");
+  updateTempGrabCursor();
+});
+
+window.addEventListener("mousemove", (e: MouseEvent) => {
+  if (!isDragging) return;
+  panX = panStartX + (e.clientX - dragStartX);
+  panY = panStartY + (e.clientY - dragStartY);
+  applyTransform();
   if (currentWowViewport && currentConfig)
     updateRulers(currentWowViewport, currentScale, currentConfig);
 });
+
+window.addEventListener("mouseup", () => {
+  if (!isDragging) return;
+  isDragging = false;
+  document.body.classList.remove("panning");
+  updateTempGrabCursor();
+});
+
+// ---------------------------------------------------------------------------
+// Keyboard
+// ---------------------------------------------------------------------------
+
+window.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (e.code === "Space" && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    spaceDown = true;
+    updateTempGrabCursor();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.code === "Digit0") {
+    e.preventDefault();
+    if (e.shiftKey) {
+      panZoom = 1;
+      updateZoomDisplay();
+      if (currentConfig) centerOnContent(currentConfig);
+    } else {
+      if (currentConfig) zoomToFit(currentConfig);
+    }
+  }
+});
+
+window.addEventListener("keyup", (e: KeyboardEvent) => {
+  if (e.code === "Space") {
+    spaceDown = false;
+    updateTempGrabCursor();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Wheel zoom / pan
+// ---------------------------------------------------------------------------
+
+document.body.addEventListener(
+  "wheel",
+  (e: WheelEvent) => {
+    const isZoom = e.ctrlKey || e.metaKey;
+    if (!isZoom && canvasMode !== "grab") return;
+    e.preventDefault();
+    if (isZoom) {
+      const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+      zoomAt(Math.max(0.05, Math.min(20, panZoom * factor)), e.clientX, e.clientY);
+    } else {
+      panX -= e.deltaX;
+      panY -= e.deltaY;
+      applyTransform();
+      if (currentWowViewport && currentConfig)
+        updateRulers(currentWowViewport, currentScale, currentConfig);
+    }
+  },
+  { passive: false },
+);
+
+// ---------------------------------------------------------------------------
+// Resize
+// ---------------------------------------------------------------------------
 
 window.addEventListener("resize", () => {
   if (currentWowViewport && currentConfig)
     updateRulers(currentWowViewport, currentScale, currentConfig);
 });
+
+// ---------------------------------------------------------------------------
+// Asset helpers
+// ---------------------------------------------------------------------------
 
 /** After a render, collect all unique [data-asset-path] values and request each. */
 function requestRenderedAssets(): void {
@@ -175,61 +430,9 @@ function applyAsset(rawPath: string, uri: string): void {
   }
 }
 
-/**
- * Scroll so the union bounding box of all top-level frames is centered in the
- * visible panel area. Falls back to the WoW origin if no frames are renderable.
- */
-function centerOnContent(config: ResolvedFlavorConfig): void {
-  const wowVp = document.getElementById("wow-viewport");
-  if (!wowVp) return;
-
-  const scale = config.frameScale;
-  const padH = Math.round(config.uiParentWidth * scale);
-  const padV = Math.round(config.uiParentHeight * scale);
-
-  // Union bbox of top-level frame elements in WoW logical pixels (pre-scale).
-  let minL = Infinity,
-    minT = Infinity,
-    maxR = -Infinity,
-    maxB = -Infinity;
-  for (const child of Array.from(wowVp.children)) {
-    const el = child as HTMLElement;
-    const w = el.offsetWidth;
-    const h = el.offsetHeight;
-    if (w > 0 || h > 0) {
-      const l = el.offsetLeft;
-      const t = el.offsetTop;
-      minL = Math.min(minL, l);
-      minT = Math.min(minT, t);
-      maxR = Math.max(maxR, l + w);
-      maxB = Math.max(maxB, t + h);
-    }
-  }
-
-  if (!isFinite(minL)) {
-    window.scrollTo(padH, padV);
-    return;
-  }
-
-  // Page (scroll-document) coordinates of #wow-viewport's top-left corner.
-  const vpRect = wowVp.getBoundingClientRect();
-  const vpPageX = vpRect.left + window.scrollX;
-  const vpPageY = vpRect.top + window.scrollY;
-
-  // Bbox center in page coordinates (scale converts WoW logical → CSS px).
-  const bboxCenterX = vpPageX + ((minL + maxR) / 2) * scale;
-  const bboxCenterY = vpPageY + ((minT + maxB) / 2) * scale;
-
-  // Fixed UI overlaying the top of the visible area (status bar + ruler if shown).
-  const fixedH =
-    config.statusBarHeight +
-    (document.body.classList.contains("show-ruler") ? config.rulerSize : 0);
-
-  window.scrollTo(
-    bboxCenterX - window.innerWidth / 2,
-    bboxCenterY - (window.innerHeight + fixedH) / 2,
-  );
-}
+// ---------------------------------------------------------------------------
+// Message handler
+// ---------------------------------------------------------------------------
 
 window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
   const msg = event.data;

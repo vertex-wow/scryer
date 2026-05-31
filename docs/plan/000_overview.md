@@ -51,15 +51,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog.md#relativekey-anchor-targets-deferred-from-m2">relativeKey anchor resolution</a>, <a href="backlog.md#css-inset--relativekey-renderer-fixes-deferred-from-m2">CSS inset + relativeKey renderer fixes</a>, <a href="backlog.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2">TexCoords sprite-sheet slicing</a>, <a href="backlog.md#fontstring-rendering-fidelity">FontString rendering fidelity</a>, <a href="backlog.md#pixel-ruler-overlay-in-the-preview-panel">Pixel ruler overlay</a>, <a href="backlog.md#texture-placeholder-hover-tooltip">Texture placeholder hover tooltip</a>, <a href="backlog.md#all-preview-chrome-values-configurable-via-defaultsjson">All preview chrome values in defaults.json</a>, <a href="backlog.md#canvas-scroll-in-all-directions-and-always-show-scrollbars">Canvas scroll in all directions + always-show scrollbars</a>, <a href="backlog.md#center-frame-content-on-open">Center frame content on open</a></td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td><a href="backlog.md#grab-pan-and-zoom-on-the-preview-canvas">Grab pan and zoom on the preview canvas</a></td>
-  <td>📋 Pending</td>
-  <td>Middle-click or Space+drag to pan; scroll-wheel zoom centred on cursor</td>
-  <td>S</td>
-  <td>—</td>
+  <td colspan="5">✅ <a href="backlog.md#relativekey-anchor-targets-deferred-from-m2">relativeKey anchor resolution</a>, <a href="backlog.md#css-inset--relativekey-renderer-fixes-deferred-from-m2">CSS inset + relativeKey renderer fixes</a>, <a href="backlog.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2">TexCoords sprite-sheet slicing</a>, <a href="backlog.md#fontstring-rendering-fidelity">FontString rendering fidelity</a>, <a href="backlog.md#pixel-ruler-overlay-in-the-preview-panel">Pixel ruler overlay</a>, <a href="backlog.md#texture-placeholder-hover-tooltip">Texture placeholder hover tooltip</a>, <a href="backlog.md#all-preview-chrome-values-configurable-via-defaultsjson">All preview chrome values in defaults.json</a>, <a href="backlog.md#canvas-scroll-in-all-directions-and-always-show-scrollbars">Canvas scroll in all directions + always-show scrollbars</a>, <a href="backlog.md#center-frame-content-on-open">Center frame content on open</a>, <a href="backlog.md#grab-pan-and-zoom-on-the-preview-canvas">Grab pan and zoom on the preview canvas</a></td>
 </tr>
 <tr>
   <td>↳</td>
