@@ -161,6 +161,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>S–M</td>
   <td>—</td>
 </tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#listfile-source-and-capitalization-strategy">Listfile source + capitalization strategy</a></td>
+  <td>📋 Pending</td>
+  <td>Switch to wowdev/wow-listfile releases; use verified listfile; decide capitalization</td>
+  <td>XS–S</td>
+  <td>—</td>
+</tr>
 </tbody>
 </table>
 
