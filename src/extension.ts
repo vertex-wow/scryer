@@ -244,6 +244,7 @@ export function activate(context: vscode.ExtensionContext): void {
         `cache-warmup: ${TIER_LABEL[startupContent] ?? startupContent} (startupContent=${startupContent})`,
       );
       await assets.ensureBlizzardFiles();
+      await assets.ensureAtlasManifest();
       assets.loadBlizzardTemplates();
       if (cancelled) return;
       if (tierIdx >= TIER_ORDER.indexOf("all-templates-shared-textures")) {

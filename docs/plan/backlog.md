@@ -709,25 +709,26 @@ Atlas references (e.g. `atlas="glues-characterselect-tophud-middle-bg"`) name a 
 
 **Problem:** Several slow async operations happen silently with no user-facing feedback:
 
-- **Atlas manifest generation** — `ensureAtlasManifest()` downloads two CSV exports from wago.tools (~1–3 s network + ~2 s parse), then writes the manifest. This happens at first render. The user sees placeholder tiles with no indication that anything is in progress or why.
 - **Blizzard file extraction** — `ensureBlizzardFiles()` can trigger a CASC extraction pass. The output channel logs it, but the panel shows no in-panel status.
 - **Startup preload** — `scryer.startupContent` tier execution logs to the output channel but there is no status bar or panel indicator that background work is ongoing.
 
 The output channel is a power-user tool. Regular users never open it, so they have no visibility into why the preview is showing placeholders.
 
+**Already done:**
+
+- **Atlas manifest generation** — `genAtlas()` already wraps in `vscode.window.withProgress` (`extractor.ts`). `ensureAtlasManifest()` is now called in the `startupContent` tier immediately after `ensureBlizzardFiles()` (which downloads the listfile as a side effect), so users with any `startupContent` level set get the manifest ready before the first panel opens. `startupContent=none` users still trigger it lazily on first panel render.
+
 **Plan:**
 
-1. **Atlas generation progress** — wrap `ensureAtlasManifest()` in a `vscode.window.withProgress({ location: ProgressLocation.Notification })` call. Show distinct messages for download phase ("Scryer: downloading atlas data…") and generation phase ("Scryer: building atlas manifest…"). Dismiss automatically on success; surface output channel on failure.
+1. **In-panel loading indicator** — add a small status element to the webview HTML (e.g. a bottom-edge bar or a corner badge) that the extension host toggles via a `{ type: "setStatus" }` protocol message. States: `idle`, `loading` (generic), `extracting`, `buildingAtlas`. Prevents the "why are all my textures colored boxes?" confusion without requiring the user to find the output channel.
 
-2. **In-panel loading indicator** — add a small status element to the webview HTML (e.g. a bottom-edge bar or a corner badge) that the extension host toggles via a `{ type: "setStatus" }` protocol message. States: `idle`, `loading` (generic), `extracting`, `buildingAtlas`. Prevents the "why are all my textures colored boxes?" confusion without requiring the user to find the output channel.
+2. **Status bar for long background work** — reuse or extend the existing per-panel `StatusBarItem` to show a spinner prefix while any async work is in flight (extraction, atlas gen, preload tiers). Clear on idle.
 
-3. **Status bar for long background work** — reuse or extend the existing per-panel `StatusBarItem` to show a spinner prefix while any async work is in flight (extraction, atlas gen, preload tiers). Clear on idle.
+3. **Consolidate** the existing `vscode.window.withProgress` call in `extractMissing()` so all entry points (extraction, Blizzard file ensure) use a consistent notification pattern matching what atlas gen already does.
 
-4. **Consolidate** the existing `vscode.window.withProgress` call in `extractMissing()` so all three entry points (extraction, Blizzard file ensure, atlas gen) use a consistent notification pattern.
+**Scope:** In-panel status indicator + status bar integration. Extension host notification for atlas gen is already done. No new user-configurable settings needed.
 
-**Scope:** Extension host progress notifications + in-panel status indicator + status bar integration. No new user-configurable settings needed; this is always-on feedback that scales down gracefully when nothing is in flight.
-
-**Effort:** S — ~2–4 hours. Notification plumbing is the largest part; in-panel status element is small HTML/CSS.
+**Effort:** S — ~2–3 hours. In-panel status element is small HTML/CSS; status bar integration is straightforward.
 
 ---
 

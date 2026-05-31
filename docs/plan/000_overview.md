@@ -93,7 +93,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>↳</td>
   <td><a href="backlog.md#user-visible-loading-notifications">User-visible loading notifications</a></td>
   <td>📋 Pending</td>
-  <td>Progress notifications for atlas gen, extraction, preload</td>
+  <td>Progress notifications for extraction and preload (atlas gen notification already done; atlas manifest now prewarmed in startupContent tier)</td>
   <td>S</td>
   <td>—</td>
 </tr>
