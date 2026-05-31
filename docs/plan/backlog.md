@@ -253,6 +253,33 @@ See [measurements.md Q1b](../measurements.md#q1b-how-fast-can-we-pre-filter-list
 
 ---
 
+## Filtered listfile build-version stamping
+
+**Status: 📋 Pending**
+
+**Background:** `ensureFilteredListfile` (added in the Listfile pre-filter item) runs `grep -F ';interface/'` to produce `listfile-interface.csv` whenever `listfile.csv` is newer. This pays the grep cost once per download, which is ~110 ms and already cheap. However, the validity of the filtered file is coupled only to file mtimes — if `listfile.csv` is re-downloaded for any reason (manual refresh, future CDN change, migration to per-release URLs), the filter re-runs unnecessarily even when the underlying WoW build is identical.
+
+The official community listfile from [wowdev/wow-listfile](https://github.com/wowdev/wow-listfile) publishes per-release verified files tied to specific WoW build numbers. Our cached filtered file should match that granularity: one filtered file per WoW build, reused across all listfile re-downloads for that build.
+
+**Problem:** The mtime-based skip logic in `ensureFilteredListfile` does not know what WoW build the filtered file was generated for. A listfile re-download (e.g. after switching to GitHub release URLs) triggers a re-filter even if the game data hasn't changed.
+
+**Goal:** Tie the filtered listfile cache to the WoW build number read from `.build.info` so the filter cost is paid exactly once per patch cycle — not once per download.
+
+**Plan:**
+
+1. After filtering, write a stamp file alongside `listfile-interface.csv` (e.g. `listfile-interface.stamp`) containing the current flavor build text (from `readBuildText`).
+2. In `ensureFilteredListfile`: read the stamp; if the stamp matches the current build text and `listfile-interface.csv` exists, skip filtering regardless of `listfile.csv` mtime.
+3. If `scryer.installDir` is unset (no `.build.info` to read), fall back to the existing mtime check — no regression for users without a configured install.
+4. Update `ensureFilteredListfile`'s signature to accept an optional `buildText?: string` so callers can pass the already-read build text without an extra disk read.
+
+**Interaction with [[listfile-source-and-capitalization-strategy]]:** Once the download URL is switched to per-release GitHub release assets, the URL itself carries build identity. The stamp approach works regardless — it decouples filter-cache validity from download frequency.
+
+**Interaction with [[in-process-javascript-casc-reader]]:** When the in-process reader lands, it will need to load the listfile for virtual path → FileDataID resolution. The build-stamped filtered file is the natural input: small, pre-filtered, already invalidated on patch.
+
+**Effort:** XS — ~30 lines in `extract-core.ts` (stamp read/write + build-text comparison). No new dependencies.
+
+---
+
 ## Listfile source and capitalization strategy
 
 **Status: 📋 Pending**

@@ -169,6 +169,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>XS–S</td>
   <td>—</td>
 </tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#filtered-listfile-build-version-stamping">Filtered listfile build-version stamping</a></td>
+  <td>📋 Pending</td>
+  <td>Tie filtered listfile to WoW build number; skip re-filter when build unchanged; pay filter cost once per patch cycle</td>
+  <td>XS</td>
+  <td>—</td>
+</tr>
 </tbody>
 </table>
 
