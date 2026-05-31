@@ -71,7 +71,7 @@ const LOOSE_INTERFACE_EXTS = new Set([".lua", ".xml", ".toc"]);
 // ---------------------------------------------------------------------------
 
 const LISTFILE_URL =
-  "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv";
+  "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile-withcapitalization.csv";
 
 /** Stream a URL (following redirects) to a local file. */
 function streamToFile(url: string, outPath: string, log?: (line: string) => void): Promise<void> {
@@ -129,8 +129,8 @@ function filterListfile(
   log?: (line: string) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    log?.(`Filtering listfile to interface/ and fonts/ entries...`);
-    const proc = cp.spawn("grep", ["-F", "-e", ";interface/", "-e", ";fonts/", fullPath]);
+    log?.(`Filtering listfile to Interface/ and Fonts/ entries...`);
+    const proc = cp.spawn("grep", ["-F", "-e", ";Interface/", "-e", ";Fonts/", fullPath]);
     const ws = fs.createWriteStream(filteredPath);
     proc.stdout.pipe(ws);
     proc.stderr.resume();

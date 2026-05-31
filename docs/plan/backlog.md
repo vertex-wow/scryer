@@ -287,35 +287,13 @@ The official community listfile from [wowdev/wow-listfile](https://github.com/wo
 
 ## Listfile source and capitalization strategy
 
-**Status: 📋 Pending**
+**Status: Done** (2026-05-31)
 
-**Background:** We currently download the community listfile CSV from a hardcoded URL. The canonical source is [wowdev/wow-listfile](https://github.com/wowdev/wow-listfile), which publishes versioned GitHub releases containing two variants:
+Switched to `community-listfile-withcapitalization.csv` from the same `wowdev/wow-listfile` `releases/latest` URL. Path strings in the listfile now use WoW canonical capitalisation (`Interface/Buttons/UI-CheckBox-Check.blp`). The `filterListfile` grep patterns updated to `";Interface/"` / `";Fonts/"` to match.
 
-- `community-listfile.csv` — standard community list (what we use today, all lowercase)
-- `community-listfile-withcapitalization.csv` — same file IDs, but path strings use the capitalization from WoW's virtual filesystem (e.g. `Interface/Buttons/UI-CheckBox-Check.blp` rather than `interface/buttons/ui-checkbox-check.blp`)
+`resolveCI` is unchanged — rustydemon-cli still lowercases output filenames on Linux regardless of the listfile content. `resolveCI` removal is deferred to [In-process CASC reader](#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli) when we own the output path.
 
-The verified listfile (published per-release) contains only paths confirmed to exist in actual CASC data, maximising hit rate vs. the full community list.
-
-**Problems to solve:**
-
-1. **Source URL** — we should download from a release asset URL rather than an ad-hoc hardcoded link. GitHub releases are versioned and stable; we can detect when a newer release is available and re-download.
-
-2. **Capitalization** — `rustydemon-cli` lowercases all output filenames on Linux. Our `resolveCI` workaround exists precisely because the listfile (lowercase) and the filesystem paths diverge. Two strategies:
-   - **Keep lowercase** — download `community-listfile.csv`, keep `resolveCI` case-insensitive matching. Current approach; works but `resolveCI` is a performance cost and a source of subtle bugs.
-   - **Use capitalized** — download `community-listfile-withcapitalization.csv`, store extracted files under their canonical WoW names, remove or simplify `resolveCI`. Cleaner long-term; requires ensuring extraction writes files at the capitalized path.
-
-3. **Verified vs. full community** — the verified listfile is a strict subset (only real paths). Using it reduces parse time and raises the hit rate on actual lookups. Downside: it may lag slightly behind new game patches before community verification catches up. Evaluate whether the lag matters in practice.
-
-**Plan:**
-
-1. In `src/assets/extract-core.ts` → `ensureListfile`: switch the download URL to the latest GitHub release of `wowdev/wow-listfile`. Consider using the GitHub releases API (`/repos/wowdev/wow-listfile/releases/latest`) to discover the URL dynamically so we do not need to update the code after every release.
-2. Decide capitalization strategy. Recommended: capitalized (matches WoW canonical paths, simplifies `resolveCI`). If chosen, update `extractRetailPaths` / `extractRetailBulk` to pass the capitalized listfile, and audit `resolveCI` callers.
-3. Update `ensureFilteredListfile` to produce a filtered version of whichever variant is chosen.
-4. Write a short ADR documenting the listfile source choice and capitalization decision.
-
-**Effort:** XS (URL change only); S (URL change + capitalization switch + resolveCI audit).
-
-**See also:** [Listfile fast index](#listfile-fast-index-in-process--post-rustydemon-era) — once a fast index exists, apply the same source/capitalization choice to the index builder.
+**See also:** [Listfile fast index](#listfile-fast-index-in-process--post-rustydemon-era) — apply the same capitalization variant to the index builder when it lands.
 
 ---
 
