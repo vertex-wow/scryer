@@ -98,16 +98,13 @@ export async function extractMissing(paths: string[], opts: ExtractorOptions): P
     return;
   }
   const normalized = paths.map(normalizeForExtraction);
-  safeLog(
-    opts.output,
-    "trace",
-    `notif: Scryer: extracting ${paths.length} file${paths.length === 1 ? "" : "s"}…`,
-  );
+  const notif = "Extracting game assets…";
+  safeLog(opts.output, "trace", `notif: ${notif}`);
   try {
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: `Scryer: extracting ${paths.length} file${paths.length === 1 ? "" : "s"}…`,
+        title: notif,
         cancellable: false,
       },
       () => extractPaths(normalized, makeCoreOpts(opts)),
@@ -131,13 +128,14 @@ export async function extractBlizzardShared(opts: ExtractorOptions): Promise<voi
     );
     return;
   }
-  safeLog(opts.output, "trace", `notif: Scryer: extracting Blizzard shared templates…`);
+  const notif = "Prewarming cache with game assets…";
+  safeLog(opts.output, "trace", `notif: ${notif}`);
   let result: ExtractionResult | undefined;
   try {
     result = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: "Scryer: extracting Blizzard shared templates…",
+        title: notif,
         cancellable: false,
       },
       () => extractBulk("interface", makeCoreOpts(opts)),
