@@ -53,16 +53,16 @@ Benchmarks in this project exist to answer **concrete architectural decisions**,
 
 The table below maps each pipeline stage to its code location, cost driver, and current understanding. **Bold** rows are the ones that matter most to the decision questions in §1.
 
-| Stage                  | Module                                | Cost driver                             | Bottleneck?                                 | Notes                                                                                      |
-| ---------------------- | ------------------------------------- | --------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| **CASC open**          | `rustydemon-cli` (subprocess)         | **CPU: listfile parse (2.17M entries)** | **Yes for per-file use — batch everything** | First call: ~32.7 s. Warm page cache: ~25.3 s. Per-file approach for 102 textures = 47 min |
-| CASC per-file extract  | `rustydemon-cli`                      | BLTE decompress + disk write            | No — fast once open                         | 3,650 files in 5.2 s with j=8 (0.001 s/file); 2,982 texture files in 6.1 s                 |
-| Addon file read        | `fs.promises.readFile`                | Pure I/O                                | No                                          | Confirmed: 0–18 ms for N=100 files                                                         |
-| **BLP DXT decompress** | **`js-blp` `getPixels(0)`**           | **CPU: DXT block decode**               | **Yes — dominant for large textures**       | Rock (513 KB): 3 908 ms. Marble (44 KB): 79 ms. Buttons: 0.2–2.3 ms.                       |
-| PNG zlib compress      | `pngjs` `PNG.sync.write`              | CPU: zlib at default level              | Secondary                                   | Rock: 88 ms (2% of total). Marble: 6 ms. Buttons: < 1.5 ms.                                |
-| Cache write            | `writeCached`, `fs.writeFileSync`     | I/O                                     | No                                          | Rock: 1.3 ms. Trivial.                                                                     |
-| Cache hit              | `getCachedPath`, `fs.accessSync`      | I/O: single stat                        | No                                          | Confirmed: ~2 ms for 11 cached files; effectively free.                                    |
-| Path resolution        | `resolveTexturePath`, `fs.accessSync` | I/O: probes × candidates                | No                                          | Confirmed: 0.07–0.16 ms for 11 paths cold; 0.00–0.01 ms warm (14–90× memoization speedup). |
+| Stage                  | Module                                | Cost driver                             | Bottleneck?                                 | Notes                                                                                                   |
+| ---------------------- | ------------------------------------- | --------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **CASC open**          | `rustydemon-cli` (subprocess)         | **CPU: listfile parse (2.17M entries)** | **Yes for per-file use — batch everything** | rustydemon-cli warm: ~25–29 s. casc-extractor warm: ~15.7 s (1.84× faster). Per-file still ≥ 13 s/call. |
+| CASC per-file extract  | `rustydemon-cli`                      | BLTE decompress + disk write            | No — fast once open                         | 3,650 files in 5.2 s with j=8 (0.001 s/file); 2,982 texture files in 6.1 s                              |
+| Addon file read        | `fs.promises.readFile`                | Pure I/O                                | No                                          | Confirmed: 0–18 ms for N=100 files                                                                      |
+| **BLP DXT decompress** | **`js-blp` `getPixels(0)`**           | **CPU: DXT block decode**               | **Yes — dominant for large textures**       | Rock (513 KB): 3 908 ms. Marble (44 KB): 79 ms. Buttons: 0.2–2.3 ms.                                    |
+| PNG zlib compress      | `pngjs` `PNG.sync.write`              | CPU: zlib at default level              | Secondary                                   | Rock: 88 ms (2% of total). Marble: 6 ms. Buttons: < 1.5 ms.                                             |
+| Cache write            | `writeCached`, `fs.writeFileSync`     | I/O                                     | No                                          | Rock: 1.3 ms. Trivial.                                                                                  |
+| Cache hit              | `getCachedPath`, `fs.accessSync`      | I/O: single stat                        | No                                          | Confirmed: ~2 ms for 11 cached files; effectively free.                                                 |
+| Path resolution        | `resolveTexturePath`, `fs.accessSync` | I/O: probes × candidates                | No                                          | Confirmed: 0.07–0.16 ms for 11 paths cold; 0.00–0.01 ms warm (14–90× memoization speedup).              |
 
 ### Initial baseline (2026-05-27, AMD Ryzen 5 3600X 12-core, 16 GB RAM, Node v24.16.0, WSL2, corpus hash `6eb95a2c`)
 
@@ -247,6 +247,50 @@ The listfile CSV has **2,172,924 entries** (cached at `<cacheRoot>/downloads/lis
 **The fix:** Use `rustydemon-cli -p "{dir1,dir2,...}/**"` brace-glob syntax to extract multiple directories in a single CASC open. The tool supports brace expansion in the `-p` argument (confirmed); it does not support multiple `-p` flags or a `--paths-file` option.
 
 **Implication for architecture:** Any extraction feature (on-demand or batch) must batch all its paths into a single `rustydemon-cli` call. An in-process CASC reader (see [backlog](plan/backlog.md#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli)) would eliminate this listfile-parse overhead entirely.
+
+---
+
+### Q1c: How does casc-extractor compare to rustydemon-cli?
+
+**Answer: casc-extractor is ~1.8–2.2× faster than rustydemon-cli across all scenarios. The architectural conclusion (batch everything; never per-file) remains the same — the bottleneck is listfile parse regardless of tool.**
+
+**Context:** `casc-extractor v0.2.0` (x86_64 Linux binary) was benchmarked head-to-head against `rustydemon-cli` using the same methodology as Q1b: all timings measured from a running Node.js process via `performance.now()`, 1 warmup + 3 measured runs, warm OS page cache.
+
+**Script:** `dev/bench-casc-comparison.mjs` — run with `node dev/bench-casc-comparison.mjs [runs] [warmup]`.
+
+**Key API difference:** casc-extractor's `--filter` matches against listfile paths (all lowercase), whereas rustydemon-cli's `-p` matches against the WoW install tree (mixed case). This is a source-of-truth difference: casc-extractor uses the community listfile as authoritative, so filter patterns must be lowercase to match.
+
+**Measured (2026-05-31, AMD Ryzen 5 3600X 12-core, Node v24.16.0, WSL2, warm page cache, 1 warmup + 3 runs):**
+
+| Scenario                                           | Tool           | Mean       | ±Stddev | CV   | vs other         |
+| -------------------------------------------------- | -------------- | ---------- | ------- | ---- | ---------------- |
+| CASC open (list / dry-run, no writes)              | casc-extractor | **15.7 s** | ±0.1 s  | 0.4% | **1.84× faster** |
+| CASC open (list / dry-run, no writes)              | rustydemon-cli | **28.9 s** | ±0.4 s  | 1.5% | 1.84× slower     |
+| Bulk extract — `Interface/AddOns/**` (8 threads)   | casc-extractor | **15.3 s** | ±0.7 s  | 4.8% | **2.13× faster** |
+| Bulk extract — `Interface/AddOns/**` (8 threads)   | rustydemon-cli | **32.7 s** | ±2.4 s  | 7.5% | 2.13× slower     |
+| Per-file — single file by path (listfile required) | casc-extractor | **13.5 s** | ±0.2 s  | 1.3% | **2.17× faster** |
+| Per-file — single file by path (listfile required) | rustydemon-cli | **29.4 s** | ±0.2 s  | 0.7% | 2.17× slower     |
+
+**Notes:**
+
+- casc-extractor's bulk extract (15.3 s) is essentially the same as its open-only (15.7 s), indicating that extracting 3,650 files with 8 threads adds no measurable wall-clock cost beyond the CASC open — the I/O pipeline is fully hidden by the indexing phase. rustydemon-cli shows ~3.8 s of visible extraction overhead on top of its open cost.
+- Per-file cost is still dominated entirely by CASC open. For 102 textures: casc-extractor ≈ 102 × 13.5 s ≈ **23 minutes**; rustydemon-cli ≈ 102 × 29.4 s ≈ **50 minutes**. Both are completely impractical. The batch-everything conclusion is unchanged.
+- casc-extractor was not measured cold (page cache evicted) in this run. The existing cold measurement for rustydemon-cli (32.7 s) gives a reference; casc-extractor's first observed call at machine start was ~16 s, suggesting a much smaller cold-vs-warm gap, but this was not rigorously controlled.
+- rustydemon-cli's higher CV on bulk extract (7.5% vs 4.8%) reflects the fact that it spends more real time writing files; I/O jitter on the WSL2 `/tmp` ext4 filesystem contributes proportionally more variance.
+- **Both tools were invoked as Node.js child processes** (`child_process.spawn`), matching the real extension context. Spawn overhead (~50 ms) is included but negligible against multi-second operations.
+
+**Critical limitation: casc-extractor does not support compound glob patterns.**
+
+casc-extractor's `--filter` flag accepts only a single pattern per invocation. Neither `{a/**,b/**}` brace expansion nor `--filter a/** --filter b/**` (repeated flags) works — the former silently matches 0 files, the latter is rejected with an error. rustydemon-cli supports brace expansion natively.
+
+The current `extractRetailBulk` in `src/assets/extract-core.ts` batches all globs into one brace-glob call (e.g. `{Interface/Buttons/**,Interface/Common/**,...,Fonts/**}` for `type === "all"`). A casc-extractor migration would require one subprocess per glob pattern:
+
+| Scenario                                 | rustydemon-cli   | casc-extractor (per-glob)                |
+| ---------------------------------------- | ---------------- | ---------------------------------------- |
+| Single glob (e.g. `interface/addons/**`) | ~29 s            | ~15 s — faster                           |
+| 10-glob batch (`type === "all"`)         | ~29 s (one call) | ~135 s (10 × ~13.5 s) — **~4.6× slower** |
+
+**Conclusion:** casc-extractor is faster per-open but cannot compete with rustydemon-cli for multi-glob batches under the current architecture. It becomes viable only if the extension is restructured to issue a single broad glob (e.g. `interface/**` — but that extracts ~169K files vs ~3,700 needed) or if upstream adds multi-filter support.
 
 ---
 
@@ -471,6 +515,21 @@ The `nodeStreamBytes` function in this script is also the reference implementati
 
 A separate benchmark session tested SQLite virtual table extensions (`sqlite-xsv` npm package, `sqlean vsv`), plain INSERT+SELECT approaches (`node:sqlite`, `better-sqlite3`, `@libsql/client`), the `sqlite3` CLI, and CSV-aware CLI tools (`xan`, `xsv`, `qsv`). Results are in Q1b above. The `nodeStreamBytes` implementation from those sessions is preserved as `dev/bench-listfile-filter.mjs` (the committed benchmark script above). The `node:sqlite` built-in (`DatabaseSync`) requires Node ≥ 22.5. None of the tested packages include the SQLite CSV virtual table; it requires a custom build from `ext/misc/csv.c`.
 
+### `dev/bench-casc-comparison.mjs` (CASC tool head-to-head)
+
+Standalone `.mjs` — no build step. Benchmarks `casc-extractor` vs `rustydemon-cli` head-to-head from within a running Node.js process (subprocess spawn cost included).
+
+```bash
+node dev/bench-casc-comparison.mjs [runs] [warmup]
+# defaults: 3 runs, 1 warmup
+```
+
+Config reads from `dev/config.local.json` (`wowDir`, `cascTool`) or env vars `CE_PATH`, `RD_PATH`, `WOW_DIR`, `LISTFILE`.
+
+**Scenarios:** CASC open (list/dry-run, no writes), bulk Interface/AddOns extraction (8 threads), per-file extraction by path.
+
+---
+
 ### `hyperfine` (shell-based extraction)
 
 For benchmarking `rustydemon-cli` / `dev/extract.sh` — whole-process invocations that cannot be timed from inside Node.
@@ -631,22 +690,26 @@ Jest tests run in CI. Benchmark runs depend on `.wow-assets/` (gitignored corpus
 
 ## 8. Long-Term Roadmap
 
-### In-process JS CASC reader vs `rustydemon-cli`
+### In-process JS CASC reader vs external binaries
 
 When the in-process CASC reader is built (see [backlog: In-process JavaScript CASC reader](plan/backlog.md#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli)), the comparison benchmark is:
 
 ```bash
-# Replace extract.sh with the JS reader, then run hyperfine head-to-head:
-hyperfine \
-  --warmup 2 --runs 10 \
-  --export-json dev/bench-casc-comparison.json \
-  'node dist/bench-casc.js --paths-file /tmp/paths-50.txt'        \  # JS reader
-  './dev/extract.sh retail --paths-file /tmp/paths-50.txt'           # rustydemon-cli
+# Compare JS reader against both external binaries:
+node dev/bench-casc-comparison.mjs 5 2
 ```
 
-The result file becomes the evidence in the ADR for "keep external binary vs. go in-process." The ADR should cite the specific commit SHA and `corpusHash` from the benchmark metadata.
+`dev/bench-casc-comparison.mjs` already benchmarks casc-extractor vs rustydemon-cli head-to-head. Extend it with a JS reader scenario when ready. The result becomes the evidence in the ADR for "keep external binary vs. go in-process."
 
-**Acceptable threshold:** if the JS reader is within 2× of `rustydemon-cli`, the trade-off (no install, no listfile, no subprocess) is likely worth it. If it is > 3× slower, the binary may need to stay as a fallback.
+**Acceptable threshold:** if the JS reader is within 2× of `casc-extractor` (the current faster baseline at 15.7 s), the trade-off (no install, no listfile, no subprocess) is likely worth it. If it is > 3× slower than casc-extractor (> ~47 s), the binary may need to stay as a fallback.
+
+**Updated reference baseline (from Q1c, 2026-05-31):**
+
+| Tool                 | CASC open (warm) | Bulk extract (8 threads) |
+| -------------------- | ---------------- | ------------------------ |
+| casc-extractor 0.2.0 | 15.7 s           | 15.3 s                   |
+| rustydemon-cli       | 28.9 s           | 32.7 s                   |
+| JS reader (target)   | < 31 s (2×)      | —                        |
 
 ### BLP decode optimization
 
