@@ -968,29 +968,19 @@ Once M8 (TOC Execution Pipeline) and M9 (Script Events) are complete, the full a
 
 ## Preview settings toolbar
 
-**Status:** 📋 Pending
+**Status:** ✅ Done (2026-05-31)
 
-The preview panel currently has no UI for changing common settings — resolution, UI scale, flavor, ruler visibility. Developers who want to check how an addon looks at 1024×768 vs 1920×1200, or on Classic vs Retail font sizes, must navigate to VS Code settings and edit JSON strings.
+Three quick-switch dropdowns added to the preview status bar (left of zoom), visible in both the static XML panel and the live TOC panel:
 
-**Goal:** A compact toolbar inside the preview panel (above or below the WoW viewport) with direct controls for the most-changed settings.
+| Control    | Type     | Maps to                   | Notes                                                                                                                            |
+| ---------- | -------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Flavor     | Dropdown | `scryer.flavor`           | Options derived from `FLAVOR_INFO` in `build-info.ts`; installed flavors marked `✓` when `installDir` is set                     |
+| Resolution | Dropdown | `scryer.screenResolution` | 13 presets grouped by aspect ratio (16:9 / 16:10 / 21:9 / 4:3); overrides `screenWidth`/`screenHeight`/`uiParentWidth`           |
+| Locale     | Dropdown | `scryer.locale`           | All 13 WoW client locales; feeds `GetLocale()` in the Lua sandbox (live panel only); `title=` per option with full language name |
 
-**Proposed controls (initial set):**
+**Architecture used:** webview sends `{ type: "settingChange"; key; value }` → host writes `vscode.workspace.getConfiguration("scryer").update(...)` → `onDidChangeConfiguration` fires → re-render. Each render echoes back `toolbarState: { flavor, locale, screenResolution }` so dropdowns stay in sync when settings change externally.
 
-| Control           | Type                                                          | Maps to                                                                 |
-| ----------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Screen resolution | Dropdown (1920×1200, 1920×1080, 2560×1440, 1024×768, custom…) | `scryer.flavorConfigPath` override or a new `scryer.resolution` setting |
-| UI scale          | Slider or text input (0.5–2.0)                                | `flavorConfig.frameScale`                                               |
-| Flavor            | Dropdown (Retail, Classic, Classic Era)                       | `scryer.flavor`                                                         |
-| Ruler             | Toggle button                                                 | `scryer.showRuler`                                                      |
-| Run / Stop        | Button                                                        | `scryer.run` / sandbox teardown                                         |
-
-**Architecture notes:**
-
-- The toolbar lives in the webview HTML (not the extension host), so changes are sent as `hostMessage` updates from the webview to the extension. The extension host writes the new value back via workspace settings and re-renders.
-- Alternatively, toolbar controls could emit a `{ type: "settingChange"; key; value }` webview message; the panel's `onDidReceiveMessage` updates the workspace config via `vscode.workspace.getConfiguration("scryer").update(...)`, which fires `onDidChangeConfiguration` and naturally triggers a re-render. This is the cleanest flow.
-- Avoid duplicating the full settings surface — this toolbar is for the settings developers reach for most. Deep configuration still lives in VS Code settings.
-
-**Effort:** S — webview HTML/CSS for the toolbar strip, message protocol additions, and config-write round-trip. Roughly 4–6 hours.
+**Not implemented from original proposal:** UI scale slider (zoom covers visual inspection needs; `frameScale` stays a `flavorConfigPath` concern). Ruler toggle was already in the toolbar. Run/Stop moved to the F5 run mode backlog item.
 
 ---
 

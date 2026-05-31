@@ -7,7 +7,8 @@ import { resolveInheritance } from "./parser/inherit.js";
 import { collectTexturePaths } from "./parser/collect-textures.js";
 import type { FrameIR, TextureIR } from "./parser/ir.js";
 import { resolveFlavorConfig } from "./flavors/config.js";
-import type { HostMessage, Viewport } from "./protocol.js";
+import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
+import type { HostMessage, Viewport, WebviewMessage } from "./protocol.js";
 
 function getNonce(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -187,6 +188,13 @@ export class ScryerPanel {
           this.atlasGenDone = false;
           this.extractionTriedPaths.clear();
         }
+        if (
+          e.affectsConfiguration("scryer.flavor") ||
+          e.affectsConfiguration("scryer.locale") ||
+          e.affectsConfiguration("scryer.screenResolution")
+        ) {
+          void this.renderFile(uri);
+        }
         if (e.affectsConfiguration("scryer.showRuler")) {
           this.updateStatusBar();
           void this.panel.webview.postMessage(this.rulerMessage());
@@ -271,7 +279,7 @@ export class ScryerPanel {
 
   private handleWebviewMessage(message: unknown, uri: vscode.Uri): void {
     if (typeof message !== "object" || !message) return;
-    const msg = message as { type: string; path?: string; atlas?: string };
+    const msg = message as WebviewMessage;
 
     switch (msg.type) {
       case "ready":
@@ -291,8 +299,14 @@ export class ScryerPanel {
         break;
       }
 
+      case "settingChange": {
+        const cfg = vscode.workspace.getConfiguration("scryer");
+        void cfg.update(msg.key, msg.value, vscode.ConfigurationTarget.Workspace);
+        break;
+      }
+
       case "dbg":
-        this.output.trace(`status: ${(message as { type: string; text?: string }).text ?? ""}`);
+        this.output.trace(`status: ${msg.text ?? ""}`);
         break;
     }
   }
@@ -358,8 +372,16 @@ export class ScryerPanel {
     const cfg = vscode.workspace.getConfiguration("scryer");
     const preloadMode = cfg.get<string>("userAddonPreload") ?? "on-demand";
     const flavor = cfg.get<string>("flavor") ?? "retail";
+    const locale = cfg.get<string>("locale") ?? "enUS";
+    const screenResolution = cfg.get<string>("screenResolution") ?? "1920x1080";
     const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
     const flavorConfig = resolveFlavorConfig(flavor, userConfigPath);
+    const [rw, rh] = screenResolution.split("x").map(Number);
+    if (rw && rh) {
+      flavorConfig.screenWidth = rw;
+      flavorConfig.screenHeight = rh;
+      flavorConfig.uiParentWidth = Math.round((flavorConfig.uiParentHeight * rw) / rh);
+    }
 
     // Kick off Blizzard addon file extraction if needed, but don't block the render.
     // isFirstExtraction is only true when extraction hasn't run this session yet — this
@@ -484,6 +506,7 @@ export class ScryerPanel {
         pendingFiles: isFirstExtraction ? texturePaths.length : 0,
         flavorConfig,
         defaultFontUri,
+        toolbarState: { flavor, locale, screenResolution },
       };
 
       void this.panel.webview.postMessage(msg);
@@ -535,11 +558,28 @@ export class ScryerPanel {
 
     const cfg = vscode.workspace.getConfiguration("scryer");
     const flavor = cfg.get<string>("flavor") ?? "retail";
+    const locale = cfg.get<string>("locale") ?? "enUS";
+    const screenResolution = cfg.get<string>("screenResolution") ?? "1920x1080";
     const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
     const c = resolveFlavorConfig(flavor, userConfigPath);
 
     const sbH = c.statusBarHeight;
     const rsz = c.rulerSize;
+    const s = (val: string, target: string) => (val === target ? " selected" : "");
+    const installDir = cfg.get<string>("installDir") ?? "";
+    const installed = new Set(
+      installDir ? listInstalledFlavors(installDir).map((f) => f.flavor) : [],
+    );
+    const flavorOptions = Object.keys(FLAVOR_INFO)
+      .map((key) => {
+        const label = key
+          .split("_")
+          .map((w) => w[0].toUpperCase() + w.slice(1))
+          .join(" ");
+        const mark = installed.has(key) ? " ✓" : "";
+        return `<option value="${key}"${s(flavor, key)}>${label}${mark}</option>`;
+      })
+      .join("\n      ");
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -558,9 +598,14 @@ export class ScryerPanel {
     .toolbar-btn.active{background:rgba(74,158,255,0.12);opacity:1;box-shadow:inset 0 -2px 0 #4a9eff}
     .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(0.85);display:inline-block}
     .toolbar-btn:hover .ruler-icon,.toolbar-btn.active .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(1.15)}
-    #zoom-select{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;height:${sbH}px;padding:0 4px;color:${c.statusBarColor};font:${c.statusBarFont};outline:none;opacity:0.7;min-width:62px}
-    #zoom-select:hover{background:rgba(255,255,255,0.07);opacity:1}
-    #zoom-select option{background:${c.statusBarBg};color:${c.statusBarColor}}
+    #zoom-select,#flavor-select,#resolution-select,#locale-select{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;height:${sbH}px;padding:0 4px;color:${c.statusBarColor};font:${c.statusBarFont};outline:none;opacity:0.7}
+    #zoom-select{min-width:62px}
+    #flavor-select{min-width:72px}
+    #resolution-select{min-width:70px}
+    #locale-select{min-width:44px}
+    #zoom-select:hover,#flavor-select:hover,#resolution-select:hover,#locale-select:hover{background:rgba(255,255,255,0.07);opacity:1}
+    #zoom-select option,#flavor-select option,#resolution-select option,#locale-select option{background:${c.statusBarBg};color:${c.statusBarColor}}
+    #flavor-select option:disabled,#resolution-select option:disabled{opacity:0.45;font-style:italic}
     #debug{padding:0 4px;white-space:pre-wrap}
     #ruler-top{position:fixed;top:${sbH}px;left:0;right:0;height:${rsz}px;z-index:9999;display:none}
     #ruler-left{position:fixed;top:${sbH}px;left:0;bottom:0;width:${rsz}px;z-index:9999;display:none}
@@ -577,6 +622,42 @@ export class ScryerPanel {
     <button id="grab-toggle" class="toolbar-btn" title="Grab — pan and zoom (drag · middle-drag · space-drag · ctrl+scroll · ctrl+0 fit · ctrl+shift+0 reset)"><svg width="12" height="13" viewBox="0 0 12 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="2" width="2" height="6" rx="1"/><rect x="4" y="0" width="2" height="8" rx="1"/><rect x="7" y="0" width="2" height="8" rx="1"/><rect x="10" y="2" width="2" height="6" rx="1"/><rect x="0" y="7" width="12" height="6" rx="2"/></svg></button>
     <button id="interact-toggle" class="toolbar-btn" title="Interact — normal mouse cursor"><svg width="10" height="13" viewBox="0 0 10 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><polygon points="0,0 0,10 2.5,7.5 4.5,12.5 6,12 4,7 7.5,7"/></svg></button>
     <button id="recenter-btn" class="toolbar-btn" title="Re-center canvas"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="2.8"/><line x1="6.5" y1="0.5" x2="6.5" y2="3.7"/><line x1="6.5" y1="9.3" x2="6.5" y2="12.5"/><line x1="0.5" y1="6.5" x2="3.7" y2="6.5"/><line x1="9.3" y1="6.5" x2="12.5" y2="6.5"/></svg></button>
+    <select id="flavor-select" title="WoW flavor (✓ = installed)">
+      ${flavorOptions}
+    </select>
+    <select id="resolution-select" title="Screen resolution">
+      <option disabled>=16:9=</option>
+      <option value="1280x720"${s(screenResolution, "1280x720")}>1280x720</option>
+      <option value="1920x1080"${s(screenResolution, "1920x1080")}>1920x1080</option>
+      <option value="2560x1440"${s(screenResolution, "2560x1440")}>2560x1440</option>
+      <option value="3840x2160"${s(screenResolution, "3840x2160")}>3840x2160</option>
+      <option disabled>=16:10=</option>
+      <option value="1440x900"${s(screenResolution, "1440x900")}>1440x900</option>
+      <option value="1920x1200"${s(screenResolution, "1920x1200")}>1920x1200</option>
+      <option value="2560x1600"${s(screenResolution, "2560x1600")}>2560x1600</option>
+      <option disabled>=21:9=</option>
+      <option value="1720x720"${s(screenResolution, "1720x720")}>1720x720</option>
+      <option value="2580x1080"${s(screenResolution, "2580x1080")}>2580x1080</option>
+      <option value="3440x1440"${s(screenResolution, "3440x1440")}>3440x1440</option>
+      <option disabled>=4:3=</option>
+      <option value="800x600"${s(screenResolution, "800x600")}>800x600</option>
+      <option value="1024x768"${s(screenResolution, "1024x768")}>1024x768</option>
+    </select>
+    <select id="locale-select" title="WoW locale (GetLocale)">
+      <option value="enUS" title="English (US)"${s(locale, "enUS")}>enUS</option>
+      <option value="enGB" title="English (GB)"${s(locale, "enGB")}>enGB</option>
+      <option value="deDE" title="German"${s(locale, "deDE")}>deDE</option>
+      <option value="frFR" title="French"${s(locale, "frFR")}>frFR</option>
+      <option value="esES" title="Spanish (Spain)"${s(locale, "esES")}>esES</option>
+      <option value="esMX" title="Spanish (Latin America)"${s(locale, "esMX")}>esMX</option>
+      <option value="ptBR" title="Portuguese (Brazil)"${s(locale, "ptBR")}>ptBR</option>
+      <option value="ptPT" title="Portuguese (Portugal)"${s(locale, "ptPT")}>ptPT</option>
+      <option value="ruRU" title="Russian"${s(locale, "ruRU")}>ruRU</option>
+      <option value="koKR" title="Korean"${s(locale, "koKR")}>koKR</option>
+      <option value="zhTW" title="Traditional Chinese"${s(locale, "zhTW")}>zhTW</option>
+      <option value="zhCN" title="Simplified Chinese"${s(locale, "zhCN")}>zhCN</option>
+      <option value="itIT" title="Italian"${s(locale, "itIT")}>itIT</option>
+    </select>
     <select id="zoom-select" title="Zoom level">
       <option value="fit">Fit</option>
       <option value="25">25%</option>

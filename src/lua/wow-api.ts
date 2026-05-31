@@ -529,6 +529,8 @@ export interface WowApiOptions {
   isAddonLoaded?: (name: string) => boolean;
   /** Returns TOC metadata for a loaded addon. Defaults to null. */
   getAddonMetadata?: (name: string, key: string) => string | null;
+  /** Locale code returned by GetLocale(). Defaults to "enUS". */
+  locale?: string;
   /** Atlas manifest for C_Texture.GetAtlasInfo. When provided, atlas lookups return full sprite data. */
   atlasManifest?: Record<
     string,
@@ -636,7 +638,7 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     -- Game state C APIs — return fixed values for the static preview context.
     function UnitRace() return "Human", "Human" end
     function UnitSex() return 2 end
-    function GetLocale() return "enUS" end
+    function GetLocale() return "${opts.locale ?? "enUS"}" end
 
     -- SlashCmdList is a C-layer-seeded global; addons append to it.
     if SlashCmdList == nil then SlashCmdList = {} end

@@ -38,7 +38,54 @@ Which WoW flavor to use for asset extraction and display defaults.
 | `classic`     | Classic (MoP)     |
 | `classic_era` | Classic Era       |
 
-Change flavors at any time with the **Scryer: Select Flavor** command.
+Change flavors at any time with the **Scryer: Select Flavor** command or the flavor dropdown in the preview toolbar.
+
+---
+
+## Locale
+
+### `scryer.locale`
+
+**Default:** `enUS`
+
+The WoW locale returned by `GetLocale()` in addon Lua code. Affects any addon logic that branches on region — localized strings, layout adjustments, feature flags.
+
+| Value  | Language                |
+| ------ | ----------------------- |
+| `enUS` | English (US)            |
+| `enGB` | English (GB)            |
+| `deDE` | German                  |
+| `frFR` | French                  |
+| `esES` | Spanish (Spain)         |
+| `esMX` | Spanish (Latin America) |
+| `ptBR` | Portuguese (Brazil)     |
+| `ptPT` | Portuguese (Portugal)   |
+| `ruRU` | Russian                 |
+| `koKR` | Korean                  |
+| `zhTW` | Traditional Chinese     |
+| `zhCN` | Simplified Chinese      |
+| `itIT` | Italian                 |
+
+Changeable from the preview toolbar without closing the panel. Only affects the live TOC panel (where Lua runs); the static XML panel does not execute Lua.
+
+---
+
+## Screen Resolution
+
+### `scryer.screenResolution`
+
+**Default:** `1920x1080`
+
+Physical monitor resolution for the preview. Overrides `screenWidth` and `screenHeight` from the flavor config and recalculates `uiParentWidth` via the WoW aspect-ratio formula (`round(768 × width / height)`).
+
+| Aspect | Presets                                           |
+| ------ | ------------------------------------------------- |
+| 16:9   | `1280x720`, `1920x1080`, `2560x1440`, `3840x2160` |
+| 16:10  | `1440x900`, `1920x1200`, `2560x1600`              |
+| 21:9   | `1720x720`, `2580x1080`, `3440x1440`              |
+| 4:3    | `800x600`, `1024x768`                             |
+
+Changeable from the preview toolbar. For a non-preset resolution or per-flavor override, set `screenWidth`/`screenHeight` in `scryer.flavorConfigPath` instead — that takes precedence.
 
 ---
 

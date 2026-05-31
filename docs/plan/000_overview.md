@@ -283,11 +283,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#preview-settings-toolbar">Preview settings toolbar</a></td>
-  <td>📋 Pending</td>
-  <td>In-panel toolbar for quick access to common settings: resolution, scale, flavor</td>
-  <td>S</td>
-  <td>—</td>
+  <td colspan="5">✅ <a href="backlog.md#preview-settings-toolbar">Preview settings toolbar</a></td>
 </tr>
 <tr>
   <td>↳</td>

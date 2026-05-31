@@ -79,12 +79,14 @@ Extracted textures are cached as PNGs so subsequent previews load instantly. The
 
 The key defaults out of the box:
 
-| Setting                   | Default                         | Description                                                       |
-| ------------------------- | ------------------------------- | ----------------------------------------------------------------- |
-| `scryer.flavor`           | `retail`                        | WoW flavor for asset extraction                                   |
-| `scryer.cacheLocation`    | `global`                        | Cache stored in VS Code global storage (shared across workspaces) |
-| `scryer.startupContent`   | `all-templates-shared-textures` | All templates + shared BLPs decoded to PNG cache at startup       |
-| `scryer.userAddonPreload` | `current-file`                  | Pre-warm textures for the current file as you type                |
+| Setting                   | Default                         | Description                                                        |
+| ------------------------- | ------------------------------- | ------------------------------------------------------------------ |
+| `scryer.flavor`           | `retail`                        | WoW flavor for asset extraction                                    |
+| `scryer.locale`           | `enUS`                          | Locale returned by `GetLocale()` — switch from the preview toolbar |
+| `scryer.screenResolution` | `1920x1080`                     | Preview screen resolution — switch from the preview toolbar        |
+| `scryer.cacheLocation`    | `global`                        | Cache stored in VS Code global storage (shared across workspaces)  |
+| `scryer.startupContent`   | `all-templates-shared-textures` | All templates + shared BLPs decoded to PNG cache at startup        |
+| `scryer.userAddonPreload` | `current-file`                  | Pre-warm textures for the current file as you type                 |
 
 For the complete settings reference — cache options, per-flavor display overrides, CASC tool paths, preload tiers, and more — see **[docs/configuration.md](docs/configuration.md)**.
 

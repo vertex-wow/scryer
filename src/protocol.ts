@@ -8,6 +8,12 @@ export interface Viewport {
   h: number;
 }
 
+export interface ToolbarState {
+  flavor: string;
+  locale: string;
+  screenResolution: string;
+}
+
 // Extension host → webview
 export type HostMessage =
   | {
@@ -20,6 +26,7 @@ export type HostMessage =
       flavorConfig: ResolvedFlavorConfig;
       /** Webview URI for the default font file, if it was resolved from the asset cache. */
       defaultFontUri?: string;
+      toolbarState: ToolbarState;
     }
   | {
       type: "reload";
@@ -30,6 +37,7 @@ export type HostMessage =
       pendingFiles: number;
       flavorConfig: ResolvedFlavorConfig;
       defaultFontUri?: string;
+      toolbarState: ToolbarState;
     }
   | { type: "assetResolved"; path: string; uri: string }
   | { type: "fontResolved"; uri: string }
@@ -47,4 +55,5 @@ export type WebviewMessage =
       frameId: number;
       event: "OnClick" | "OnEnter" | "OnLeave";
       extra?: unknown[];
-    };
+    }
+  | { type: "settingChange"; key: "flavor" | "locale" | "screenResolution"; value: string };

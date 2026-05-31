@@ -31,6 +31,9 @@ let canvasMode: CanvasMode = "grab";
 const grabBtn = document.getElementById("grab-toggle");
 const interactBtn = document.getElementById("interact-toggle");
 const zoomSelect = document.getElementById("zoom-select") as HTMLSelectElement | null;
+const flavorSelect = document.getElementById("flavor-select") as HTMLSelectElement | null;
+const resolutionSelect = document.getElementById("resolution-select") as HTMLSelectElement | null;
+const localeSelect = document.getElementById("locale-select") as HTMLSelectElement | null;
 
 const ZOOM_PRESETS = [25, 50, 75, 100, 150, 200, 400];
 
@@ -238,6 +241,22 @@ zoomSelect?.addEventListener("change", () => {
       zoomAt(pct / 100, cx, cy);
     }
   }
+});
+
+flavorSelect?.addEventListener("change", () => {
+  vscode.postMessage({ type: "settingChange", key: "flavor", value: flavorSelect.value });
+});
+
+resolutionSelect?.addEventListener("change", () => {
+  vscode.postMessage({
+    type: "settingChange",
+    key: "screenResolution",
+    value: resolutionSelect.value,
+  });
+});
+
+localeSelect?.addEventListener("change", () => {
+  vscode.postMessage({ type: "settingChange", key: "locale", value: localeSelect.value });
 });
 
 // ---------------------------------------------------------------------------
@@ -448,6 +467,9 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
     case "render":
     case "reload": {
       dbg(`received ${msg.frames.length} frame${msg.frames.length === 1 ? "" : "s"}`);
+      if (flavorSelect) flavorSelect.value = msg.toolbarState.flavor;
+      if (resolutionSelect) resolutionSelect.value = msg.toolbarState.screenResolution;
+      if (localeSelect) localeSelect.value = msg.toolbarState.locale;
       try {
         if (msg.defaultFontUri) applyDefaultFont(msg.defaultFontUri);
         viewport!.innerHTML = "";

@@ -165,6 +165,45 @@
           "default": "retail",
           "description": "WoW flavor for on-demand texture extraction (retail | classic | classic_era)"
         },
+        "scryer.locale": {
+          "type": "string",
+          "enum": [
+            "enUS",
+            "enGB",
+            "deDE",
+            "frFR",
+            "esES",
+            "esMX",
+            "ptBR",
+            "ptPT",
+            "ruRU",
+            "koKR",
+            "zhTW",
+            "zhCN",
+            "itIT"
+          ],
+          "default": "enUS",
+          "description": "WoW locale returned by GetLocale(). Affects addon code that branches on region."
+        },
+        "scryer.screenResolution": {
+          "type": "string",
+          "enum": [
+            "800x600",
+            "1024x768",
+            "1280x720",
+            "1720x720",
+            "1920x1080",
+            "2560x1440",
+            "3840x2160",
+            "1440x900",
+            "1920x1200",
+            "2560x1600",
+            "2580x1080",
+            "3440x1440"
+          ],
+          "default": "1920x1080",
+          "description": "Physical monitor resolution for the preview. Determines UIParent dimensions via the WoW aspect-ratio formula."
+        },
         "scryer.startupContent": {
           "type": "string",
           "enum": [
