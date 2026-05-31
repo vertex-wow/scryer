@@ -159,10 +159,11 @@ export function activate(context: vscode.ExtensionContext): void {
       "all-templates-textures": "all Blizzard templates loaded, all textures queued for pre-warm",
     };
     void Promise.resolve().then(async () => {
-      assets.loadBlizzardTemplates();
       output.info(
         `cache-warmup: ${TIER_LABEL[startupContent] ?? startupContent} (startupContent=${startupContent})`,
       );
+      await assets.ensureBlizzardFiles();
+      assets.loadBlizzardTemplates();
       if (cancelled) return;
       if (tierIdx >= TIER_ORDER.indexOf("all-templates-shared-textures")) {
         await assets.prewarmBlizzardTextures(SHARED_ADDON_NAMES);

@@ -72,8 +72,10 @@ export class AssetService {
   private readonly opts: AssetServiceOptions;
   /** In-flight promises keyed by rawPath to avoid duplicate concurrent decodes. */
   private readonly inflight = new Map<string, Promise<string | null>>();
-  /** Set once the Blizzard addon file discovery+extraction pass has run. Cleared by invalidate(). */
-  private blizzardFilesEnsured = false;
+  /** In-flight or completed promise for the Blizzard file check/extraction pass. */
+  private blizzardFilesPromise: Promise<boolean> | null = null;
+  /** True once blizzardFilesPromise has settled — tells the panel it can skip pending state. */
+  private blizzardFilesSettled = false;
   /** Set once the atlas manifest generation pass has run (or been skipped). Cleared by invalidate(). */
   private atlasManifestEnsured = false;
   /** Paths for which a one-shot extraction has already been attempted this session. */
@@ -94,15 +96,16 @@ export class AssetService {
   invalidate(): void {
     clearResolutionMemo();
     this.inflight.clear();
-    this.blizzardFilesEnsured = false;
+    this.blizzardFilesPromise = null;
+    this.blizzardFilesSettled = false;
     this.atlasManifestEnsured = false;
     clearRegistryCache(this.opts.registryDir);
   }
 
-  /** Returns true if ensureBlizzardFiles() has already been initiated this session.
-   * Used by the panel to skip the "pending" UI state on re-opens when extraction is settled. */
+  /** Returns true once ensureBlizzardFiles() has fully settled (not just initiated).
+   * Used by the panel to skip the "pending" UI state when extraction is already complete. */
   hasBlizzardExtractionRun(): boolean {
-    return this.blizzardFilesEnsured;
+    return this.blizzardFilesSettled;
   }
 
   /** Returns true if ensureAtlasManifest() has already run (or been skipped) this session. */
@@ -111,7 +114,7 @@ export class AssetService {
   }
 
   /** Invalidate resolution memo and registry cache after new Blizzard files land on disk.
-   * Unlike invalidate(), preserves blizzardFilesEnsured so extraction is not re-triggered
+   * Unlike invalidate(), preserves blizzardFilesPromise so extraction is not re-triggered
    * on the next panel open — the extraction pass is settled for this session. */
   invalidateAfterBlizzardExtraction(): void {
     clearResolutionMemo();
@@ -121,7 +124,7 @@ export class AssetService {
 
   /** Lighter invalidation for post-texture-extraction retries: clears the resolution memo
    * so newly extracted files are picked up, but leaves the Blizzard registry cache and
-   * blizzardFilesEnsured intact so addon extraction is not re-triggered. */
+   * blizzardFilesPromise intact so addon extraction is not re-triggered. */
   invalidateTextures(): void {
     clearResolutionMemo();
     this.inflight.clear();
@@ -298,44 +301,56 @@ export class AssetService {
    * produced no new files — so the caller does not loop.
    */
   async ensureBlizzardFiles(): Promise<boolean> {
-    if (this.blizzardFilesEnsured || !this.opts.sourceDir) return false;
-    this.blizzardFilesEnsured = true; // set early to prevent concurrent calls
+    if (!this.opts.sourceDir) return false;
+    if (this.blizzardFilesPromise) return this.blizzardFilesPromise;
+    this.blizzardFilesPromise = this._doEnsureBlizzardFiles();
+    return this.blizzardFilesPromise;
+  }
 
-    const addonsDir = resolveAddonsDir(this.opts.sourceDir);
-    const missingAddons = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
-    const fontsDir = path.join(this.opts.sourceDir, "Fonts");
-    const fontsMissing = !fs.existsSync(fontsDir);
+  private async _doEnsureBlizzardFiles(): Promise<boolean> {
+    try {
+      const addonsDir = resolveAddonsDir(this.opts.sourceDir);
+      const missingAddons = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
+      const fontsDir = resolveCI(this.opts.sourceDir, "Fonts");
+      const fontsMissing = !fs.existsSync(fontsDir);
 
-    if (missingAddons.length === 0 && !fontsMissing) {
+      if (missingAddons.length === 0 && !fontsMissing) {
+        try {
+          this.opts.output.info(`  cache-hit: shared templates found`);
+        } catch {
+          /* channel disposed */
+        }
+        return false;
+      }
+
+      const missingCount = missingAddons.length + (fontsMissing ? 1 : 0);
       try {
-        this.opts.output.info(`cache-hit: shared templates found`);
+        this.opts.output.info(
+          `assets-start-extraction: shared templates (${missingCount} types missing)`,
+        );
+        for (const p of missingAddons) this.opts.output.debug(`  missing: ${p}`);
+        if (fontsMissing) this.opts.output.debug(`  missing: Fonts/`);
       } catch {
         /* channel disposed */
       }
-      return false;
-    }
+      await extractBlizzardShared({
+        flavor: this.opts.flavor,
+        outDir: this.opts.sourceDir,
+        wowDir: this.opts.installDir,
+        cascToolPath: this.opts.cascToolPath,
+        listfileDir: this.downloadsDir,
+        output: this.opts.output,
+      });
+      this.writeBuildStampIfConfigured();
 
-    const missingCount = missingAddons.length + (fontsMissing ? 1 : 0);
-    try {
-      this.opts.output.info(`assets-start-extraction: shared templates (${missingCount} missing)`);
-    } catch {
-      /* channel disposed */
+      // Re-check: only signal re-render if extraction actually produced new files.
+      // If it didn't (no script, failed extraction, etc.) we stop here rather than loop.
+      const afterAddons = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
+      const afterFontsMissing = !fs.existsSync(fontsDir);
+      return afterAddons.length < missingAddons.length || (fontsMissing && !afterFontsMissing);
+    } finally {
+      this.blizzardFilesSettled = true;
     }
-    await extractBlizzardShared({
-      flavor: this.opts.flavor,
-      outDir: this.opts.sourceDir,
-      wowDir: this.opts.installDir,
-      cascToolPath: this.opts.cascToolPath,
-      listfileDir: this.downloadsDir,
-      output: this.opts.output,
-    });
-    this.writeBuildStampIfConfigured();
-
-    // Re-check: only signal re-render if extraction actually produced new files.
-    // If it didn't (no script, failed extraction, etc.) we stop here rather than loop.
-    const afterAddons = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
-    const afterFontsMissing = !fs.existsSync(fontsDir);
-    return afterAddons.length < missingAddons.length || (fontsMissing && !afterFontsMissing);
   }
 
   /**

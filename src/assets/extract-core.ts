@@ -291,18 +291,12 @@ async function extractRetailBulk(
   const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
   opts.log?.(`assets-extraction: "${opts.flavor}/${type}" → global cache "${shortOut}"`);
 
-  const totals: ExtractionResult = { exported: 0, skippedExists: 0, errors: 0 };
-  for (const glob of globs) {
-    const r = await spawnRustydemon(
-      cascTool,
-      ["export", "-a", opts.wowDir, "-p", glob, "-l", listfilePath, "-o", opts.outDir],
-      opts.log,
-    );
-    totals.exported += r.exported;
-    totals.skippedExists += r.skippedExists;
-    totals.errors += r.errors;
-  }
-  return totals;
+  const pattern = globs.length === 1 ? globs[0] : `{${globs.join(",")}}`;
+  return spawnRustydemon(
+    cascTool,
+    ["export", "-a", opts.wowDir, "-p", pattern, "-l", listfilePath, "-o", opts.outDir],
+    opts.log,
+  );
 }
 
 // ---------------------------------------------------------------------------

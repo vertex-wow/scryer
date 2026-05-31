@@ -305,16 +305,16 @@ export class ScryerPanel {
     this.missingPaths.clear();
     if (batch.size === 0) return;
 
-    await this.assets.extractMissing(Array.from(batch.keys()));
-    // Use lightweight invalidation: picks up newly extracted files without resetting
-    // blizzardFilesEnsured or the registry cache, preventing a re-extraction loop.
-    this.assets.invalidateTextures();
-
     this.retryInProgress = true;
     try {
+      await this.assets.extractMissing(Array.from(batch.keys()));
+      // Use lightweight invalidation: picks up newly extracted files without resetting
+      // blizzardFilesPromise or the registry cache, preventing a re-extraction loop.
+      this.assets.invalidateTextures();
       await Promise.all(
         Array.from(batch).map(([rawPath, addonDir]) => this.resolveAndSendAsset(rawPath, addonDir)),
       );
+      this.output.debug(`#3: textures resolved (${batch.size} extracted)`);
     } finally {
       this.retryInProgress = false;
       // Mark all attempted paths so future re-renders don't re-queue them.
@@ -322,7 +322,7 @@ export class ScryerPanel {
     }
   }
 
-  async renderFile(uri: vscode.Uri): Promise<void> {
+  async renderFile(uri: vscode.Uri, reason?: string): Promise<void> {
     // Reset missing-path state for the new render cycle.
     if (this.extractDebounce !== undefined) {
       clearTimeout(this.extractDebounce);
@@ -335,8 +335,24 @@ export class ScryerPanel {
     const flavor = cfg.get<string>("flavor") ?? "retail";
     const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
     const flavorConfig = resolveFlavorConfig(flavor, userConfigPath);
+
+    // Kick off Blizzard addon file extraction if needed, but don't block the render.
+    // isFirstExtraction is only true when extraction hasn't run this session yet — this
+    // prevents "pending" UI and a redundant re-render on subsequent panel opens where
+    // the shared AssetService already settled which files are present.
+    // Log prefix: #1 = no cache, all placeholders (Blizzard extraction in-flight),
+    //             #2 = shared templates ready, texture placeholders for missing assets,
+    //             #3 = no placeholders, all textures resolved (logged in runExtractAndRetry).
+    const isFirstExtraction =
+      !this.blizzardExtractionDone && !this.assets.hasBlizzardExtractionRun();
+    const rn = isFirstExtraction ? "#1" : "#2";
+    this.output.debug(
+      isFirstExtraction
+        ? `${rn}: no cache — all placeholders`
+        : `${rn}: shared templates ready${reason ? ` (${reason})` : ""}`,
+    );
     this.output.trace(
-      `param viewport: UIParent ${flavorConfig.uiParentWidth}×${flavorConfig.uiParentHeight} (screen ${flavorConfig.screenWidth}×${flavorConfig.screenHeight})`,
+      `${rn}:   param viewport: UIParent ${flavorConfig.uiParentWidth}×${flavorConfig.uiParentHeight} (screen ${flavorConfig.screenWidth}×${flavorConfig.screenHeight})`,
     );
 
     try {
@@ -352,13 +368,6 @@ export class ScryerPanel {
         content = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf-8");
       }
       const doc = parseXmlFile(uri.fsPath, content);
-
-      // Kick off Blizzard addon file extraction if needed, but don't block the render.
-      // isFirstExtraction is only true when extraction hasn't run this session yet — this
-      // prevents "pending" UI and a redundant re-render on subsequent panel opens where
-      // the shared AssetService already settled which files are present.
-      const isFirstExtraction =
-        !this.blizzardExtractionDone && !this.assets.hasBlizzardExtractionRun();
       if (!this.blizzardExtractionDone) {
         void this.assets.ensureBlizzardFiles().then((extracted) => {
           this.blizzardExtractionDone = true;
@@ -370,7 +379,7 @@ export class ScryerPanel {
           }
           // Re-render to flip pending state or pick up newly extracted templates.
           // Skipped when isFirstExtraction was false (files already known present).
-          if (isFirstExtraction) void this.renderFile(uri);
+          if (isFirstExtraction) void this.renderFile(uri, "Blizzard extraction settled");
         });
       }
 
@@ -379,14 +388,14 @@ export class ScryerPanel {
       if (!this.atlasGenDone && !this.assets.hasAtlasManifestRun()) {
         this.atlasGenDone = true;
         void this.assets.ensureAtlasManifest().then((generated) => {
-          if (generated) void this.renderFile(uri);
+          if (generated) void this.renderFile(uri, "atlas manifest ready");
         });
       }
 
       // Load Blizzard template registry (disk-cached; fast after first parse).
       const blizzardRegistry = this.assets.loadBlizzardTemplates();
       this.output.debug(
-        `  Blizzard registry: ${blizzardRegistry.size} template${blizzardRegistry.size === 1 ? "" : "s"}`,
+        `${rn}:   Blizzard registry: ${blizzardRegistry.size} template${blizzardRegistry.size === 1 ? "" : "s"}`,
       );
 
       const warnCb = (msg: string) => this.output.warn(msg);
@@ -409,12 +418,12 @@ export class ScryerPanel {
       const texturePaths = collectTexturePaths(renderFrames);
 
       this.output.debug(
-        `  Render: ${renderFrames.length} frame${renderFrames.length === 1 ? "" : "s"}, ${texturePaths.length} texture${texturePaths.length === 1 ? "" : "s"}`,
+        `${rn}:   Render: ${renderFrames.length} frame${renderFrames.length === 1 ? "" : "s"}, ${texturePaths.length} texture${texturePaths.length === 1 ? "" : "s"}`,
       );
       for (const frame of renderFrames) {
         if (frame.templateChain.length > 0) {
           this.output.debug(
-            `  ${frame.name ?? "<anonymous>"}: inherits [${frame.templateChain.filter(Boolean).join(" → ")}]`,
+            `${rn}:   ${frame.name ?? "<anonymous>"}: inherits [${frame.templateChain.filter(Boolean).join(" → ")}]`,
           );
         }
       }
