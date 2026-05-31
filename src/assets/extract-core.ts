@@ -15,6 +15,7 @@ import * as fs from "fs";
 import * as http from "http";
 import * as https from "https";
 import * as path from "path";
+import { readBuildText } from "./build-info.js";
 
 export type Flavor = "retail" | "classic" | "classic_era";
 export type ExtractType = "textures" | "interface" | "all";
@@ -144,24 +145,46 @@ function filterListfile(
 }
 
 /**
- * Ensure a pre-filtered listfile containing only interface/ entries is present.
- * Regenerated whenever listfile.csv is newer than the filtered copy.
+ * Ensure a pre-filtered listfile containing only Interface/ and Fonts/ entries is present.
+ *
+ * When buildText is provided: skip filtering if listfile-templates.stamp matches — one filter
+ * per WoW patch cycle regardless of how many times listfile.csv is re-downloaded. Writes the
+ * stamp after a successful filter run.
+ *
+ * When buildText is absent (installDir not configured): fall back to mtime comparison so users
+ * without a WoW install still get correct behaviour.
+ *
  * Returns the absolute path to listfile-templates.csv.
  */
 export async function ensureFilteredListfile(
   listfileDir: string,
   log?: (line: string) => void,
+  buildText?: string,
 ): Promise<string> {
   const fullPath = await ensureListfile(listfileDir, log);
   const filteredPath = path.join(listfileDir, "listfile-templates.csv");
+  const stampPath = path.join(listfileDir, "listfile-templates.stamp");
 
-  const filteredStat = fs.existsSync(filteredPath) ? fs.statSync(filteredPath) : null;
-  if (filteredStat) {
-    const fullStat = fs.statSync(fullPath);
-    if (filteredStat.mtimeMs >= fullStat.mtimeMs) return filteredPath;
+  if (buildText) {
+    if (fs.existsSync(filteredPath)) {
+      let stamp: string | null = null;
+      try {
+        stamp = fs.readFileSync(stampPath, "utf8").trim();
+      } catch {
+        // stamp absent — filter needed
+      }
+      if (stamp === buildText) return filteredPath;
+    }
+  } else {
+    const filteredStat = fs.existsSync(filteredPath) ? fs.statSync(filteredPath) : null;
+    if (filteredStat) {
+      const fullStat = fs.statSync(fullPath);
+      if (filteredStat.mtimeMs >= fullStat.mtimeMs) return filteredPath;
+    }
   }
 
   await filterListfile(fullPath, filteredPath, log);
+  if (buildText) fs.writeFileSync(stampPath, buildText, "utf8");
   return filteredPath;
 }
 
@@ -291,7 +314,8 @@ async function extractRetailBulk(
   opts: ExtractCoreOptions,
 ): Promise<ExtractionResult> {
   const cascTool = findCascTool(opts.cascToolPath);
-  const listfilePath = await ensureFilteredListfile(opts.listfileDir, opts.log);
+  const buildText = readBuildText(opts.wowDir, opts.flavor) ?? undefined;
+  const listfilePath = await ensureFilteredListfile(opts.listfileDir, opts.log, buildText);
   await fs.promises.mkdir(opts.outDir, { recursive: true });
 
   const globs = [

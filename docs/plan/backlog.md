@@ -260,7 +260,7 @@ See [measurements.md Q1b](../measurements.md#q1b-how-fast-can-we-pre-filter-list
 
 ## Filtered listfile build-version stamping
 
-**Status: 📋 Pending**
+**Status: Done** (2026-05-31)
 
 **Background:** `ensureFilteredListfile` (added in the Listfile pre-filter item) runs `grep -F ';interface/'` to produce `listfile-interface.csv` whenever `listfile.csv` is newer. This pays the grep cost once per download, which is ~110 ms and already cheap. However, the validity of the filtered file is coupled only to file mtimes — if `listfile.csv` is re-downloaded for any reason (manual refresh, future CDN change, migration to per-release URLs), the filter re-runs unnecessarily even when the underlying WoW build is identical.
 
