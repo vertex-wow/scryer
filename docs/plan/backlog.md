@@ -99,26 +99,31 @@ Three tests added in `test/webview/layout.test.ts`: sibling resolution via `$par
 
 ## In-app asset setup guidance for end users (deferred from M3)
 
-**Problem:** When a user opens a WoW XML file with Scryer and has no extracted assets in the cacheRoot, all textures show as colored placeholders with no explanation. There is nothing in the UI telling them how to get real textures.
+**Status: Done** (2026-05-31)
 
-**Plan:**
+**What was built:**
 
-On first render (or when asset requests return nothing for every texture in the file), show a one-time notification:
+On activation, `maybeShowSetupNotice()` in `extension.ts` fires a one-time `showInformationMessage` when the user has no usable extraction setup:
 
-```
-Scryer: No extracted assets found.
-To see real WoW textures, run dev/extract.sh to populate the asset cache,
-or configure scryer.cacheLocation / scryer.cacheDir. [Open Settings] [Learn More]
-```
+- Skipped if `scryer.installDir` is set AND `rustydemon-cli` is available (PATH or `scryer.cascToolPath`) — extraction will run automatically on first panel open.
+- Skipped if `<sourceDir>/Interface/` already exists on disk (prior extraction ran).
+- Gated by `workspaceState("scryer.assetSetupNoticeSeen")` — shown once per workspace, never re-nags.
 
-- "Open Settings" → `vscode.commands.executeCommand('workbench.action.openSettings', 'scryer.cacheLocation')`.
-- "Learn More" → link to a docs page or the README section on extraction.
-- Show once per workspace (persist seen-flag in `context.workspaceState`), not on every open.
-- Do not show if `<cacheRoot>/source/Interface/` is already populated.
+Message text is conditioned on what's missing:
 
-The output channel already logs per-path warnings; this is a higher-visibility one-time prompt, not a repeated nag.
+- Both `installDir` and tool absent → mentions both `scryer.installDir` and `scryer.cascToolPath`.
+- Only `installDir` absent → mentions `scryer.installDir` only.
 
-**Effort:** S — ~1–2 hours. Notification logic in `panel.ts` + `workspaceState` flag.
+Buttons:
+
+- **Open Settings** → `workbench.action.openSettings` filtered to `@ext:scryer`.
+- **Learn More** → opens `docs/configuration.md` in VS Code's Markdown preview.
+
+Output channel also gains startup `warn` lines when `installDir` is unset or `rustydemon-cli` is not found — both fire via `logAssetParams` at activation and on config change.
+
+`AssetService` additions: `cascToolPath` getter, `isCascToolAvailable()` (synchronous PATH probe via `spawnSync which/where`), `hasExtractedAssets()` (async `fs.stat` on `<sourceDir>/Interface/`). The PATH probe logic is shared with `extract-core.ts` via new exported `isCascToolAvailable()`.
+
+**Effort:** S — within estimate.
 
 ---
 

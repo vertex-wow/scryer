@@ -16,12 +16,43 @@ export function activate(context: vscode.ExtensionContext): void {
   function logAssetParams(a: AssetService): void {
     output.debug(`param game-install-dir: ${a.installDir || "(not set)"}`);
     output.debug(`param cache-global: ${a.cacheRoot}`);
+    if (!a.installDir) {
+      output.warn(
+        "scryer.installDir is not set — texture extraction disabled. Set it to your WoW root directory (the folder containing _retail_/, _classic_/, .build.info).",
+      );
+    }
+    if (!a.isCascToolAvailable()) {
+      output.warn(
+        "rustydemon-cli not found — texture extraction disabled. Install it or set scryer.cascToolPath.",
+      );
+    }
+  }
+
+  async function maybeShowSetupNotice(a: AssetService): Promise<void> {
+    if (context.workspaceState.get<boolean>("scryer.assetSetupNoticeSeen")) return;
+    if (a.installDir && a.isCascToolAvailable()) return; // extraction runs automatically when a panel opens
+    if (await a.hasExtractedAssets()) return; // assets already on disk from a prior extraction
+    await context.workspaceState.update("scryer.assetSetupNoticeSeen", true);
+    const missingTool = !a.isCascToolAvailable();
+    const msg = missingTool
+      ? "Scryer: No extracted assets found. Set scryer.installDir and scryer.cascToolPath to enable automatic texture extraction."
+      : "Scryer: No extracted assets found. Set scryer.installDir to your WoW installation to enable automatic texture extraction.";
+    const pick = await vscode.window.showInformationMessage(msg, "Open Settings", "Learn More");
+    if (pick === "Open Settings") {
+      await vscode.commands.executeCommand("workbench.action.openSettings", "@ext:scryer");
+    } else if (pick === "Learn More") {
+      await vscode.commands.executeCommand(
+        "markdown.showPreview",
+        vscode.Uri.joinPath(context.extensionUri, "docs", "configuration.md"),
+      );
+    }
   }
 
   let assets = AssetService.fromConfig(context, output);
   assets.checkBuildVersion();
   assets.detectAndLogFlavors();
   logAssetParams(assets);
+  void Promise.resolve().then(() => maybeShowSetupNotice(assets));
 
   // Re-create AssetService and re-run startup checks when relevant settings change.
   context.subscriptions.push(

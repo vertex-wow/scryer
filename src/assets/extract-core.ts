@@ -169,6 +169,17 @@ export async function ensureFilteredListfile(
 // CASC tool detection
 // ---------------------------------------------------------------------------
 
+/** Returns true if the CASC tool is usable: either the explicit path exists or rustydemon-cli is on PATH. */
+export function isCascToolAvailable(cascToolPath?: string): boolean {
+  if (cascToolPath) return fs.existsSync(cascToolPath);
+  const isWin = process.platform === "win32";
+  const lookup = cp.spawnSync(isWin ? "where" : "which", ["rustydemon-cli"], {
+    stdio: "pipe",
+    shell: isWin,
+  });
+  return lookup.status === 0 && !!lookup.stdout?.toString().trim();
+}
+
 function findCascTool(explicit?: string): string {
   if (explicit) {
     if (!fs.existsSync(explicit)) throw new Error(`CASC tool not found: ${explicit}`);

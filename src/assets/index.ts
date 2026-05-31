@@ -23,6 +23,7 @@ import {
   writeBuildStamp,
 } from "./build-info.js";
 import { clearResolutionMemo, resolveTexturePath } from "./resolver.js";
+import { isCascToolAvailable } from "./extract-core.js";
 import { collectTexturePaths } from "../parser/collect-textures.js";
 import { loadAtlasManifest, type AtlasManifest } from "./atlas-manifest.js";
 import type { FrameIR } from "../parser/ir.js";
@@ -88,8 +89,26 @@ export class AssetService {
   get installDir(): string {
     return this.opts.installDir;
   }
+  get cascToolPath(): string {
+    return this.opts.cascToolPath;
+  }
+
+  /** True if rustydemon-cli is usable: explicit cascToolPath exists, or tool is on PATH. */
+  isCascToolAvailable(): boolean {
+    return isCascToolAvailable(this.opts.cascToolPath || undefined);
+  }
   get cacheRoot(): string {
     return this.opts.cacheRoot;
+  }
+
+  /** True if <sourceDir>/Interface/ exists on disk (Blizzard assets have been extracted). */
+  async hasExtractedAssets(): Promise<boolean> {
+    try {
+      await vscode.workspace.fs.stat(vscode.Uri.file(path.join(this.opts.sourceDir, "Interface")));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /** Call when VSCode config changes; resets resolution memo so new dirs are picked up. */
