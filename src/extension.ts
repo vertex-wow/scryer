@@ -1,10 +1,60 @@
+import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { AssetService } from "./assets/index.js";
 import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
-import { ADDON_NAMES, SHARED_ADDON_NAMES } from "./parser/blizzard-registry.js";
+import { ADDON_NAMES } from "./parser/blizzard-registry.js";
+import { parseXmlFile, resolveInheritance, collectTexturePaths } from "./parser/index.js";
+import { isSvgConverterAvailable, svgToPng, pngToTga, resolveFlipTool } from "./assets/svg.js";
 import { ScryerPanel } from "./panel.js";
 import { ScryerLivePanel } from "./live-panel.js";
+
+interface GitRepo {
+  checkIgnore(paths: string[]): Promise<Set<string>>;
+}
+interface GitApi {
+  getRepository(uri: vscode.Uri): GitRepo | null;
+}
+
+async function filterGitIgnored(uris: vscode.Uri[]): Promise<vscode.Uri[]> {
+  try {
+    const ext = vscode.extensions.getExtension<{ getAPI(v: number): GitApi }>("vscode.git");
+    if (!ext) return uris;
+    if (!ext.isActive) await ext.activate();
+    const git = ext.exports.getAPI(1);
+    const byRepo = new Map<GitRepo, vscode.Uri[]>();
+    const repoless: vscode.Uri[] = [];
+    for (const uri of uris) {
+      const repo = git.getRepository(uri);
+      if (!repo) repoless.push(uri);
+      else {
+        const list = byRepo.get(repo) ?? [];
+        list.push(uri);
+        byRepo.set(repo, list);
+      }
+    }
+    const kept: vscode.Uri[] = [...repoless];
+    for (const [repo, repoUris] of byRepo) {
+      const checkable: vscode.Uri[] = [];
+      for (const uri of repoUris) {
+        try {
+          if (fs.realpathSync(uri.fsPath) === uri.fsPath) checkable.push(uri);
+          else kept.push(uri);
+        } catch {
+          checkable.push(uri);
+        }
+      }
+      if (checkable.length === 0) continue;
+      const ignored = await repo.checkIgnore(checkable.map((u) => u.fsPath));
+      for (const uri of checkable) {
+        if (!ignored.has(uri.fsPath)) kept.push(uri);
+      }
+    }
+    return kept;
+  } catch {
+    return uris;
+  }
+}
 
 export function activate(context: vscode.ExtensionContext): void {
   // Single shared output channel and asset service for the entire extension session.
@@ -202,7 +252,7 @@ export function activate(context: vscode.ExtensionContext): void {
             `cache-warmup: startupContent="${startupContent}" requests textures but no extracted assets found — skipping texture pre-warm. Set scryer.installDir to enable extraction.`,
           );
         } else {
-          await assets.prewarmBlizzardTextures(SHARED_ADDON_NAMES);
+          await assets.prewarmBlizzardTextures(ADDON_NAMES);
           output.info("cache-warmup: shared Blizzard textures pre-warmed");
           if (cancelled) return;
           if (tierIdx >= TIER_ORDER.indexOf("all-templates-textures")) {
@@ -211,6 +261,85 @@ export function activate(context: vscode.ExtensionContext): void {
           }
         }
       }
+    });
+  }
+
+  // When userAddonPreload="workspace", scan the VS Code workspace for WoW XML files
+  // and pre-warm their texture assets at activation so the first panel open is instant.
+  const userAddonPreload =
+    vscode.workspace.getConfiguration("scryer").get<string>("userAddonPreload") ?? "current-file";
+  if (userAddonPreload === "workspace") {
+    void Promise.resolve().then(async () => {
+      const allXml = await vscode.workspace.findFiles("**/*.xml");
+      const xmlFiles = await filterGitIgnored(allXml);
+      output.info(`workspace-prewarm: scanning ${xmlFiles.length} XML file(s)`);
+      const registry = assets.loadBlizzardTemplates();
+      for (const xmlUri of xmlFiles) {
+        try {
+          const bytes = await vscode.workspace.fs.readFile(xmlUri);
+          const content = Buffer.from(bytes).toString("utf-8");
+          const doc = parseXmlFile(xmlUri.fsPath, content);
+          const [resolved] = resolveInheritance([doc], registry, { warnings: { count: 0 } });
+          if (!resolved) continue;
+          const frames = resolved.frames.filter((f) => !f.virtual);
+          const addonDir = path.dirname(xmlUri.fsPath);
+          for (const rawPath of collectTexturePaths(frames)) {
+            void assets.resolveToAbsPath(rawPath, addonDir);
+          }
+        } catch {
+          // Not a WoW addon XML file; skip silently.
+        }
+      }
+
+      // Loose BLPs: decode any addon-bundled BLP textures not captured by the XML scan.
+      const blpUris = await filterGitIgnored(await vscode.workspace.findFiles("**/*.blp"));
+      for (const uri of blpUris) {
+        void assets.resolveToAbsPath(path.basename(uri.fsPath), path.dirname(uri.fsPath));
+      }
+      output.debug(`workspace-prewarm: queued ${blpUris.length} loose BLP(s) for decode`);
+
+      // Loose SVGs: convert to PNG alongside the source if no PNG/TGA sibling exists.
+      const svgUris = await filterGitIgnored(await vscode.workspace.findFiles("**/*.svg"));
+      if (svgUris.length > 0) {
+        if (!isSvgConverterAvailable()) {
+          output.warn(
+            `workspace-prewarm: skipping ${svgUris.length} SVG(s) — rsvg-convert not found (install librsvg2-bin or set scryer.imageConvertPath)`,
+          );
+        } else {
+          const explicitConvert =
+            vscode.workspace.getConfiguration("scryer").get<string>("imageConvertPath") ||
+            undefined;
+          const flipper = resolveFlipTool(explicitConvert);
+          let pngCount = 0;
+          let tgaCount = 0;
+          for (const uri of svgUris) {
+            const base = uri.fsPath.slice(0, -4); // strip .svg
+            const hasPng = fs.existsSync(base + ".png");
+            const hasTga = fs.existsSync(base + ".tga");
+            if (hasPng && hasTga) continue;
+            try {
+              if (!hasPng) {
+                await svgToPng(uri.fsPath, base + ".png");
+                pngCount++;
+              }
+              if (!hasTga && flipper) {
+                await pngToTga(base + ".png", base + ".tga", flipper);
+                tgaCount++;
+              }
+            } catch (err) {
+              output.warn(
+                `workspace-prewarm: SVG conversion failed for ${path.basename(uri.fsPath)}: ${String(err)}`,
+              );
+            }
+          }
+          if (pngCount > 0 || tgaCount > 0)
+            output.info(
+              `workspace-prewarm: converted ${pngCount} SVG(s) to PNG, ${tgaCount} to TGA`,
+            );
+        }
+      }
+
+      output.info("workspace-prewarm: done");
     });
   }
 }

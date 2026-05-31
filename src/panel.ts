@@ -1,4 +1,3 @@
-import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { AssetService } from "./assets/index.js";
@@ -9,14 +8,6 @@ import { collectTexturePaths } from "./parser/collect-textures.js";
 import type { FrameIR, TextureIR } from "./parser/ir.js";
 import { resolveFlavorConfig } from "./flavors/config.js";
 import type { HostMessage, Viewport } from "./protocol.js";
-
-// Minimal surface of the vscode.git extension API needed to check gitignore status.
-interface GitRepo {
-  checkIgnore(paths: string[]): Promise<Set<string>>;
-}
-interface GitApi {
-  getRepository(uri: vscode.Uri): GitRepo | null;
-}
 
 function getNonce(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -106,8 +97,6 @@ export class ScryerPanel {
   // True once the Blizzard addon extraction attempt has finished for this asset service
   // instance; prevents the "pending fetches" label from flickering on every re-render.
   private blizzardExtractionDone = false;
-  // True once the workspace-wide texture pre-warm has been kicked off for this panel.
-  private workspacePrewarmDone = false;
   // True once atlas manifest generation has been attempted for this panel lifetime.
   private atlasGenDone = false;
   // Paths already attempted for extraction; prevents re-queuing on subsequent re-renders
@@ -189,7 +178,6 @@ export class ScryerPanel {
         if (e.affectsConfiguration("scryer")) {
           this.assets.invalidate();
           this.blizzardExtractionDone = false;
-          this.workspacePrewarmDone = false;
           this.atlasGenDone = false;
           this.extractionTriedPaths.clear();
         }
@@ -469,88 +457,9 @@ export class ScryerPanel {
           void this.resolveAndSendAsset(rawPath, addonDir);
         }
       }
-
-      // "workspace" extends the pre-warm to every WoW XML file in the workspace.
-      // Kicked off once per panel lifetime so re-renders don't repeat the scan.
-      if (preloadMode === "workspace" && !this.workspacePrewarmDone) {
-        this.workspacePrewarmDone = true;
-        void this.prewarmWorkspace(uri, blizzardRegistry);
-      }
     } catch (err) {
       this.output.error(`Error rendering ${uri.fsPath}: ${String(err)}`);
       this.output.show(true);
-    }
-  }
-
-  /** Returns uris with gitignored paths removed. Falls back to the full list on any error. */
-  private async filterGitIgnored(uris: vscode.Uri[]): Promise<vscode.Uri[]> {
-    try {
-      const ext = vscode.extensions.getExtension<{ getAPI(v: number): GitApi }>("vscode.git");
-      if (!ext) return uris;
-      if (!ext.isActive) await ext.activate();
-      const git = ext.exports.getAPI(1);
-
-      // Group URIs by repository so we can batch each checkIgnore call.
-      const byRepo = new Map<GitRepo, vscode.Uri[]>();
-      const repoless: vscode.Uri[] = [];
-      for (const uri of uris) {
-        const repo = git.getRepository(uri);
-        if (!repo) {
-          repoless.push(uri);
-        } else {
-          const list = byRepo.get(repo) ?? [];
-          list.push(uri);
-          byRepo.set(repo, list);
-        }
-      }
-
-      const kept: vscode.Uri[] = [...repoless];
-      for (const [repo, repoUris] of byRepo) {
-        const checkable: vscode.Uri[] = [];
-        for (const uri of repoUris) {
-          try {
-            if (fs.realpathSync(uri.fsPath) === uri.fsPath) checkable.push(uri);
-            else kept.push(uri); // under a symlink — treat as not ignored
-          } catch {
-            checkable.push(uri);
-          }
-        }
-        if (checkable.length === 0) continue;
-        const ignored = await repo.checkIgnore(checkable.map((u) => u.fsPath));
-        for (const uri of checkable) {
-          if (!ignored.has(uri.fsPath)) kept.push(uri);
-        }
-      }
-      return kept;
-    } catch {
-      return uris; // git extension unavailable; proceed unfiltered
-    }
-  }
-
-  private async prewarmWorkspace(
-    currentUri: vscode.Uri,
-    blizzardRegistry: Map<string, FrameIR>,
-  ): Promise<void> {
-    const allXmlFiles = await vscode.workspace.findFiles("**/*.xml");
-    const xmlFiles = await this.filterGitIgnored(allXmlFiles);
-    for (const xmlUri of xmlFiles) {
-      if (xmlUri.toString() === currentUri.toString()) continue; // already rendered
-      try {
-        const bytes = await vscode.workspace.fs.readFile(xmlUri);
-        const content = Buffer.from(bytes).toString("utf-8");
-        const doc = parseXmlFile(xmlUri.fsPath, content);
-        const [resolved] = resolveInheritance([doc], blizzardRegistry, {
-          warnings: { count: 0 },
-        });
-        if (!resolved) continue;
-        const frames = resolved.frames.filter((f) => !f.virtual);
-        const addonDir = path.dirname(xmlUri.fsPath);
-        for (const rawPath of collectTexturePaths(frames)) {
-          void this.resolveAndSendAsset(rawPath, addonDir);
-        }
-      } catch {
-        // Not a WoW addon XML file; skip silently
-      }
     }
   }
 

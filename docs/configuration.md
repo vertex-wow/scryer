@@ -78,29 +78,35 @@ Path to the CASC extraction tool binary (e.g. `rustydemon-cli`). Passed to the e
 
 Optional path to a `blp2png` CLI binary used as a fallback for BLP variants not supported by the built-in pure-JS decoder. Leave empty unless you encounter unsupported textures.
 
+### `scryer.imageConvertPath`
+
+**Default:** _(auto-detected from PATH)_
+
+Path to `gm` (GraphicsMagick) or `convert` (ImageMagick) used for PNG→TGA conversion when pre-warming workspace SVGs. Scryer auto-detects `gm` then `convert` from `PATH` when this is empty. Set explicitly if the tool is not on `PATH` or you want to pin a specific binary.
+
 ---
 
 ## Startup Preloading
 
 ### `scryer.startupContent`
 
-**Default:** `none`
+**Default:** `all-templates-shared-textures`
 
 What Blizzard template and asset content Scryer loads when the extension activates.
 
-| Value                           | Description                                | Size    | Time |
-| ------------------------------- | ------------------------------------------ | ------- | ---- |
-| `none`                          | Nothing preloaded                          | —       | —    |
-| `shared-templates`              | `Blizzard_SharedXML` templates only        | ~2.1 MB | —    |
-| `all-templates`                 | All Blizzard addon templates               | ~41 MB  | —    |
-| `all-templates-shared-textures` | All templates + SharedXML textures         | ~2 MB   | <1s  |
-| `all-templates-textures`        | All templates + full Blizzard texture tree | ~452 MB | ~40s |
+| Value                           | Description                                                         | Size    | Time |
+| ------------------------------- | ------------------------------------------------------------------- | ------- | ---- |
+| `none`                          | Nothing preloaded                                                   | —       | —    |
+| `shared-templates`              | `Blizzard_SharedXML` templates only                                 | ~2.1 MB | —    |
+| `all-templates`                 | All Blizzard addon templates                                        | ~41 MB  | —    |
+| `all-templates-shared-textures` | All templates + decodes shared BLPs to PNG cache (all three addons) | ~2.4 MB | ~15s |
+| `all-templates-textures`        | All templates + full Blizzard texture tree                          | ~452 MB | ~40s |
 
 Tiers are cumulative — selecting a higher tier includes all content from the lower tiers.
 
 ### `scryer.userAddonPreload`
 
-**Default:** `on-demand`
+**Default:** `current-file`
 
 How eagerly Scryer pre-warms texture assets for the addon currently being previewed.
 

@@ -366,6 +366,14 @@ See [measurements.md Q1b](../measurements.md#q1b-how-fast-can-we-pre-filter-list
 
 ## Preload workspace textures at startup
 
+**Status: Done** (2026-05-31) — `userAddonPreload="workspace"` triggers at extension activation (not panel-open). Three passes run in the background, all git-ignore filtered:
+
+1. **XML scan** — parses every workspace `.xml`, resolves inheritance against the Blizzard registry, and calls `assets.resolveToAbsPath` for every referenced texture path (including paths that resolve into extracted game files via inherited Blizzard templates).
+2. **Loose BLP scan** — globs `**/*.blp` and pre-warms any addon-bundled textures not captured by the XML scan.
+3. **SVG conversion** — globs `**/*.svg`; for each without a sibling `.png`, runs `rsvg-convert` to produce one; if a `.tga` is also absent and a flip tool (`gm` / `convert`, configurable via `scryer.imageConvertPath`) is available, flips the PNG vertically to TGA (the format WoW expects). The SVG→PNG and PNG→TGA logic lives in `src/assets/svg.ts` and is also used by `dev/assets.ts`.
+
+Per-panel workspace scan removed from `panel.ts`.
+
 **Problem:** When a WoW XML file is first opened, textures are resolved and decoded on-demand as the webview requests them. This means the first render is slow — each texture causes a round-trip from webview → extension → disk/cache → decode → response before it appears.
 
 **Goal:** Scan `<cacheRoot>/source/` at extension startup and pre-warm the asset cache so textures are already decoded when the first preview renders.
@@ -392,17 +400,17 @@ See [measurements.md Q1b](../measurements.md#q1b-how-fast-can-we-pre-filter-list
 
 ---
 
-### `scryer.startupContent` (default `"none"`)
+### `scryer.startupContent` (default `"all-templates-shared-textures"`)
 
 Controls what Blizzard template and asset content Scryer loads when the extension activates. This is a static, one-time load at startup — the Blizzard corpus is shared across all previews.
 
-| Value                             | Behavior                                                |
-| --------------------------------- | ------------------------------------------------------- |
-| `"none"`                          | Nothing preloaded (default)                             |
-| `"shared-templates"`              | Preload `Blizzard_SharedXML` template definitions       |
-| `"all-templates"`                 | Preload all Blizzard addon template definitions         |
-| `"all-templates-shared-textures"` | All templates + textures from `Blizzard_SharedXML` only |
-| `"all-templates-textures"`        | All templates + all Blizzard textures                   |
+| Value                             | Behavior                                                                   |
+| --------------------------------- | -------------------------------------------------------------------------- |
+| `"none"`                          | Nothing preloaded                                                          |
+| `"shared-templates"`              | Preload `Blizzard_SharedXML` template definitions                          |
+| `"all-templates"`                 | Preload all Blizzard addon template definitions                            |
+| `"all-templates-shared-textures"` | All templates + decodes shared BLPs (all three addons); ~2.4 MB, ~15s cold |
+| `"all-templates-textures"`        | All templates + all Blizzard textures                                      |
 
 **Implementation notes:**
 
@@ -412,16 +420,16 @@ Controls what Blizzard template and asset content Scryer loads when the extensio
 
 ---
 
-### `scryer.userAddonPreload` (default `"on-demand"`)
+### `scryer.userAddonPreload` (default `"current-file"`)
 
 Controls how eagerly Scryer pre-warms texture assets for the addon currently being previewed. This is a dynamic, per-session scope that runs continuously as the user edits.
 
-| Value            | Behavior                                                              |
-| ---------------- | --------------------------------------------------------------------- |
-| `"on-demand"`    | Decode textures only when the webview requests them (current default) |
-| `"saved-file"`   | Pre-warm textures referenced by the currently saved file              |
-| `"current-file"` | Pre-warm textures for the current file including unsaved edits        |
-| `"workspace"`    | Pre-warm textures for all WoW XML files in the workspace              |
+| Value            | Behavior                                                       |
+| ---------------- | -------------------------------------------------------------- |
+| `"on-demand"`    | Decode textures only when the webview requests them            |
+| `"saved-file"`   | Pre-warm textures referenced by the currently saved file       |
+| `"current-file"` | Pre-warm textures for the current file including unsaved edits |
+| `"workspace"`    | Pre-warm textures for all WoW XML files in the workspace       |
 
 **Implementation notes:**
 
