@@ -11,12 +11,16 @@ export function activate(context: vscode.ExtensionContext): void {
   // only runs once per session rather than on every new panel.
   const output = vscode.window.createOutputChannel("Scryer", { log: true });
   context.subscriptions.push(output);
-  output.info(
-    "[Scryer] activated — set log level via the Output panel filter to control verbosity",
-  );
+  output.info("activated — set log level via the Output panel filter to control verbosity");
+  function logAssetParams(a: AssetService): void {
+    output.debug(`param game-install-dir: ${a.installDir || "(not set)"}`);
+    output.debug(`param cache-global: ${a.cacheRoot}`);
+  }
+
   let assets = AssetService.fromConfig(context, output);
   assets.checkBuildVersion();
   assets.detectAndLogFlavors();
+  logAssetParams(assets);
 
   // Re-create AssetService and re-run startup checks when relevant settings change.
   context.subscriptions.push(
@@ -31,6 +35,7 @@ export function activate(context: vscode.ExtensionContext): void {
         assets = AssetService.fromConfig(context, output);
         assets.checkBuildVersion();
         assets.detectAndLogFlavors();
+        logAssetParams(assets);
       }
     }),
   );
@@ -142,18 +147,27 @@ export function activate(context: vscode.ExtensionContext): void {
         cancelled = true;
       },
     });
+    const TIER_LABEL: Record<string, string> = {
+      "shared-templates": "load shared templates, no textures",
+      "all-templates": "all Blizzard templates loaded, no textures",
+      "all-templates-shared-textures":
+        "all Blizzard templates loaded, shared textures queued for pre-warm",
+      "all-templates-textures": "all Blizzard templates loaded, all textures queued for pre-warm",
+    };
     void Promise.resolve().then(async () => {
       assets.loadBlizzardTemplates();
-      output.info(`[Scryer] startup: templates loaded (tier: ${startupContent})`);
+      output.info(
+        `cache-warmup: ${TIER_LABEL[startupContent] ?? startupContent} (startupContent=${startupContent})`,
+      );
       if (cancelled) return;
       if (tierIdx >= TIER_ORDER.indexOf("all-templates-shared-textures")) {
         await assets.prewarmBlizzardTextures(SHARED_ADDON_NAMES);
-        output.info("[Scryer] startup: shared textures pre-warmed");
+        output.info("cache-warmup: shared Blizzard textures pre-warmed");
       }
       if (cancelled) return;
       if (tierIdx >= TIER_ORDER.indexOf("all-templates-textures")) {
         await assets.prewarmBlizzardTextures(ADDON_NAMES);
-        output.info("[Scryer] startup: all textures pre-warmed");
+        output.info("cache-warmup: all Blizzard textures pre-warmed");
       }
     });
   }

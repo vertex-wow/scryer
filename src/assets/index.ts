@@ -83,6 +83,13 @@ export class AssetService {
     this.opts = opts;
   }
 
+  get installDir(): string {
+    return this.opts.installDir;
+  }
+  get cacheRoot(): string {
+    return this.opts.cacheRoot;
+  }
+
   /** Call when VSCode config changes; resets resolution memo so new dirs are picked up. */
   invalidate(): void {
     clearResolutionMemo();
@@ -139,7 +146,7 @@ export class AssetService {
     this.invalidate();
     try {
       this.opts.output.info(
-        `[Scryer] WoW build changed (${stamped ?? "none"} → ${current}); cleared ${this.opts.flavor} cache.`,
+        `WoW build changed (${stamped ?? "none"} → ${current}); cleared ${this.opts.flavor} cache.`,
       );
     } catch {
       /* channel disposed */
@@ -165,10 +172,10 @@ export class AssetService {
     if (installed.length === 0) return;
     const summary = installed.map(({ flavor, version }) => `${flavor} (${version})`).join(", ");
     try {
-      this.opts.output.info(`[Scryer] detected flavors: ${summary}`);
+      this.opts.output.info(`detected game flavors: ${summary}`);
       if (!installed.some(({ flavor }) => flavor === this.opts.flavor)) {
         this.opts.output.warn(
-          `[Scryer] configured flavor '${this.opts.flavor}' not found in .build.info — check scryer.flavor setting.`,
+          `configured flavor '${this.opts.flavor}' not found in .build.info — check scryer.flavor setting.`,
         );
       }
     } catch {
@@ -216,7 +223,7 @@ export class AssetService {
 
     if (found.kind === "tga") {
       this.opts.output.warn(
-        `[Scryer] TGA not yet supported: ${rawPath} — pre-convert to PNG with an image editor or extraction tool.`,
+        `TGA not yet supported: ${rawPath} — pre-convert to PNG with an image editor or extraction tool.`,
       );
       return null;
     }
@@ -230,7 +237,7 @@ export class AssetService {
       const pngBytes = blpToPng(found.absPath);
       return writeCached(this.opts.texturesConvDir, key, pngBytes);
     } catch (err) {
-      this.opts.output.warn(`[Scryer] BLP decode failed for ${rawPath}: ${String(err)}`);
+      this.opts.output.warn(`BLP decode failed for ${rawPath}: ${String(err)}`);
       return null;
     }
   }
@@ -260,7 +267,7 @@ export class AssetService {
     const listfileReady = fs.existsSync(path.join(this.downloadsDir, "listfile.csv"));
     if (listfileReady) {
       try {
-        this.opts.output.info("[Scryer] Atlas manifest absent — generating…");
+        this.opts.output.info("Atlas manifest absent — generating…");
       } catch {
         /* channel disposed */
       }
@@ -294,20 +301,20 @@ export class AssetService {
     if (this.blizzardFilesEnsured || !this.opts.sourceDir) return false;
     this.blizzardFilesEnsured = true; // set early to prevent concurrent calls
 
-    // Only check the addons that are actually needed for the configured startupContent,
-    // matching the same filter used in loadBlizzardTemplates(). This prevents FrameXML
-    // from being flagged as missing when the user only needs shared templates.
-    const startupContent =
-      vscode.workspace.getConfiguration("scryer").get<string>("startupContent") ?? "none";
-    const addonNames = startupContent === "shared-templates" ? SHARED_ADDON_NAMES : ADDON_NAMES;
-
     const addonsDir = resolveAddonsDir(this.opts.sourceDir);
-    const before = discoverBlizzardPaths(this.opts.sourceDir, addonsDir, addonNames);
-    if (before.length === 0) return false;
+    const before = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
+    if (before.length === 0) {
+      try {
+        this.opts.output.info(`cache-hit: shared templates found`);
+      } catch {
+        /* channel disposed */
+      }
+      return false;
+    }
 
     try {
       this.opts.output.info(
-        `[Scryer] Blizzard addon files: ${before.length} missing — extracting all addon interface files…`,
+        `assets-start-extraction: all Blizzard addons (${before.length} missing)`,
       );
     } catch {
       /* channel disposed */
@@ -324,7 +331,7 @@ export class AssetService {
 
     // Re-check: only signal re-render if extraction actually produced new files.
     // If it didn't (no script, failed extraction, etc.) we stop here rather than loop.
-    const after = discoverBlizzardPaths(this.opts.sourceDir, addonsDir, addonNames);
+    const after = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
     return after.length < before.length;
   }
 

@@ -9,7 +9,13 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { extractPaths, extractBulk, type ExtractCoreOptions, type Flavor } from "./extract-core.js";
+import {
+  extractPaths,
+  extractBulk,
+  type ExtractCoreOptions,
+  type ExtractionResult,
+  type Flavor,
+} from "./extract-core.js";
 import { generateAtlasManifest } from "./atlas-gen.js";
 
 export interface ExtractorOptions {
@@ -87,7 +93,7 @@ export async function extractMissing(paths: string[], opts: ExtractorOptions): P
     safeLog(
       opts.output,
       "error",
-      "[Scryer] scryer.installDir is not set. Set it to your WoW root directory (the folder containing _retail_/, _classic_/, .build.info) to enable extraction.",
+      "scryer.installDir is not set. Set it to your WoW root directory (the folder containing _retail_/, _classic_/, .build.info) to enable extraction.",
     );
     return;
   }
@@ -102,7 +108,7 @@ export async function extractMissing(paths: string[], opts: ExtractorOptions): P
       () => extractPaths(normalized, makeCoreOpts(opts)),
     );
   } catch (err) {
-    safeLog(opts.output, "info", `[Scryer] Extraction failed: ${String(err)}`);
+    safeLog(opts.output, "warn", `Extraction failed: ${String(err)}`);
   }
 }
 
@@ -116,12 +122,13 @@ export async function extractInterface(opts: ExtractorOptions): Promise<void> {
     safeLog(
       opts.output,
       "error",
-      "[Scryer] scryer.installDir is not set. Set it to your WoW root directory (the folder containing _retail_/, _classic_/, .build.info) to enable extraction.",
+      "scryer.installDir is not set. Set it to your WoW root directory (the folder containing _retail_/, _classic_/, .build.info) to enable extraction.",
     );
     return;
   }
+  let result: ExtractionResult | undefined;
   try {
-    await vscode.window.withProgress(
+    result = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
         title: "Scryer: extracting Blizzard addon files…",
@@ -132,10 +139,16 @@ export async function extractInterface(opts: ExtractorOptions): Promise<void> {
   } catch (err) {
     safeLog(
       opts.output,
-      "debug",
-      `[Scryer] Interface extraction failed: ${String(err)} — individual file errors logged above at trace level`,
+      "error",
+      `asset-extraction failed: "${opts.flavor}/interface" → ${String(err)} — individual file errors logged above at trace level`,
     );
+    return;
   }
+  safeLog(
+    opts.output,
+    "info",
+    `assets-extraction: Blizzard addons extracted (${result.exported} exported, ${result.skippedExists} cached, ${result.errors} ignored)`,
+  );
 }
 
 /**
@@ -147,11 +160,7 @@ export async function extractInterface(opts: ExtractorOptions): Promise<void> {
 export async function genAtlas(opts: AtlasGenWrapperOptions): Promise<void> {
   const listfilePath = opts.listfileDir ? path.join(opts.listfileDir, "listfile.csv") : null;
   if (!listfilePath || !fs.existsSync(listfilePath)) {
-    safeLog(
-      opts.output,
-      "debug",
-      "[Scryer] Atlas manifest: listfile.csv not available yet — skipping.",
-    );
+    safeLog(opts.output, "debug", "Atlas manifest: listfile.csv not available yet — skipping.");
     return;
   }
 
@@ -170,6 +179,6 @@ export async function genAtlas(opts: AtlasGenWrapperOptions): Promise<void> {
         }),
     );
   } catch (err) {
-    safeLog(opts.output, "warn", `[Scryer] Atlas manifest generation failed: ${String(err)}`);
+    safeLog(opts.output, "warn", `Atlas manifest generation failed: ${String(err)}`);
   }
 }

@@ -19,6 +19,12 @@ import * as path from "path";
 export type Flavor = "retail" | "classic" | "classic_era";
 export type ExtractType = "textures" | "interface" | "all";
 
+export interface ExtractionResult {
+  exported: number;
+  skippedExists: number;
+  errors: number;
+}
+
 export interface ExtractCoreOptions {
   flavor: Flavor;
   /** Root output directory (Interface/ files land directly here). */
@@ -47,6 +53,7 @@ const TEXTURE_GLOBS = [
 ];
 
 const INTERFACE_GLOBS = [
+  "Interface/AddOns/Blizzard_SharedXMLBase/**",
   "Interface/AddOns/Blizzard_SharedXML/**",
   "Interface/AddOns/Blizzard_FrameXML/**",
 ];
@@ -191,20 +198,36 @@ function spawnRustydemon(
   cascTool: string,
   args: string[],
   log?: (line: string) => void,
-): Promise<void> {
+): Promise<ExtractionResult> {
   return new Promise((resolve, reject) => {
     const proc = cp.spawn(cascTool, args, { stdio: ["ignore", "pipe", "pipe"] });
     let buf = "";
+    let exported = 0;
+    let skippedExists = 0;
+    let errors = 0;
+
+    function parseSummary(line: string): void {
+      const m = line.match(/exported=(\d+).*?skipped\(exists\)=(\d+).*?errors=(\d+)/);
+      if (m) {
+        exported += parseInt(m[1], 10);
+        skippedExists += parseInt(m[2], 10);
+        errors += parseInt(m[3], 10);
+      }
+    }
 
     function onData(d: Buffer): void {
       buf += d.toString();
       const lines = buf.split("\n");
       buf = lines.pop() ?? "";
-      for (const line of lines) log?.(`    ${line}`);
+      for (const line of lines) {
+        parseSummary(line);
+        log?.(`    ${line}`);
+      }
     }
 
     function flush(): void {
       if (buf) {
+        parseSummary(buf);
         log?.(`    ${buf}`);
         buf = "";
       }
@@ -215,7 +238,7 @@ function spawnRustydemon(
     proc.on("error", reject);
     proc.on("close", (code) => {
       flush();
-      if (code === 0) resolve();
+      if (code === 0 || exported + skippedExists > 0) resolve({ exported, skippedExists, errors });
       else reject(new Error(`rustydemon-cli exited with code ${code}`));
     });
   });
@@ -225,27 +248,36 @@ function spawnRustydemon(
 // Retail extraction
 // ---------------------------------------------------------------------------
 
-async function extractRetailPaths(paths: string[], opts: ExtractCoreOptions): Promise<void> {
+async function extractRetailPaths(
+  paths: string[],
+  opts: ExtractCoreOptions,
+): Promise<ExtractionResult> {
   const cascTool = findCascTool(opts.cascToolPath);
   // Use the full listfile: paths extracted here may be outside Interface/ (e.g. Fonts/).
   const listfilePath = await ensureListfile(opts.listfileDir, opts.log);
   await fs.promises.mkdir(opts.outDir, { recursive: true });
 
-  opts.log?.(`Targeted retail extraction via rustydemon-cli...`);
-  opts.log?.(`  Source: ${opts.wowDir}`);
-  opts.log?.(`  Output: ${opts.outDir}`);
+  const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
+  opts.log?.(`asset-extraction: "${opts.flavor}/assets" → vscode global cache "${shortOut}"`);
 
+  const totals: ExtractionResult = { exported: 0, skippedExists: 0, errors: 0 };
   for (const p of paths) {
-    opts.log?.(`  Extracting ${p}...`);
-    await spawnRustydemon(
+    const r = await spawnRustydemon(
       cascTool,
       ["export", "-a", opts.wowDir, "-p", p, "-l", listfilePath, "-o", opts.outDir],
       opts.log,
     );
+    totals.exported += r.exported;
+    totals.skippedExists += r.skippedExists;
+    totals.errors += r.errors;
   }
+  return totals;
 }
 
-async function extractRetailBulk(type: ExtractType, opts: ExtractCoreOptions): Promise<void> {
+async function extractRetailBulk(
+  type: ExtractType,
+  opts: ExtractCoreOptions,
+): Promise<ExtractionResult> {
   const cascTool = findCascTool(opts.cascToolPath);
   const listfilePath = await ensureFilteredListfile(opts.listfileDir, opts.log);
   await fs.promises.mkdir(opts.outDir, { recursive: true });
@@ -255,18 +287,21 @@ async function extractRetailBulk(type: ExtractType, opts: ExtractCoreOptions): P
     ...(type === "interface" || type === "all" ? INTERFACE_GLOBS : []),
   ];
 
-  opts.log?.(`Extracting retail Interface (${type}) via rustydemon-cli...`);
-  opts.log?.(`  Source: ${opts.wowDir}`);
-  opts.log?.(`  Output: ${opts.outDir}`);
+  const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
+  opts.log?.(`asset-extraction: "${opts.flavor}/${type}" → vscode global cache "${shortOut}"`);
 
+  const totals: ExtractionResult = { exported: 0, skippedExists: 0, errors: 0 };
   for (const glob of globs) {
-    opts.log?.(`  Extracting ${glob}...`);
-    await spawnRustydemon(
+    const r = await spawnRustydemon(
       cascTool,
       ["export", "-a", opts.wowDir, "-p", glob, "-l", listfilePath, "-o", opts.outDir],
       opts.log,
     );
+    totals.exported += r.exported;
+    totals.skippedExists += r.skippedExists;
+    totals.errors += r.errors;
   }
+  return totals;
 }
 
 // ---------------------------------------------------------------------------
@@ -312,30 +347,34 @@ function findCaseInsensitive(dir: string, relParts: string[]): string | null {
   return findCaseInsensitive(path.join(dir, match), rest);
 }
 
-async function extractLoosePaths(paths: string[], opts: ExtractCoreOptions): Promise<void> {
+async function extractLoosePaths(
+  paths: string[],
+  opts: ExtractCoreOptions,
+): Promise<ExtractionResult> {
   const interfaceDir = resolveClassicInterfaceDir(opts.wowDir, opts.flavor);
   await fs.promises.mkdir(opts.outDir, { recursive: true });
 
-  opts.log?.(`Targeted Classic extraction...`);
-  opts.log?.(`  Source: ${interfaceDir}`);
-  opts.log?.(`  Output: ${opts.outDir}`);
+  const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
+  opts.log?.(`asset-extraction: "${opts.flavor}/assets" → vscode global cache "${shortOut}"`);
 
-  let count = 0;
+  let exported = 0;
+  let errors = 0;
   for (const p of paths) {
     // Strip leading Interface/ prefix — interfaceDir is already the Interface/ dir.
     const rel = p.replace(/^[Ii]nterface[/\\]/i, "");
     const found = findCaseInsensitive(interfaceDir, rel.split(/[/\\]/));
     if (!found) {
       opts.log?.(`  Not found: ${p} (skipping)`);
+      errors++;
       continue;
     }
     const dest = path.join(opts.outDir, rel);
     await fs.promises.mkdir(path.dirname(dest), { recursive: true });
     await fs.promises.copyFile(found, dest);
     opts.log?.(`  Copied ${p}`);
-    count++;
+    exported++;
   }
-  opts.log?.(`\nCopied ${count} file(s).`);
+  return { exported, skippedExists: 0, errors };
 }
 
 async function copyFilesRecursive(
@@ -364,7 +403,10 @@ async function copyFilesRecursive(
   return count;
 }
 
-async function extractLooseBulk(type: ExtractType, opts: ExtractCoreOptions): Promise<void> {
+async function extractLooseBulk(
+  type: ExtractType,
+  opts: ExtractCoreOptions,
+): Promise<ExtractionResult> {
   const interfaceDir = resolveClassicInterfaceDir(opts.wowDir, opts.flavor);
   await fs.promises.mkdir(opts.outDir, { recursive: true });
 
@@ -372,12 +414,11 @@ async function extractLooseBulk(type: ExtractType, opts: ExtractCoreOptions): Pr
   if (type === "textures" || type === "all") LOOSE_TEXTURE_EXTS.forEach((e) => exts.add(e));
   if (type === "interface" || type === "all") LOOSE_INTERFACE_EXTS.forEach((e) => exts.add(e));
 
-  opts.log?.(`Copying Classic Interface (${type})...`);
-  opts.log?.(`  Source: ${interfaceDir}`);
-  opts.log?.(`  Output: ${opts.outDir}`);
+  const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
+  opts.log?.(`asset-extraction: "${opts.flavor}/${type}" → vscode global cache "${shortOut}"`);
 
-  const count = await copyFilesRecursive(interfaceDir, opts.outDir, exts);
-  opts.log?.(`\nCopied ${count} file(s).`);
+  const exported = await copyFilesRecursive(interfaceDir, opts.outDir, exts);
+  return { exported, skippedExists: 0, errors: 0 };
 }
 
 // ---------------------------------------------------------------------------
@@ -388,12 +429,15 @@ async function extractLooseBulk(type: ExtractType, opts: ExtractCoreOptions): Pr
  * Extract specific WoW-relative paths (e.g. "Interface/Buttons/UI-Minimap-Arrow.blp").
  * Retail uses rustydemon-cli; Classic copies loose files from the install directory.
  */
-export async function extractPaths(paths: string[], opts: ExtractCoreOptions): Promise<void> {
-  if (paths.length === 0) return;
+export async function extractPaths(
+  paths: string[],
+  opts: ExtractCoreOptions,
+): Promise<ExtractionResult> {
+  if (paths.length === 0) return { exported: 0, skippedExists: 0, errors: 0 };
   if (opts.flavor === "retail") {
-    await extractRetailPaths(paths, opts);
+    return extractRetailPaths(paths, opts);
   } else {
-    await extractLoosePaths(paths, opts);
+    return extractLoosePaths(paths, opts);
   }
 }
 
@@ -401,10 +445,13 @@ export async function extractPaths(paths: string[], opts: ExtractCoreOptions): P
  * Extract a whole category of files (textures, interface addon files, or both).
  * Retail uses rustydemon-cli with glob patterns; Classic recursively copies by extension.
  */
-export async function extractBulk(type: ExtractType, opts: ExtractCoreOptions): Promise<void> {
+export async function extractBulk(
+  type: ExtractType,
+  opts: ExtractCoreOptions,
+): Promise<ExtractionResult> {
   if (opts.flavor === "retail") {
-    await extractRetailBulk(type, opts);
+    return extractRetailBulk(type, opts);
   } else {
-    await extractLooseBulk(type, opts);
+    return extractLooseBulk(type, opts);
   }
 }

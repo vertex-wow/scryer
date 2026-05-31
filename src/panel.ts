@@ -332,7 +332,7 @@ export class ScryerPanel {
     const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
     const flavorConfig = resolveFlavorConfig(flavor, userConfigPath);
     this.output.trace(
-      `viewport: UIParent ${flavorConfig.uiParentWidth}×${flavorConfig.uiParentHeight} (screen ${flavorConfig.screenWidth}×${flavorConfig.screenHeight})`,
+      `param viewport: UIParent ${flavorConfig.uiParentWidth}×${flavorConfig.uiParentHeight} (screen ${flavorConfig.screenWidth}×${flavorConfig.screenHeight})`,
     );
 
     try {
@@ -381,7 +381,9 @@ export class ScryerPanel {
 
       // Load Blizzard template registry (disk-cached; fast after first parse).
       const blizzardRegistry = this.assets.loadBlizzardTemplates();
-      this.output.debug(`Blizzard registry: ${blizzardRegistry.size} templates`);
+      this.output.debug(
+        `  Blizzard registry: ${blizzardRegistry.size} template${blizzardRegistry.size === 1 ? "" : "s"}`,
+      );
 
       const warnCb = (msg: string) => this.output.warn(msg);
 
@@ -402,7 +404,9 @@ export class ScryerPanel {
 
       const texturePaths = collectTexturePaths(renderFrames);
 
-      this.output.debug(`Render: ${renderFrames.length} frames, ${texturePaths.length} textures`);
+      this.output.debug(
+        `  Render: ${renderFrames.length} frame${renderFrames.length === 1 ? "" : "s"}, ${texturePaths.length} texture${texturePaths.length === 1 ? "" : "s"}`,
+      );
       for (const frame of renderFrames) {
         if (frame.templateChain.length > 0) {
           this.output.debug(
@@ -422,10 +426,11 @@ export class ScryerPanel {
       let defaultFontUri: string | undefined;
       if (flavorConfig.defaultFont) {
         const fontAbsPath = await this.assets.resolveToAbsPath(flavorConfig.defaultFont, "");
-        this.output.trace(`font resolve: "${flavorConfig.defaultFont}" → ${fontAbsPath ?? "null"}`);
         if (fontAbsPath) {
           defaultFontUri = this.panel.webview.asWebviewUri(vscode.Uri.file(fontAbsPath)).toString();
-          this.output.trace(`font URI: ${defaultFontUri}`);
+          this.output.trace(
+            `cache-hit: "${flavorConfig.defaultFont}" → ${path.basename(fontAbsPath)}`,
+          );
         } else if (this.assets.claimExtraction(flavorConfig.defaultFont)) {
           void this.extractAndSendFont(flavorConfig.defaultFont);
         }
@@ -543,10 +548,9 @@ export class ScryerPanel {
     await this.assets.extractMissing([fontPath]);
     this.assets.invalidateAfterBlizzardExtraction();
     const fontAbsPath = await this.assets.resolveToAbsPath(fontPath, "");
-    this.output.trace(`font resolve: "${fontPath}" → ${fontAbsPath ?? "null"}`);
     if (!fontAbsPath) return;
     const fontUri = this.panel.webview.asWebviewUri(vscode.Uri.file(fontAbsPath)).toString();
-    this.output.trace(`font URI: ${fontUri}`);
+    this.output.trace(`asset-extracted: "${fontPath}" → ${path.basename(fontAbsPath)}`);
     try {
       const msg: HostMessage = { type: "fontResolved", uri: fontUri };
       void this.panel.webview.postMessage(msg);
