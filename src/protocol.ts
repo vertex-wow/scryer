@@ -33,7 +33,8 @@ export type HostMessage =
     }
   | { type: "assetResolved"; path: string; uri: string }
   | { type: "fontResolved"; uri: string }
-  | { type: "setRuler"; show: boolean };
+  | { type: "setRuler"; show: boolean }
+  | { type: "setStatus"; state: "idle" | "extracting" | "buildingAtlas" };
 
 // Webview → extension host
 export type WebviewMessage =

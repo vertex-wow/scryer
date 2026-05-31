@@ -253,11 +253,20 @@ export function activate(context: vscode.ExtensionContext): void {
             `cache-warmup: startupContent="${startupContent}" requests textures but no extracted assets found — skipping texture pre-warm. Set scryer.installDir to enable extraction.`,
           );
         } else {
-          await assets.prewarmBlizzardTextures(ADDON_NAMES);
+          await vscode.window.withProgress(
+            { location: vscode.ProgressLocation.Window, title: "Scryer: prewarming textures…" },
+            () => assets.prewarmBlizzardTextures(ADDON_NAMES),
+          );
           output.info("cache-warmup: shared Blizzard textures pre-warmed");
           if (cancelled) return;
           if (tierIdx >= TIER_ORDER.indexOf("all-templates-textures")) {
-            await assets.prewarmBlizzardTextures(ADDON_NAMES);
+            await vscode.window.withProgress(
+              {
+                location: vscode.ProgressLocation.Window,
+                title: "Scryer: prewarming all textures…",
+              },
+              () => assets.prewarmBlizzardTextures(ADDON_NAMES),
+            );
             output.info("cache-warmup: all Blizzard textures pre-warmed");
           }
         }

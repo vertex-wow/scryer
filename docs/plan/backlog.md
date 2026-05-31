@@ -705,30 +705,17 @@ Atlas references (e.g. `atlas="glues-characterselect-tophud-middle-bg"`) name a 
 
 ## User-visible loading notifications
 
-**Status: 📋 Pending**
+**Status: Done** (2026-05-31)
 
-**Problem:** Several slow async operations happen silently with no user-facing feedback:
+**What was built:**
 
-- **Blizzard file extraction** — `ensureBlizzardFiles()` can trigger a CASC extraction pass. The output channel logs it, but the panel shows no in-panel status.
-- **Startup preload** — `scryer.startupContent` tier execution logs to the output channel but there is no status bar or panel indicator that background work is ongoing.
+Three-part change:
 
-The output channel is a power-user tool. Regular users never open it, so they have no visibility into why the preview is showing placeholders.
+1. **In-panel loading indicator** — `{ type: "setStatus"; state: "idle" | "extracting" | "buildingAtlas" }` added to `HostMessage` in `protocol.ts`. `main.ts` handles it: on non-idle states, replaces the `#debug` span text with "⏳ Extracting game assets…" or "⏳ Building atlas manifest…"; on `idle`, restores the last render message (`lastRenderMsg`, saved via new `dbgRender()` helper).
 
-**Already done:**
+2. **Status bar spinner** — `ScryerPanel` gains a dedicated `loadingBar: vscode.StatusBarItem` (priority 92, right-aligned, no command). `pendingOps: Set<"extracting" | "buildingAtlas">` tracks concurrent in-flight operations. `startOp()`/`endOp()` add/remove from the set and call `syncStatus()`, which posts `setStatus` to the webview AND sets `loadingBar.text = "$(loading~spin) Scryer: …"`. Bar hides on `idle`. The two async ops in `renderFile()` — `ensureBlizzardFiles()` and `ensureAtlasManifest()` — each call `startOp` before firing and `endOp` as the first thing in their `.then()` callbacks.
 
-- **Atlas manifest generation** — `genAtlas()` already wraps in `vscode.window.withProgress` (`extractor.ts`). `ensureAtlasManifest()` is now called in the `startupContent` tier immediately after `ensureBlizzardFiles()` (which downloads the listfile as a side effect), so users with any `startupContent` level set get the manifest ready before the first panel opens. `startupContent=none` users still trigger it lazily on first panel render.
-
-**Plan:**
-
-1. **In-panel loading indicator** — add a small status element to the webview HTML (e.g. a bottom-edge bar or a corner badge) that the extension host toggles via a `{ type: "setStatus" }` protocol message. States: `idle`, `loading` (generic), `extracting`, `buildingAtlas`. Prevents the "why are all my textures colored boxes?" confusion without requiring the user to find the output channel.
-
-2. **Status bar for long background work** — reuse or extend the existing per-panel `StatusBarItem` to show a spinner prefix while any async work is in flight (extraction, atlas gen, preload tiers). Clear on idle.
-
-3. **Consolidate** the existing `vscode.window.withProgress` call in `extractMissing()` so all entry points (extraction, Blizzard file ensure) use a consistent notification pattern matching what atlas gen already does.
-
-**Scope:** In-panel status indicator + status bar integration. Extension host notification for atlas gen is already done. No new user-configurable settings needed.
-
-**Effort:** S — ~2–3 hours. In-panel status element is small HTML/CSS; status bar integration is straightforward.
+3. **Startup preload notification** — `prewarmBlizzardTextures()` calls in `extension.ts` wrapped in `vscode.window.withProgress({ location: ProgressLocation.Window })` so the VS Code status bar shows "Scryer: prewarming textures…" / "Scryer: prewarming all textures…" while the texture tier runs. The `ensureBlizzardFiles()` and `ensureAtlasManifest()` startup calls already had notifications via `extractor.ts`.
 
 ---
 

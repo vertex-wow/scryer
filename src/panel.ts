@@ -85,7 +85,9 @@ export class ScryerPanel {
   private readonly context: vscode.ExtensionContext;
   private readonly statusBar: vscode.StatusBarItem;
   private readonly installDirBar: vscode.StatusBarItem;
+  private readonly loadingBar: vscode.StatusBarItem;
   private disposables: vscode.Disposable[] = [];
+  private readonly pendingOps = new Set<"extracting" | "buildingAtlas">();
   private assets: AssetService;
 
   // rawPath → addonDir for textures that could not be resolved in the current render cycle.
@@ -162,6 +164,10 @@ export class ScryerPanel {
     this.disposables.push(this.installDirBar);
     this.updateInstallDirBar();
 
+    this.loadingBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 92);
+    this.loadingBar.tooltip = "Scryer background work in progress";
+    this.disposables.push(this.loadingBar);
+
     this.panel.webview.html = this.buildHtml();
 
     this.panel.webview.onDidReceiveMessage(
@@ -230,6 +236,37 @@ export class ScryerPanel {
     } else {
       this.installDirBar.show();
     }
+  }
+
+  private syncStatus(): void {
+    if (this.pendingOps.size === 0) {
+      try {
+        void this.panel.webview.postMessage({ type: "setStatus", state: "idle" } as HostMessage);
+      } catch {
+        /* panel disposed */
+      }
+      this.loadingBar.hide();
+    } else {
+      const state = this.pendingOps.has("extracting") ? "extracting" : "buildingAtlas";
+      try {
+        void this.panel.webview.postMessage({ type: "setStatus", state } as HostMessage);
+      } catch {
+        /* panel disposed */
+      }
+      const label = state === "extracting" ? "extracting textures" : "building atlas";
+      this.loadingBar.text = `$(loading~spin) Scryer: ${label}`;
+      this.loadingBar.show();
+    }
+  }
+
+  private startOp(op: "extracting" | "buildingAtlas"): void {
+    this.pendingOps.add(op);
+    this.syncStatus();
+  }
+
+  private endOp(op: "extracting" | "buildingAtlas"): void {
+    this.pendingOps.delete(op);
+    this.syncStatus();
   }
 
   private handleWebviewMessage(message: unknown, uri: vscode.Uri): void {
@@ -357,7 +394,9 @@ export class ScryerPanel {
       }
       const doc = parseXmlFile(uri.fsPath, content);
       if (!this.blizzardExtractionDone) {
+        this.startOp("extracting");
         void this.assets.ensureBlizzardFiles().then((extracted) => {
+          this.endOp("extracting");
           this.blizzardExtractionDone = true;
           if (extracted) {
             this.assets.invalidateAfterBlizzardExtraction();
@@ -375,7 +414,9 @@ export class ScryerPanel {
       // Non-blocking: triggers a re-render only when a manifest is newly created.
       if (!this.atlasGenDone && !this.assets.hasAtlasManifestRun()) {
         this.atlasGenDone = true;
+        this.startOp("buildingAtlas");
         void this.assets.ensureAtlasManifest().then((generated) => {
+          this.endOp("buildingAtlas");
           if (generated) void this.renderFile(uri, "atlas manifest ready");
         });
       }

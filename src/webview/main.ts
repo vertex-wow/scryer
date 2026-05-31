@@ -140,12 +140,20 @@ applyTransform();
 updateZoomDisplay();
 
 // ---------------------------------------------------------------------------
-// Debug
+// Debug / status
 // ---------------------------------------------------------------------------
+
+// Last render message — restored when loading status clears.
+let lastRenderMsg = "";
 
 function dbg(msg: string): void {
   if (debug) debug.textContent = msg;
   vscode.postMessage({ type: "dbg", text: msg });
+}
+
+function dbgRender(msg: string): void {
+  lastRenderMsg = msg;
+  dbg(msg);
 }
 
 dbg("view ready, waiting for scryer");
@@ -471,7 +479,9 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
               : ` — pending`;
         else if (msg.warnings > 0)
           suffix = ` — ${msg.warnings} warning${msg.warnings === 1 ? "" : "s"}`;
-        dbg(`rendered ${msg.frames.length} frame${msg.frames.length === 1 ? "" : "s"}${suffix}`);
+        dbgRender(
+          `rendered ${msg.frames.length} frame${msg.frames.length === 1 ? "" : "s"}${suffix}`,
+        );
         requestRenderedAssets();
       } catch (e) {
         dbg(`render error: ${String(e)}`);
@@ -493,6 +503,17 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       setRulersVisible(msg.show);
       if (msg.show && currentWowViewport && currentConfig)
         updateRulers(currentWowViewport, currentScale, currentConfig);
+      break;
+    }
+
+    case "setStatus": {
+      if (msg.state === "idle") {
+        if (debug && lastRenderMsg) debug.textContent = lastRenderMsg;
+      } else {
+        const label =
+          msg.state === "extracting" ? "⏳ Extracting game assets…" : "⏳ Building atlas manifest…";
+        if (debug) debug.textContent = label;
+      }
       break;
     }
   }
