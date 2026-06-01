@@ -45,6 +45,7 @@
       "undefined-global",
     ],
     "wowAPI.luals.frameXML": false,
+    "chat.disableAIFeatures": false,
   },
   "extensions": {
     "recommendations": ["sumneko.lua", "johnnymorganz.stylua"],

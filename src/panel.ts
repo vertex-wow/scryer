@@ -1,11 +1,11 @@
 import * as path from "path";
 import * as vscode from "vscode";
 import { AssetService } from "./assets/index.js";
-import type { AtlasManifest } from "./assets/atlas-manifest.js";
+import { resolveAtlasNames } from "./assets/atlas-manifest.js";
 import { parseXmlFile } from "./parser/index.js";
 import { resolveInheritance } from "./parser/inherit.js";
 import { collectTexturePaths } from "./parser/collect-textures.js";
-import type { FrameIR, TextureIR } from "./parser/ir.js";
+import type { FrameIR } from "./parser/ir.js";
 import { resolveFlavorConfig } from "./flavors/config.js";
 import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
 import type { HostMessage, Viewport, WebviewMessage } from "./protocol.js";
@@ -20,61 +20,6 @@ function getNonce(): string {
 // How long after the last unresolved-asset report to wait before triggering extraction.
 const EXTRACT_DEBOUNCE_MS = 300;
 
-// ---------------------------------------------------------------------------
-// Atlas name resolution
-// ---------------------------------------------------------------------------
-
-function resolveAtlasInTexture(tex: TextureIR, manifest: AtlasManifest): void {
-  if (!tex.atlas) return;
-  const origLower = tex.atlas.toLowerCase();
-  const stripped = tex.atlas.replace(/^[_!]+/, "");
-  const strippedLower = stripped.toLowerCase();
-  const entry =
-    manifest[tex.atlas] ??
-    manifest[origLower] ??
-    manifest[stripped] ??
-    manifest[strippedLower] ??
-    manifest[strippedLower + "-2x"];
-  if (!entry) return;
-  tex.resolvedAtlas = {
-    file: entry.file,
-    x: entry.x,
-    y: entry.y,
-    width: entry.width,
-    height: entry.height,
-    sheetW: entry.sheetW,
-    sheetH: entry.sheetH,
-    tilesH: entry.tilesH,
-    tilesV: entry.tilesV,
-  };
-}
-
-function resolveAtlasInFrame(frame: FrameIR, manifest: AtlasManifest): void {
-  for (const layer of frame.layers) {
-    for (const obj of layer.objects) {
-      if (obj.kind === "Texture" || obj.kind === "MaskTexture") {
-        resolveAtlasInTexture(obj as TextureIR, manifest);
-      }
-    }
-  }
-  for (const tex of [
-    frame.normalTexture,
-    frame.pushedTexture,
-    frame.disabledTexture,
-    frame.highlightTexture,
-  ]) {
-    if (tex) resolveAtlasInTexture(tex, manifest);
-  }
-  for (const child of frame.children) {
-    resolveAtlasInFrame(child, manifest);
-  }
-}
-
-function resolveAtlasNames(frames: FrameIR[], manifest: AtlasManifest): void {
-  for (const frame of frames) {
-    resolveAtlasInFrame(frame, manifest);
-  }
-}
 // How long after the last document change to wait before re-rendering in current-file mode.
 const RENDER_DEBOUNCE_MS = 300;
 
@@ -592,13 +537,13 @@ export class ScryerPanel {
     *{box-sizing:border-box;margin:0;padding:0}
     body{background:${c.rulerBg};overflow:hidden;position:fixed;inset:0;user-select:none}
     #viewport{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
-    #status-bar{position:fixed;top:0;left:0;right:0;height:${sbH}px;background:${c.statusBarBg};display:flex;align-items:center;z-index:10001;border-bottom:1px solid ${c.rulerBorder};font:${c.statusBarFont};color:${c.statusBarColor};white-space:nowrap;overflow:hidden}
+    #status-bar{position:fixed;top:0;left:0;right:0;height:${sbH}px;background:${c.statusBarBg};display:flex;align-items:center;z-index:10001;border-bottom:1px solid ${c.rulerBorder};font:${c.toolbarFont};color:${c.statusBarColor};white-space:nowrap;overflow:hidden}
     .toolbar-btn{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;height:${sbH}px;padding:0 7px;display:flex;align-items:center;justify-content:center;font-size:14px;color:${c.statusBarColor};opacity:0.55}
     .toolbar-btn:hover{background:rgba(255,255,255,0.07);opacity:0.85}
     .toolbar-btn.active{background:rgba(74,158,255,0.12);opacity:1;box-shadow:inset 0 -2px 0 #4a9eff}
     .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(0.85);display:inline-block}
     .toolbar-btn:hover .ruler-icon,.toolbar-btn.active .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(1.15)}
-    #zoom-select,#flavor-select,#resolution-select,#locale-select{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;height:${sbH}px;padding:0 4px;color:${c.statusBarColor};font:${c.statusBarFont};outline:none;opacity:0.7}
+    #zoom-select,#flavor-select,#resolution-select,#locale-select{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;height:${sbH}px;padding:0 4px;color:${c.statusBarColor};font:${c.toolbarFont};outline:none;opacity:0.7}
     #zoom-select{min-width:62px}
     #flavor-select{min-width:72px}
     #resolution-select{min-width:70px}
@@ -606,7 +551,7 @@ export class ScryerPanel {
     #zoom-select:hover,#flavor-select:hover,#resolution-select:hover,#locale-select:hover{background:rgba(255,255,255,0.07);opacity:1}
     #zoom-select option,#flavor-select option,#resolution-select option,#locale-select option{background:${c.statusBarBg};color:${c.statusBarColor}}
     #flavor-select option:disabled,#resolution-select option:disabled{opacity:0.45;font-style:italic}
-    #debug{padding:0 4px;white-space:pre-wrap}
+    #debug{padding:0 4px;white-space:pre-wrap;font:${c.statusTextFont}}
     #ruler-top{position:fixed;top:${sbH}px;left:0;right:0;height:${rsz}px;z-index:9999;display:none}
     #ruler-left{position:fixed;top:${sbH}px;left:0;bottom:0;width:${rsz}px;z-index:9999;display:none}
     #ruler-corner{position:fixed;top:${sbH}px;left:0;width:${rsz}px;height:${rsz}px;z-index:10000;background:${c.rulerBg};border-right:1px solid ${c.rulerBorder};border-bottom:1px solid ${c.rulerBorder};display:none}

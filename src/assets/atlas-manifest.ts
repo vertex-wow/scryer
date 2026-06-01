@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import type { FrameIR, TextureIR } from "../parser/ir.js";
 
 export interface AtlasEntry {
   /** WoW-relative path to the sprite sheet (e.g. "Interface/Glues/..."). */
@@ -20,6 +21,58 @@ export interface AtlasEntry {
 }
 
 export type AtlasManifest = Record<string, AtlasEntry>;
+
+function resolveAtlasInTexture(tex: TextureIR, manifest: AtlasManifest): void {
+  if (!tex.atlas) return;
+  const origLower = tex.atlas.toLowerCase();
+  const stripped = tex.atlas.replace(/^[_!]+/, "");
+  const strippedLower = stripped.toLowerCase();
+  const entry =
+    manifest[tex.atlas] ??
+    manifest[origLower] ??
+    manifest[stripped] ??
+    manifest[strippedLower] ??
+    manifest[strippedLower + "-2x"];
+  if (!entry) return;
+  tex.resolvedAtlas = {
+    file: entry.file,
+    x: entry.x,
+    y: entry.y,
+    width: entry.width,
+    height: entry.height,
+    sheetW: entry.sheetW,
+    sheetH: entry.sheetH,
+    tilesH: entry.tilesH,
+    tilesV: entry.tilesV,
+  };
+}
+
+function resolveAtlasInFrame(frame: FrameIR, manifest: AtlasManifest): void {
+  for (const layer of frame.layers) {
+    for (const obj of layer.objects) {
+      if (obj.kind === "Texture" || obj.kind === "MaskTexture") {
+        resolveAtlasInTexture(obj as TextureIR, manifest);
+      }
+    }
+  }
+  for (const tex of [
+    frame.normalTexture,
+    frame.pushedTexture,
+    frame.disabledTexture,
+    frame.highlightTexture,
+  ]) {
+    if (tex) resolveAtlasInTexture(tex, manifest);
+  }
+  for (const child of frame.children) {
+    resolveAtlasInFrame(child, manifest);
+  }
+}
+
+export function resolveAtlasNames(frames: FrameIR[], manifest: AtlasManifest): void {
+  for (const frame of frames) {
+    resolveAtlasInFrame(frame, manifest);
+  }
+}
 
 /**
  * Load the atlas manifest from disk. Returns null if the file is absent or unparseable.

@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import DEFAULTS_JSON from "./defaults.json";
 
 /** One layer of flavor config — all keys optional so layers can be sparse. */
 export interface FlavorConfigLayer {
@@ -60,6 +61,12 @@ export interface FlavorConfigLayer {
   statusBarBg?: string;
   /** Status bar text color. */
   statusBarColor?: string;
+  /** CSS font shorthand for toolbar buttons and dropdowns. */
+  toolbarFont?: string;
+  /** CSS font shorthand for the status text span on the right of the toolbar. */
+  statusTextFont?: string;
+  /** CSS font shorthand for ruler canvas tick labels. */
+  rulerFont?: string;
   /** Status bar CSS font shorthand. */
   statusBarFont?: string;
   /** HSL saturation (0–100) for placeholder tiles. */
@@ -120,6 +127,9 @@ export interface ResolvedFlavorConfig {
   statusBarHeight: number;
   statusBarBg: string;
   statusBarColor: string;
+  toolbarFont: string;
+  statusTextFont: string;
+  rulerFont: string;
   statusBarFont: string;
   placeholderSaturation: number;
   placeholderLightness: number;
@@ -131,94 +141,7 @@ export interface ResolvedFlavorConfig {
   onUpdateTimeout: number;
 }
 
-// Absolute fallback — matches the values in src/flavors/defaults.json.
-const HARD_DEFAULTS: Required<FlavorConfigLayer> = {
-  screenWidth: 1920,
-  screenHeight: 1080,
-  uiParentHeight: 768,
-  defaultFont: "Fonts/FRIZQT__.TTF",
-  defaultFontSize: 12,
-  defaultFontFlags: "",
-  defaultTextColor: { r: 1, g: 0.82, b: 0, a: 1 },
-  frameScale: 1,
-  fontLetterSpacing: "0.033em",
-  autoFontSizeRatio: 0.75,
-  fontSmoothing: "antialiased",
-  viewportBg: "#555",
-  viewportCheckerLight: "#666",
-  viewportCheckerDark: "#444",
-  viewportCheckerSize: 128,
-  rulerBg: "#1a1a1a",
-  rulerBorder: "#2a2a2a",
-  rulerTickMajorColor: "#666",
-  rulerTickMinorColor: "#3a3a3a",
-  rulerLabelColor: "#c8c8c8",
-  rulerLabelInterval: 100,
-  rulerTickMajor: 50,
-  rulerTickMinor: 10,
-  rulerSize: 20,
-  rulerShadowColor: "rgba(0,0,0,0.9)",
-  rulerShadowBlur: 3,
-  statusBarHeight: 20,
-  statusBarBg: "#222",
-  statusBarColor: "#888",
-  statusBarFont: "11px monospace",
-  placeholderSaturation: 45,
-  placeholderLightness: 30,
-  placeholderLabelOpacity: 0.7,
-  layoutEpsilon: 1e-9,
-  layoutMaxIterations: 64,
-  sandboxTimeout: 5000,
-  onUpdateHz: 60,
-  onUpdateTimeout: 100,
-};
-
-// Built-in per-flavor config — mirrors src/flavors/defaults.json exactly.
-const BUILTIN_CONFIG: FlavorConfigFile = {
-  default: {
-    screenWidth: 1920,
-    screenHeight: 1080,
-    uiParentHeight: 768,
-    defaultFont: "Fonts/FRIZQT__.TTF",
-    defaultFontSize: 12,
-    defaultFontFlags: "",
-    defaultTextColor: { r: 1, g: 0.82, b: 0, a: 1 },
-    frameScale: 1,
-    fontLetterSpacing: "0.033em",
-    autoFontSizeRatio: 0.75,
-    fontSmoothing: "antialiased",
-    viewportBg: "#555",
-    viewportCheckerLight: "#666",
-    viewportCheckerDark: "#444",
-    viewportCheckerSize: 128,
-    rulerBg: "#1a1a1a",
-    rulerBorder: "#2a2a2a",
-    rulerTickMajorColor: "#666",
-    rulerTickMinorColor: "#3a3a3a",
-    rulerLabelColor: "#c8c8c8",
-    rulerLabelInterval: 100,
-    rulerTickMajor: 50,
-    rulerTickMinor: 10,
-    rulerSize: 20,
-    rulerShadowColor: "rgba(0,0,0,0.9)",
-    rulerShadowBlur: 3,
-    statusBarHeight: 20,
-    statusBarBg: "#222",
-    statusBarColor: "#888",
-    statusBarFont: "11px monospace",
-    placeholderSaturation: 45,
-    placeholderLightness: 30,
-    placeholderLabelOpacity: 0.7,
-    layoutEpsilon: 1e-9,
-    layoutMaxIterations: 64,
-    sandboxTimeout: 5000,
-    onUpdateHz: 60,
-    onUpdateTimeout: 100,
-  },
-  retail: {},
-  classic: {},
-  classic_era: {},
-};
+const BUILTIN = DEFAULTS_JSON as FlavorConfigFile;
 
 function mergeLayer(
   base: Required<FlavorConfigLayer>,
@@ -242,15 +165,14 @@ function loadUserConfig(filePath: string): FlavorConfigFile | null {
 }
 
 /**
- * Merge order: hard defaults → built-in default → built-in per-flavor →
+ * Merge order: built-in default → built-in per-flavor →
  * user default → user per-flavor. Later layers win per key.
  */
 export function resolveFlavorConfig(flavor: string, userConfigPath?: string): ResolvedFlavorConfig {
   const user = userConfigPath ? (loadUserConfig(userConfigPath) ?? {}) : {};
 
-  let resolved: Required<FlavorConfigLayer> = { ...HARD_DEFAULTS };
-  resolved = mergeLayer(resolved, BUILTIN_CONFIG.default);
-  resolved = mergeLayer(resolved, BUILTIN_CONFIG[flavor]);
+  let resolved = { ...(BUILTIN.default as Required<FlavorConfigLayer>) };
+  resolved = mergeLayer(resolved, BUILTIN[flavor]);
   resolved = mergeLayer(resolved, user.default);
   resolved = mergeLayer(resolved, user[flavor]);
 

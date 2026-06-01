@@ -59,6 +59,7 @@ const C_NAMESPACES = [
   "C_CreatureInfo",
   "C_CurrencyInfo",
   "C_Cursor",
+  "C_CurveUtil",
   "C_CVar",
   "C_DateAndTime",
   "C_DeathInfo",
@@ -588,6 +589,13 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     function secureexecuterange(tbl, fn, ...)
       for _, v in ipairs(tbl) do fn(v, ...) end
     end
+    -- securecallfunction must live in Lua (not JS) so it can propagate multiple
+    -- return values. The JS bridge collapses multi-returns to a single value,
+    -- which breaks callers like: local a, b = securecallfunction(unpack, t)
+    function securecallfunction(fn, ...)
+      local t = table.pack(pcall(fn, ...))
+      if t[1] then return table.unpack(t, 2, t.n) end
+    end
 
     -- WoW-specific Lua library extensions injected by the C layer.
     table.wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
@@ -615,6 +623,19 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
       return function(...) return fn(unpack(args), ...) end
     end
     function nop() end
+
+    -- Counter factory (C API). Returns a callable that increments and returns an integer each call.
+    function CreateCounter(start)
+      local n = (start or 0)
+      return function() n = n + 1; return n end
+    end
+
+    -- Table utility (C API). Returns tbl[key], creating and storing an empty table if absent.
+    function GetOrCreateTableEntry(tbl, key)
+      local v = tbl[key]
+      if v == nil then v = {}; tbl[key] = v end
+      return v
+    end
 
     -- Error / callstack (WoW C debugging internals; no-ops in preview).
     function SetErrorCallstackHeight() end
@@ -646,6 +667,9 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     -- C_ScriptedAnimations.GetAllScriptedAnimationEffects must return a table (not nil)
     -- or scriptedanimationeffects.lua crashes on #effectDescriptions at module level.
     C_ScriptedAnimations.GetAllScriptedAnimationEffects = function() return {} end
+
+    -- C_UIColor.GetColors must return a table or color.lua crashes when iterating it with ipairs.
+    C_UIColor.GetColors = function() return {} end
   `);
 
   // C_Texture.GetAtlasInfo — always overridden so NineSlice and similar code get a
@@ -730,18 +754,13 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
   // Safe-call wrappers — WoW's versions suppress errors; ours forward return values
   lua.global.set("securecall", (fn: (...a: unknown[]) => unknown, ...args: unknown[]) => {
     try {
-      fn(...args);
+      return fn(...args);
     } catch {
       // swallow
     }
   });
-  lua.global.set("securecallfunction", (fn: (...a: unknown[]) => unknown, ...args: unknown[]) => {
-    try {
-      return fn(...args);
-    } catch {
-      return; // undefined → Lua nil
-    }
-  });
+  // securecallfunction is defined in Lua (see the doString block above) so it
+  // can propagate multiple return values — JS functions cannot do this.
 
   // Stubs for hook/error globals — non-functional but prevent nil crashes
   lua.global.set("hooksecurefunc", () => {});
@@ -770,6 +789,131 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     }
     __scryer_timer_after  = nil
     __scryer_timer_ticker = nil
+  end`);
+
+  // ── C_CurveUtil ─────────────────────────────────────────────────────────
+  // Provides C_CurveUtil.CreateCurve() for CurveConstants.lua.
+  // Curve objects support AddPoint, SetType, Evaluate, and basic introspection.
+  // Evaluation uses linear interpolation between points; Enum.LuaCurveType.Linear
+  // is the only type Blizzard uses in base UI shared XML.
+  await lua.doString(`do
+    local function CreateCurveObject()
+      local curve = {}
+      curve.points = {}
+      curve.curveType = 0  -- Enum.LuaCurveType.Linear
+      
+      function curve:AddPoint(x, y)
+        table.insert(self.points, {x = x, y = y})
+        -- Sort by x coordinate
+        table.sort(self.points, function(a, b) return a.x < b.x end)
+      end
+      
+      function curve:SetType(curveType)
+        self.curveType = curveType
+      end
+      
+      function curve:Evaluate(x)
+        if #self.points == 0 then return 0 end
+        if #self.points == 1 then return self.points[1].y end
+        
+        -- Linear interpolation
+        for i = 1, #self.points - 1 do
+          local p1 = self.points[i]
+          local p2 = self.points[i + 1]
+          if x >= p1.x and x <= p2.x then
+            if p2.x == p1.x then return p1.y end
+            local t = (x - p1.x) / (p2.x - p1.x)
+            return p1.y + (p2.y - p1.y) * t
+          end
+        end
+        
+        return self.points[#self.points].y
+      end
+      
+      function curve:GetPoint(index)
+        local p = self.points[index]
+        if not p then return nil end
+        return {x = p.x, y = p.y}
+      end
+      
+      function curve:GetPointCount()
+        return #self.points
+      end
+      
+      function curve:GetPoints()
+        return self.points
+      end
+      
+      function curve:SetPoints(points)
+        self.points = {}
+        for _, p in ipairs(points) do
+          self:AddPoint(p.x, p.y)
+        end
+      end
+      
+      function curve:RemovePoint(index)
+        table.remove(self.points, index)
+      end
+      
+      function curve:ClearPoints()
+        self.points = {}
+      end
+      
+      function curve:Copy()
+        local newCurve = CreateCurveObject()
+        newCurve:SetType(self.curveType)
+        for _, p in ipairs(self.points) do
+          newCurve:AddPoint(p.x, p.y)
+        end
+        return newCurve
+      end
+      
+      function curve:SetToDefaults()
+        self.points = {}
+        self.curveType = 0
+      end
+      
+      return curve
+    end
+    
+    C_CurveUtil.CreateCurve = function()
+      return CreateCurveObject()
+    end
+  end`);
+
+  // ── Faction color stubs ──────────────────────────────────────────────────
+  // C-layer-populated color constants needed by SharedColorConstants.lua.
+  // These are global color objects that WoW creates before any Lua loads.
+  // Stub implementation with minimal methods needed by Blizzard code.
+  await lua.doString(`do
+    local function CreateStubColor(r, g, b, a)
+      local color = {}
+      color.r = r
+      color.g = g
+      color.b = b
+      color.a = a or 1
+      
+      function color:GetRGB()
+        return self.r, self.g, self.b
+      end
+      
+      function color:GetRGBA()
+        return self.r, self.g, self.b, self.a
+      end
+      
+      function color:GenerateHexColor()
+        local r = math.floor(self.r * 255)
+        local g = math.floor(self.g * 255)
+        local b = math.floor(self.b * 255)
+        return string.format("%02x%02x%02x", r, g, b)
+      end
+      
+      return color
+    end
+    
+    -- Faction color constants (C-layer populated in real WoW)
+    PLAYER_FACTION_COLOR_ALLIANCE = CreateStubColor(0.0, 0.678, 0.941, 1.0)
+    PLAYER_FACTION_COLOR_HORDE = CreateStubColor(1.0, 0.161, 0.204, 1.0)
   end`);
 
   // ── Event listener registry ───────────────────────────────────────────────

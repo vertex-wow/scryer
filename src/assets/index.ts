@@ -25,7 +25,7 @@ import {
 import { clearResolutionMemo, resolveTexturePath } from "./resolver.js";
 import { isCascToolAvailable } from "./extract-core.js";
 import { collectTexturePaths } from "../parser/collect-textures.js";
-import { loadAtlasManifest, type AtlasManifest } from "./atlas-manifest.js";
+import { loadAtlasManifest, resolveAtlasNames, type AtlasManifest } from "./atlas-manifest.js";
 import type { FrameIR } from "../parser/ir.js";
 
 /** Resolve the Interface/AddOns path case-insensitively (extraction tools may lowercase it). */
@@ -103,8 +103,9 @@ export class AssetService {
 
   /** True if <sourceDir>/Interface/ exists on disk (Blizzard assets have been extracted). */
   async hasExtractedAssets(): Promise<boolean> {
+    const resolved = resolveCI(this.opts.sourceDir, "Interface");
     try {
-      await vscode.workspace.fs.stat(vscode.Uri.file(path.join(this.opts.sourceDir, "Interface")));
+      await vscode.workspace.fs.stat(vscode.Uri.file(resolved));
       return true;
     } catch {
       return false;
@@ -334,11 +335,6 @@ export class AssetService {
       const fontsMissing = !fs.existsSync(fontsDir);
 
       if (missingAddons.length === 0 && !fontsMissing) {
-        try {
-          this.opts.output.info(`  cache-hit: shared templates found`);
-        } catch {
-          /* channel disposed */
-        }
         return false;
       }
 
@@ -448,7 +444,10 @@ export class AssetService {
     if (!this.opts.sourceDir) return;
     const addonsDir = resolveAddonsDir(this.opts.sourceDir);
     const registry = loadBlizzardRegistry(addonsDir, this.opts.registryDir, addonNames);
-    const paths = collectTexturePaths(Array.from(registry.values()));
+    const frames = Array.from(registry.values());
+    const atlasManifest = this.loadAtlasManifest();
+    if (atlasManifest) resolveAtlasNames(frames, atlasManifest);
+    const paths = collectTexturePaths(frames);
     await Promise.all(paths.map((p) => this.resolveToAbsPath(p)));
   }
 

@@ -13,9 +13,6 @@
 
 import type { ResolvedFlavorConfig } from "../protocol.js";
 
-// sans-serif renders noticeably crisper than monospace at 9 px
-const FONT = "9px system-ui,sans-serif";
-
 let topCanvas: HTMLCanvasElement | null = null;
 let leftCanvas: HTMLCanvasElement | null = null;
 let cornerEl: HTMLDivElement | null = null;
@@ -113,7 +110,7 @@ function drawHorizontal(
   const firstTick = Math.floor(wowXStart / config.rulerTickMinor) * config.rulerTickMinor;
   const lastTick = Math.ceil(wowXEnd / config.rulerTickMinor) * config.rulerTickMinor;
 
-  ctx.font = FONT;
+  ctx.font = config.rulerFont;
   ctx.textBaseline = "top";
   ctx.textAlign = "left";
 
@@ -170,7 +167,7 @@ function drawVertical(
   const firstTick = Math.floor(wowYStart / config.rulerTickMinor) * config.rulerTickMinor;
   const lastTick = Math.ceil(wowYEnd / config.rulerTickMinor) * config.rulerTickMinor;
 
-  ctx.font = FONT;
+  ctx.font = config.rulerFont;
 
   for (let wy = firstTick; wy <= lastTick; wy += config.rulerTickMinor) {
     const py = adjustedOriginY + wy * scale;

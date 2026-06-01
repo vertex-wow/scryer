@@ -1,13 +1,13 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { AssetService } from "./assets/index.js";
 import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
-import { ADDON_NAMES } from "./parser/blizzard-registry.js";
-import { parseXmlFile, resolveInheritance, collectTexturePaths } from "./parser/index.js";
-import { isSvgConverterAvailable, svgToPng, pngToTga, resolveFlipTool } from "./assets/svg.js";
-import { ScryerPanel } from "./panel.js";
+import { AssetService } from "./assets/index.js";
+import { isSvgConverterAvailable, pngToTga, resolveFlipTool, svgToPng } from "./assets/svg.js";
 import { ScryerLivePanel } from "./live-panel.js";
+import { ScryerPanel } from "./panel.js";
+import { ADDON_NAMES, SHARED_ADDON_NAMES } from "./parser/blizzard-registry.js";
+import { collectTexturePaths, parseXmlFile, resolveInheritance } from "./parser/index.js";
 
 interface GitRepo {
   checkIgnore(paths: string[]): Promise<Set<string>>;
@@ -233,31 +233,35 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     });
     const TIER_LABEL: Record<string, string> = {
-      "shared-templates": "load shared templates, no textures",
-      "all-templates": "all Blizzard templates loaded, no textures",
+      "shared-templates": "cached shared templates, no textures",
+      "all-templates": "all Blizzard templates cached, no textures",
       "all-templates-shared-textures":
-        "all Blizzard templates loaded, shared textures queued for pre-warm",
-      "all-templates-textures": "all Blizzard templates loaded, all textures queued for pre-warm",
+        "all Blizzard templates cached, shared textures queued for pre-warm",
+      "all-templates-textures": "all Blizzard templates cached, all textures queued for pre-warm",
     };
     void Promise.resolve().then(async () => {
-      output.info(
-        `cache-warmup: ${TIER_LABEL[startupContent] ?? startupContent} (startupContent=${startupContent})`,
-      );
       await assets.ensureBlizzardFiles();
       await assets.ensureAtlasManifest();
       assets.loadBlizzardTemplates();
       if (cancelled) return;
       if (tierIdx >= TIER_ORDER.indexOf("all-templates-shared-textures")) {
         if (!(await assets.hasExtractedAssets())) {
+          output.info(
+            `cache-warmup: ${TIER_LABEL[startupContent] ?? startupContent} (startupContent=${startupContent})`,
+          );
+          const hint = !assets.installDir
+            ? "Set scryer.installDir to enable extraction."
+            : !assets.isCascToolAvailable()
+              ? "Set scryer.cascToolPath to enable extraction."
+              : "Extraction was attempted — check Scryer output for errors.";
           output.warn(
-            `cache-warmup: startupContent="${startupContent}" requests textures but no extracted assets found — skipping texture pre-warm. Set scryer.installDir to enable extraction.`,
+            `cache-warmup: startupContent="${startupContent}" requests textures but no extracted assets found — skipping texture pre-warm. ${hint}`,
           );
         } else {
           await vscode.window.withProgress(
             { location: vscode.ProgressLocation.Window, title: "Scryer: prewarming textures…" },
-            () => assets.prewarmBlizzardTextures(ADDON_NAMES),
+            () => assets.prewarmBlizzardTextures(SHARED_ADDON_NAMES),
           );
-          output.info("cache-warmup: shared Blizzard textures pre-warmed");
           if (cancelled) return;
           if (tierIdx >= TIER_ORDER.indexOf("all-templates-textures")) {
             await vscode.window.withProgress(
@@ -267,9 +271,17 @@ export function activate(context: vscode.ExtensionContext): void {
               },
               () => assets.prewarmBlizzardTextures(ADDON_NAMES),
             );
-            output.info("cache-warmup: all Blizzard textures pre-warmed");
           }
+          const textureScope =
+            tierIdx >= TIER_ORDER.indexOf("all-templates-textures") ? "" : " shared";
+          output.info(
+            `cache-warmup: all Blizzard templates and${textureScope} textures cached (startupContent=${startupContent})`,
+          );
         }
+      } else {
+        output.info(
+          `cache-warmup: ${TIER_LABEL[startupContent] ?? startupContent} (startupContent=${startupContent})`,
+        );
       }
     });
   }

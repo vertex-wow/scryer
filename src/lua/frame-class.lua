@@ -369,7 +369,7 @@ do
     end
   end
   function FrameMT:RegisterAllEvents()  end
-  function FrameMT:SetAttribute(k,v)    _frame_set_attr(self.__id, k, v)                  end
+  function FrameMT:SetAttribute(k,v)    _frame_set_attr(self.__id, k, v); _fire_script(self, "OnAttributeChanged", k, v) end
   function FrameMT:GetAttribute(k) return _frame_get_attr(self.__id, k)                    end
   function FrameMT:GetNumChildren()    return _frame_child_count(self.__id) end
   function FrameMT:CreateTexture(name, layer, _inherits, subLevel)
@@ -421,6 +421,8 @@ do
     end
     return table.unpack(out)
   end
+  function FrameMT:SetForbidden()      end
+  function FrameMT:IsForbidden()      return false end
   function FrameMT:SetFontObject()    end
   function FrameMT:GetFontObject()    return nil end
   function FrameMT:SetNormalFontObject() end

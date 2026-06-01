@@ -43,6 +43,9 @@
     "statusBarHeight": 20,
     "statusBarBg": "#222",
     "statusBarColor": "#888",
+    "toolbarFont": "11px var(--vscode-font-family, system-ui, -apple-system, sans-serif)",
+    "statusTextFont": "11px var(--vscode-font-family, system-ui, -apple-system, sans-serif)",
+    "rulerFont": "9px system-ui, sans-serif",
     "statusBarFont": "11px monospace",
 
     "_comment_placeholder": "Placeholder tiles shown for unresolved textures. Hue is deterministic per path via djb2 hash (seed 5381); saturation/lightness set the muted tone so placeholders are visually distinct but not distracting.",
