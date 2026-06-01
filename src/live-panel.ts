@@ -12,7 +12,7 @@ import { FrameRegistry } from "./lua/frame-registry.js";
 import { createSandbox } from "./lua/sandbox.js";
 import { runTocAddon } from "./lua/toc-runner.js";
 import { registerWowApi, VirtualClock } from "./lua/wow-api.js";
-import type { FrameIR } from "./parser/ir.js";
+import type { FrameIR, TextureIR } from "./parser/ir.js";
 import { parseToc } from "./parser/toc.js";
 import type { HostMessage, Viewport, WebviewMessage } from "./protocol.js";
 
