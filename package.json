@@ -267,6 +267,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.build.json",
     "dev": "node esbuild.mjs --watch",
     "lint": "eslint src/",
+    "lint:fix": "prettier --write . && eslint --fix src/",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck",
@@ -278,7 +279,7 @@
     "links": "node dev/bench.build.mjs && node dist/links.js",
     "assets": "node dev/bench.build.mjs && node dist/assets.js",
     "gen-globalstrings": "node dev/bench.build.mjs && node dist/gen-globalstrings.js",
-    "gen-api-stubs": "node dev/bench.build.mjs && node dist/gen-api-stubs.js",
+    "gen-api-stubs": "node dev/bench.build.mjs && node dist/gen-api-stubs.js && pnpm run lint:fix",
     "package": "pnpm run build && vsce package --no-dependencies",
     "publish": "pnpm run build && vsce publish --no-dependencies",
     "prepare": "husky"
