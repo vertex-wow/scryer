@@ -30,6 +30,7 @@
       "Bash(grep *)",
       "Bash(head *)",
       "Bash(ls *)",
+      "Bash(xargs *)",
       "Bash(tail *)",
       "Edit",
       "Grep",

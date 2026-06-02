@@ -383,15 +383,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#typed-scalar-returns-in-generated-stubs">Typed scalar returns</a></td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td><a href="backlog.md#wow-type-system-generation">WoW type system generation</a></td>
-  <td>⬜ Deferred</td>
-  <td>Generate TypeScript interfaces for all Blizzard Structure tables in src/lua/api-stubs/types.ts</td>
-  <td>M</td>
-  <td>13</td>
+  <td colspan="5">✅ <a href="backlog-archive.md#typed-scalar-returns-in-generated-stubs">Typed scalar returns</a>, <a href="backlog-archive.md#wow-type-system-generation">WoW type system generation</a></td>
 </tr>
 <tr>
   <td>↳</td>

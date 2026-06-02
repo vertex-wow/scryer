@@ -464,18 +464,6 @@ See `docs/plan/013_api_stub_autogen.md` for full architecture.
 
 ---
 
-## WoW type system generation
-
-**Status:** ⬜ Deferred (after M13)
-
-**Problem:** Generated stubs use `unknown` for all params and returns. Custom implementations in `src/lua/api/` have no type guidance for what shapes to return. A TypeScript interface per Blizzard Structure table would give implementors correct field names and catch shape errors at compile time.
-
-**Plan:** Extend `gen-api-stubs.ts` to also emit `src/lua/api-stubs/types.ts` with a TypeScript interface per `Type = "Structure"` table. Upgrade stub param/return types from `unknown` to the generated types. Structs referencing other structs get proper imports.
-
-**Effort:** M
-
----
-
 ## Event name constants generation
 
 **Status:** ⬜ Deferred (after M13)

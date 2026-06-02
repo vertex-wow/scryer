@@ -22,6 +22,20 @@ Existing `src/lua/api-stubs/retail/*.ts` stubs — patched via a one-off Node.js
 
 ---
 
+## WoW type system generation
+
+**Status: Done** (2026-06-02)
+
+**What was built:**
+
+`dev/gen-api-stubs.ts` — added `buildEnumRegistry` (collects `Type = "Enumeration"` table names), `mapTsType` (maps WoW field types to TypeScript — primitives, struct refs, enum refs → `number`, arrays via `InnerType`), and `generateTypesContent` (emits one `export interface` per `Type = "Structure"` table, deduped by name). Called from `run()` for retail flavor runs only.
+
+`src/lua/api-stubs/types.ts` (generated, 711 interfaces) — TypeScript interfaces for every Blizzard Structure. Fields use the correct TypeScript types: scalar primitives map to `number`/`string`/`boolean`; struct-typed fields reference the generated interface by name; typed arrays (`Type = "table"`, `InnerType = "Foo"`) emit `Foo[]`; known Enumeration names emit `number`; unrecognized types emit `unknown`. Nilable fields get `?`.
+
+**Approach:** Single flat file — no imports needed since TypeScript interfaces support forward references within a file. Emit for retail only (retail is the struct superset; classic/classic_era runs skip it).
+
+---
+
 ## Blizzard FrameXML template corpus loading (pre-M4)
 
 **Status: Done** (2026-05-26)
