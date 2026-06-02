@@ -35,7 +35,8 @@ describe("C_* namespace stubs", () => {
   });
 
   test("calling any C_* function returns nil without error", async () => {
-    expect(await run("return C_Item.GetItemInfo(12345)")).toBeNull(); // stub explicitly returns nil
+    // _nil stubs return nothing (0 values); test via Lua == nil which is true in both cases
+    expect(await run("return C_Item.GetItemInfo(12345) == nil")).toBe(true);
   });
 
   test("first and last namespace exist", async () => {

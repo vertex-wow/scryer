@@ -376,6 +376,7 @@ export class ScryerLivePanel {
 
       await registerWowApi(sandbox, {
         clock,
+        flavor: flavor as "retail" | "classic" | "classic_era",
         locale,
         print: (msg) => this.output.info(`[Lua] ${msg}`),
         isAddonLoaded: () => true,

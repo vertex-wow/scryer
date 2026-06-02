@@ -123,8 +123,8 @@ export async function registerStubs(lua, flavor) {
 
 1. Nil-metatable namespace setup (existing, unchanged)
 2. `registerStubs(lua, flavor)` ← new
-3. `registerOverrides(lua, flavor)` ← new (future; `api/` layer not yet built)
-4. Existing inline stubs (`C_ScriptedAnimations`, `C_UIColor`, `C_Timer`, etc.) ← last, always win
+3. `registerOverrides(lua, flavor)` — `api/` overrides (`C_ScriptedAnimations`, `C_UIColor`, `C_CurveUtil`)
+4. Remaining inline stubs (`C_Texture.GetAtlasInfo`, `C_Timer`, etc.) ← last, always win
 
 ## Change detection
 

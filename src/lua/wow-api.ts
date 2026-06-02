@@ -1,5 +1,8 @@
 import { type LuaEngine } from "wasmoon";
 
+import { registerStubs } from "./api-stubs/index.js";
+import { registerOverrides } from "./api/index.js";
+
 // ─── C_* namespace names ──────────────────────────────────────────────────────
 // Sourced from _reference/vscode-wow-api/src/data/globalapi.ts.
 // C_Timer is excluded here — it is registered as a real implementation below.
@@ -524,6 +527,8 @@ function wowDate(fmt: unknown, time: unknown): unknown {
 
 export interface WowApiOptions {
   clock: VirtualClock;
+  /** WoW flavor for API stub registration. Defaults to "retail". */
+  flavor?: "retail" | "classic" | "classic_era";
   /** Receives output from Lua print() and DEFAULT_CHAT_FRAME:AddMessage(). */
   print?: (msg: string) => void;
   /** Returns true if the named addon is considered loaded. Defaults to always-true. */
@@ -564,6 +569,13 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
       `${ns} = setmetatable({}, { __index = function() return function() return nil end end })`,
   ).join("\n");
   await lua.doString(namespaceLua);
+
+  // Generated stubs (from api-stubs/) layer explicit _nil/_tbl functions on
+  // top of the nil-metatable tables above, then manual overrides (api/) replace
+  // any stubs that need a real implementation.
+  const flavor = opts.flavor ?? "retail";
+  await registerStubs(lua, flavor);
+  await registerOverrides(lua, flavor);
 
   // ── WoW C-layer globals ───────────────────────────────────────────────────
   // These are provided by the WoW C layer before any Lua loads.
@@ -664,12 +676,6 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     -- SlashCmdList is a C-layer-seeded global; addons append to it.
     if SlashCmdList == nil then SlashCmdList = {} end
 
-    -- C_ScriptedAnimations.GetAllScriptedAnimationEffects must return a table (not nil)
-    -- or scriptedanimationeffects.lua crashes on #effectDescriptions at module level.
-    C_ScriptedAnimations.GetAllScriptedAnimationEffects = function() return {} end
-
-    -- C_UIColor.GetColors must return a table or color.lua crashes when iterating it with ipairs.
-    C_UIColor.GetColors = function() return {} end
   `);
 
   // C_Texture.GetAtlasInfo — always overridden so NineSlice and similar code get a
@@ -791,96 +797,6 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     }
     __scryer_timer_after  = nil
     __scryer_timer_ticker = nil
-  end`);
-
-  // ── C_CurveUtil ─────────────────────────────────────────────────────────
-  // Provides C_CurveUtil.CreateCurve() for CurveConstants.lua.
-  // Curve objects support AddPoint, SetType, Evaluate, and basic introspection.
-  // Evaluation uses linear interpolation between points; Enum.LuaCurveType.Linear
-  // is the only type Blizzard uses in base UI shared XML.
-  await lua.doString(`do
-    local function CreateCurveObject()
-      local curve = {}
-      curve.points = {}
-      curve.curveType = 0  -- Enum.LuaCurveType.Linear
-      
-      function curve:AddPoint(x, y)
-        table.insert(self.points, {x = x, y = y})
-        -- Sort by x coordinate
-        table.sort(self.points, function(a, b) return a.x < b.x end)
-      end
-      
-      function curve:SetType(curveType)
-        self.curveType = curveType
-      end
-      
-      function curve:Evaluate(x)
-        if #self.points == 0 then return 0 end
-        if #self.points == 1 then return self.points[1].y end
-        
-        -- Linear interpolation
-        for i = 1, #self.points - 1 do
-          local p1 = self.points[i]
-          local p2 = self.points[i + 1]
-          if x >= p1.x and x <= p2.x then
-            if p2.x == p1.x then return p1.y end
-            local t = (x - p1.x) / (p2.x - p1.x)
-            return p1.y + (p2.y - p1.y) * t
-          end
-        end
-        
-        return self.points[#self.points].y
-      end
-      
-      function curve:GetPoint(index)
-        local p = self.points[index]
-        if not p then return nil end
-        return {x = p.x, y = p.y}
-      end
-      
-      function curve:GetPointCount()
-        return #self.points
-      end
-      
-      function curve:GetPoints()
-        return self.points
-      end
-      
-      function curve:SetPoints(points)
-        self.points = {}
-        for _, p in ipairs(points) do
-          self:AddPoint(p.x, p.y)
-        end
-      end
-      
-      function curve:RemovePoint(index)
-        table.remove(self.points, index)
-      end
-      
-      function curve:ClearPoints()
-        self.points = {}
-      end
-      
-      function curve:Copy()
-        local newCurve = CreateCurveObject()
-        newCurve:SetType(self.curveType)
-        for _, p in ipairs(self.points) do
-          newCurve:AddPoint(p.x, p.y)
-        end
-        return newCurve
-      end
-      
-      function curve:SetToDefaults()
-        self.points = {}
-        self.curveType = 0
-      end
-      
-      return curve
-    end
-    
-    C_CurveUtil.CreateCurve = function()
-      return CreateCurveObject()
-    end
   end`);
 
   // ── Faction color stubs ──────────────────────────────────────────────────
