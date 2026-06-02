@@ -575,7 +575,7 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
   // any stubs that need a real implementation.
   const flavor = opts.flavor ?? "retail";
   await registerStubs(lua, flavor);
-  await registerOverrides(lua, flavor);
+  await registerOverrides(lua, flavor, { atlasManifest: opts.atlasManifest });
 
   // ── WoW C-layer globals ───────────────────────────────────────────────────
   // These are provided by the WoW C layer before any Lua loads.
@@ -677,58 +677,6 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     if SlashCmdList == nil then SlashCmdList = {} end
 
   `);
-
-  // C_Texture.GetAtlasInfo — always overridden so NineSlice and similar code get a
-  // truthy result for any non-empty atlas name (allowing SetAtlas to be called).
-  // WoW atlas names may carry _/! tiling-hint prefixes that are stripped before lookup.
-  // With manifest: returns full WoW-compatible info table.
-  // Without manifest: returns minimal {tilesHorizontally=false,tilesVertically=false}.
-  {
-    const manifest = opts.atlasManifest ?? null;
-    lua.global.set("__scryer_atlas_getinfo", (name: unknown) => {
-      if (typeof name !== "string" || !name) return;
-      // WoW uses _ and ! prefixes as tiling hints; the manifest may store keys with
-      // or without them. Try the original name first, then the stripped variant.
-      const origLower = name.toLowerCase();
-      const stripped = name.replace(/^[_!]+/, "");
-      const strippedLower = stripped.toLowerCase();
-      // The _ prefix means tile horizontally, ! means tile vertically.
-      const prefixTilesH = name.startsWith("_");
-      const prefixTilesV = name.startsWith("!");
-      if (manifest) {
-        let entry = manifest[origLower] ?? manifest[stripped] ?? manifest[strippedLower];
-        let scaleDivisor = 1;
-        if (!entry) {
-          entry = manifest[origLower + "-2x"] ?? manifest[strippedLower + "-2x"];
-          if (entry) scaleDivisor = 2;
-        }
-        if (entry) {
-          const { x, y, width, height, sheetW, sheetH, tilesH, tilesV } = entry;
-          const d = scaleDivisor;
-          // texcoords in 0–1 UV space (ratios are scale-invariant)
-          return {
-            tilesHorizontally: tilesH || prefixTilesH,
-            tilesVertically: tilesV || prefixTilesV,
-            width: width / d,
-            height: height / d,
-            leftTexCoord: x / sheetW,
-            rightTexCoord: (x + width) / sheetW,
-            topTexCoord: y / sheetH,
-            bottomTexCoord: (y + height) / sheetH,
-          };
-        }
-      }
-      // No manifest entry — return minimal truthy value so SetAtlas is still called
-      return { tilesHorizontally: prefixTilesH, tilesVertically: prefixTilesV };
-    });
-    await lua.doString(`do
-      local _getinfo = __scryer_atlas_getinfo
-      C_Texture.GetAtlasInfo = function(name)
-        return _getinfo(name)
-      end
-      __scryer_atlas_getinfo = nil
-    end`);
-  }
 
   // ── Priority globals ─────────────────────────────────────────────────────
   lua.global.set("GetTime", () => clock.now());
