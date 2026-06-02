@@ -31,7 +31,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog.md#ci-safe-committed-fixtures-deferred-from-m1">CI-safe committed fixtures</a></td>
+  <td colspan="5">✅ <a href="backlog-archive.md#ci-safe-committed-fixtures-deferred-from-m1">CI-safe committed fixtures</a></td>
 </tr>
 </tbody>
 </table>
@@ -51,7 +51,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog.md#relativekey-anchor-targets-deferred-from-m2">relativeKey anchor resolution</a>, <a href="backlog.md#css-inset--relativekey-renderer-fixes-deferred-from-m2">CSS inset + relativeKey renderer fixes</a>, <a href="backlog.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2">TexCoords sprite-sheet slicing</a>, <a href="backlog.md#fontstring-rendering-fidelity">FontString rendering fidelity</a>, <a href="backlog.md#pixel-ruler-overlay-in-the-preview-panel">Pixel ruler overlay</a>, <a href="backlog.md#texture-placeholder-hover-tooltip">Texture placeholder hover tooltip</a>, <a href="backlog.md#all-preview-chrome-values-configurable-via-defaultsjson">All preview chrome values in defaults.json</a>, <a href="backlog.md#canvas-scroll-in-all-directions-and-always-show-scrollbars">Canvas scroll in all directions + always-show scrollbars</a>, <a href="backlog.md#center-frame-content-on-open">Center frame content on open</a>, <a href="backlog.md#grab-pan-and-zoom-on-the-preview-canvas">Grab pan and zoom on the preview canvas</a></td>
+  <td colspan="5">✅ <a href="backlog-archive.md#relativekey-anchor-targets-deferred-from-m2">relativeKey anchor resolution</a>, <a href="backlog-archive.md#css-inset--relativekey-renderer-fixes-deferred-from-m2">CSS inset + relativeKey renderer fixes</a>, <a href="backlog-archive.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2">TexCoords sprite-sheet slicing</a>, <a href="backlog-archive.md#fontstring-rendering-fidelity">FontString rendering fidelity</a>, <a href="backlog-archive.md#pixel-ruler-overlay-in-the-preview-panel">Pixel ruler overlay</a>, <a href="backlog-archive.md#texture-placeholder-hover-tooltip">Texture placeholder hover tooltip</a>, <a href="backlog-archive.md#all-preview-chrome-values-configurable-via-defaultsjson">All preview chrome values in defaults.json</a>, <a href="backlog-archive.md#canvas-scroll-in-all-directions-and-always-show-scrollbars">Canvas scroll in all directions + always-show scrollbars</a>, <a href="backlog-archive.md#center-frame-content-on-open">Center frame content on open</a>, <a href="backlog-archive.md#grab-pan-and-zoom-on-the-preview-canvas">Grab pan and zoom on the preview canvas</a></td>
 </tr>
 <tr>
   <td>↳</td>
@@ -87,7 +87,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog.md#devextractsh--wow-asset-extraction-for-contributors-deferred-from-m3">dev/extract.sh contributor script</a>, <a href="backlog.md#on-demand-texture-extraction-from-the-preview-deferred-from-m3">On-demand texture extraction</a>, <a href="backlog.md#extract-blizzard-interface-addon-files-from-users-wow-installation">Extract Blizzard addon files</a>, <a href="backlog.md#blizzard-framexml-template-corpus-loading-pre-m4">Blizzard FrameXML corpus loading</a>, <a href="backlog.md#output-channel-logging-and-scryer.loglevel-setting">Output channel logging</a>, <a href="backlog.md#tsconfig-solution-style-refactor-ide-tooling-debt">tsconfig solution-style refactor</a>, <a href="backlog.md#extraction-benchmarks">Extraction benchmarks</a>, <a href="backlog.md#addon-texture-manifest-builder">Addon texture manifest builder</a>, <a href="backlog.md#progressive-tier-execution-for-scryer.startupcontent">Progressive startupContent tier execution</a>, <a href="backlog.md#wow-build-version-tracking-and-cache-invalidation">WoW build version tracking</a>, <a href="backlog.md#dynamic-flavor-detection-from-buildinfo">Dynamic flavor detection</a>, <a href="backlog.md#flavor-configuration-file--per-flavor-display-defaults">Flavor configuration file</a>, <a href="backlog.md#atlas-texture-resolution">Atlas texture resolution</a>, <a href="backlog.md#js-entry-point-runners-replace-dev-shell-scripts">JS entry-point runners</a>, <a href="backlog.md#listfile-pre-filter-rustydemon-era">Listfile pre-filter</a>, <a href="backlog.md#wow-font-loading-frizqtttf-from-casc">WoW font loading</a>, <a href="backlog.md#in-app-asset-setup-guidance-for-end-users-deferred-from-m3">In-app asset setup guidance</a>, <a href="backlog.md#preload-settings--scryer.startupcontent--scryer.useraddonpreload">Preload settings</a>, <a href="backlog.md#preload-workspace-textures-at-startup">Preload workspace textures</a>, <a href="backlog.md#user-visible-loading-notifications">User-visible loading notifications</a>, <a href="backlog.md#listfile-source-and-capitalization-strategy">Listfile source + capitalization strategy</a>, <a href="backlog.md#filtered-listfile-build-version-stamping">Filtered listfile build-version stamping</a></td>
+  <td colspan="5">✅ <a href="backlog-archive.md#devextractsh--wow-asset-extraction-for-contributors-deferred-from-m3">dev/extract.sh contributor script</a>, <a href="backlog-archive.md#on-demand-texture-extraction-from-the-preview-deferred-from-m3">On-demand texture extraction</a>, <a href="backlog-archive.md#extract-blizzard-interface-addon-files-from-users-wow-installation">Extract Blizzard addon files</a>, <a href="backlog-archive.md#blizzard-framexml-template-corpus-loading-pre-m4">Blizzard FrameXML corpus loading</a>, <a href="backlog-archive.md#output-channel-logging-and-scryer.loglevel-setting">Output channel logging</a>, <a href="backlog-archive.md#tsconfig-solution-style-refactor-ide-tooling-debt">tsconfig solution-style refactor</a>, <a href="backlog-archive.md#extraction-benchmarks">Extraction benchmarks</a>, <a href="backlog-archive.md#addon-texture-manifest-builder">Addon texture manifest builder</a>, <a href="backlog-archive.md#progressive-tier-execution-for-scryer.startupcontent">Progressive startupContent tier execution</a>, <a href="backlog-archive.md#wow-build-version-tracking-and-cache-invalidation">WoW build version tracking</a>, <a href="backlog-archive.md#dynamic-flavor-detection-from-buildinfo">Dynamic flavor detection</a>, <a href="backlog-archive.md#flavor-configuration-file--per-flavor-display-defaults">Flavor configuration file</a>, <a href="backlog-archive.md#atlas-texture-resolution">Atlas texture resolution</a>, <a href="backlog-archive.md#js-entry-point-runners-replace-dev-shell-scripts">JS entry-point runners</a>, <a href="backlog-archive.md#listfile-pre-filter-rustydemon-era">Listfile pre-filter</a>, <a href="backlog-archive.md#wow-font-loading-frizqtttf-from-casc">WoW font loading</a>, <a href="backlog-archive.md#in-app-asset-setup-guidance-for-end-users-deferred-from-m3">In-app asset setup guidance</a>, <a href="backlog-archive.md#preload-settings--scryer.startupcontent--scryer.useraddonpreload">Preload settings</a>, <a href="backlog-archive.md#preload-workspace-textures-at-startup">Preload workspace textures</a>, <a href="backlog-archive.md#user-visible-loading-notifications">User-visible loading notifications</a>, <a href="backlog-archive.md#listfile-source-and-capitalization-strategy">Listfile source + capitalization strategy</a>, <a href="backlog-archive.md#filtered-listfile-build-version-stamping">Filtered listfile build-version stamping</a></td>
 </tr>
 <tr>
   <td>↳</td>
@@ -171,7 +171,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog.md#globalstrings-population-deferred-from-m5">GlobalStrings population</a></td>
+  <td colspan="5">✅ <a href="backlog-archive.md#globalstrings-population-deferred-from-m5">GlobalStrings population</a></td>
 </tr>
 <tr>
   <td>↳</td>
@@ -199,7 +199,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog.md#c_texturegetatlasinfo-full-field-set"><code>C_Texture.GetAtlasInfo</code> full field set</a>, <a href="backlog.md#atlas-manifest-prefix-aware-lookup-in-resolveatlasintexture">Atlas manifest prefix-aware lookup</a>, <a href="backlog.md#useatlassize-render-time-dimension-override-in-applyasset"><code>useAtlasSize</code> render-time override fix</a>, <a href="backlog.md#colorgeneratehexcolor-stub--unblocks-sharedcolorconstantslua"><code>Color:GenerateHexColor</code> stub</a>, <a href="backlog.md#flagsutil-stub--unblocks-scrollutillua"><code>FlagsUtil</code> stub</a>, <a href="backlog.md#mathutilEpsilon-constant--unblocks-scrollboxlua"><code>MathUtil.Epsilon</code> constant</a>, <a href="backlog.md#eventregistry-stub--unblocks-gamerulesutillua"><code>EventRegistry</code> stub</a>, <a href="backlog.md#unitsex-stub--unblocks-modelframemixinlua"><code>UnitSex</code> stub</a>, <a href="backlog.md#c_scriptedanimationsgetallscriptedanimationeffects-stub--unblocks-scriptedanimationeffectslua"><code>C_ScriptedAnimations.GetAllScriptedAnimationEffects</code> stub</a></td>
+  <td colspan="5">✅ <a href="backlog-archive.md#c_texturegetatlasinfo-full-field-set"><code>C_Texture.GetAtlasInfo</code> full field set</a>, <a href="backlog-archive.md#atlas-manifest-prefix-aware-lookup-in-resolveatlasintexture">Atlas manifest prefix-aware lookup</a>, <a href="backlog-archive.md#useatlassize-render-time-dimension-override-in-applyasset"><code>useAtlasSize</code> render-time override fix</a>, <a href="backlog-archive.md#colorgeneratehexcolor-stub--unblocks-sharedcolorconstantslua"><code>Color:GenerateHexColor</code> stub</a>, <a href="backlog-archive.md#flagsutil-stub--unblocks-scrollutillua"><code>FlagsUtil</code> stub</a>, <a href="backlog-archive.md#mathutilEpsilon-constant--unblocks-scrollboxlua"><code>MathUtil.Epsilon</code> constant</a>, <a href="backlog-archive.md#eventregistry-stub--unblocks-gamerulesutillua"><code>EventRegistry</code> stub</a>, <a href="backlog-archive.md#unitsex-stub--unblocks-modelframemixinlua"><code>UnitSex</code> stub</a>, <a href="backlog-archive.md#c_scriptedanimationsgetallscriptedanimationeffects-stub--unblocks-scriptedanimationeffectslua"><code>C_ScriptedAnimations.GetAllScriptedAnimationEffects</code> stub</a></td>
 </tr>
 </tbody>
 </table>
@@ -219,7 +219,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog.md#parentkey--parentarray-wiring-for-runtime-frames-deferred-from-m7">parentKey / parentArray wiring</a>, <a href="backlog.md#template-application-in-runtime-createframe-deferred-from-m7">Template application in runtime CreateFrame</a>, <a href="backlog.md#texture-tiling-on-dynamically-created-textures-nineslice-stub-follow-up">Texture tiling on dynamic textures</a>, <a href="backlog.md#setdrawlayer-on-dynamically-created-textures-nineslice-stub-follow-up">SetDrawLayer on dynamic textures</a>, <a href="backlog.md#texture-to-texture-setpoint-anchor-resolution">Texture-to-texture SetPoint anchors</a>, <a href="backlog.md#cross-layer-nineslice-layout">Cross-layer NineSlice layout</a></td>
+  <td colspan="5">✅ <a href="backlog-archive.md#parentkey--parentarray-wiring-for-runtime-frames-deferred-from-m7">parentKey / parentArray wiring</a>, <a href="backlog-archive.md#template-application-in-runtime-createframe-deferred-from-m7">Template application in runtime CreateFrame</a>, <a href="backlog-archive.md#texture-tiling-on-dynamically-created-textures-nineslice-stub-follow-up">Texture tiling on dynamic textures</a>, <a href="backlog-archive.md#setdrawlayer-on-dynamically-created-textures-nineslice-stub-follow-up">SetDrawLayer on dynamic textures</a>, <a href="backlog-archive.md#texture-to-texture-setpoint-anchor-resolution">Texture-to-texture SetPoint anchors</a>, <a href="backlog-archive.md#cross-layer-nineslice-layout">Cross-layer NineSlice layout</a></td>
 </tr>
 <tr>
   <td>↳</td>
@@ -263,7 +263,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog.md#lua-sandbox-execution-timeout-deferred-from-m6">Lua sandbox execution timeout</a>, <a href="backlog.md#full-blizzard_sharedxml-lua-corpus-loading">Full Blizzard_SharedXML Lua corpus loading</a></td>
+  <td colspan="5">✅ <a href="backlog-archive.md#lua-sandbox-execution-timeout-deferred-from-m6">Lua sandbox execution timeout</a>, <a href="backlog-archive.md#full-blizzard_sharedxml-lua-corpus-loading">Full Blizzard_SharedXML Lua corpus loading</a></td>
 </tr>
 <tr>
   <td>↳</td>
@@ -299,7 +299,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog.md#preview-settings-toolbar">Preview settings toolbar</a></td>
+  <td colspan="5">✅ <a href="backlog-archive.md#preview-settings-toolbar">Preview settings toolbar</a></td>
 </tr>
 <tr>
   <td>↳</td>
