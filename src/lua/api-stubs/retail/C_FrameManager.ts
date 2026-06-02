@@ -4,6 +4,6 @@
 // Source: Blizzard_APIDocumentationGenerated/uiframemanagerdocumentation.lua
 export const C_FrameManager = `
 if C_FrameManager == nil then C_FrameManager = {} end
-C_FrameManager.GetFrameVisibilityState = _nil
+C_FrameManager.GetFrameVisibilityState = _bool
 -- Events: FRAME_MANAGER_UPDATE_ALL, FRAME_MANAGER_UPDATE_FRAME
 `;

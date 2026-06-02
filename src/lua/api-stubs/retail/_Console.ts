@@ -3,13 +3,13 @@
 // @sig-hash: sha256:8938db2d9541b3c9
 // Source: Blizzard_APIDocumentationGenerated/consoledocumentation.lua
 export const _Console = `
-CalculateStringEditDistance = _nil
-ConsoleEcho = _nil
-ConsoleExec = _nil
+CalculateStringEditDistance = _num
+ConsoleEcho = _bool
+ConsoleExec = _bool
 ConsoleGetAllCommands = _tbl
 ConsoleGetColorFromType = _nil
-ConsoleGetFontHeight = _nil
-ConsoleIsActive = _nil
+ConsoleGetFontHeight = _num
+ConsoleIsActive = _bool
 ConsolePrintAllMatchingCommands = _nil
 ConsoleSetFontHeight = _nil
 SetConsoleKey = _nil

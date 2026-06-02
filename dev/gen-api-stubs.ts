@@ -407,19 +407,32 @@ function buildStructRegistry(allModules: DocModule[]): Set<string> {
   return structs;
 }
 
-function needsTableReturn(fn: DocFunction, structs: Set<string>): boolean {
+// Returns the Lua helper identifier for a stub function.
+// Priority: table/struct > non-nilable scalar (number/bool/string) > nil.
+function stubRef(fn: DocFunction, structs: Set<string>): string {
   for (const ret of toArr(fn.Returns)) {
-    if (ret.IsArray) return true; // legacy compat
-    if (ret.Type === "table") return true; // typed or untyped array
-    if (!ret.Nilable && structs.has(ret.Type)) return true; // single struct
+    if (ret.IsArray) return "_tbl"; // legacy compat
+    if (ret.Type === "table") return "_tbl"; // typed or untyped array
+    if (!ret.Nilable && structs.has(ret.Type)) return "_tbl"; // single struct
   }
-  return false;
+  const first = toArr(fn.Returns)[0];
+  if (first && !first.Nilable) {
+    switch (first.Type) {
+      case "number":
+        return "_num";
+      case "bool":
+      case "boolean":
+        return "_bool";
+      case "string":
+      case "cstring":
+        return "_str";
+    }
+  }
+  return "_nil";
 }
 
 function computeSigHash(fns: DocFunction[], structs: Set<string>): string {
-  const parts = (fns ?? [])
-    .map((fn) => `${fn.Name}:${needsTableReturn(fn, structs) ? "T" : "N"}`)
-    .sort();
+  const parts = (fns ?? []).map((fn) => `${fn.Name}:${stubRef(fn, structs)}`).sort();
   return crypto.createHash("sha256").update(parts.join("|")).digest("hex").slice(0, 16);
 }
 
@@ -442,8 +455,8 @@ function stubExportName(mod: DocModule): string {
  *
  * Stubs are Lua functions rather than TypeScript functions because wasmoon
  * converts JS objects to userdata — pairs/ipairs on userdata crashes the Lua VM.
- * Lua stub functions return proper Lua tables via local _tbl/_nil helpers
- * defined in the registerStubs prelude.
+ * Lua stub functions use helpers (_nil/_tbl/_num/_bool/_str) defined in the
+ * registerStubs prelude, selected by stubRef() based on the first non-nilable return.
  */
 function generateStubContent(
   mod: DocModule,
@@ -465,14 +478,12 @@ function generateStubContent(
     // C_* or other namespaced APIs — guard in case namespace wasn't pre-created
     luaLines.push(`if ${ns} == nil then ${ns} = {} end`);
     for (const fn of fns) {
-      const stub = needsTableReturn(fn, structs) ? "_tbl" : "_nil";
-      luaLines.push(`${ns}.${fn.Name} = ${stub}`);
+      luaLines.push(`${ns}.${fn.Name} = ${stubRef(fn, structs)}`);
     }
   } else {
     // Global functions — set directly
     for (const fn of fns) {
-      const stub = needsTableReturn(fn, structs) ? "_tbl" : "_nil";
-      luaLines.push(`${fn.Name} = ${stub}`);
+      luaLines.push(`${fn.Name} = ${stubRef(fn, structs)}`);
     }
   }
 
@@ -585,9 +596,13 @@ function generateIndex(stubsRoot: string): string {
   lines.push("");
 
   // Build combined Lua strings per flavor
-  lines.push("// Prelude defines _nil/_tbl helpers used by all stubs");
+  lines.push("// Prelude defines _nil/_tbl/_num/_bool/_str helpers used by all stubs");
   lines.push(
-    'const _pre = "local _nil = function() end\\nlocal _tbl = function() return {} end\\n";',
+    'const _pre = "local _nil = function() end\\n' +
+      "local _tbl = function() return {} end\\n" +
+      "local _num = function() return 0 end\\n" +
+      "local _bool = function() return false end\\n" +
+      "local _str = function() return '' end\\n\";",
   );
   lines.push("");
 

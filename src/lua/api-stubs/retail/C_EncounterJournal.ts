@@ -5,7 +5,7 @@
 export const C_EncounterJournal = `
 if C_EncounterJournal == nil then C_EncounterJournal = {} end
 C_EncounterJournal.GetDungeonEntrancesForMap = _tbl
-C_EncounterJournal.GetEncounterJournalLink = _nil
+C_EncounterJournal.GetEncounterJournalLink = _str
 C_EncounterJournal.GetEncountersOnMap = _tbl
 C_EncounterJournal.GetInstanceForGameMap = _nil
 C_EncounterJournal.GetLootInfo = _tbl
@@ -14,8 +14,8 @@ C_EncounterJournal.GetSectionIconFlags = _tbl
 C_EncounterJournal.GetSectionInfo = _tbl
 C_EncounterJournal.GetSlotFilter = _nil
 C_EncounterJournal.InitalizeSelectedTier = _nil
-C_EncounterJournal.InstanceHasLoot = _nil
-C_EncounterJournal.IsEncounterComplete = _nil
+C_EncounterJournal.InstanceHasLoot = _bool
+C_EncounterJournal.IsEncounterComplete = _bool
 C_EncounterJournal.OnClose = _nil
 C_EncounterJournal.OnOpen = _nil
 C_EncounterJournal.ResetSlotFilter = _nil

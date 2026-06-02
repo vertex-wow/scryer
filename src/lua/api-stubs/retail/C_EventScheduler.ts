@@ -4,15 +4,15 @@
 // Source: Blizzard_APIDocumentationGenerated/eventscheduleruidocumentation.lua
 export const C_EventScheduler = `
 if C_EventScheduler == nil then C_EventScheduler = {} end
-C_EventScheduler.CanShowEvents = _nil
+C_EventScheduler.CanShowEvents = _bool
 C_EventScheduler.ClearReminder = _nil
-C_EventScheduler.GetActiveContinentName = _nil
+C_EventScheduler.GetActiveContinentName = _str
 C_EventScheduler.GetEventUiMapID = _nil
 C_EventScheduler.GetEventZoneName = _nil
 C_EventScheduler.GetOngoingEvents = _tbl
 C_EventScheduler.GetScheduledEvents = _tbl
-C_EventScheduler.HasData = _nil
-C_EventScheduler.HasSavedReminders = _nil
+C_EventScheduler.HasData = _bool
+C_EventScheduler.HasSavedReminders = _bool
 C_EventScheduler.RequestEvents = _nil
 C_EventScheduler.SetReminder = _nil
 -- Events: EVENT_SCHEDULER_UPDATE

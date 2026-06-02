@@ -7,11 +7,11 @@ if C_PhotoSharing == nil then C_PhotoSharing = {} end
 C_PhotoSharing.BeginAuthorizationFlow = _nil
 C_PhotoSharing.ClearAuthorization = _nil
 C_PhotoSharing.CompleteAuthorizationFlow = _nil
-C_PhotoSharing.GetCropRatio = _nil
-C_PhotoSharing.GetPhotoSharingAuthURL = _nil
+C_PhotoSharing.GetCropRatio = _num
+C_PhotoSharing.GetPhotoSharingAuthURL = _str
 C_PhotoSharing.GetStatus = _nil
-C_PhotoSharing.IsAuthorized = _nil
-C_PhotoSharing.IsEnabled = _nil
+C_PhotoSharing.IsAuthorized = _bool
+C_PhotoSharing.IsEnabled = _bool
 C_PhotoSharing.SetScreenshotPreviewTexture = _nil
 C_PhotoSharing.TakePhoto = _nil
 C_PhotoSharing.UploadPhotoToService = _nil

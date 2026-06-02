@@ -6,6 +6,6 @@ export const C_TaxiMap = `
 if C_TaxiMap == nil then C_TaxiMap = {} end
 C_TaxiMap.GetAllTaxiNodes = _tbl
 C_TaxiMap.GetTaxiNodesForMap = _tbl
-C_TaxiMap.ShouldMapShowTaxiNodes = _nil
+C_TaxiMap.ShouldMapShowTaxiNodes = _bool
 -- Events: TAXI_NODE_STATUS_CHANGED, TAXIMAP_CLOSED, TAXIMAP_OPENED
 `;

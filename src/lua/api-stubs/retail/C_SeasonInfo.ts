@@ -5,5 +5,5 @@
 export const C_SeasonInfo = `
 if C_SeasonInfo == nil then C_SeasonInfo = {} end
 C_SeasonInfo.GetCurrentDisplaySeasonExpansion = _nil
-C_SeasonInfo.GetCurrentDisplaySeasonID = _nil
+C_SeasonInfo.GetCurrentDisplaySeasonID = _num
 `;

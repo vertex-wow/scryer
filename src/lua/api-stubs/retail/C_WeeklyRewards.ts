@@ -4,26 +4,26 @@
 // Source: Blizzard_APIDocumentationGenerated/weeklyrewardsdocumentation.lua
 export const C_WeeklyRewards = `
 if C_WeeklyRewards == nil then C_WeeklyRewards = {} end
-C_WeeklyRewards.AreRewardsForCurrentRewardPeriod = _nil
-C_WeeklyRewards.CanClaimRewards = _nil
+C_WeeklyRewards.AreRewardsForCurrentRewardPeriod = _bool
+C_WeeklyRewards.CanClaimRewards = _bool
 C_WeeklyRewards.ClaimReward = _nil
 C_WeeklyRewards.CloseInteraction = _nil
 C_WeeklyRewards.GetActivities = _tbl
 C_WeeklyRewards.GetActivityEncounterInfo = _tbl
 C_WeeklyRewards.GetConquestWeeklyProgress = _tbl
-C_WeeklyRewards.GetDifficultyIDForActivityTier = _nil
-C_WeeklyRewards.GetExampleRewardItemHyperlinks = _nil
-C_WeeklyRewards.GetItemHyperlink = _nil
-C_WeeklyRewards.GetNextActivitiesIncrease = _nil
-C_WeeklyRewards.GetNextMythicPlusIncrease = _nil
-C_WeeklyRewards.GetNumCompletedDungeonRuns = _nil
+C_WeeklyRewards.GetDifficultyIDForActivityTier = _num
+C_WeeklyRewards.GetExampleRewardItemHyperlinks = _str
+C_WeeklyRewards.GetItemHyperlink = _str
+C_WeeklyRewards.GetNextActivitiesIncrease = _bool
+C_WeeklyRewards.GetNextMythicPlusIncrease = _bool
+C_WeeklyRewards.GetNumCompletedDungeonRuns = _num
 C_WeeklyRewards.GetSortedProgressForActivity = _tbl
-C_WeeklyRewards.HasAvailableRewards = _nil
-C_WeeklyRewards.HasGeneratedRewards = _nil
-C_WeeklyRewards.HasInteraction = _nil
-C_WeeklyRewards.IsWeeklyChestRetired = _nil
+C_WeeklyRewards.HasAvailableRewards = _bool
+C_WeeklyRewards.HasGeneratedRewards = _bool
+C_WeeklyRewards.HasInteraction = _bool
+C_WeeklyRewards.IsWeeklyChestRetired = _bool
 C_WeeklyRewards.OnUIInteract = _nil
-C_WeeklyRewards.ShouldShowFinalRetirementMessage = _nil
-C_WeeklyRewards.ShouldShowRetirementMessage = _nil
+C_WeeklyRewards.ShouldShowFinalRetirementMessage = _bool
+C_WeeklyRewards.ShouldShowRetirementMessage = _bool
 -- Events: WEEKLY_REWARDS_ITEM_CHANGED, WEEKLY_REWARDS_UPDATE
 `;

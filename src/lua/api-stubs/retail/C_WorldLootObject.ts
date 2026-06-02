@@ -4,13 +4,13 @@
 // Source: Blizzard_APIDocumentationGenerated/worldlootobjectdocumentation.lua
 export const C_WorldLootObject = `
 if C_WorldLootObject == nil then C_WorldLootObject = {} end
-C_WorldLootObject.DoesSlotMatchInventoryType = _nil
+C_WorldLootObject.DoesSlotMatchInventoryType = _bool
 C_WorldLootObject.GetWorldLootObjectDistanceSquared = _nil
 C_WorldLootObject.GetWorldLootObjectInfo = _tbl
 C_WorldLootObject.GetWorldLootObjectInfoByGUID = _tbl
-C_WorldLootObject.IsWorldLootObject = _nil
-C_WorldLootObject.IsWorldLootObjectByGUID = _nil
-C_WorldLootObject.IsWorldLootObjectInRange = _nil
+C_WorldLootObject.IsWorldLootObject = _bool
+C_WorldLootObject.IsWorldLootObjectByGUID = _bool
+C_WorldLootObject.IsWorldLootObjectInRange = _bool
 C_WorldLootObject.OnWorldLootObjectClick = _nil
 -- Events: WORLD_LOOT_OBJECT_INFO_UPDATED
 `;

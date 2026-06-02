@@ -4,9 +4,9 @@
 // Source: Blizzard_APIDocumentationGenerated/clientdocumentation.lua
 export const _Client = `
 FlashClientIcon = _nil
-GetBillingTimeRested = _nil
+GetBillingTimeRested = _num
 GetFileIDFromPath = _nil
-GetFramerate = _nil
+GetFramerate = _num
 IsCpuBound = _nil
 ReportBug = _nil
 ReportSuggestion = _nil

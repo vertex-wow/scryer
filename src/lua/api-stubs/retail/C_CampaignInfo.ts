@@ -6,12 +6,12 @@ export const C_CampaignInfo = `
 if C_CampaignInfo == nil then C_CampaignInfo = {} end
 C_CampaignInfo.GetAvailableCampaigns = _tbl
 C_CampaignInfo.GetCampaignChapterInfo = _nil
-C_CampaignInfo.GetCampaignID = _nil
+C_CampaignInfo.GetCampaignID = _num
 C_CampaignInfo.GetCampaignInfo = _nil
 C_CampaignInfo.GetChapterIDs = _tbl
 C_CampaignInfo.GetCurrentChapterID = _nil
 C_CampaignInfo.GetFailureReason = _nil
 C_CampaignInfo.GetState = _nil
-C_CampaignInfo.IsCampaignQuest = _nil
-C_CampaignInfo.SortAsNormalQuest = _nil
+C_CampaignInfo.IsCampaignQuest = _bool
+C_CampaignInfo.SortAsNormalQuest = _bool
 `;

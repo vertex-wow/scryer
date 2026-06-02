@@ -4,11 +4,11 @@
 // Source: Blizzard_APIDocumentationGenerated/achievementinfodocumentation.lua
 export const C_AchievementInfo = `
 if C_AchievementInfo == nil then C_AchievementInfo = {} end
-C_AchievementInfo.AreGuildAchievementsEnabled = _nil
+C_AchievementInfo.AreGuildAchievementsEnabled = _bool
 C_AchievementInfo.GetRewardItemID = _nil
 C_AchievementInfo.GetSupercedingAchievements = _tbl
-C_AchievementInfo.IsGuildAchievement = _nil
-C_AchievementInfo.IsValidAchievement = _nil
+C_AchievementInfo.IsGuildAchievement = _bool
+C_AchievementInfo.IsValidAchievement = _bool
 C_AchievementInfo.SetPortraitTexture = _nil
 -- Events: ACHIEVEMENT_EARNED, ACHIEVEMENT_PLAYER_NAME, ACHIEVEMENT_SEARCH_UPDATED, CRITERIA_COMPLETE, CRITERIA_EARNED, CRITERIA_UPDATE, INSPECT_ACHIEVEMENT_READY, RECEIVED_ACHIEVEMENT_LIST, RECEIVED_ACHIEVEMENT_MEMBER_LIST, TRACKED_ACHIEVEMENT_LIST_CHANGED, TRACKED_ACHIEVEMENT_UPDATE
 `;

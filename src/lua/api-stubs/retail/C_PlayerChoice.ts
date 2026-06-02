@@ -5,9 +5,9 @@
 export const C_PlayerChoice = `
 if C_PlayerChoice == nil then C_PlayerChoice = {} end
 C_PlayerChoice.GetCurrentPlayerChoiceInfo = _tbl
-C_PlayerChoice.GetNumRerolls = _nil
+C_PlayerChoice.GetNumRerolls = _num
 C_PlayerChoice.GetRemainingTime = _nil
-C_PlayerChoice.IsWaitingForPlayerChoiceResponse = _nil
+C_PlayerChoice.IsWaitingForPlayerChoiceResponse = _bool
 C_PlayerChoice.OnUIClosed = _nil
 C_PlayerChoice.RequestRerollPlayerChoice = _nil
 C_PlayerChoice.SendPlayerChoiceResponse = _nil

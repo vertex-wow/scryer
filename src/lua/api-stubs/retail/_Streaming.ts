@@ -3,8 +3,8 @@
 // @sig-hash: sha256:84d2f696c1b72e54
 // Source: Blizzard_APIDocumentationGenerated/streamingdocumentation.lua
 export const _Streaming = `
-GetAvailableBandwidth = _nil
-GetBackgroundLoadingStatus = _nil
-GetDownloadedPercentage = _nil
-GetFileStreamingStatus = _nil
+GetAvailableBandwidth = _num
+GetBackgroundLoadingStatus = _num
+GetDownloadedPercentage = _num
+GetFileStreamingStatus = _num
 `;

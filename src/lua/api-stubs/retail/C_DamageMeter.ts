@@ -10,7 +10,7 @@ C_DamageMeter.GetCombatSessionFromType = _tbl
 C_DamageMeter.GetCombatSessionSourceFromID = _tbl
 C_DamageMeter.GetCombatSessionSourceFromType = _tbl
 C_DamageMeter.GetSessionDurationSeconds = _nil
-C_DamageMeter.IsDamageMeterAvailable = _nil
+C_DamageMeter.IsDamageMeterAvailable = _bool
 C_DamageMeter.ResetAllCombatSessions = _nil
 -- Events: DAMAGE_METER_COMBAT_SESSION_UPDATED, DAMAGE_METER_CURRENT_SESSION_UPDATED, DAMAGE_METER_RESET
 `;

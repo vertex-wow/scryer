@@ -8,7 +8,7 @@ C_Ping.GetContextualPingTypeForUnit = _nil
 C_Ping.GetCooldownInfo = _tbl
 C_Ping.GetDefaultPingOptions = _tbl
 C_Ping.GetTextureKitForType = _nil
-C_Ping.IsPingSystemEnabled = _nil
+C_Ping.IsPingSystemEnabled = _bool
 C_Ping.SendMacroPing = _nil
 C_Ping.TogglePingListener = _nil
 -- Events: PING_SYSTEM_ERROR

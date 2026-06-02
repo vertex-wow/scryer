@@ -4,7 +4,7 @@
 // Source: Blizzard_APIDocumentationGenerated/raidlocksdocumentation.lua
 export const C_RaidLocks = `
 if C_RaidLocks == nil then C_RaidLocks = {} end
-C_RaidLocks.GetRedirectedDifficultyID = _nil
-C_RaidLocks.IsEncounterComplete = _nil
-C_RaidLocks.IsRaidLockExtendFeatureEnabled = _nil
+C_RaidLocks.GetRedirectedDifficultyID = _num
+C_RaidLocks.IsEncounterComplete = _bool
+C_RaidLocks.IsRaidLockExtendFeatureEnabled = _bool
 `;

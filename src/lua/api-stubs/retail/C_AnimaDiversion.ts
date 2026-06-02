@@ -7,7 +7,7 @@ if C_AnimaDiversion == nil then C_AnimaDiversion = {} end
 C_AnimaDiversion.CloseUI = _nil
 C_AnimaDiversion.GetAnimaDiversionNodes = _tbl
 C_AnimaDiversion.GetOriginPosition = _nil
-C_AnimaDiversion.GetReinforceProgress = _nil
+C_AnimaDiversion.GetReinforceProgress = _num
 C_AnimaDiversion.GetTextureKit = _nil
 C_AnimaDiversion.OpenAnimaDiversionUI = _nil
 C_AnimaDiversion.SelectAnimaNode = _nil

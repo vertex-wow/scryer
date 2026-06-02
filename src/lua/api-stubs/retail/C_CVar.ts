@@ -8,9 +8,9 @@ C_CVar.GetCVar = _nil
 C_CVar.GetCVarBitfield = _nil
 C_CVar.GetCVarBool = _nil
 C_CVar.GetCVarDefault = _nil
-C_CVar.GetCVarInfo = _nil
+C_CVar.GetCVarInfo = _str
 C_CVar.RegisterCVar = _nil
 C_CVar.ResetTestCVars = _nil
-C_CVar.SetCVar = _nil
-C_CVar.SetCVarBitfield = _nil
+C_CVar.SetCVar = _bool
+C_CVar.SetCVarBitfield = _bool
 `;

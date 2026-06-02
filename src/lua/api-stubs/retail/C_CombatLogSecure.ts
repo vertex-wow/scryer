@@ -9,9 +9,9 @@ C_CombatLogSecure.ClearEventFilters = _nil
 C_CombatLogSecure.CreateCombatLogMessage = _nil
 C_CombatLogSecure.GetCurrentEntryInfo = _nil
 C_CombatLogSecure.GetCurrentEventInfo = _nil
-C_CombatLogSecure.GetEntryCount = _nil
-C_CombatLogSecure.SeekToNewestEntry = _nil
-C_CombatLogSecure.SeekToPreviousEntry = _nil
-C_CombatLogSecure.ShouldShowCurrentEntry = _nil
+C_CombatLogSecure.GetEntryCount = _num
+C_CombatLogSecure.SeekToNewestEntry = _bool
+C_CombatLogSecure.SeekToPreviousEntry = _bool
+C_CombatLogSecure.ShouldShowCurrentEntry = _bool
 -- Events: COMBAT_LOG_APPLY_FILTER_SETTINGS, COMBAT_LOG_MESSAGE, COMBAT_LOG_REFILTER_ENTRIES
 `;

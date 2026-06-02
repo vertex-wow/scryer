@@ -6,9 +6,9 @@ export const C_SummonInfo = `
 if C_SummonInfo == nil then C_SummonInfo = {} end
 C_SummonInfo.CancelSummon = _nil
 C_SummonInfo.ConfirmSummon = _nil
-C_SummonInfo.GetSummonConfirmAreaName = _nil
+C_SummonInfo.GetSummonConfirmAreaName = _str
 C_SummonInfo.GetSummonConfirmSummoner = _nil
-C_SummonInfo.GetSummonConfirmTimeLeft = _nil
-C_SummonInfo.GetSummonReason = _nil
-C_SummonInfo.IsSummonSkippingStartExperience = _nil
+C_SummonInfo.GetSummonConfirmTimeLeft = _num
+C_SummonInfo.GetSummonReason = _num
+C_SummonInfo.IsSummonSkippingStartExperience = _bool
 `;

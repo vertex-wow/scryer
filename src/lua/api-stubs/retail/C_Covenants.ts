@@ -4,7 +4,7 @@
 // Source: Blizzard_APIDocumentationGenerated/covenantsdocumentation.lua
 export const C_Covenants = `
 if C_Covenants == nil then C_Covenants = {} end
-C_Covenants.GetActiveCovenantID = _nil
+C_Covenants.GetActiveCovenantID = _num
 C_Covenants.GetCovenantData = _nil
 C_Covenants.GetCovenantIDs = _tbl
 -- Events: COVENANT_CHOSEN

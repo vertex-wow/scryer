@@ -3,11 +3,11 @@
 // @sig-hash: sha256:3dd28a91248269cd
 // Source: Blizzard_APIDocumentationGenerated/systemtimedocumentation.lua
 export const _SystemTime = `
-GetGameTime = _nil
-GetLocalGameTime = _nil
-GetServerTime = _nil
-GetSessionTime = _nil
-GetTickTime = _nil
-GetTime = _nil
-IsUsingFixedTimeStep = _nil
+GetGameTime = _num
+GetLocalGameTime = _num
+GetServerTime = _num
+GetSessionTime = _num
+GetTickTime = _num
+GetTime = _num
+IsUsingFixedTimeStep = _bool
 `;

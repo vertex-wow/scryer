@@ -7,7 +7,7 @@ if C_PetInfo == nil then C_PetInfo = {} end
 C_PetInfo.GetPetTalentTree = _nil
 C_PetInfo.GetPetTamersForMap = _tbl
 C_PetInfo.GetSpellForPetAction = _nil
-C_PetInfo.IsPetActionPassive = _nil
+C_PetInfo.IsPetActionPassive = _bool
 C_PetInfo.PetAbandon = _nil
 C_PetInfo.PetAssistMode = _nil
 C_PetInfo.PetRename = _nil

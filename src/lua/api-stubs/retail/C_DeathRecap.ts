@@ -5,7 +5,7 @@
 export const C_DeathRecap = `
 if C_DeathRecap == nil then C_DeathRecap = {} end
 C_DeathRecap.GetRecapEvents = _tbl
-C_DeathRecap.GetRecapLink = _nil
-C_DeathRecap.GetRecapMaxHealth = _nil
-C_DeathRecap.HasRecapEvents = _nil
+C_DeathRecap.GetRecapLink = _str
+C_DeathRecap.GetRecapMaxHealth = _num
+C_DeathRecap.HasRecapEvents = _bool
 `;

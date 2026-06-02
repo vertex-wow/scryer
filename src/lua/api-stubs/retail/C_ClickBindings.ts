@@ -4,14 +4,14 @@
 // Source: Blizzard_APIDocumentationGenerated/clickbindingsdocumentation.lua
 export const C_ClickBindings = `
 if C_ClickBindings == nil then C_ClickBindings = {} end
-C_ClickBindings.CanSpellBeClickBound = _nil
+C_ClickBindings.CanSpellBeClickBound = _bool
 C_ClickBindings.ExecuteBinding = _nil
 C_ClickBindings.GetBindingType = _nil
-C_ClickBindings.GetEffectiveInteractionButton = _nil
+C_ClickBindings.GetEffectiveInteractionButton = _str
 C_ClickBindings.GetProfileInfo = _tbl
-C_ClickBindings.GetStringFromModifiers = _nil
-C_ClickBindings.GetTutorialShown = _nil
-C_ClickBindings.MakeModifiers = _nil
+C_ClickBindings.GetStringFromModifiers = _str
+C_ClickBindings.GetTutorialShown = _bool
+C_ClickBindings.MakeModifiers = _num
 C_ClickBindings.ResetCurrentProfile = _nil
 C_ClickBindings.SetProfileByInfo = _nil
 C_ClickBindings.SetTutorialShown = _nil

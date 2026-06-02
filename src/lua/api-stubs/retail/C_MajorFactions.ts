@@ -4,17 +4,17 @@
 // Source: Blizzard_APIDocumentationGenerated/majorfactionsdocumentation.lua
 export const C_MajorFactions = `
 if C_MajorFactions == nil then C_MajorFactions = {} end
-C_MajorFactions.GetCurrentRenownLevel = _nil
+C_MajorFactions.GetCurrentRenownLevel = _num
 C_MajorFactions.GetMajorFactionData = _nil
 C_MajorFactions.GetMajorFactionIDs = _tbl
 C_MajorFactions.GetMajorFactionRenownInfo = _nil
 C_MajorFactions.GetRenownLevels = _tbl
-C_MajorFactions.GetRenownNPCFactionID = _nil
+C_MajorFactions.GetRenownNPCFactionID = _num
 C_MajorFactions.GetRenownRewardsForLevel = _tbl
-C_MajorFactions.HasMaximumRenown = _nil
-C_MajorFactions.IsMajorFactionHiddenFromExpansionPage = _nil
-C_MajorFactions.IsWeeklyRenownCapped = _nil
-C_MajorFactions.ShouldDisplayMajorFactionAsJourney = _nil
-C_MajorFactions.ShouldUseJourneyRewardTrack = _nil
+C_MajorFactions.HasMaximumRenown = _bool
+C_MajorFactions.IsMajorFactionHiddenFromExpansionPage = _bool
+C_MajorFactions.IsWeeklyRenownCapped = _bool
+C_MajorFactions.ShouldDisplayMajorFactionAsJourney = _bool
+C_MajorFactions.ShouldUseJourneyRewardTrack = _bool
 -- Events: MAJOR_FACTION_INTERACTION_ENDED, MAJOR_FACTION_INTERACTION_STARTED, MAJOR_FACTION_RENOWN_LEVEL_CHANGED, MAJOR_FACTION_UNLOCKED
 `;

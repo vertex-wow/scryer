@@ -7,11 +7,11 @@ if C_UnitAuras == nil then C_UnitAuras = {} end
 C_UnitAuras.AddBlockedAura = _nil
 C_UnitAuras.AddPrivateAuraAnchor = _nil
 C_UnitAuras.AddPrivateAuraAppliedSound = _nil
-C_UnitAuras.AuraIsBigDefensive = _nil
-C_UnitAuras.AuraIsPrivate = _nil
+C_UnitAuras.AuraIsBigDefensive = _bool
+C_UnitAuras.AuraIsPrivate = _bool
 C_UnitAuras.ClearBlockedAuras = _nil
-C_UnitAuras.DoesAuraHaveExpirationTime = _nil
-C_UnitAuras.GetAuraApplicationDisplayCount = _nil
+C_UnitAuras.DoesAuraHaveExpirationTime = _bool
+C_UnitAuras.GetAuraApplicationDisplayCount = _str
 C_UnitAuras.GetAuraBaseDuration = _nil
 C_UnitAuras.GetAuraDataByAuraInstanceID = _nil
 C_UnitAuras.GetAuraDataByIndex = _nil
@@ -28,13 +28,13 @@ C_UnitAuras.GetRefreshExtendedDuration = _nil
 C_UnitAuras.GetUnitAuraBySpellID = _nil
 C_UnitAuras.GetUnitAuraInstanceIDs = _tbl
 C_UnitAuras.GetUnitAuras = _tbl
-C_UnitAuras.IsAuraFilteredOutByInstanceID = _nil
+C_UnitAuras.IsAuraFilteredOutByInstanceID = _bool
 C_UnitAuras.RemovePrivateAuraAnchor = _nil
 C_UnitAuras.RemovePrivateAuraAppliedSound = _nil
 C_UnitAuras.ResetAuraDataProvider = _nil
 C_UnitAuras.SetPrivateWarningTextAnchor = _nil
 C_UnitAuras.SwitchAuraDataProvider = _nil
 C_UnitAuras.TriggerPrivateAuraShowDispelType = _nil
-C_UnitAuras.WantsAlteredForm = _nil
+C_UnitAuras.WantsAlteredForm = _bool
 -- Events: AURA_DATA_PROVIDER_SWITCH, UNIT_AURA, UNIT_AURA_BLOCK_LIST_CLEARED, UNIT_AURA_BLOCKED
 `;

@@ -5,20 +5,20 @@
 export const C_GossipInfo = `
 if C_GossipInfo == nil then C_GossipInfo = {} end
 C_GossipInfo.CloseGossip = _nil
-C_GossipInfo.ForceGossip = _nil
+C_GossipInfo.ForceGossip = _bool
 C_GossipInfo.GetActiveQuests = _tbl
 C_GossipInfo.GetAvailableQuests = _tbl
 C_GossipInfo.GetCompletedOptionDescriptionString = _nil
 C_GossipInfo.GetCustomGossipDescriptionString = _nil
 C_GossipInfo.GetFriendshipReputation = _tbl
 C_GossipInfo.GetFriendshipReputationRanks = _tbl
-C_GossipInfo.GetNumActiveQuests = _nil
-C_GossipInfo.GetNumAvailableQuests = _nil
+C_GossipInfo.GetNumActiveQuests = _num
+C_GossipInfo.GetNumAvailableQuests = _num
 C_GossipInfo.GetOptionUIWidgetSetsAndTypesByOptionID = _tbl
 C_GossipInfo.GetOptions = _tbl
 C_GossipInfo.GetPoiForUiMapID = _nil
 C_GossipInfo.GetPoiInfo = _nil
-C_GossipInfo.GetText = _nil
+C_GossipInfo.GetText = _str
 C_GossipInfo.RefreshOptions = _nil
 C_GossipInfo.SelectActiveQuest = _nil
 C_GossipInfo.SelectAvailableQuest = _nil

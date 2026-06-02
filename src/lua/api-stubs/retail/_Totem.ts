@@ -4,10 +4,10 @@
 // Source: Blizzard_APIDocumentationGenerated/totemdocumentation.lua
 export const _Totem = `
 DestroyTotem = _nil
-GetNumTotemSlots = _nil
+GetNumTotemSlots = _num
 GetTotemCannotDismiss = _nil
 GetTotemDuration = _nil
-GetTotemInfo = _nil
+GetTotemInfo = _bool
 GetTotemTimeLeft = _nil
 TargetTotem = _nil
 `;

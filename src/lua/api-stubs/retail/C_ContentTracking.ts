@@ -5,20 +5,20 @@
 export const C_ContentTracking = `
 if C_ContentTracking == nil then C_ContentTracking = {} end
 C_ContentTracking.GetBestMapForTrackable = _nil
-C_ContentTracking.GetCollectableSourceTrackingEnabled = _nil
+C_ContentTracking.GetCollectableSourceTrackingEnabled = _bool
 C_ContentTracking.GetCollectableSourceTypes = _tbl
 C_ContentTracking.GetCurrentTrackingTarget = _nil
 C_ContentTracking.GetEncounterTrackingInfo = _tbl
 C_ContentTracking.GetNextWaypointForTrackable = _nil
-C_ContentTracking.GetObjectiveText = _nil
-C_ContentTracking.GetTitle = _nil
+C_ContentTracking.GetObjectiveText = _str
+C_ContentTracking.GetTitle = _str
 C_ContentTracking.GetTrackablesOnMap = _tbl
 C_ContentTracking.GetTrackedIDs = _tbl
 C_ContentTracking.GetVendorTrackingInfo = _tbl
-C_ContentTracking.GetWaypointText = _nil
+C_ContentTracking.GetWaypointText = _str
 C_ContentTracking.IsNavigable = _nil
-C_ContentTracking.IsTrackable = _nil
-C_ContentTracking.IsTracking = _nil
+C_ContentTracking.IsTrackable = _bool
+C_ContentTracking.IsTracking = _bool
 C_ContentTracking.StartTracking = _nil
 C_ContentTracking.StopTracking = _nil
 C_ContentTracking.ToggleTracking = _nil

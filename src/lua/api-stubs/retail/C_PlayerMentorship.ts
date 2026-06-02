@@ -7,7 +7,7 @@ if C_PlayerMentorship == nil then C_PlayerMentorship = {} end
 C_PlayerMentorship.GetMentorLevelRequirement = _nil
 C_PlayerMentorship.GetMentorRequirements = _tbl
 C_PlayerMentorship.GetMentorshipStatus = _nil
-C_PlayerMentorship.IsActivePlayerConsideredNewcomer = _nil
-C_PlayerMentorship.IsMentorRestricted = _nil
+C_PlayerMentorship.IsActivePlayerConsideredNewcomer = _bool
+C_PlayerMentorship.IsMentorRestricted = _bool
 -- Events: MENTORSHIP_STATUS_CHANGED, NEWCOMER_GRADUATION
 `;

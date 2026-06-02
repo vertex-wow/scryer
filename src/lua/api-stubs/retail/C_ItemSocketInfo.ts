@@ -13,12 +13,12 @@ C_ItemSocketInfo.GetExistingSocketInfo = _nil
 C_ItemSocketInfo.GetExistingSocketLink = _nil
 C_ItemSocketInfo.GetNewSocketInfo = _nil
 C_ItemSocketInfo.GetNewSocketLink = _nil
-C_ItemSocketInfo.GetNumSockets = _nil
-C_ItemSocketInfo.GetSocketItemBoundTradeable = _nil
+C_ItemSocketInfo.GetNumSockets = _num
+C_ItemSocketInfo.GetSocketItemBoundTradeable = _bool
 C_ItemSocketInfo.GetSocketItemInfo = _nil
-C_ItemSocketInfo.GetSocketItemRefundable = _nil
+C_ItemSocketInfo.GetSocketItemRefundable = _bool
 C_ItemSocketInfo.GetSocketTypes = _nil
-C_ItemSocketInfo.HasBoundGemProposed = _nil
-C_ItemSocketInfo.IsArtifactRelicItem = _nil
+C_ItemSocketInfo.HasBoundGemProposed = _bool
+C_ItemSocketInfo.IsArtifactRelicItem = _bool
 -- Events: SOCKET_INFO_ACCEPT, SOCKET_INFO_BIND_CONFIRM, SOCKET_INFO_CLOSE, SOCKET_INFO_FAILURE, SOCKET_INFO_REFUNDABLE_CONFIRM, SOCKET_INFO_SUCCESS, SOCKET_INFO_UI_EVENT_REGISTRATION_UPDATE, SOCKET_INFO_UPDATE
 `;

@@ -4,10 +4,10 @@
 // Source: Blizzard_APIDocumentationGenerated/sounddocumentation.lua
 export const C_Sound = `
 if C_Sound == nil then C_Sound = {} end
-C_Sound.GetSoundScaledVolume = _nil
-C_Sound.IsPlaying = _nil
+C_Sound.GetSoundScaledVolume = _num
+C_Sound.IsPlaying = _bool
 C_Sound.PlayItemSound = _nil
-C_Sound.PlaySound = _nil
+C_Sound.PlaySound = _bool
 C_Sound.PlayVocalErrorSound = _nil
 -- Events: SOUND_DEVICE_UPDATE, SOUNDKIT_FINISHED
 `;

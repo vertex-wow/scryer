@@ -5,24 +5,24 @@
 export const C_AzeriteEssence = `
 if C_AzeriteEssence == nil then C_AzeriteEssence = {} end
 C_AzeriteEssence.ActivateEssence = _nil
-C_AzeriteEssence.CanActivateEssence = _nil
-C_AzeriteEssence.CanDeactivateEssence = _nil
-C_AzeriteEssence.CanOpenUI = _nil
+C_AzeriteEssence.CanActivateEssence = _bool
+C_AzeriteEssence.CanDeactivateEssence = _bool
+C_AzeriteEssence.CanOpenUI = _bool
 C_AzeriteEssence.ClearPendingActivationEssence = _nil
 C_AzeriteEssence.CloseForge = _nil
-C_AzeriteEssence.GetEssenceHyperlink = _nil
+C_AzeriteEssence.GetEssenceHyperlink = _str
 C_AzeriteEssence.GetEssenceInfo = _tbl
 C_AzeriteEssence.GetEssences = _tbl
-C_AzeriteEssence.GetMilestoneEssence = _nil
+C_AzeriteEssence.GetMilestoneEssence = _num
 C_AzeriteEssence.GetMilestoneInfo = _tbl
-C_AzeriteEssence.GetMilestoneSpell = _nil
+C_AzeriteEssence.GetMilestoneSpell = _num
 C_AzeriteEssence.GetMilestones = _tbl
-C_AzeriteEssence.GetNumUnlockedEssences = _nil
-C_AzeriteEssence.GetNumUsableEssences = _nil
-C_AzeriteEssence.GetPendingActivationEssence = _nil
-C_AzeriteEssence.HasNeverActivatedAnyEssences = _nil
-C_AzeriteEssence.HasPendingActivationEssence = _nil
-C_AzeriteEssence.IsAtForge = _nil
+C_AzeriteEssence.GetNumUnlockedEssences = _num
+C_AzeriteEssence.GetNumUsableEssences = _num
+C_AzeriteEssence.GetPendingActivationEssence = _num
+C_AzeriteEssence.HasNeverActivatedAnyEssences = _bool
+C_AzeriteEssence.HasPendingActivationEssence = _bool
+C_AzeriteEssence.IsAtForge = _bool
 C_AzeriteEssence.SetPendingActivationEssence = _nil
 C_AzeriteEssence.UnlockMilestone = _nil
 -- Events: AZERITE_ESSENCE_ACTIVATED, AZERITE_ESSENCE_ACTIVATION_FAILED, AZERITE_ESSENCE_CHANGED, AZERITE_ESSENCE_FORGE_CLOSE, AZERITE_ESSENCE_FORGE_OPEN, AZERITE_ESSENCE_MILESTONE_UNLOCKED, AZERITE_ESSENCE_UPDATE, PENDING_AZERITE_ESSENCE_CHANGED

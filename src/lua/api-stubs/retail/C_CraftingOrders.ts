@@ -4,9 +4,9 @@
 // Source: Blizzard_APIDocumentationGenerated/craftingorderuidocumentation.lua
 export const C_CraftingOrders = `
 if C_CraftingOrders == nil then C_CraftingOrders = {} end
-C_CraftingOrders.AreOrderNotesDisabled = _nil
+C_CraftingOrders.AreOrderNotesDisabled = _bool
 C_CraftingOrders.CalculateCraftingOrderPostingFee = _nil
-C_CraftingOrders.CanOrderSkillAbility = _nil
+C_CraftingOrders.CanOrderSkillAbility = _bool
 C_CraftingOrders.CancelOrder = _nil
 C_CraftingOrders.ClaimOrder = _nil
 C_CraftingOrders.CloseCrafterCraftingOrders = _nil
@@ -24,12 +24,12 @@ C_CraftingOrders.GetMyOrders = _tbl
 C_CraftingOrders.GetNumFavoriteCustomerOptions = _nil
 C_CraftingOrders.GetOrderClaimInfo = _tbl
 C_CraftingOrders.GetPersonalOrdersInfo = _tbl
-C_CraftingOrders.HasFavoriteCustomerOptions = _nil
-C_CraftingOrders.IsCustomerOptionFavorited = _nil
+C_CraftingOrders.HasFavoriteCustomerOptions = _bool
+C_CraftingOrders.IsCustomerOptionFavorited = _bool
 C_CraftingOrders.ListMyOrders = _nil
 C_CraftingOrders.OpenCrafterCraftingOrders = _nil
 C_CraftingOrders.OpenCustomerCraftingOrders = _nil
-C_CraftingOrders.OrderCanBeRecrafted = _nil
+C_CraftingOrders.OrderCanBeRecrafted = _bool
 C_CraftingOrders.ParseCustomerOptions = _nil
 C_CraftingOrders.PlaceNewOrder = _nil
 C_CraftingOrders.RejectOrder = _nil
@@ -37,8 +37,8 @@ C_CraftingOrders.ReleaseOrder = _nil
 C_CraftingOrders.RequestCrafterOrders = _nil
 C_CraftingOrders.RequestCustomerOrders = _nil
 C_CraftingOrders.SetCustomerOptionFavorited = _nil
-C_CraftingOrders.ShouldShowCraftingOrderTab = _nil
-C_CraftingOrders.SkillLineHasOrders = _nil
+C_CraftingOrders.ShouldShowCraftingOrderTab = _bool
+C_CraftingOrders.SkillLineHasOrders = _bool
 C_CraftingOrders.UpdateIgnoreList = _nil
 -- Events: CRAFTING_HOUSE_DISABLED, CRAFTINGORDERS_CAN_REQUEST, CRAFTINGORDERS_CLAIM_ORDER_RESPONSE, CRAFTINGORDERS_CLAIMED_ORDER_ADDED, CRAFTINGORDERS_CLAIMED_ORDER_REMOVED, CRAFTINGORDERS_CLAIMED_ORDER_UPDATED, CRAFTINGORDERS_CRAFT_ORDER_RESPONSE, CRAFTINGORDERS_CUSTOMER_FAVORITES_CHANGED, CRAFTINGORDERS_CUSTOMER_OPTIONS_PARSED, CRAFTINGORDERS_DISPLAY_CRAFTER_FULFILLED_MSG, CRAFTINGORDERS_FULFILL_ORDER_RESPONSE, CRAFTINGORDERS_HIDE_CRAFTER, CRAFTINGORDERS_HIDE_CUSTOMER, CRAFTINGORDERS_ORDER_CANCEL_RESPONSE, CRAFTINGORDERS_ORDER_PLACEMENT_RESPONSE, CRAFTINGORDERS_REJECT_ORDER_RESPONSE, CRAFTINGORDERS_RELEASE_ORDER_RESPONSE, CRAFTINGORDERS_SHOW_CRAFTER, CRAFTINGORDERS_SHOW_CUSTOMER, CRAFTINGORDERS_UNEXPECTED_ERROR, CRAFTINGORDERS_UPDATE_CUSTOMER_NAME, CRAFTINGORDERS_UPDATE_ORDER_COUNT, CRAFTINGORDERS_UPDATE_PERSONAL_ORDER_COUNTS, CRAFTINGORDERS_UPDATE_REWARDS
 `;

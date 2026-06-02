@@ -8,5 +8,5 @@ C_CurveUtil.CreateColorCurve = _nil
 C_CurveUtil.CreateCurve = _nil
 C_CurveUtil.EvaluateColorFromBoolean = _nil
 C_CurveUtil.EvaluateColorValueFromBoolean = _nil
-C_CurveUtil.EvaluateGameCurve = _nil
+C_CurveUtil.EvaluateGameCurve = _num
 `;

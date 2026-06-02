@@ -4,14 +4,14 @@
 // Source: Blizzard_APIDocumentationGenerated/ttssettingsdocumentation.lua
 export const C_TTSSettings = `
 if C_TTSSettings == nil then C_TTSSettings = {} end
-C_TTSSettings.GetChannelEnabled = _nil
-C_TTSSettings.GetCharacterSettingsSaved = _nil
-C_TTSSettings.GetChatTypeEnabled = _nil
-C_TTSSettings.GetSetting = _nil
-C_TTSSettings.GetSpeechRate = _nil
-C_TTSSettings.GetSpeechVolume = _nil
-C_TTSSettings.GetVoiceOptionID = _nil
-C_TTSSettings.GetVoiceOptionName = _nil
+C_TTSSettings.GetChannelEnabled = _bool
+C_TTSSettings.GetCharacterSettingsSaved = _bool
+C_TTSSettings.GetChatTypeEnabled = _bool
+C_TTSSettings.GetSetting = _bool
+C_TTSSettings.GetSpeechRate = _num
+C_TTSSettings.GetSpeechVolume = _num
+C_TTSSettings.GetVoiceOptionID = _num
+C_TTSSettings.GetVoiceOptionName = _str
 C_TTSSettings.MarkCharacterSettingsSaved = _nil
 C_TTSSettings.SetChannelEnabled = _nil
 C_TTSSettings.SetChannelKeyEnabled = _nil
@@ -22,5 +22,5 @@ C_TTSSettings.SetSpeechRate = _nil
 C_TTSSettings.SetSpeechVolume = _nil
 C_TTSSettings.SetVoiceOption = _nil
 C_TTSSettings.SetVoiceOptionName = _nil
-C_TTSSettings.ShouldOverrideMessage = _nil
+C_TTSSettings.ShouldOverrideMessage = _bool
 `;

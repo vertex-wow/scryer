@@ -5,8 +5,8 @@
 export const _Cinematic = `
 CinematicFinished = _nil
 CinematicStarted = _nil
-GetCurrentCinematicSummary = _nil
-InCinematic = _nil
+GetCurrentCinematicSummary = _str
+InCinematic = _bool
 MouseOverrideCinematicDisable = _nil
 OpeningCinematic = _nil
 StopCinematic = _nil

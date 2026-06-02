@@ -11,6 +11,6 @@ C_DyeColor.GetDyeColorForItem = _nil
 C_DyeColor.GetDyeColorForItemLocation = _nil
 C_DyeColor.GetDyeColorInfo = _nil
 C_DyeColor.GetDyeColorsInCategory = _tbl
-C_DyeColor.IsDyeColorOwned = _nil
+C_DyeColor.IsDyeColorOwned = _bool
 -- Events: DYE_COLOR_CATEGORY_UPDATED, DYE_COLOR_UPDATED
 `;

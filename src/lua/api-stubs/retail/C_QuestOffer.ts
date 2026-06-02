@@ -4,7 +4,7 @@
 // Source: Blizzard_APIDocumentationGenerated/questofferdocumentation.lua
 export const C_QuestOffer = `
 if C_QuestOffer == nil then C_QuestOffer = {} end
-C_QuestOffer.GetHideRequiredItems = _nil
+C_QuestOffer.GetHideRequiredItems = _bool
 C_QuestOffer.GetQuestOfferMajorFactionReputationRewards = _tbl
 C_QuestOffer.GetQuestRequiredCurrencyInfo = _nil
 C_QuestOffer.GetQuestRewardCurrencyInfo = _nil

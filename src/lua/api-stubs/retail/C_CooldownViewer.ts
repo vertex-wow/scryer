@@ -6,9 +6,9 @@ export const C_CooldownViewer = `
 if C_CooldownViewer == nil then C_CooldownViewer = {} end
 C_CooldownViewer.GetCooldownViewerCategorySet = _tbl
 C_CooldownViewer.GetCooldownViewerCooldownInfo = _tbl
-C_CooldownViewer.GetLayoutData = _nil
+C_CooldownViewer.GetLayoutData = _str
 C_CooldownViewer.GetValidAlertTypes = _tbl
-C_CooldownViewer.IsCooldownViewerAvailable = _nil
+C_CooldownViewer.IsCooldownViewerAvailable = _bool
 C_CooldownViewer.SetLayoutData = _nil
 -- Events: COOLDOWN_VIEWER_DATA_LOADED, COOLDOWN_VIEWER_SPELL_OVERRIDE_UPDATED, COOLDOWN_VIEWER_TABLE_HOTFIXED
 `;

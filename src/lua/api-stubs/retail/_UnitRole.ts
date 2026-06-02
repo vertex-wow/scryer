@@ -3,11 +3,11 @@
 // @sig-hash: sha256:4b9987f1f5fe34e1
 // Source: Blizzard_APIDocumentationGenerated/unitroledocumentation.lua
 export const _UnitRole = `
-AreClassRolesSoftSuggestions = _nil
-CanShowSetRoleButton = _nil
-InitiateRolePoll = _nil
-UnitGetAvailableRoles = _nil
-UnitSetRole = _nil
-UnitSetRoleEnum = _nil
+AreClassRolesSoftSuggestions = _bool
+CanShowSetRoleButton = _bool
+InitiateRolePoll = _bool
+UnitGetAvailableRoles = _bool
+UnitSetRole = _bool
+UnitSetRoleEnum = _bool
 -- Events: ROLE_CHANGED_INFORM, ROLE_POLL_BEGIN
 `;

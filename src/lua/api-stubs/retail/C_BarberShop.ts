@@ -4,18 +4,18 @@
 // Source: Blizzard_APIDocumentationGenerated/barbershopdocumentation.lua
 export const C_BarberShop = `
 if C_BarberShop == nil then C_BarberShop = {} end
-C_BarberShop.ApplyCustomizationChoices = _nil
+C_BarberShop.ApplyCustomizationChoices = _bool
 C_BarberShop.Cancel = _nil
 C_BarberShop.ClearPreviewChoices = _nil
 C_BarberShop.GetAvailableCustomizations = _tbl
-C_BarberShop.GetCurrentCameraZoom = _nil
+C_BarberShop.GetCurrentCameraZoom = _num
 C_BarberShop.GetCurrentCharacterData = _tbl
-C_BarberShop.GetCurrentCost = _nil
+C_BarberShop.GetCurrentCost = _num
 C_BarberShop.GetViewingChrModel = _nil
-C_BarberShop.HasAlteredForm = _nil
-C_BarberShop.HasAnyChanges = _nil
-C_BarberShop.HasCustomizationFeature = _nil
-C_BarberShop.IsViewingAlteredForm = _nil
+C_BarberShop.HasAlteredForm = _bool
+C_BarberShop.HasAnyChanges = _bool
+C_BarberShop.HasCustomizationFeature = _bool
+C_BarberShop.IsViewingAlteredForm = _bool
 C_BarberShop.MarkCustomizationChoiceAsSeen = _nil
 C_BarberShop.MarkCustomizationOptionAsSeen = _nil
 C_BarberShop.PreviewCustomizationChoice = _nil

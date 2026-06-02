@@ -4,10 +4,10 @@
 // Source: Blizzard_APIDocumentationGenerated/warbandsceneinfodocumentation.lua
 export const C_WarbandScene = `
 if C_WarbandScene == nil then C_WarbandScene = {} end
-C_WarbandScene.GetRandomEntryID = _nil
+C_WarbandScene.GetRandomEntryID = _num
 C_WarbandScene.GetWarbandSceneEntry = _tbl
-C_WarbandScene.HasWarbandScene = _nil
-C_WarbandScene.IsFavorite = _nil
+C_WarbandScene.HasWarbandScene = _bool
+C_WarbandScene.IsFavorite = _bool
 C_WarbandScene.SearchWarbandSceneEntries = _tbl
 C_WarbandScene.SetFavorite = _nil
 -- Events: NEW_WARBAND_SCENE_ADDED, WARBAND_SCENE_FAVORITES_UPDATED

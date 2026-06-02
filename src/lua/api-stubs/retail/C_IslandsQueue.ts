@@ -6,7 +6,7 @@ export const C_IslandsQueue = `
 if C_IslandsQueue == nil then C_IslandsQueue = {} end
 C_IslandsQueue.CloseIslandsQueueScreen = _nil
 C_IslandsQueue.GetIslandDifficultyInfo = _tbl
-C_IslandsQueue.GetIslandsMaxGroupSize = _nil
+C_IslandsQueue.GetIslandsMaxGroupSize = _num
 C_IslandsQueue.GetIslandsWeeklyQuestID = _nil
 C_IslandsQueue.QueueForIsland = _nil
 C_IslandsQueue.RequestPreloadRewardData = _nil

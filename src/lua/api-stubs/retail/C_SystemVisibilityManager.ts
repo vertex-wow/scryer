@@ -4,6 +4,6 @@
 // Source: Blizzard_APIDocumentationGenerated/uisystemvisibilitymanagerdocumentation.lua
 export const C_SystemVisibilityManager = `
 if C_SystemVisibilityManager == nil then C_SystemVisibilityManager = {} end
-C_SystemVisibilityManager.IsSystemVisible = _nil
+C_SystemVisibilityManager.IsSystemVisible = _bool
 -- Events: SYSTEM_VISIBILITY_CHANGED
 `;

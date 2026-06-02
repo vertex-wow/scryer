@@ -5,7 +5,7 @@
 export const C_HousingCleanupMode = `
 if C_HousingCleanupMode == nil then C_HousingCleanupMode = {} end
 C_HousingCleanupMode.GetHoveredDecorInfo = _nil
-C_HousingCleanupMode.IsHoveringDecor = _nil
+C_HousingCleanupMode.IsHoveringDecor = _bool
 C_HousingCleanupMode.RemoveSelectedDecor = _nil
 -- Events: HOUSING_CLEANUP_MODE_HOVERED_TARGET_CHANGED, HOUSING_CLEANUP_MODE_TARGET_SELECTED
 `;

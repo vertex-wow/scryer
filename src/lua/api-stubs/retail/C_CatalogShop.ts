@@ -4,7 +4,7 @@
 // Source: Blizzard_APIDocumentationGenerated/catalogshopdocumentation.lua
 export const C_CatalogShop = `
 if C_CatalogShop == nil then C_CatalogShop = {} end
-C_CatalogShop.BulkPurchaseProducts = _nil
+C_CatalogShop.BulkPurchaseProducts = _bool
 C_CatalogShop.BulkRefundDecors = _nil
 C_CatalogShop.CloseCatalogShopInteraction = _nil
 C_CatalogShop.ConfirmHousingPurchase = _nil
@@ -28,19 +28,19 @@ C_CatalogShop.GetSectionIDsForCategory = _tbl
 C_CatalogShop.GetSpellVisualInfoForMount = _tbl
 C_CatalogShop.GetVCProductInfos = _tbl
 C_CatalogShop.GetVirtualCurrencyBalance = _nil
-C_CatalogShop.HasNewProducts = _nil
-C_CatalogShop.IsProductIncludedInAnyBundle = _nil
+C_CatalogShop.HasNewProducts = _bool
+C_CatalogShop.IsProductIncludedInAnyBundle = _bool
 C_CatalogShop.IsShop2Enabled = _nil
 C_CatalogShop.OnLegalDisclaimerClicked = _nil
 C_CatalogShop.OnLegalPersonalizedOptOutClicked = _nil
-C_CatalogShop.OpenCatalogShopInteractionFromHouse = _nil
-C_CatalogShop.OpenCatalogShopInteractionFromShop = _nil
+C_CatalogShop.OpenCatalogShopInteractionFromHouse = _str
+C_CatalogShop.OpenCatalogShopInteractionFromShop = _str
 C_CatalogShop.ProductDisplayedTelemetry = _nil
 C_CatalogShop.ProductSelectedTelemetry = _nil
-C_CatalogShop.PurchaseProduct = _nil
+C_CatalogShop.PurchaseProduct = _bool
 C_CatalogShop.RefreshRefundableDecors = _nil
 C_CatalogShop.RefreshVirtualCurrencyBalance = _nil
-C_CatalogShop.ShouldShowHousingWarning = _nil
+C_CatalogShop.ShouldShowHousingWarning = _bool
 C_CatalogShop.StartHousingVCPurchaseConfirmation = _nil
 -- Events: BULK_PURCHASE_RESULT_RECEIVED, BULK_REFUND_RESULT_RECEIVED, CATALOG_SHOP_ADD_PENDING_PRODUCT, CATALOG_SHOP_DATA_REFRESH, CATALOG_SHOP_DISABLED, CATALOG_SHOP_FETCH_FAILURE, CATALOG_SHOP_FETCH_SUCCESS, CATALOG_SHOP_OPEN_SIMPLE_CHECKOUT, CATALOG_SHOP_PURCHASE_SUCCESS, CATALOG_SHOP_REBUILD_SCROLL_BOX, CATALOG_SHOP_REFUNDABLE_DECORS_UPDATED, CATALOG_SHOP_REMOVE_PENDING_PRODUCT, CATALOG_SHOP_RESULT_ERROR, CATALOG_SHOP_SPECIFIC_PRODUCT_REFRESH, CATALOG_SHOP_VIRTUAL_CURRENCY_BALANCE_UPDATE, CATALOG_SHOP_VIRTUAL_CURRENCY_BALANCE_UPDATE_FAILURE, SET_SEEN_PRODUCTS, SHOW_NEW_PRODUCT_NOTIFICATION
 `;

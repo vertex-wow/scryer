@@ -6,7 +6,7 @@ export const C_PetBattles = `
 if C_PetBattles == nil then C_PetBattles = {} end
 C_PetBattles.GetBreedQuality = _nil
 C_PetBattles.GetIcon = _nil
-C_PetBattles.GetName = _nil
-C_PetBattles.IsPlayerNPC = _nil
-C_PetBattles.IsWildBattle = _nil
+C_PetBattles.GetName = _str
+C_PetBattles.IsPlayerNPC = _bool
+C_PetBattles.IsWildBattle = _bool
 `;

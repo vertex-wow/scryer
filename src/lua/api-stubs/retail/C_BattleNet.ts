@@ -9,13 +9,13 @@ C_BattleNet.GetAccountInfoByGUID = _nil
 C_BattleNet.GetAccountInfoByID = _nil
 C_BattleNet.GetFriendAccountInfo = _nil
 C_BattleNet.GetFriendGameAccountInfo = _nil
-C_BattleNet.GetFriendNumGameAccounts = _nil
+C_BattleNet.GetFriendNumGameAccounts = _num
 C_BattleNet.GetGameAccountInfoByGUID = _nil
 C_BattleNet.GetGameAccountInfoByID = _nil
 C_BattleNet.InstallHighResTextures = _nil
 C_BattleNet.SendGameData = _nil
-C_BattleNet.SendWhisper = _nil
+C_BattleNet.SendWhisper = _bool
 C_BattleNet.SetAFK = _nil
-C_BattleNet.SetCustomMessage = _nil
+C_BattleNet.SetCustomMessage = _bool
 C_BattleNet.SetDND = _nil
 `;

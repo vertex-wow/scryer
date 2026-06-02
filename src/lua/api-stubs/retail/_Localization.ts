@@ -3,15 +3,15 @@
 // @sig-hash: sha256:f4ea4adfc665073e
 // Source: Blizzard_APIDocumentationGenerated/localizationdocumentation.lua
 export const _Localization = `
-AbbreviateLargeNumbers = _nil
-AbbreviateNumbers = _nil
-BreakUpLargeNumbers = _nil
-CaseAccentInsensitiveParse = _nil
+AbbreviateLargeNumbers = _str
+AbbreviateNumbers = _str
+BreakUpLargeNumbers = _str
+CaseAccentInsensitiveParse = _str
 CreateAbbreviateConfig = _nil
-DeclineName = _nil
+DeclineName = _str
 GetDefaultAbbreviationBreakpoints = _tbl
-GetNumDeclensionSets = _nil
-IsEuropeanNumbers = _nil
+GetNumDeclensionSets = _num
+IsEuropeanNumbers = _bool
 LocalizedClassList = _nil
 SetEuropeanNumbers = _nil
 `;

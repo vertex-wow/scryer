@@ -4,14 +4,14 @@
 // Source: Blizzard_APIDocumentationGenerated/encodingutildocumentation.lua
 export const C_EncodingUtil = `
 if C_EncodingUtil == nil then C_EncodingUtil = {} end
-C_EncodingUtil.CompressString = _nil
-C_EncodingUtil.DecodeBase64 = _nil
-C_EncodingUtil.DecodeHex = _nil
-C_EncodingUtil.DecompressString = _nil
+C_EncodingUtil.CompressString = _str
+C_EncodingUtil.DecodeBase64 = _str
+C_EncodingUtil.DecodeHex = _str
+C_EncodingUtil.DecompressString = _str
 C_EncodingUtil.DeserializeCBOR = _nil
 C_EncodingUtil.DeserializeJSON = _nil
-C_EncodingUtil.EncodeBase64 = _nil
-C_EncodingUtil.EncodeHex = _nil
-C_EncodingUtil.SerializeCBOR = _nil
-C_EncodingUtil.SerializeJSON = _nil
+C_EncodingUtil.EncodeBase64 = _str
+C_EncodingUtil.EncodeHex = _str
+C_EncodingUtil.SerializeCBOR = _str
+C_EncodingUtil.SerializeJSON = _str
 `;

@@ -8,7 +8,7 @@ C_QuestLine.GetAvailableQuestLines = _tbl
 C_QuestLine.GetForceVisibleQuests = _tbl
 C_QuestLine.GetQuestLineInfo = _nil
 C_QuestLine.GetQuestLineQuests = _tbl
-C_QuestLine.IsComplete = _nil
-C_QuestLine.QuestLineIgnoresAccountCompletedFiltering = _nil
+C_QuestLine.IsComplete = _bool
+C_QuestLine.QuestLineIgnoresAccountCompletedFiltering = _bool
 C_QuestLine.RequestQuestLinesForMap = _nil
 `;

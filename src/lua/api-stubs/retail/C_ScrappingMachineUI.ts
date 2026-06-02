@@ -7,9 +7,9 @@ if C_ScrappingMachineUI == nil then C_ScrappingMachineUI = {} end
 C_ScrappingMachineUI.CloseScrappingMachine = _nil
 C_ScrappingMachineUI.DropPendingScrapItemFromCursor = _nil
 C_ScrappingMachineUI.GetCurrentPendingScrapItemLocationByIndex = _nil
-C_ScrappingMachineUI.GetScrapSpellID = _nil
-C_ScrappingMachineUI.GetScrappingMachineName = _nil
-C_ScrappingMachineUI.HasScrappableItems = _nil
+C_ScrappingMachineUI.GetScrapSpellID = _num
+C_ScrappingMachineUI.GetScrappingMachineName = _str
+C_ScrappingMachineUI.HasScrappableItems = _bool
 C_ScrappingMachineUI.RemoveAllScrapItems = _nil
 C_ScrappingMachineUI.RemoveCurrentScrappingItem = _nil
 C_ScrappingMachineUI.RemoveItemToScrap = _nil

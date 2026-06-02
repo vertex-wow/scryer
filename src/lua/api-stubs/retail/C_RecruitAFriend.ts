@@ -4,20 +4,20 @@
 // Source: Blizzard_APIDocumentationGenerated/recruitafrienddocumentation.lua
 export const C_RecruitAFriend = `
 if C_RecruitAFriend == nil then C_RecruitAFriend = {} end
-C_RecruitAFriend.CanSummonFriend = _nil
-C_RecruitAFriend.ClaimActivityReward = _nil
-C_RecruitAFriend.ClaimNextReward = _nil
-C_RecruitAFriend.GenerateRecruitmentLink = _nil
+C_RecruitAFriend.CanSummonFriend = _bool
+C_RecruitAFriend.ClaimActivityReward = _bool
+C_RecruitAFriend.ClaimNextReward = _bool
+C_RecruitAFriend.GenerateRecruitmentLink = _bool
 C_RecruitAFriend.GetRAFInfo = _tbl
 C_RecruitAFriend.GetRAFSystemInfo = _tbl
 C_RecruitAFriend.GetRecruitActivityRequirementsText = _tbl
-C_RecruitAFriend.GetRecruitInfo = _nil
-C_RecruitAFriend.GetSummonFriendCooldown = _nil
-C_RecruitAFriend.IsEnabled = _nil
-C_RecruitAFriend.IsRecruitAFriendLinked = _nil
-C_RecruitAFriend.IsRecruitingEnabled = _nil
-C_RecruitAFriend.RemoveRAFRecruit = _nil
-C_RecruitAFriend.RequestUpdatedRecruitmentInfo = _nil
+C_RecruitAFriend.GetRecruitInfo = _bool
+C_RecruitAFriend.GetSummonFriendCooldown = _num
+C_RecruitAFriend.IsEnabled = _bool
+C_RecruitAFriend.IsRecruitAFriendLinked = _bool
+C_RecruitAFriend.IsRecruitingEnabled = _bool
+C_RecruitAFriend.RemoveRAFRecruit = _bool
+C_RecruitAFriend.RequestUpdatedRecruitmentInfo = _bool
 C_RecruitAFriend.SummonFriend = _nil
 -- Events: RAF_INFO_UPDATED, RAF_RECRUITING_ENABLED_STATUS, RAF_REWARD_CLAIM_FAILED, RAF_SYSTEM_ENABLED_STATUS, RAF_SYSTEM_INFO_UPDATED
 `;

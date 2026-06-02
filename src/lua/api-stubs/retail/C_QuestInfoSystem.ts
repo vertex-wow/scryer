@@ -5,11 +5,11 @@
 export const C_QuestInfoSystem = `
 if C_QuestInfoSystem == nil then C_QuestInfoSystem = {} end
 C_QuestInfoSystem.GetQuestClassification = _nil
-C_QuestInfoSystem.GetQuestLogRewardFavor = _nil
+C_QuestInfoSystem.GetQuestLogRewardFavor = _num
 C_QuestInfoSystem.GetQuestRewardCurrencies = _tbl
 C_QuestInfoSystem.GetQuestRewardSpellInfo = _nil
 C_QuestInfoSystem.GetQuestRewardSpells = _tbl
-C_QuestInfoSystem.GetQuestShouldToastCompletion = _nil
-C_QuestInfoSystem.HasQuestRewardCurrencies = _nil
-C_QuestInfoSystem.HasQuestRewardSpells = _nil
+C_QuestInfoSystem.GetQuestShouldToastCompletion = _bool
+C_QuestInfoSystem.HasQuestRewardCurrencies = _bool
+C_QuestInfoSystem.HasQuestRewardSpells = _bool
 `;

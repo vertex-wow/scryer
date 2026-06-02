@@ -3,6 +3,6 @@
 // @sig-hash: sha256:0349bca5ccde383b
 // Source: Blizzard_APIDocumentationGenerated/mirrortimerdocumentation.lua
 export const _MirrorTimer = `
-GetMirrorTimerInfo = _nil
+GetMirrorTimerInfo = _str
 GetMirrorTimerProgress = _nil
 `;

@@ -4,9 +4,9 @@
 // Source: Blizzard_APIDocumentationGenerated/instanceencounterdocumentation.lua
 export const C_InstanceEncounter = `
 if C_InstanceEncounter == nil then C_InstanceEncounter = {} end
-C_InstanceEncounter.IsEncounterInProgress = _nil
-C_InstanceEncounter.IsEncounterLimitingResurrections = _nil
-C_InstanceEncounter.IsEncounterSuppressingRelease = _nil
-C_InstanceEncounter.ShouldShowTimelineForEncounter = _nil
+C_InstanceEncounter.IsEncounterInProgress = _bool
+C_InstanceEncounter.IsEncounterLimitingResurrections = _bool
+C_InstanceEncounter.IsEncounterSuppressingRelease = _bool
+C_InstanceEncounter.ShouldShowTimelineForEncounter = _bool
 -- Events: ENCOUNTER_STATE_CHANGED, INSTANCE_ENCOUNTER_ADD_TIMER, INSTANCE_ENCOUNTER_ENGAGE_UNIT, INSTANCE_ENCOUNTER_OBJECTIVE_COMPLETE, INSTANCE_ENCOUNTER_OBJECTIVE_START, INSTANCE_ENCOUNTER_OBJECTIVE_UPDATE
 `;

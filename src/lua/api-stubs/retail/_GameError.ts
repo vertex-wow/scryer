@@ -3,6 +3,6 @@
 // @sig-hash: sha256:658cbdc1aca0a988
 // Source: Blizzard_APIDocumentationGenerated/gameerrordocumentation.lua
 export const _GameError = `
-GetGameMessageInfo = _nil
+GetGameMessageInfo = _str
 NotWhileDeadError = _nil
 `;

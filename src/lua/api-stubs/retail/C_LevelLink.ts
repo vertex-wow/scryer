@@ -4,6 +4,6 @@
 // Source: Blizzard_APIDocumentationGenerated/levellinkdocumentation.lua
 export const C_LevelLink = `
 if C_LevelLink == nil then C_LevelLink = {} end
-C_LevelLink.IsActionLocked = _nil
-C_LevelLink.IsSpellLocked = _nil
+C_LevelLink.IsActionLocked = _bool
+C_LevelLink.IsSpellLocked = _bool
 `;

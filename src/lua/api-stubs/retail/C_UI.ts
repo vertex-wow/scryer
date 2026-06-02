@@ -4,12 +4,12 @@
 // Source: Blizzard_APIDocumentationGenerated/uimanagerdocumentation.lua
 export const C_UI = `
 if C_UI == nil then C_UI = {} end
-C_UI.DoesAnyDisplayHaveNotch = _nil
-C_UI.GetTopLeftNotchSafeRegion = _nil
-C_UI.GetTopRightNotchSafeRegion = _nil
+C_UI.DoesAnyDisplayHaveNotch = _bool
+C_UI.GetTopLeftNotchSafeRegion = _num
+C_UI.GetTopRightNotchSafeRegion = _num
 C_UI.GetUIParent = _nil
 C_UI.GetWorldFrame = _nil
 C_UI.Reload = _nil
-C_UI.ShouldUIParentAvoidNotch = _nil
+C_UI.ShouldUIParentAvoidNotch = _bool
 -- Events: NOTCHED_DISPLAY_MODE_CHANGED, UI_SCALE_CHANGED
 `;

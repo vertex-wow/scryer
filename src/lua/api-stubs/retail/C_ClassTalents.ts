@@ -4,29 +4,29 @@
 // Source: Blizzard_APIDocumentationGenerated/classtalentsdocumentation.lua
 export const C_ClassTalents = `
 if C_ClassTalents == nil then C_ClassTalents = {} end
-C_ClassTalents.CanChangeTalents = _nil
-C_ClassTalents.CanCreateNewConfig = _nil
-C_ClassTalents.CanEditTalents = _nil
-C_ClassTalents.CommitConfig = _nil
-C_ClassTalents.DeleteConfig = _nil
+C_ClassTalents.CanChangeTalents = _bool
+C_ClassTalents.CanCreateNewConfig = _bool
+C_ClassTalents.CanEditTalents = _bool
+C_ClassTalents.CommitConfig = _bool
+C_ClassTalents.DeleteConfig = _bool
 C_ClassTalents.GetActiveConfigID = _nil
 C_ClassTalents.GetActiveHeroTalentSpec = _nil
 C_ClassTalents.GetConfigIDsBySpecID = _tbl
-C_ClassTalents.GetHasStarterBuild = _nil
+C_ClassTalents.GetHasStarterBuild = _bool
 C_ClassTalents.GetHeroTalentSpecsForClassSpec = _tbl
 C_ClassTalents.GetLastSelectedSavedConfigID = _nil
 C_ClassTalents.GetNextStarterBuildPurchase = _nil
-C_ClassTalents.GetStarterBuildActive = _nil
+C_ClassTalents.GetStarterBuildActive = _bool
 C_ClassTalents.GetTraitTreeForSpec = _nil
-C_ClassTalents.HasUnspentHeroTalentPoints = _nil
-C_ClassTalents.HasUnspentTalentPoints = _nil
-C_ClassTalents.ImportLoadout = _nil
+C_ClassTalents.HasUnspentHeroTalentPoints = _bool
+C_ClassTalents.HasUnspentTalentPoints = _bool
+C_ClassTalents.ImportLoadout = _bool
 C_ClassTalents.InitializeViewLoadout = _nil
-C_ClassTalents.IsConfigPopulated = _nil
+C_ClassTalents.IsConfigPopulated = _bool
 C_ClassTalents.LoadConfig = _tbl
-C_ClassTalents.RenameConfig = _nil
-C_ClassTalents.RequestNewConfig = _nil
-C_ClassTalents.SaveConfig = _nil
+C_ClassTalents.RenameConfig = _bool
+C_ClassTalents.RequestNewConfig = _bool
+C_ClassTalents.SaveConfig = _bool
 C_ClassTalents.SetStarterBuildActive = _nil
 C_ClassTalents.SetUsesSharedActionBars = _nil
 C_ClassTalents.SwitchToLoadoutByIndex = _nil
@@ -34,6 +34,6 @@ C_ClassTalents.SwitchToLoadoutByName = _nil
 C_ClassTalents.SwitchToSpecializationByIndex = _nil
 C_ClassTalents.SwitchToSpecializationByName = _nil
 C_ClassTalents.UpdateLastSelectedSavedConfigID = _nil
-C_ClassTalents.ViewLoadout = _nil
+C_ClassTalents.ViewLoadout = _bool
 -- Events: ACTIVE_COMBAT_CONFIG_CHANGED, CLASS_TALENTS_SWITCH_TO_LOADOUT_BY_INDEX, CLASS_TALENTS_SWITCH_TO_LOADOUT_BY_NAME, CLASS_TALENTS_SWITCH_TO_SPECIALIZATION_BY_INDEX, CLASS_TALENTS_SWITCH_TO_SPECIALIZATION_BY_NAME, SELECTED_LOADOUT_CHANGED, SPECIALIZATION_CHANGE_CAST_FAILED, STARTER_BUILD_ACTIVATION_FAILED
 `;

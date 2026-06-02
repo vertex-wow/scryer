@@ -6,12 +6,12 @@ export const C_EncounterWarnings = `
 if C_EncounterWarnings == nil then C_EncounterWarnings = {} end
 C_EncounterWarnings.GetColorForSeverity = _nil
 C_EncounterWarnings.GetEditModeWarningInfo = _tbl
-C_EncounterWarnings.GetPlayCustomSoundsWhenHidden = _nil
-C_EncounterWarnings.GetSoundKitForSeverity = _nil
-C_EncounterWarnings.GetWarningsShown = _nil
-C_EncounterWarnings.IsFeatureAvailable = _nil
-C_EncounterWarnings.IsFeatureEnabled = _nil
-C_EncounterWarnings.PlaySound = _nil
+C_EncounterWarnings.GetPlayCustomSoundsWhenHidden = _bool
+C_EncounterWarnings.GetSoundKitForSeverity = _num
+C_EncounterWarnings.GetWarningsShown = _bool
+C_EncounterWarnings.IsFeatureAvailable = _bool
+C_EncounterWarnings.IsFeatureEnabled = _bool
+C_EncounterWarnings.PlaySound = _num
 C_EncounterWarnings.SetPlayCustomSoundsWhenHidden = _nil
 C_EncounterWarnings.SetWarningsShown = _nil
 -- Events: ENCOUNTER_WARNING

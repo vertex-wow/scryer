@@ -464,18 +464,6 @@ See `docs/plan/013_api_stub_autogen.md` for full architecture.
 
 ---
 
-## Typed scalar returns in generated stubs
-
-**Status:** ⬜ Deferred (after M13)
-
-**Problem:** Generated stubs return `undefined` (nil) for all scalar returns. For functions like `GetNumX()` used as loop bounds (`for i=1,GetNumX() do`), nil causes a Lua arithmetic error. Currently deferred because nil surfaces the gap visibly rather than masking it with a wrong value.
-
-**Plan:** Opt-in override layer — a JSON sidecar (e.g. `src/lua/api-stubs/.overrides.json`) maps `Namespace.FunctionName` → explicit return value. Generator writes `undefined` by default; the sidecar patches specific functions to return `0`, `false`, `""` etc. Could also auto-detect: if `Returns[0].Type == "number"` and `Nilable == false`, emit `0`.
-
-**Effort:** S
-
----
-
 ## WoW type system generation
 
 **Status:** ⬜ Deferred (after M13)

@@ -7,6 +7,6 @@ if C_AssistedCombat == nil then C_AssistedCombat = {} end
 C_AssistedCombat.GetActionSpell = _nil
 C_AssistedCombat.GetNextCastSpell = _nil
 C_AssistedCombat.GetRotationSpells = _tbl
-C_AssistedCombat.IsAvailable = _nil
+C_AssistedCombat.IsAvailable = _bool
 -- Events: ASSISTED_COMBAT_ACTION_SPELL_CAST
 `;

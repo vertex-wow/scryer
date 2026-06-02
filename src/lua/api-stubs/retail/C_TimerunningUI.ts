@@ -4,6 +4,6 @@
 // Source: Blizzard_APIDocumentationGenerated/timerunninguidocumentation.lua
 export const C_TimerunningUI = `
 if C_TimerunningUI == nil then C_TimerunningUI = {} end
-C_TimerunningUI.GetActiveTimerunningSeasonID = _nil
+C_TimerunningUI.GetActiveTimerunningSeasonID = _num
 -- Events: REMIX_END_OF_EVENT
 `;

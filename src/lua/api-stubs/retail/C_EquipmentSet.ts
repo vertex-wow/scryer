@@ -5,27 +5,27 @@
 export const C_EquipmentSet = `
 if C_EquipmentSet == nil then C_EquipmentSet = {} end
 C_EquipmentSet.AssignSpecToEquipmentSet = _nil
-C_EquipmentSet.CanUseEquipmentSets = _nil
+C_EquipmentSet.CanUseEquipmentSets = _bool
 C_EquipmentSet.ClearIgnoredSlotsForSave = _nil
 C_EquipmentSet.CreateEquipmentSet = _nil
 C_EquipmentSet.DeleteEquipmentSet = _nil
-C_EquipmentSet.EquipmentSetContainsLockedItems = _nil
-C_EquipmentSet.GetEquipmentSetAssignedSpec = _nil
-C_EquipmentSet.GetEquipmentSetForSpec = _nil
-C_EquipmentSet.GetEquipmentSetID = _nil
+C_EquipmentSet.EquipmentSetContainsLockedItems = _bool
+C_EquipmentSet.GetEquipmentSetAssignedSpec = _num
+C_EquipmentSet.GetEquipmentSetForSpec = _num
+C_EquipmentSet.GetEquipmentSetID = _num
 C_EquipmentSet.GetEquipmentSetIDs = _tbl
-C_EquipmentSet.GetEquipmentSetInfo = _nil
+C_EquipmentSet.GetEquipmentSetInfo = _str
 C_EquipmentSet.GetIgnoredSlots = _tbl
 C_EquipmentSet.GetItemIDs = _tbl
 C_EquipmentSet.GetItemLocations = _tbl
-C_EquipmentSet.GetNumEquipmentSets = _nil
+C_EquipmentSet.GetNumEquipmentSets = _num
 C_EquipmentSet.IgnoreSlotForSave = _nil
-C_EquipmentSet.IsSlotIgnoredForSave = _nil
+C_EquipmentSet.IsSlotIgnoredForSave = _bool
 C_EquipmentSet.ModifyEquipmentSet = _nil
 C_EquipmentSet.PickupEquipmentSet = _nil
 C_EquipmentSet.SaveEquipmentSet = _nil
 C_EquipmentSet.UnassignEquipmentSetSpec = _nil
 C_EquipmentSet.UnignoreSlotForSave = _nil
-C_EquipmentSet.UseEquipmentSet = _nil
+C_EquipmentSet.UseEquipmentSet = _bool
 -- Events: EQUIPMENT_SETS_CHANGED, EQUIPMENT_SWAP_FINISHED, EQUIPMENT_SWAP_PENDING, TRANSMOG_CUSTOM_SETS_CHANGED
 `;

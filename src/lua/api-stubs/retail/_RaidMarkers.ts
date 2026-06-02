@@ -3,11 +3,11 @@
 // @sig-hash: sha256:3bc72daa4da23a9f
 // Source: Blizzard_APIDocumentationGenerated/raidmarkersdocumentation.lua
 export const _RaidMarkers = `
-CanBeRaidTarget = _nil
+CanBeRaidTarget = _bool
 ClearRaidMarker = _nil
 GetRaidTargetIndex = _nil
-IsRaidMarkerActive = _nil
-IsRaidMarkerSystemEnabled = _nil
+IsRaidMarkerActive = _bool
+IsRaidMarkerSystemEnabled = _bool
 PlaceRaidMarker = _nil
 RemoveRaidTargets = _nil
 SetRaidTarget = _nil

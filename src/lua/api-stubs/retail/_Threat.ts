@@ -3,6 +3,6 @@
 // @sig-hash: sha256:477f8727607fd6db
 // Source: Blizzard_APIDocumentationGenerated/threatdocumentation.lua
 export const _Threat = `
-GetThreatStatusColor = _nil
-IsThreatWarningEnabled = _nil
+GetThreatStatusColor = _num
+IsThreatWarningEnabled = _bool
 `;

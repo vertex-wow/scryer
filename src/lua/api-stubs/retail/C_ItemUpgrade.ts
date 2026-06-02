@@ -4,19 +4,19 @@
 // Source: Blizzard_APIDocumentationGenerated/itemupgradedocumentation.lua
 export const C_ItemUpgrade = `
 if C_ItemUpgrade == nil then C_ItemUpgrade = {} end
-C_ItemUpgrade.CanUpgradeItem = _nil
+C_ItemUpgrade.CanUpgradeItem = _bool
 C_ItemUpgrade.ClearItemUpgrade = _nil
 C_ItemUpgrade.CloseItemUpgrade = _nil
-C_ItemUpgrade.GetHighWatermarkForItem = _nil
-C_ItemUpgrade.GetHighWatermarkForSlot = _nil
-C_ItemUpgrade.GetHighWatermarkSlotForItem = _nil
-C_ItemUpgrade.GetItemHyperlink = _nil
-C_ItemUpgrade.GetItemUpgradeCurrentLevel = _nil
-C_ItemUpgrade.GetItemUpgradeEffect = _nil
+C_ItemUpgrade.GetHighWatermarkForItem = _num
+C_ItemUpgrade.GetHighWatermarkForSlot = _num
+C_ItemUpgrade.GetHighWatermarkSlotForItem = _num
+C_ItemUpgrade.GetItemHyperlink = _str
+C_ItemUpgrade.GetItemUpgradeCurrentLevel = _num
+C_ItemUpgrade.GetItemUpgradeEffect = _str
 C_ItemUpgrade.GetItemUpgradeItemInfo = _tbl
-C_ItemUpgrade.GetItemUpgradePvpItemLevelDeltaValues = _nil
-C_ItemUpgrade.GetNumItemUpgradeEffects = _nil
-C_ItemUpgrade.IsItemBound = _nil
+C_ItemUpgrade.GetItemUpgradePvpItemLevelDeltaValues = _num
+C_ItemUpgrade.GetNumItemUpgradeEffects = _num
+C_ItemUpgrade.IsItemBound = _bool
 C_ItemUpgrade.SetItemUpgradeFromCursorItem = _nil
 C_ItemUpgrade.SetItemUpgradeFromLocation = _nil
 C_ItemUpgrade.UpgradeItem = _nil

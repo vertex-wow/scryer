@@ -4,11 +4,11 @@
 // Source: Blizzard_APIDocumentationGenerated/playerlocationdocumentation.lua
 export const C_PlayerInfo = `
 if C_PlayerInfo == nil then C_PlayerInfo = {} end
-C_PlayerInfo.GUIDIsPlayer = _nil
+C_PlayerInfo.GUIDIsPlayer = _bool
 C_PlayerInfo.GetClass = _nil
 C_PlayerInfo.GetName = _nil
 C_PlayerInfo.GetRace = _nil
 C_PlayerInfo.GetSex = _nil
 C_PlayerInfo.IsConnected = _nil
-C_PlayerInfo.UnitIsSameServer = _nil
+C_PlayerInfo.UnitIsSameServer = _bool
 `;

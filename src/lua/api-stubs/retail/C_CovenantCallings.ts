@@ -4,7 +4,7 @@
 // Source: Blizzard_APIDocumentationGenerated/covenantcallingsdocumentation.lua
 export const C_CovenantCallings = `
 if C_CovenantCallings == nil then C_CovenantCallings = {} end
-C_CovenantCallings.AreCallingsUnlocked = _nil
+C_CovenantCallings.AreCallingsUnlocked = _bool
 C_CovenantCallings.RequestCallings = _nil
 -- Events: COVENANT_CALLINGS_UPDATED
 `;

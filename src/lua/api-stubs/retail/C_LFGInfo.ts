@@ -4,26 +4,26 @@
 // Source: Blizzard_APIDocumentationGenerated/lfginfodocumentation.lua
 export const C_LFGInfo = `
 if C_LFGInfo == nil then C_LFGInfo = {} end
-C_LFGInfo.AreCrossFactionGroupQueuesAllowed = _nil
-C_LFGInfo.CanPlayerUseGroupFinder = _nil
-C_LFGInfo.CanPlayerUseLFD = _nil
-C_LFGInfo.CanPlayerUseLFR = _nil
-C_LFGInfo.CanPlayerUsePVP = _nil
-C_LFGInfo.CanPlayerUsePremadeGroup = _nil
-C_LFGInfo.CanPlayerUseScenarioFinder = _nil
+C_LFGInfo.AreCrossFactionGroupQueuesAllowed = _bool
+C_LFGInfo.CanPlayerUseGroupFinder = _bool
+C_LFGInfo.CanPlayerUseLFD = _bool
+C_LFGInfo.CanPlayerUseLFR = _bool
+C_LFGInfo.CanPlayerUsePVP = _bool
+C_LFGInfo.CanPlayerUsePremadeGroup = _bool
+C_LFGInfo.CanPlayerUseScenarioFinder = _bool
 C_LFGInfo.ConfirmLfgExpandSearch = _nil
-C_LFGInfo.DoesActivePartyMeetPremadeLaunchCount = _nil
-C_LFGInfo.DoesCrossFactionQueueRequireFullPremade = _nil
+C_LFGInfo.DoesActivePartyMeetPremadeLaunchCount = _bool
+C_LFGInfo.DoesCrossFactionQueueRequireFullPremade = _bool
 C_LFGInfo.GetAllEntriesForCategory = _tbl
 C_LFGInfo.GetDungeonInfo = _tbl
 C_LFGInfo.GetLFDLockStates = _tbl
 C_LFGInfo.GetLevelUpInstances = _tbl
 C_LFGInfo.GetRoleCheckDifficultyDetails = _nil
-C_LFGInfo.HideNameFromUI = _nil
-C_LFGInfo.IsGroupFinderEnabled = _nil
-C_LFGInfo.IsInLFGFollowerDungeon = _nil
-C_LFGInfo.IsLFDEnabled = _nil
-C_LFGInfo.IsLFGFollowerDungeon = _nil
-C_LFGInfo.IsLFREnabled = _nil
+C_LFGInfo.HideNameFromUI = _bool
+C_LFGInfo.IsGroupFinderEnabled = _bool
+C_LFGInfo.IsInLFGFollowerDungeon = _bool
+C_LFGInfo.IsLFDEnabled = _bool
+C_LFGInfo.IsLFGFollowerDungeon = _bool
+C_LFGInfo.IsLFREnabled = _bool
 -- Events: ISLAND_COMPLETED, LFG_BOOT_PROPOSAL_UPDATE, LFG_COMPLETION_REWARD, LFG_COOLDOWNS_UPDATED, LFG_ENABLED_STATE_CHANGED, LFG_INVALID_ERROR_MESSAGE, LFG_LOCK_INFO_RECEIVED, LFG_OFFER_CONTINUE, LFG_OPEN_FROM_GOSSIP, LFG_PROPOSAL_DONE, LFG_PROPOSAL_FAILED, LFG_PROPOSAL_SHOW, LFG_PROPOSAL_SUCCEEDED, LFG_PROPOSAL_UPDATE, LFG_QUEUE_STATUS_UPDATE, LFG_READY_CHECK_DECLINED, LFG_READY_CHECK_HIDE, LFG_READY_CHECK_PLAYER_IS_READY, LFG_READY_CHECK_SHOW, LFG_READY_CHECK_UPDATE, LFG_ROLE_CHECK_DECLINED, LFG_ROLE_CHECK_HIDE, LFG_ROLE_CHECK_ROLE_CHOSEN, LFG_ROLE_CHECK_SHOW, LFG_ROLE_CHECK_UPDATE, LFG_ROLE_UPDATE, LFG_UPDATE, LFG_UPDATE_RANDOM_INFO, SHOW_LFG_EXPAND_SEARCH_PROMPT, UPDATE_LFG_LIST, WARFRONT_COMPLETED
 `;

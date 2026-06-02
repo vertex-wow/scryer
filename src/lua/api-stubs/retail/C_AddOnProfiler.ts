@@ -7,11 +7,11 @@ if C_AddOnProfiler == nil then C_AddOnProfiler = {} end
 C_AddOnProfiler.AddMeasuredCallEvent = _nil
 C_AddOnProfiler.AddPerformanceMessageShown = _nil
 C_AddOnProfiler.CheckForPerformanceMessage = _tbl
-C_AddOnProfiler.GetAddOnMetric = _nil
-C_AddOnProfiler.GetApplicationMetric = _nil
-C_AddOnProfiler.GetOverallMetric = _nil
+C_AddOnProfiler.GetAddOnMetric = _num
+C_AddOnProfiler.GetApplicationMetric = _num
+C_AddOnProfiler.GetOverallMetric = _num
 C_AddOnProfiler.GetTicksPerSecond = _nil
 C_AddOnProfiler.GetTopKAddOnsForMetric = _tbl
-C_AddOnProfiler.IsEnabled = _nil
+C_AddOnProfiler.IsEnabled = _bool
 C_AddOnProfiler.MeasureCall = _tbl
 `;

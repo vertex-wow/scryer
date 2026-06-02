@@ -4,5 +4,5 @@
 // Source: Blizzard_APIDocumentationGenerated/questhubinfodocumentation.lua
 export const C_QuestHub = `
 if C_QuestHub == nil then C_QuestHub = {} end
-C_QuestHub.IsQuestCurrentlyRelatedToHub = _nil
+C_QuestHub.IsQuestCurrentlyRelatedToHub = _bool
 `;

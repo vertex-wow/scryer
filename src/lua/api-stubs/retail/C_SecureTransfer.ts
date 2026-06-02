@@ -8,12 +8,12 @@ C_SecureTransfer.AcceptTrade = _nil
 C_SecureTransfer.Cancel = _nil
 C_SecureTransfer.CompleteHousingPurchase = _nil
 C_SecureTransfer.CompleteHousingVCPurchase = _nil
-C_SecureTransfer.GetHousingPurchaseCost = _nil
-C_SecureTransfer.GetHousingPurchaseQuantity = _nil
-C_SecureTransfer.GetHousingVCPurchaseProductID = _nil
+C_SecureTransfer.GetHousingPurchaseCost = _num
+C_SecureTransfer.GetHousingPurchaseQuantity = _num
+C_SecureTransfer.GetHousingVCPurchaseProductID = _num
 C_SecureTransfer.GetMailInfo = _tbl
 C_SecureTransfer.GetTradePartner = _nil
 C_SecureTransfer.SendMail = _nil
-C_SecureTransfer.ShouldShowTradeOfferWarning = _nil
+C_SecureTransfer.ShouldShowTradeOfferWarning = _bool
 -- Events: SECURE_TRANSFER_CANCEL, SECURE_TRANSFER_CONFIRM_HOUSING_PURCHASE, SECURE_TRANSFER_CONFIRM_SEND_MAIL, SECURE_TRANSFER_CONFIRM_TRADE_ACCEPT, SECURE_TRANSFER_HOUSING_CURRENCY_PURCHASE_CONFIRMATION
 `;

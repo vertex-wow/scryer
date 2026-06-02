@@ -3,8 +3,8 @@
 // @sig-hash: sha256:9dfad3befe5f82fc
 // Source: Blizzard_APIDocumentationGenerated/specializationshareddocumentation.lua
 export const _SpecializationShared = `
-GetSpecializationInfoForClassID = _nil
-GetSpecializationInfoForSpecID = _nil
+GetSpecializationInfoForClassID = _num
+GetSpecializationInfoForSpecID = _num
 GetSpecializationNameForSpecID = _nil
-HasLootSpecializations = _nil
+HasLootSpecializations = _bool
 `;

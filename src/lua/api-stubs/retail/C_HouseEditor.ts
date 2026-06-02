@@ -9,9 +9,9 @@ C_HouseEditor.EnterHouseEditor = _nil
 C_HouseEditor.GetActiveHouseEditorMode = _nil
 C_HouseEditor.GetHouseEditorAvailability = _nil
 C_HouseEditor.GetHouseEditorModeAvailability = _nil
-C_HouseEditor.IsHouseEditorActive = _nil
-C_HouseEditor.IsHouseEditorModeActive = _nil
-C_HouseEditor.IsHouseEditorStatusAvailable = _nil
+C_HouseEditor.IsHouseEditorActive = _bool
+C_HouseEditor.IsHouseEditorModeActive = _bool
+C_HouseEditor.IsHouseEditorStatusAvailable = _bool
 C_HouseEditor.LeaveHouseEditor = _nil
 -- Events: HOUSE_EDITOR_AVAILABILITY_CHANGED, HOUSE_EDITOR_MODE_CHANGE_FAILURE, HOUSE_EDITOR_MODE_CHANGED
 `;

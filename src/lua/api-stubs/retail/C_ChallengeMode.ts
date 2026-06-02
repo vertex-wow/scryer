@@ -4,34 +4,34 @@
 // Source: Blizzard_APIDocumentationGenerated/challengemodeinfodocumentation.lua
 export const C_ChallengeMode = `
 if C_ChallengeMode == nil then C_ChallengeMode = {} end
-C_ChallengeMode.CanUseKeystoneInCurrentMap = _nil
+C_ChallengeMode.CanUseKeystoneInCurrentMap = _bool
 C_ChallengeMode.ClearKeystone = _nil
 C_ChallengeMode.CloseKeystoneFrame = _nil
 C_ChallengeMode.GetActiveChallengeMapID = _nil
 C_ChallengeMode.GetActiveKeystoneInfo = _tbl
-C_ChallengeMode.GetAffixInfo = _nil
+C_ChallengeMode.GetAffixInfo = _str
 C_ChallengeMode.GetChallengeCompletionInfo = _tbl
-C_ChallengeMode.GetDeathCount = _nil
+C_ChallengeMode.GetDeathCount = _num
 C_ChallengeMode.GetDungeonScoreRarityColor = _nil
 C_ChallengeMode.GetGuildLeaders = _tbl
 C_ChallengeMode.GetKeystoneLevelRarityColor = _nil
 C_ChallengeMode.GetLeaverPenaltyWarningTimeLeft = _nil
 C_ChallengeMode.GetMapScoreInfo = _tbl
 C_ChallengeMode.GetMapTable = _tbl
-C_ChallengeMode.GetMapUIInfo = _nil
-C_ChallengeMode.GetOverallDungeonScore = _nil
-C_ChallengeMode.GetPowerLevelDamageHealthMod = _nil
+C_ChallengeMode.GetMapUIInfo = _str
+C_ChallengeMode.GetOverallDungeonScore = _num
+C_ChallengeMode.GetPowerLevelDamageHealthMod = _num
 C_ChallengeMode.GetSlottedKeystoneInfo = _tbl
 C_ChallengeMode.GetSpecificDungeonOverallScoreRarityColor = _nil
 C_ChallengeMode.GetSpecificDungeonScoreRarityColor = _nil
-C_ChallengeMode.GetStartTime = _nil
-C_ChallengeMode.HasSlottedKeystone = _nil
-C_ChallengeMode.IsChallengeModeActive = _nil
-C_ChallengeMode.IsChallengeModeResettable = _nil
-C_ChallengeMode.RemoveKeystone = _nil
+C_ChallengeMode.GetStartTime = _num
+C_ChallengeMode.HasSlottedKeystone = _bool
+C_ChallengeMode.IsChallengeModeActive = _bool
+C_ChallengeMode.IsChallengeModeResettable = _bool
+C_ChallengeMode.RemoveKeystone = _bool
 C_ChallengeMode.RequestLeaders = _nil
 C_ChallengeMode.Reset = _nil
 C_ChallengeMode.SlotKeystone = _nil
-C_ChallengeMode.StartChallengeMode = _nil
+C_ChallengeMode.StartChallengeMode = _bool
 -- Events: CHALLENGE_MODE_COMPLETED, CHALLENGE_MODE_COMPLETED_REWARDS, CHALLENGE_MODE_DEATH_COUNT_UPDATED, CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN, CHALLENGE_MODE_KEYSTONE_SLOTTED, CHALLENGE_MODE_LEADERBOARD_RESULT, CHALLENGE_MODE_LEADERS_UPDATE, CHALLENGE_MODE_LEAVER_TIMER_ENDED, CHALLENGE_MODE_LEAVER_TIMER_STARTED, CHALLENGE_MODE_MAPS_UPDATE, CHALLENGE_MODE_MEMBER_INFO_UPDATED, CHALLENGE_MODE_NEW_RECORD, CHALLENGE_MODE_RESET, CHALLENGE_MODE_START
 `;

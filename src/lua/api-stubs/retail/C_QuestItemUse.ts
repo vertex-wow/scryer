@@ -4,5 +4,5 @@
 // Source: Blizzard_APIDocumentationGenerated/questitemusedocumentation.lua
 export const C_QuestItemUse = `
 if C_QuestItemUse == nil then C_QuestItemUse = {} end
-C_QuestItemUse.CanUseQuestItemOnObject = _nil
+C_QuestItemUse.CanUseQuestItemOnObject = _bool
 `;

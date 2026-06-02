@@ -4,6 +4,6 @@
 // Source: Blizzard_APIDocumentationGenerated/eventutilsdocumentation.lua
 export const C_EventUtils = `
 if C_EventUtils == nil then C_EventUtils = {} end
-C_EventUtils.IsCallbackEvent = _nil
-C_EventUtils.IsEventValid = _nil
+C_EventUtils.IsCallbackEvent = _bool
+C_EventUtils.IsEventValid = _bool
 `;

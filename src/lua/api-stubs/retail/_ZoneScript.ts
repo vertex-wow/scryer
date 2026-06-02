@@ -3,9 +3,9 @@
 // @sig-hash: sha256:9468264a2f0ac997
 // Source: Blizzard_APIDocumentationGenerated/zonescriptdocumentation.lua
 export const _ZoneScript = `
-GetAreaText = _nil
-GetMinimapZoneText = _nil
-GetRealZoneText = _nil
-GetSubZoneText = _nil
-GetZoneText = _nil
+GetAreaText = _str
+GetMinimapZoneText = _str
+GetRealZoneText = _str
+GetSubZoneText = _str
+GetZoneText = _str
 `;

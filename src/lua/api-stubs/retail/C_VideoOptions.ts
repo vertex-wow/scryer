@@ -8,7 +8,7 @@ C_VideoOptions.GetCurrentGameWindowSize = _nil
 C_VideoOptions.GetDefaultGameWindowSize = _nil
 C_VideoOptions.GetGameWindowSizes = _tbl
 C_VideoOptions.GetGxAdapterInfo = _tbl
-C_VideoOptions.IsSpellVisualDensitySystemSupported = _nil
+C_VideoOptions.IsSpellVisualDensitySystemSupported = _bool
 C_VideoOptions.SetGameWindowSize = _nil
 -- Events: ADAPTER_LIST_CHANGED, DISPLAY_SIZE_CHANGED, GLUE_SCREENSHOT_FAILED, GLUE_SCREENSHOT_STARTED, GLUE_SCREENSHOT_SUCCEEDED, GX_RESTARTED, SCREENSHOT_FAILED, SCREENSHOT_STARTED, SCREENSHOT_SUCCEEDED
 `;

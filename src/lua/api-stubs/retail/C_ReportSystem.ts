@@ -4,15 +4,15 @@
 // Source: Blizzard_APIDocumentationGenerated/reportsystemdocumentation.lua
 export const C_ReportSystem = `
 if C_ReportSystem == nil then C_ReportSystem = {} end
-C_ReportSystem.CanReportPlayer = _nil
-C_ReportSystem.CanReportPlayerForLanguage = _nil
+C_ReportSystem.CanReportPlayer = _bool
+C_ReportSystem.CanReportPlayerForLanguage = _bool
 C_ReportSystem.GetMajorCategoriesForReportType = _tbl
-C_ReportSystem.GetMajorCategoryString = _nil
+C_ReportSystem.GetMajorCategoryString = _str
 C_ReportSystem.GetMinorCategoriesForReportTypeAndMajorCategory = _tbl
-C_ReportSystem.GetMinorCategoryString = _nil
+C_ReportSystem.GetMinorCategoryString = _str
 C_ReportSystem.ReportServerLag = _nil
 C_ReportSystem.ReportStuckInCombat = _nil
-C_ReportSystem.RequiresScreenshotForReportType = _nil
+C_ReportSystem.RequiresScreenshotForReportType = _bool
 C_ReportSystem.SendReport = _nil
 C_ReportSystem.SetScreenshotPreviewTexture = _nil
 C_ReportSystem.TakeReportScreenshot = _nil

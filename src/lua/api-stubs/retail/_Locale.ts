@@ -4,8 +4,8 @@
 // Source: Blizzard_APIDocumentationGenerated/localedocumentation.lua
 export const _Locale = `
 GetAvailableLocaleInfo = _tbl
-GetAvailableLocales = _nil
-GetCurrentRegion = _nil
-GetLocale = _nil
-GetOSLocale = _nil
+GetAvailableLocales = _str
+GetCurrentRegion = _num
+GetLocale = _str
+GetOSLocale = _str
 `;

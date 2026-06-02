@@ -7,10 +7,10 @@ if C_SocialQueue == nil then C_SocialQueue = {} end
 C_SocialQueue.GetAllGroups = _tbl
 C_SocialQueue.GetConfig = _tbl
 C_SocialQueue.GetGroupForPlayer = _nil
-C_SocialQueue.GetGroupInfo = _nil
+C_SocialQueue.GetGroupInfo = _bool
 C_SocialQueue.GetGroupMembers = _tbl
 C_SocialQueue.GetGroupQueues = _tbl
-C_SocialQueue.RequestToJoin = _nil
+C_SocialQueue.RequestToJoin = _bool
 C_SocialQueue.SignalToastDisplayed = _nil
 -- Events: SOCIAL_QUEUE_CONFIG_UPDATED, SOCIAL_QUEUE_UPDATE
 `;

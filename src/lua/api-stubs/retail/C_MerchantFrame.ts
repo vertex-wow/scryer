@@ -4,11 +4,11 @@
 // Source: Blizzard_APIDocumentationGenerated/merchantframedocumentation.lua
 export const C_MerchantFrame = `
 if C_MerchantFrame == nil then C_MerchantFrame = {} end
-C_MerchantFrame.GetBuybackItemID = _nil
+C_MerchantFrame.GetBuybackItemID = _num
 C_MerchantFrame.GetItemInfo = _tbl
-C_MerchantFrame.GetNumJunkItems = _nil
-C_MerchantFrame.IsMerchantItemRefundable = _nil
-C_MerchantFrame.IsSellAllJunkEnabled = _nil
+C_MerchantFrame.GetNumJunkItems = _num
+C_MerchantFrame.IsMerchantItemRefundable = _bool
+C_MerchantFrame.IsSellAllJunkEnabled = _bool
 C_MerchantFrame.SellAllJunkItems = _nil
 -- Events: MERCHANT_CLOSED, MERCHANT_FILTER_ITEM_UPDATE, MERCHANT_SHOW, MERCHANT_UPDATE
 `;

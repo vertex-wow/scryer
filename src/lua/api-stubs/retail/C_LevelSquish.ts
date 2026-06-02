@@ -4,6 +4,6 @@
 // Source: Blizzard_APIDocumentationGenerated/levelsquishdocumentation.lua
 export const C_LevelSquish = `
 if C_LevelSquish == nil then C_LevelSquish = {} end
-C_LevelSquish.ConvertFollowerLevel = _nil
-C_LevelSquish.ConvertPlayerLevel = _nil
+C_LevelSquish.ConvertFollowerLevel = _num
+C_LevelSquish.ConvertPlayerLevel = _num
 `;

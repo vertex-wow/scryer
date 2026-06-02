@@ -4,10 +4,10 @@
 // Source: Blizzard_APIDocumentationGenerated/mailinfodocumentation.lua
 export const C_Mail = `
 if C_Mail == nil then C_Mail = {} end
-C_Mail.CanCheckInbox = _nil
+C_Mail.CanCheckInbox = _bool
 C_Mail.GetCraftingOrderMailInfo = _nil
-C_Mail.HasInboxMoney = _nil
-C_Mail.IsCommandPending = _nil
+C_Mail.HasInboxMoney = _bool
+C_Mail.IsCommandPending = _bool
 C_Mail.SetOpeningAll = _nil
 -- Events: CLOSE_INBOX_ITEM, MAIL_CLOSED, MAIL_FAILED, MAIL_INBOX_UPDATE, MAIL_LOCK_SEND_ITEMS, MAIL_SEND_INFO_UPDATE, MAIL_SEND_SUCCESS, MAIL_SHOW, MAIL_SUCCESS, MAIL_UNLOCK_SEND_ITEMS, SEND_MAIL_COD_CHANGED, SEND_MAIL_MONEY_CHANGED, UPDATE_PENDING_MAIL
 `;

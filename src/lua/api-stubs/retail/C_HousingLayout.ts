@@ -4,30 +4,30 @@
 // Source: Blizzard_APIDocumentationGenerated/housinglayoutuidocumentation.lua
 export const C_HousingLayout = `
 if C_HousingLayout == nil then C_HousingLayout = {} end
-C_HousingLayout.AnyRoomsOnFloor = _nil
+C_HousingLayout.AnyRoomsOnFloor = _bool
 C_HousingLayout.CancelActiveLayoutEditing = _nil
 C_HousingLayout.ConfirmStairChoice = _nil
 C_HousingLayout.DeselectFloorplan = _nil
 C_HousingLayout.DeselectRoomOrDoor = _nil
-C_HousingLayout.GetNumActiveRooms = _nil
-C_HousingLayout.GetNumFloors = _nil
-C_HousingLayout.GetRoomPlacementBudget = _nil
-C_HousingLayout.GetSelectedDoor = _nil
+C_HousingLayout.GetNumActiveRooms = _num
+C_HousingLayout.GetNumFloors = _num
+C_HousingLayout.GetRoomPlacementBudget = _num
+C_HousingLayout.GetSelectedDoor = _num
 C_HousingLayout.GetSelectedFloorplan = _nil
 C_HousingLayout.GetSelectedRoom = _nil
-C_HousingLayout.GetSelectedStairwellRoomCount = _nil
-C_HousingLayout.GetSpentPlacementBudget = _nil
-C_HousingLayout.GetViewedFloor = _nil
-C_HousingLayout.HasAnySelections = _nil
-C_HousingLayout.HasRoomPlacementBudget = _nil
-C_HousingLayout.HasSelectedDoor = _nil
-C_HousingLayout.HasSelectedFloorplan = _nil
-C_HousingLayout.HasSelectedRoom = _nil
-C_HousingLayout.HasStairs = _nil
-C_HousingLayout.HasValidConnection = _nil
-C_HousingLayout.IsBaseRoom = _nil
-C_HousingLayout.IsDraggingRoom = _nil
-C_HousingLayout.IsDraggingStairwell = _nil
+C_HousingLayout.GetSelectedStairwellRoomCount = _num
+C_HousingLayout.GetSpentPlacementBudget = _num
+C_HousingLayout.GetViewedFloor = _num
+C_HousingLayout.HasAnySelections = _bool
+C_HousingLayout.HasRoomPlacementBudget = _bool
+C_HousingLayout.HasSelectedDoor = _bool
+C_HousingLayout.HasSelectedFloorplan = _bool
+C_HousingLayout.HasSelectedRoom = _bool
+C_HousingLayout.HasStairs = _bool
+C_HousingLayout.HasValidConnection = _bool
+C_HousingLayout.IsBaseRoom = _bool
+C_HousingLayout.IsDraggingRoom = _bool
+C_HousingLayout.IsDraggingStairwell = _bool
 C_HousingLayout.MoveDraggedRoom = _nil
 C_HousingLayout.MoveLayoutCamera = _nil
 C_HousingLayout.RemoveRoom = _nil
@@ -38,6 +38,6 @@ C_HousingLayout.SetViewedFloor = _nil
 C_HousingLayout.StartDrag = _nil
 C_HousingLayout.StopDrag = _nil
 C_HousingLayout.StopDraggingRoom = _nil
-C_HousingLayout.ZoomLayoutCamera = _nil
+C_HousingLayout.ZoomLayoutCamera = _bool
 -- Events: HOUSING_LAYOUT_DOOR_SELECTED, HOUSING_LAYOUT_DOOR_SELECTION_CHANGED, HOUSING_LAYOUT_DRAG_TARGET_CHANGED, HOUSING_LAYOUT_FLOORPLAN_SELECTION_CHANGED, HOUSING_LAYOUT_NUM_FLOORS_CHANGED, HOUSING_LAYOUT_PIN_FRAME_ADDED, HOUSING_LAYOUT_PIN_FRAME_RELEASED, HOUSING_LAYOUT_PIN_FRAMES_RELEASED, HOUSING_LAYOUT_ROOM_COMPONENT_THEME_SET_CHANGED, HOUSING_LAYOUT_ROOM_MOVE_INVALID, HOUSING_LAYOUT_ROOM_MOVED, HOUSING_LAYOUT_ROOM_RECEIVED, HOUSING_LAYOUT_ROOM_REMOVED, HOUSING_LAYOUT_ROOM_RETURNED, HOUSING_LAYOUT_ROOM_SELECTION_CHANGED, HOUSING_LAYOUT_ROOM_SNAPPED, HOUSING_LAYOUT_VIEWED_FLOOR_CHANGED, SHOW_STAIR_DIRECTION_CONFIRMATION
 `;

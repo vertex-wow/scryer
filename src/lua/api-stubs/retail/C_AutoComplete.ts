@@ -7,5 +7,5 @@ if C_AutoComplete == nil then C_AutoComplete = {} end
 C_AutoComplete.GetAutoCompletePresenceID = _nil
 C_AutoComplete.GetAutoCompleteRealms = _tbl
 C_AutoComplete.GetAutoCompleteResults = _tbl
-C_AutoComplete.IsRecognizedName = _nil
+C_AutoComplete.IsRecognizedName = _bool
 `;

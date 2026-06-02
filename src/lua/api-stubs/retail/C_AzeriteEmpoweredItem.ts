@@ -4,23 +4,23 @@
 // Source: Blizzard_APIDocumentationGenerated/azeriteempowereditemdocumentation.lua
 export const C_AzeriteEmpoweredItem = `
 if C_AzeriteEmpoweredItem == nil then C_AzeriteEmpoweredItem = {} end
-C_AzeriteEmpoweredItem.CanSelectPower = _nil
+C_AzeriteEmpoweredItem.CanSelectPower = _bool
 C_AzeriteEmpoweredItem.ConfirmAzeriteEmpoweredItemRespec = _nil
 C_AzeriteEmpoweredItem.GetAllTierInfo = _tbl
 C_AzeriteEmpoweredItem.GetAllTierInfoByItemID = _tbl
-C_AzeriteEmpoweredItem.GetAzeriteEmpoweredItemRespecCost = _nil
+C_AzeriteEmpoweredItem.GetAzeriteEmpoweredItemRespecCost = _num
 C_AzeriteEmpoweredItem.GetPowerInfo = _tbl
 C_AzeriteEmpoweredItem.GetPowerText = _tbl
 C_AzeriteEmpoweredItem.GetSpecsForPower = _tbl
-C_AzeriteEmpoweredItem.HasAnyUnselectedPowers = _nil
-C_AzeriteEmpoweredItem.HasBeenViewed = _nil
-C_AzeriteEmpoweredItem.IsAzeriteEmpoweredItem = _nil
-C_AzeriteEmpoweredItem.IsAzeriteEmpoweredItemByID = _nil
-C_AzeriteEmpoweredItem.IsAzeritePreviewSourceDisplayable = _nil
-C_AzeriteEmpoweredItem.IsHeartOfAzerothEquipped = _nil
-C_AzeriteEmpoweredItem.IsPowerAvailableForSpec = _nil
-C_AzeriteEmpoweredItem.IsPowerSelected = _nil
-C_AzeriteEmpoweredItem.SelectPower = _nil
+C_AzeriteEmpoweredItem.HasAnyUnselectedPowers = _bool
+C_AzeriteEmpoweredItem.HasBeenViewed = _bool
+C_AzeriteEmpoweredItem.IsAzeriteEmpoweredItem = _bool
+C_AzeriteEmpoweredItem.IsAzeriteEmpoweredItemByID = _bool
+C_AzeriteEmpoweredItem.IsAzeritePreviewSourceDisplayable = _bool
+C_AzeriteEmpoweredItem.IsHeartOfAzerothEquipped = _bool
+C_AzeriteEmpoweredItem.IsPowerAvailableForSpec = _bool
+C_AzeriteEmpoweredItem.IsPowerSelected = _bool
+C_AzeriteEmpoweredItem.SelectPower = _bool
 C_AzeriteEmpoweredItem.SetHasBeenViewed = _nil
 -- Events: AZERITE_EMPOWERED_ITEM_EQUIPPED_STATUS_CHANGED, AZERITE_EMPOWERED_ITEM_SELECTION_UPDATED
 `;

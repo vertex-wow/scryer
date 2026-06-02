@@ -5,12 +5,12 @@
 export const C_CombatLog = `
 if C_CombatLog == nil then C_CombatLog = {} end
 C_CombatLog.ApplyFilterSettings = _nil
-C_CombatLog.AreFilteredEventsEnabled = _nil
+C_CombatLog.AreFilteredEventsEnabled = _bool
 C_CombatLog.ClearEntries = _nil
-C_CombatLog.DoesObjectMatchFilter = _nil
-C_CombatLog.GetEntryRetentionTime = _nil
-C_CombatLog.GetMessageLimit = _nil
-C_CombatLog.IsCombatLogRestricted = _nil
+C_CombatLog.DoesObjectMatchFilter = _bool
+C_CombatLog.GetEntryRetentionTime = _num
+C_CombatLog.GetMessageLimit = _num
+C_CombatLog.IsCombatLogRestricted = _bool
 C_CombatLog.RefilterEntries = _nil
 C_CombatLog.SetEntryRetentionTime = _nil
 C_CombatLog.SetFilteredEventsEnabled = _nil

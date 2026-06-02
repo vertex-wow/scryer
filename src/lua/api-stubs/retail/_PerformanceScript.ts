@@ -3,9 +3,9 @@
 // @sig-hash: sha256:a5fd76552703b1e2
 // Source: Blizzard_APIDocumentationGenerated/performancedocumentation.lua
 export const _PerformanceScript = `
-GetAddOnCPUUsage = _nil
-GetAddOnMemoryUsage = _nil
-GetFrameCPUUsage = _nil
+GetAddOnCPUUsage = _num
+GetAddOnMemoryUsage = _num
+GetFrameCPUUsage = _num
 ResetCPUUsage = _nil
 UpdateAddOnCPUUsage = _nil
 UpdateAddOnMemoryUsage = _nil

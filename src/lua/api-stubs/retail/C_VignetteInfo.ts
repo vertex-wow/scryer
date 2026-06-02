@@ -6,7 +6,7 @@ export const C_VignetteInfo = `
 if C_VignetteInfo == nil then C_VignetteInfo = {} end
 C_VignetteInfo.FindBestUniqueVignette = _nil
 C_VignetteInfo.GetHealthPercent = _nil
-C_VignetteInfo.GetRecommendedGroupSize = _nil
+C_VignetteInfo.GetRecommendedGroupSize = _num
 C_VignetteInfo.GetVignetteInfo = _nil
 C_VignetteInfo.GetVignettePosition = _nil
 C_VignetteInfo.GetVignettes = _tbl

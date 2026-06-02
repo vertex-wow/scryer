@@ -4,26 +4,26 @@
 // Source: Blizzard_APIDocumentationGenerated/bankdocumentation.lua
 export const C_Bank = `
 if C_Bank == nil then C_Bank = {} end
-C_Bank.AreAnyBankTypesViewable = _nil
+C_Bank.AreAnyBankTypesViewable = _bool
 C_Bank.AutoDepositItemsIntoBank = _nil
-C_Bank.CanDepositMoney = _nil
-C_Bank.CanPurchaseBankTab = _nil
-C_Bank.CanUseBank = _nil
-C_Bank.CanViewBank = _nil
-C_Bank.CanWithdrawMoney = _nil
+C_Bank.CanDepositMoney = _bool
+C_Bank.CanPurchaseBankTab = _bool
+C_Bank.CanUseBank = _bool
+C_Bank.CanViewBank = _bool
+C_Bank.CanWithdrawMoney = _bool
 C_Bank.CloseBankFrame = _nil
 C_Bank.DepositMoney = _nil
-C_Bank.DoesBankTypeSupportAutoDeposit = _nil
-C_Bank.DoesBankTypeSupportMoneyTransfer = _nil
+C_Bank.DoesBankTypeSupportAutoDeposit = _bool
+C_Bank.DoesBankTypeSupportMoneyTransfer = _bool
 C_Bank.FetchBankLockedReason = _nil
 C_Bank.FetchDepositedMoney = _nil
 C_Bank.FetchNextPurchasableBankTabData = _nil
-C_Bank.FetchNumPurchasedBankTabs = _nil
+C_Bank.FetchNumPurchasedBankTabs = _num
 C_Bank.FetchPurchasedBankTabData = _tbl
 C_Bank.FetchPurchasedBankTabIDs = _tbl
 C_Bank.FetchViewableBankTypes = _tbl
-C_Bank.HasMaxBankTabs = _nil
-C_Bank.IsItemAllowedInBankType = _nil
+C_Bank.HasMaxBankTabs = _bool
+C_Bank.IsItemAllowedInBankType = _bool
 C_Bank.PurchaseBankTab = _nil
 C_Bank.UpdateBankTabSettings = _nil
 C_Bank.WithdrawMoney = _nil

@@ -3,6 +3,6 @@
 // @sig-hash: sha256:58f4e05f9bc9beaa
 // Source: Blizzard_APIDocumentationGenerated/slashcommanddocumentation.lua
 export const _SlashCommand = `
-AreDangerousScriptsAllowed = _nil
+AreDangerousScriptsAllowed = _bool
 SetAllowDangerousScripts = _nil
 `;

@@ -6,10 +6,10 @@ export const C_PlayerInteractionManager = `
 if C_PlayerInteractionManager == nil then C_PlayerInteractionManager = {} end
 C_PlayerInteractionManager.ClearInteraction = _nil
 C_PlayerInteractionManager.ConfirmationInteraction = _nil
-C_PlayerInteractionManager.InteractUnit = _nil
-C_PlayerInteractionManager.IsInteractingWithNpcOfType = _nil
-C_PlayerInteractionManager.IsReplacingUnit = _nil
-C_PlayerInteractionManager.IsValidNPCInteraction = _nil
+C_PlayerInteractionManager.InteractUnit = _bool
+C_PlayerInteractionManager.IsInteractingWithNpcOfType = _bool
+C_PlayerInteractionManager.IsReplacingUnit = _bool
+C_PlayerInteractionManager.IsValidNPCInteraction = _bool
 C_PlayerInteractionManager.ReopenInteraction = _nil
 -- Events: PLAYER_INTERACTION_MANAGER_FRAME_HIDE, PLAYER_INTERACTION_MANAGER_FRAME_SHOW
 `;

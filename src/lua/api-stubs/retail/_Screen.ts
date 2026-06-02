@@ -3,9 +3,9 @@
 // @sig-hash: sha256:a78a6baaf2cb20af
 // Source: Blizzard_APIDocumentationGenerated/screendocumentation.lua
 export const _Screen = `
-GetDefaultScale = _nil
-GetPhysicalScreenSize = _nil
-GetScreenDPIScale = _nil
-GetScreenHeight = _nil
-GetScreenWidth = _nil
+GetDefaultScale = _num
+GetPhysicalScreenSize = _num
+GetScreenDPIScale = _num
+GetScreenHeight = _num
+GetScreenWidth = _num
 `;

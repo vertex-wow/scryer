@@ -4,6 +4,6 @@
 // Source: Blizzard_APIDocumentationGenerated/immersiveinteractionmanagerdocumentation.lua
 export const C_ImmersiveInteraction = `
 if C_ImmersiveInteraction == nil then C_ImmersiveInteraction = {} end
-C_ImmersiveInteraction.HasImmersiveInteraction = _nil
+C_ImmersiveInteraction.HasImmersiveInteraction = _bool
 -- Events: IMMERSIVE_INTERACTION_BEGIN, IMMERSIVE_INTERACTION_END
 `;

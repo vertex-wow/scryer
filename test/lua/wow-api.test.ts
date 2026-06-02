@@ -34,9 +34,17 @@ describe("C_* namespace stubs", () => {
     expect(await run("return type(C_Item)")).toBe("table");
   });
 
-  test("calling any C_* function returns nil without error", async () => {
-    // _nil stubs return nothing (0 values); test via Lua == nil which is true in both cases
-    expect(await run("return C_Item.GetItemInfo(12345) == nil")).toBe(true);
+  test("void stubs return nil without error", async () => {
+    expect(await run("return C_UnitAuras.AddBlockedAura() == nil")).toBe(true);
+  });
+
+  test("typed scalar stubs return default values", async () => {
+    // number-returning stub → 0
+    expect(await run("return C_Item.GetItemInfoInstant(1)")).toBe(0);
+    // boolean-returning stub → false
+    expect(await run("return C_AccountInfo.IsGUIDBattleNetAccountType('x')")).toBe(false);
+    // string-returning stub → ''
+    expect(await run("return C_Item.GetItemInfo(1)")).toBe("");
   });
 
   test("first and last namespace exist", async () => {

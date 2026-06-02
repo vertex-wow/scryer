@@ -4,9 +4,9 @@
 // Source: Blizzard_APIDocumentationGenerated/moviedocumentation.lua
 export const _Movie = `
 CancelPreloadingMovie = _nil
-GetMovieDownloadProgress = _nil
-IsMovieLocal = _nil
-IsMoviePlayable = _nil
-IsMovieReadable = _nil
+GetMovieDownloadProgress = _bool
+IsMovieLocal = _bool
+IsMoviePlayable = _bool
+IsMovieReadable = _bool
 PreloadMovie = _nil
 `;

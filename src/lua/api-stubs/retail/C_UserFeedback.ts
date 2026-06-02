@@ -4,6 +4,6 @@
 // Source: Blizzard_APIDocumentationGenerated/userfeedbackdocumentation.lua
 export const C_UserFeedback = `
 if C_UserFeedback == nil then C_UserFeedback = {} end
-C_UserFeedback.SubmitBug = _nil
-C_UserFeedback.SubmitSuggestion = _nil
+C_UserFeedback.SubmitBug = _bool
+C_UserFeedback.SubmitSuggestion = _bool
 `;

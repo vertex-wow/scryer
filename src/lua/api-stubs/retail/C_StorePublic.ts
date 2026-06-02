@@ -4,7 +4,7 @@
 // Source: Blizzard_APIDocumentationGenerated/storepublicuidocumentation.lua
 export const C_StorePublic = `
 if C_StorePublic == nil then C_StorePublic = {} end
-C_StorePublic.DoesGroupHavePurchaseableProducts = _nil
+C_StorePublic.DoesGroupHavePurchaseableProducts = _bool
 C_StorePublic.EventStoreUISetShown = _nil
-C_StorePublic.IsEnabled = _nil
+C_StorePublic.IsEnabled = _bool
 `;

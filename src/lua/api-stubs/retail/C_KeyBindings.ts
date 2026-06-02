@@ -6,13 +6,13 @@ export const C_KeyBindings = `
 if C_KeyBindings == nil then C_KeyBindings = {} end
 C_KeyBindings.ActivateBindingContext = _nil
 C_KeyBindings.DeactivateBindingContext = _nil
-C_KeyBindings.GetBindingByKey = _nil
+C_KeyBindings.GetBindingByKey = _str
 C_KeyBindings.GetBindingContextForAction = _nil
 C_KeyBindings.GetBindingIndex = _nil
 C_KeyBindings.GetCustomBindingType = _nil
 C_KeyBindings.GetSearchTagsForAction = _tbl
 C_KeyBindings.GetTurnStrafeStyle = _nil
-C_KeyBindings.IsBindingContextActive = _nil
+C_KeyBindings.IsBindingContextActive = _bool
 C_KeyBindings.SetTurnStrafeStyle = _nil
 C_KeyBindings.UpdateTurnStrafeBindingsForCharacter = _nil
 -- Events: BINDINGS_LOADED, MODIFIER_STATE_CHANGED, NOTIFY_TURN_STRAFE_CHANGE, UPDATE_BINDINGS

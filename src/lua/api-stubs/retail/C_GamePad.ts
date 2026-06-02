@@ -4,7 +4,7 @@
 // Source: Blizzard_APIDocumentationGenerated/gamepaddocumentation.lua
 export const C_GamePad = `
 if C_GamePad == nil then C_GamePad = {} end
-C_GamePad.AddSDLMapping = _nil
+C_GamePad.AddSDLMapping = _bool
 C_GamePad.ApplyConfigs = _nil
 C_GamePad.AxisIndexToConfigName = _nil
 C_GamePad.ButtonBindingToIndex = _nil
@@ -12,16 +12,16 @@ C_GamePad.ButtonIndexToBinding = _nil
 C_GamePad.ButtonIndexToConfigName = _nil
 C_GamePad.ClearLedColor = _nil
 C_GamePad.DeleteConfig = _nil
-C_GamePad.GetActiveDeviceID = _nil
+C_GamePad.GetActiveDeviceID = _num
 C_GamePad.GetAllConfigIDs = _tbl
 C_GamePad.GetAllDeviceIDs = _tbl
-C_GamePad.GetCombinedDeviceID = _nil
+C_GamePad.GetCombinedDeviceID = _num
 C_GamePad.GetConfig = _nil
 C_GamePad.GetDeviceMappedState = _nil
 C_GamePad.GetDeviceRawState = _nil
 C_GamePad.GetLedColor = _nil
 C_GamePad.GetPowerLevel = _nil
-C_GamePad.IsEnabled = _nil
+C_GamePad.IsEnabled = _bool
 C_GamePad.SetConfig = _nil
 C_GamePad.SetLedColor = _nil
 C_GamePad.SetVibration = _nil

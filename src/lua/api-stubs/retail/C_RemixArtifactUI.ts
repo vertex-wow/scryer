@@ -5,12 +5,12 @@
 export const C_RemixArtifactUI = `
 if C_RemixArtifactUI == nil then C_RemixArtifactUI = {} end
 C_RemixArtifactUI.ClearRemixArtifactItem = _nil
-C_RemixArtifactUI.GetAppearanceInfoByID = _nil
+C_RemixArtifactUI.GetAppearanceInfoByID = _num
 C_RemixArtifactUI.GetArtifactArtInfo = _tbl
-C_RemixArtifactUI.GetArtifactItemInfo = _nil
+C_RemixArtifactUI.GetArtifactItemInfo = _num
 C_RemixArtifactUI.GetCurrArtifactItemID = _nil
 C_RemixArtifactUI.GetCurrItemSpecIndex = _nil
 C_RemixArtifactUI.GetCurrTraitTreeID = _nil
-C_RemixArtifactUI.ItemInSlotIsRemixArtifact = _nil
+C_RemixArtifactUI.ItemInSlotIsRemixArtifact = _bool
 -- Events: REMIX_ARTIFACT_ITEM_SPECS_LOADED, REMIX_ARTIFACT_UPDATE
 `;

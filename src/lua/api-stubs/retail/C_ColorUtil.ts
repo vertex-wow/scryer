@@ -4,11 +4,11 @@
 // Source: Blizzard_APIDocumentationGenerated/colorutildocumentation.lua
 export const C_ColorUtil = `
 if C_ColorUtil == nil then C_ColorUtil = {} end
-C_ColorUtil.ConvertHSLToHSV = _nil
-C_ColorUtil.ConvertHSVToHSL = _nil
-C_ColorUtil.ConvertHSVToRGB = _nil
-C_ColorUtil.ConvertRGBToHSV = _nil
-C_ColorUtil.GenerateTextColorCode = _nil
-C_ColorUtil.WrapTextInColor = _nil
-C_ColorUtil.WrapTextInColorCode = _nil
+C_ColorUtil.ConvertHSLToHSV = _num
+C_ColorUtil.ConvertHSVToHSL = _num
+C_ColorUtil.ConvertHSVToRGB = _num
+C_ColorUtil.ConvertRGBToHSV = _num
+C_ColorUtil.GenerateTextColorCode = _str
+C_ColorUtil.WrapTextInColor = _str
+C_ColorUtil.WrapTextInColorCode = _str
 `;

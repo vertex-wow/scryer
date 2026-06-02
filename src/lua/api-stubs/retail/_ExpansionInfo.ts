@@ -3,7 +3,7 @@
 // @sig-hash: sha256:0aeb068b78a4c042
 // Source: Blizzard_APIDocumentationGenerated/expansioninfodocumentation.lua
 export const _ExpansionInfo = `
-ClassicExpansionAtLeast = _nil
-ClassicExpansionAtMost = _nil
-GetClassicExpansionLevel = _nil
+ClassicExpansionAtLeast = _bool
+ClassicExpansionAtMost = _bool
+GetClassicExpansionLevel = _num
 `;

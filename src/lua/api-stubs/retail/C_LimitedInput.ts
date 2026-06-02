@@ -4,5 +4,5 @@
 // Source: Blizzard_APIDocumentationGenerated/limitedinputdocumentation.lua
 export const C_LimitedInput = `
 if C_LimitedInput == nil then C_LimitedInput = {} end
-C_LimitedInput.LimitedInputAllowed = _nil
+C_LimitedInput.LimitedInputAllowed = _bool
 `;

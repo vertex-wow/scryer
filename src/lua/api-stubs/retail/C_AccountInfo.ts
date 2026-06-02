@@ -4,7 +4,7 @@
 // Source: Blizzard_APIDocumentationGenerated/accountinfodocumentation.lua
 export const C_AccountInfo = `
 if C_AccountInfo == nil then C_AccountInfo = {} end
-C_AccountInfo.GetIDFromBattleNetAccountGUID = _nil
-C_AccountInfo.IsGUIDBattleNetAccountType = _nil
-C_AccountInfo.IsGUIDRelatedToLocalAccount = _nil
+C_AccountInfo.GetIDFromBattleNetAccountGUID = _num
+C_AccountInfo.IsGUIDBattleNetAccountType = _bool
+C_AccountInfo.IsGUIDRelatedToLocalAccount = _bool
 `;

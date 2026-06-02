@@ -4,25 +4,25 @@
 // Source: Blizzard_APIDocumentationGenerated/reputationinfodocumentation.lua
 export const C_Reputation = `
 if C_Reputation == nil then C_Reputation = {} end
-C_Reputation.AreLegacyReputationsShown = _nil
+C_Reputation.AreLegacyReputationsShown = _bool
 C_Reputation.CollapseAllFactionHeaders = _nil
 C_Reputation.CollapseFactionHeader = _nil
 C_Reputation.ExpandAllFactionHeaders = _nil
 C_Reputation.ExpandFactionHeader = _nil
 C_Reputation.GetFactionDataByID = _nil
 C_Reputation.GetFactionDataByIndex = _nil
-C_Reputation.GetFactionParagonInfo = _nil
+C_Reputation.GetFactionParagonInfo = _num
 C_Reputation.GetGuildFactionData = _nil
 C_Reputation.GetGuildRepExpirationTime = _nil
-C_Reputation.GetNumFactions = _nil
+C_Reputation.GetNumFactions = _num
 C_Reputation.GetReputationSortType = _nil
-C_Reputation.GetSelectedFaction = _nil
+C_Reputation.GetSelectedFaction = _num
 C_Reputation.GetWatchedFactionData = _nil
-C_Reputation.IsAccountWideReputation = _nil
-C_Reputation.IsFactionActive = _nil
-C_Reputation.IsFactionParagon = _nil
-C_Reputation.IsFactionParagonForCurrentPlayer = _nil
-C_Reputation.IsMajorFaction = _nil
+C_Reputation.IsAccountWideReputation = _bool
+C_Reputation.IsFactionActive = _bool
+C_Reputation.IsFactionParagon = _bool
+C_Reputation.IsFactionParagonForCurrentPlayer = _bool
+C_Reputation.IsMajorFaction = _bool
 C_Reputation.RequestFactionParagonPreloadRewardData = _nil
 C_Reputation.SetFactionActive = _nil
 C_Reputation.SetLegacyReputationsShown = _nil

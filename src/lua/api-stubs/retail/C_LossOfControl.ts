@@ -6,8 +6,8 @@ export const C_LossOfControl = `
 if C_LossOfControl == nil then C_LossOfControl = {} end
 C_LossOfControl.GetActiveLossOfControlData = _nil
 C_LossOfControl.GetActiveLossOfControlDataByUnit = _nil
-C_LossOfControl.GetActiveLossOfControlDataCount = _nil
-C_LossOfControl.GetActiveLossOfControlDataCountByUnit = _nil
+C_LossOfControl.GetActiveLossOfControlDataCount = _num
+C_LossOfControl.GetActiveLossOfControlDataCountByUnit = _num
 C_LossOfControl.GetActiveLossOfControlDuration = _nil
 -- Events: LOSS_OF_CONTROL_ADDED, LOSS_OF_CONTROL_COMMENTATOR_ADDED, LOSS_OF_CONTROL_COMMENTATOR_UPDATE, LOSS_OF_CONTROL_UPDATE, PLAYER_CONTROL_GAINED, PLAYER_CONTROL_LOST
 `;

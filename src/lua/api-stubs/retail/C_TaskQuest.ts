@@ -4,16 +4,16 @@
 // Source: Blizzard_APIDocumentationGenerated/questtaskinfodocumentation.lua
 export const C_TaskQuest = `
 if C_TaskQuest == nil then C_TaskQuest = {} end
-C_TaskQuest.DoesMapShowTaskQuestObjectives = _nil
-C_TaskQuest.GetQuestInfoByQuestID = _nil
-C_TaskQuest.GetQuestLocation = _nil
-C_TaskQuest.GetQuestProgressBarInfo = _nil
-C_TaskQuest.GetQuestTimeLeftMinutes = _nil
-C_TaskQuest.GetQuestTimeLeftSeconds = _nil
-C_TaskQuest.GetQuestUIWidgetSetByType = _nil
-C_TaskQuest.GetQuestZoneID = _nil
+C_TaskQuest.DoesMapShowTaskQuestObjectives = _bool
+C_TaskQuest.GetQuestInfoByQuestID = _str
+C_TaskQuest.GetQuestLocation = _num
+C_TaskQuest.GetQuestProgressBarInfo = _num
+C_TaskQuest.GetQuestTimeLeftMinutes = _num
+C_TaskQuest.GetQuestTimeLeftSeconds = _num
+C_TaskQuest.GetQuestUIWidgetSetByType = _num
+C_TaskQuest.GetQuestZoneID = _num
 C_TaskQuest.GetQuestsOnMap = _tbl
 C_TaskQuest.GetThreatQuests = _tbl
-C_TaskQuest.IsActive = _nil
+C_TaskQuest.IsActive = _bool
 C_TaskQuest.RequestPreloadRewardData = _nil
 `;

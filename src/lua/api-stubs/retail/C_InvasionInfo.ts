@@ -4,7 +4,7 @@
 // Source: Blizzard_APIDocumentationGenerated/invasioninfodocumentation.lua
 export const C_InvasionInfo = `
 if C_InvasionInfo == nil then C_InvasionInfo = {} end
-C_InvasionInfo.AreInvasionsAvailable = _nil
+C_InvasionInfo.AreInvasionsAvailable = _bool
 C_InvasionInfo.GetInvasionForUiMapID = _nil
 C_InvasionInfo.GetInvasionInfo = _tbl
 C_InvasionInfo.GetInvasionTimeLeft = _nil

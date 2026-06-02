@@ -5,26 +5,26 @@
 export const C_GameRules = `
 if C_GameRules == nil then C_GameRules = {} end
 C_GameRules.AutoConnectToGameModeRealm = _nil
-C_GameRules.DoesGameModeHavePromo = _nil
+C_GameRules.DoesGameModeHavePromo = _bool
 C_GameRules.GetActiveGameMode = _nil
 C_GameRules.GetCurrentEventRealmQueues = _nil
 C_GameRules.GetCurrentGameModeDisplayInfo = _nil
-C_GameRules.GetCurrentGameModeRecordID = _nil
-C_GameRules.GetDisplayedGameModeRecordIDAtIndex = _nil
+C_GameRules.GetCurrentGameModeRecordID = _num
+C_GameRules.GetDisplayedGameModeRecordIDAtIndex = _num
 C_GameRules.GetGameModeDisplayInfoByRecordID = _nil
-C_GameRules.GetGameModeGlueScreenName = _nil
-C_GameRules.GetGameModePromoGlobalString = _nil
-C_GameRules.GetGameRuleAsFloat = _nil
-C_GameRules.GetGameRuleAsFrameStrata = _nil
-C_GameRules.GetNumDisplayedGameModes = _nil
-C_GameRules.IsCharacterlessLoginActive = _nil
-C_GameRules.IsClassAllowedForGameMode = _nil
-C_GameRules.IsGameModeEnabled = _nil
-C_GameRules.IsGameRuleActive = _nil
-C_GameRules.IsMultiActionBarVisibilityForced = _nil
-C_GameRules.IsPersonalResourceDisplayEnabled = _nil
-C_GameRules.IsPlunderstorm = _nil
-C_GameRules.IsStandard = _nil
-C_GameRules.IsWoWHack = _nil
+C_GameRules.GetGameModeGlueScreenName = _str
+C_GameRules.GetGameModePromoGlobalString = _str
+C_GameRules.GetGameRuleAsFloat = _num
+C_GameRules.GetGameRuleAsFrameStrata = _str
+C_GameRules.GetNumDisplayedGameModes = _num
+C_GameRules.IsCharacterlessLoginActive = _bool
+C_GameRules.IsClassAllowedForGameMode = _bool
+C_GameRules.IsGameModeEnabled = _bool
+C_GameRules.IsGameRuleActive = _bool
+C_GameRules.IsMultiActionBarVisibilityForced = _bool
+C_GameRules.IsPersonalResourceDisplayEnabled = _bool
+C_GameRules.IsPlunderstorm = _bool
+C_GameRules.IsStandard = _bool
+C_GameRules.IsWoWHack = _bool
 -- Events: ACTIVE_GAME_MODE_UPDATED, AVAILABLE_GAME_MODES_UPDATED, EVENT_REALM_QUEUES_UPDATED, GAME_MODE_DISPLAY_INFO_UPDATED, GAME_MODE_DISPLAY_MODE_TOGGLE_DISABLED
 `;

@@ -7,6 +7,6 @@ if C_PartyPose == nil then C_PartyPose = {} end
 C_PartyPose.ExtraAction = _nil
 C_PartyPose.GetPartyPoseInfoByID = _tbl
 C_PartyPose.GetPartyPoseInfoByMapID = _tbl
-C_PartyPose.HasExtraAction = _nil
+C_PartyPose.HasExtraAction = _bool
 -- Events: SHOW_PARTY_POSE_UI
 `;

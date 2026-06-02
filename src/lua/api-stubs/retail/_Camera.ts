@@ -3,6 +3,6 @@
 // @sig-hash: sha256:87e0dd95afe8a16a
 // Source: Blizzard_APIDocumentationGenerated/cameradocumentation.lua
 export const _Camera = `
-GetCameraFOVDefaults = _nil
-GetUICameraInfo = _nil
+GetCameraFOVDefaults = _num
+GetUICameraInfo = _num
 `;

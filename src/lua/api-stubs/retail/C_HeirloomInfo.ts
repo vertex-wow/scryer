@@ -4,10 +4,10 @@
 // Source: Blizzard_APIDocumentationGenerated/heirloominfodocumentation.lua
 export const C_HeirloomInfo = `
 if C_HeirloomInfo == nil then C_HeirloomInfo = {} end
-C_HeirloomInfo.AreAllCollectionFiltersChecked = _nil
-C_HeirloomInfo.AreAllSourceFiltersChecked = _nil
-C_HeirloomInfo.IsHeirloomSourceValid = _nil
-C_HeirloomInfo.IsUsingDefaultFilters = _nil
+C_HeirloomInfo.AreAllCollectionFiltersChecked = _bool
+C_HeirloomInfo.AreAllSourceFiltersChecked = _bool
+C_HeirloomInfo.IsHeirloomSourceValid = _bool
+C_HeirloomInfo.IsUsingDefaultFilters = _bool
 C_HeirloomInfo.SetAllCollectionFilters = _nil
 C_HeirloomInfo.SetAllSourceFilters = _nil
 C_HeirloomInfo.SetDefaultFilters = _nil

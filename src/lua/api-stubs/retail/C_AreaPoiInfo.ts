@@ -6,11 +6,11 @@ export const C_AreaPoiInfo = `
 if C_AreaPoiInfo == nil then C_AreaPoiInfo = {} end
 C_AreaPoiInfo.GetAreaPOIForMap = _tbl
 C_AreaPoiInfo.GetAreaPOIInfo = _tbl
-C_AreaPoiInfo.GetAreaPOISecondsLeft = _nil
+C_AreaPoiInfo.GetAreaPOISecondsLeft = _num
 C_AreaPoiInfo.GetDelvesForMap = _tbl
 C_AreaPoiInfo.GetDragonridingRacesForMap = _tbl
 C_AreaPoiInfo.GetEventsForMap = _tbl
 C_AreaPoiInfo.GetQuestHubsForMap = _tbl
-C_AreaPoiInfo.IsAreaPOITimed = _nil
+C_AreaPoiInfo.IsAreaPOITimed = _bool
 -- Events: AREA_POIS_UPDATED
 `;

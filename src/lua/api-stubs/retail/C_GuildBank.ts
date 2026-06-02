@@ -4,6 +4,6 @@
 // Source: Blizzard_APIDocumentationGenerated/guildbankdocumentation.lua
 export const C_GuildBank = `
 if C_GuildBank == nil then C_GuildBank = {} end
-C_GuildBank.IsGuildBankEnabled = _nil
+C_GuildBank.IsGuildBankEnabled = _bool
 -- Events: GUILDBANK_ITEM_LOCK_CHANGED, GUILDBANK_TEXT_CHANGED, GUILDBANK_UPDATE_MONEY, GUILDBANK_UPDATE_TABS, GUILDBANK_UPDATE_TEXT, GUILDBANK_UPDATE_WITHDRAWMONEY, GUILDBANKBAGSLOTS_CHANGED, GUILDBANKFRAME_CLOSED, GUILDBANKFRAME_OPENED, GUILDBANKLOG_UPDATE
 `;

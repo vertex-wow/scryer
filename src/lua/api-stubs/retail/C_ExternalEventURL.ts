@@ -4,7 +4,7 @@
 // Source: Blizzard_APIDocumentationGenerated/externaleventurldocumentation.lua
 export const C_ExternalEventURL = `
 if C_ExternalEventURL == nil then C_ExternalEventURL = {} end
-C_ExternalEventURL.HasURL = _nil
-C_ExternalEventURL.IsNew = _nil
+C_ExternalEventURL.HasURL = _bool
+C_ExternalEventURL.IsNew = _bool
 C_ExternalEventURL.LaunchURL = _nil
 `;

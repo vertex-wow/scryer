@@ -8,9 +8,9 @@ C_LobbyMatchmakerInfo.AbandonQueue = _nil
 C_LobbyMatchmakerInfo.EnterQueue = _nil
 C_LobbyMatchmakerInfo.GetCurrQueuePlaylistEntry = _nil
 C_LobbyMatchmakerInfo.GetCurrQueueState = _nil
-C_LobbyMatchmakerInfo.GetQueueFromMainlineEnabled = _nil
-C_LobbyMatchmakerInfo.GetQueueStartTime = _nil
-C_LobbyMatchmakerInfo.IsInQueue = _nil
+C_LobbyMatchmakerInfo.GetQueueFromMainlineEnabled = _bool
+C_LobbyMatchmakerInfo.GetQueueStartTime = _num
+C_LobbyMatchmakerInfo.IsInQueue = _bool
 C_LobbyMatchmakerInfo.RespondToQueuePop = _nil
 -- Events: LOBBY_MATCHMAKER_QUEUE_ABANDONED, LOBBY_MATCHMAKER_QUEUE_ERROR, LOBBY_MATCHMAKER_QUEUE_EXPIRED, LOBBY_MATCHMAKER_QUEUE_POPPED, LOBBY_MATCHMAKER_QUEUE_STATUS_UPDATE
 `;

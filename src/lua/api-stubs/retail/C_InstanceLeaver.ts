@@ -4,6 +4,6 @@
 // Source: Blizzard_APIDocumentationGenerated/instanceleaverinfodocumentation.lua
 export const C_InstanceLeaver = `
 if C_InstanceLeaver == nil then C_InstanceLeaver = {} end
-C_InstanceLeaver.IsPlayerLeaver = _nil
+C_InstanceLeaver.IsPlayerLeaver = _bool
 -- Events: INSTANCE_LEAVER_STATUS_CHANGED
 `;

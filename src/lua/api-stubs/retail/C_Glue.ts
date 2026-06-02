@@ -4,7 +4,7 @@
 // Source: Blizzard_APIDocumentationGenerated/gluedocumentation.lua
 export const C_Glue = `
 if C_Glue == nil then C_Glue = {} end
-C_Glue.IsFirstLoadThisSession = _nil
-C_Glue.IsOnGlueScreen = _nil
+C_Glue.IsFirstLoadThisSession = _bool
+C_Glue.IsOnGlueScreen = _bool
 -- Events: ACCOUNT_CVARS_LOADED
 `;

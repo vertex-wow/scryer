@@ -6,7 +6,7 @@ export const C_LootHistory = `
 if C_LootHistory == nil then C_LootHistory = {} end
 C_LootHistory.GetAllEncounterInfos = _tbl
 C_LootHistory.GetInfoForEncounter = _nil
-C_LootHistory.GetLootHistoryTime = _nil
+C_LootHistory.GetLootHistoryTime = _num
 C_LootHistory.GetSortedDropsForEncounter = _tbl
 C_LootHistory.GetSortedInfoForDrop = _nil
 -- Events: LOOT_HISTORY_CLEAR_HISTORY, LOOT_HISTORY_GO_TO_ENCOUNTER, LOOT_HISTORY_ONE_HUNDRED_ROLL, LOOT_HISTORY_UPDATE_DROP, LOOT_HISTORY_UPDATE_ENCOUNTER

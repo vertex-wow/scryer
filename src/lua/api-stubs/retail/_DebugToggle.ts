@@ -3,7 +3,7 @@
 // @sig-hash: sha256:abe0a39fa1625211
 // Source: Blizzard_APIDocumentationGenerated/debugtoggledocumentation.lua
 export const _DebugToggle = `
-IsCollisionEnabled = _nil
+IsCollisionEnabled = _bool
 ToggleAnimKitDisplay = _nil
 ToggleCollision = _nil
 ToggleCollisionDisplay = _nil

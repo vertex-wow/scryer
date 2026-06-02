@@ -4,16 +4,16 @@
 // Source: Blizzard_APIDocumentationGenerated/accountstoredocumentation.lua
 export const C_AccountStore = `
 if C_AccountStore == nil then C_AccountStore = {} end
-C_AccountStore.BeginPurchase = _nil
+C_AccountStore.BeginPurchase = _bool
 C_AccountStore.GetCategories = _tbl
 C_AccountStore.GetCategoryInfo = _tbl
 C_AccountStore.GetCategoryItems = _tbl
-C_AccountStore.GetCurrencyAvailable = _nil
+C_AccountStore.GetCurrencyAvailable = _num
 C_AccountStore.GetCurrencyIDForStore = _nil
 C_AccountStore.GetCurrencyInfo = _tbl
 C_AccountStore.GetItemInfo = _nil
 C_AccountStore.GetStoreFrontState = _nil
-C_AccountStore.RefundItem = _nil
+C_AccountStore.RefundItem = _bool
 C_AccountStore.RequestStoreFrontInfoUpdate = _nil
 -- Events: ACCOUNT_STORE_CURRENCY_AVAILABLE_UPDATED, ACCOUNT_STORE_FRONT_UPDATED, ACCOUNT_STORE_ITEM_INFO_UPDATED, ACCOUNT_STORE_TRANSACTION_ERROR, STORE_FRONT_STATE_UPDATED
 `;

@@ -5,9 +5,9 @@
 export const C_ToyBoxInfo = `
 if C_ToyBoxInfo == nil then C_ToyBoxInfo = {} end
 C_ToyBoxInfo.ClearFanfare = _nil
-C_ToyBoxInfo.IsToySourceValid = _nil
-C_ToyBoxInfo.IsUsingDefaultFilters = _nil
-C_ToyBoxInfo.NeedsFanfare = _nil
+C_ToyBoxInfo.IsToySourceValid = _bool
+C_ToyBoxInfo.IsUsingDefaultFilters = _bool
+C_ToyBoxInfo.NeedsFanfare = _bool
 C_ToyBoxInfo.SetDefaultFilters = _nil
 -- Events: NEW_TOY_ADDED, TOYS_UPDATED
 `;

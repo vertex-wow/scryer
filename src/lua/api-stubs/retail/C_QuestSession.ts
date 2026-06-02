@@ -4,16 +4,16 @@
 // Source: Blizzard_APIDocumentationGenerated/questsessiondocumentation.lua
 export const C_QuestSession = `
 if C_QuestSession == nil then C_QuestSession = {} end
-C_QuestSession.CanStart = _nil
-C_QuestSession.CanStop = _nil
-C_QuestSession.Exists = _nil
+C_QuestSession.CanStart = _bool
+C_QuestSession.CanStop = _bool
+C_QuestSession.Exists = _bool
 C_QuestSession.GetAvailableSessionCommand = _nil
 C_QuestSession.GetPendingCommand = _nil
-C_QuestSession.GetProposedMaxLevelForSession = _nil
+C_QuestSession.GetProposedMaxLevelForSession = _num
 C_QuestSession.GetSessionBeginDetails = _nil
 C_QuestSession.GetSuperTrackedQuest = _nil
-C_QuestSession.HasJoined = _nil
-C_QuestSession.HasPendingCommand = _nil
+C_QuestSession.HasJoined = _bool
+C_QuestSession.HasPendingCommand = _bool
 C_QuestSession.RequestSessionStart = _nil
 C_QuestSession.RequestSessionStop = _nil
 C_QuestSession.SendSessionBeginResponse = _nil

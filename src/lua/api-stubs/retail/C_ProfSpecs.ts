@@ -4,32 +4,32 @@
 // Source: Blizzard_APIDocumentationGenerated/professionspecuidocumentation.lua
 export const C_ProfSpecs = `
 if C_ProfSpecs == nil then C_ProfSpecs = {} end
-C_ProfSpecs.CanRefundPath = _nil
-C_ProfSpecs.CanUnlockTab = _nil
+C_ProfSpecs.CanRefundPath = _bool
+C_ProfSpecs.CanUnlockTab = _bool
 C_ProfSpecs.GetChildrenForPath = _tbl
-C_ProfSpecs.GetConfigIDForSkillLine = _nil
+C_ProfSpecs.GetConfigIDForSkillLine = _num
 C_ProfSpecs.GetCurrencyInfoForSkillLine = _tbl
 C_ProfSpecs.GetDefaultSpecSkillLine = _nil
-C_ProfSpecs.GetDescriptionForPath = _nil
-C_ProfSpecs.GetDescriptionForPerk = _nil
-C_ProfSpecs.GetEntryIDForPerk = _nil
+C_ProfSpecs.GetDescriptionForPath = _str
+C_ProfSpecs.GetDescriptionForPerk = _str
+C_ProfSpecs.GetEntryIDForPerk = _num
 C_ProfSpecs.GetNewSpecReminderProfName = _nil
 C_ProfSpecs.GetPerksForPath = _tbl
 C_ProfSpecs.GetRootPathForTab = _nil
-C_ProfSpecs.GetSourceTextForPath = _nil
+C_ProfSpecs.GetSourceTextForPath = _str
 C_ProfSpecs.GetSpecTabIDsForSkillLine = _tbl
 C_ProfSpecs.GetSpecTabInfo = _tbl
 C_ProfSpecs.GetSpendCurrencyForPath = _nil
-C_ProfSpecs.GetSpendEntryForPath = _nil
+C_ProfSpecs.GetSpendEntryForPath = _num
 C_ProfSpecs.GetStateForPath = _nil
 C_ProfSpecs.GetStateForPerk = _nil
 C_ProfSpecs.GetStateForTab = _nil
 C_ProfSpecs.GetTabInfo = _nil
-C_ProfSpecs.GetUnlockEntryForPath = _nil
+C_ProfSpecs.GetUnlockEntryForPath = _num
 C_ProfSpecs.GetUnlockRankForPerk = _nil
-C_ProfSpecs.ShouldShowPointsReminder = _nil
-C_ProfSpecs.ShouldShowPointsReminderForSkillLine = _nil
-C_ProfSpecs.ShouldShowSpecTab = _nil
-C_ProfSpecs.SkillLineHasSpecialization = _nil
+C_ProfSpecs.ShouldShowPointsReminder = _bool
+C_ProfSpecs.ShouldShowPointsReminderForSkillLine = _bool
+C_ProfSpecs.ShouldShowSpecTab = _bool
+C_ProfSpecs.SkillLineHasSpecialization = _bool
 -- Events: SKILL_LINE_SPECS_RANKS_CHANGED, SKILL_LINE_SPECS_UNLOCKED
 `;

@@ -5,11 +5,11 @@
 export const C_MacOptions = `
 if C_MacOptions == nil then C_MacOptions = {} end
 C_MacOptions.AreOSShortcutsDisabled = _nil
-C_MacOptions.GetGameBundleName = _nil
-C_MacOptions.HasNewStyleInputMonitoring = _nil
-C_MacOptions.IsInputMonitoringEnabled = _nil
-C_MacOptions.IsMicrophoneEnabled = _nil
-C_MacOptions.IsUniversalAccessEnabled = _nil
+C_MacOptions.GetGameBundleName = _str
+C_MacOptions.HasNewStyleInputMonitoring = _bool
+C_MacOptions.IsInputMonitoringEnabled = _bool
+C_MacOptions.IsMicrophoneEnabled = _bool
+C_MacOptions.IsUniversalAccessEnabled = _bool
 C_MacOptions.OpenInputMonitoring = _nil
 C_MacOptions.OpenMicrophoneRequestDialogue = _nil
 C_MacOptions.OpenUniversalAccess = _nil

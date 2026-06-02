@@ -6,7 +6,7 @@ export const C_SpellDiminish = `
 if C_SpellDiminish == nil then C_SpellDiminish = {} end
 C_SpellDiminish.GetAllSpellDiminishCategories = _tbl
 C_SpellDiminish.GetSpellDiminishCategoryInfo = _nil
-C_SpellDiminish.IsSystemSupported = _nil
-C_SpellDiminish.ShouldTrackSpellDiminishCategory = _nil
+C_SpellDiminish.IsSystemSupported = _bool
+C_SpellDiminish.ShouldTrackSpellDiminishCategory = _bool
 -- Events: UNIT_SPELL_DIMINISH_CATEGORY_STATE_UPDATED
 `;

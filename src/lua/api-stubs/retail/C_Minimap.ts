@@ -4,29 +4,29 @@
 // Source: Blizzard_APIDocumentationGenerated/minimapdocumentation.lua
 export const C_Minimap = `
 if C_Minimap == nil then C_Minimap = {} end
-C_Minimap.CanTrackBattlePets = _nil
+C_Minimap.CanTrackBattlePets = _bool
 C_Minimap.ClearAllTracking = _nil
 C_Minimap.ClearMinimapInsetInfo = _nil
-C_Minimap.GetDefaultTrackingValue = _nil
-C_Minimap.GetDrawGroundTextures = _nil
-C_Minimap.GetNumQuestPOIWorldEffects = _nil
-C_Minimap.GetNumTrackingTypes = _nil
-C_Minimap.GetObjectIconTextureCoords = _nil
-C_Minimap.GetPOITextureCoords = _nil
+C_Minimap.GetDefaultTrackingValue = _bool
+C_Minimap.GetDrawGroundTextures = _bool
+C_Minimap.GetNumQuestPOIWorldEffects = _num
+C_Minimap.GetNumTrackingTypes = _num
+C_Minimap.GetObjectIconTextureCoords = _num
+C_Minimap.GetPOITextureCoords = _num
 C_Minimap.GetTrackingFilter = _tbl
 C_Minimap.GetTrackingInfo = _nil
 C_Minimap.GetUiMapID = _nil
-C_Minimap.GetViewRadius = _nil
-C_Minimap.IsFilteredOut = _nil
-C_Minimap.IsInsideQuestBlob = _nil
-C_Minimap.IsRotateMinimapIgnored = _nil
-C_Minimap.IsTrackingAccountCompletedQuests = _nil
-C_Minimap.IsTrackingBattlePets = _nil
-C_Minimap.IsTrackingHiddenQuests = _nil
+C_Minimap.GetViewRadius = _num
+C_Minimap.IsFilteredOut = _bool
+C_Minimap.IsInsideQuestBlob = _bool
+C_Minimap.IsRotateMinimapIgnored = _bool
+C_Minimap.IsTrackingAccountCompletedQuests = _bool
+C_Minimap.IsTrackingBattlePets = _bool
+C_Minimap.IsTrackingHiddenQuests = _bool
 C_Minimap.SetDrawGroundTextures = _nil
 C_Minimap.SetIgnoreRotateMinimap = _nil
 C_Minimap.SetMinimapInsetInfo = _nil
 C_Minimap.SetTracking = _nil
-C_Minimap.ShouldUseHybridMinimap = _nil
+C_Minimap.ShouldUseHybridMinimap = _bool
 -- Events: MINIMAP_PING, MINIMAP_UPDATE_TRACKING, MINIMAP_UPDATE_ZOOM, PLAYER_INSIDE_QUEST_BLOB_STATE_CHANGED
 `;

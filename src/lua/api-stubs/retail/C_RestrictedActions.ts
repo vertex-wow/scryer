@@ -4,9 +4,9 @@
 // Source: Blizzard_APIDocumentationGenerated/restrictedactionsdocumentation.lua
 export const C_RestrictedActions = `
 if C_RestrictedActions == nil then C_RestrictedActions = {} end
-C_RestrictedActions.CheckAllowProtectedFunctions = _nil
+C_RestrictedActions.CheckAllowProtectedFunctions = _bool
 C_RestrictedActions.GetAddOnRestrictionState = _nil
-C_RestrictedActions.InCombatLockdown = _nil
-C_RestrictedActions.IsAddOnRestrictionActive = _nil
+C_RestrictedActions.InCombatLockdown = _bool
+C_RestrictedActions.IsAddOnRestrictionActive = _bool
 -- Events: ADDON_ACTION_BLOCKED, ADDON_ACTION_FORBIDDEN, ADDON_RESTRICTION_STATE_CHANGED, MACRO_ACTION_BLOCKED, MACRO_ACTION_FORBIDDEN
 `;

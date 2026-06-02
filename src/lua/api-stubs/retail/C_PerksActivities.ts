@@ -9,9 +9,9 @@ C_PerksActivities.ClearPerksActivitiesPendingCompletion = _nil
 C_PerksActivities.GetAllPerksActivityTags = _tbl
 C_PerksActivities.GetPerksActivitiesInfo = _tbl
 C_PerksActivities.GetPerksActivitiesPendingCompletion = _tbl
-C_PerksActivities.GetPerksActivityChatLink = _nil
+C_PerksActivities.GetPerksActivityChatLink = _str
 C_PerksActivities.GetPerksActivityInfo = _nil
-C_PerksActivities.GetPerksUIThemePrefix = _nil
+C_PerksActivities.GetPerksUIThemePrefix = _str
 C_PerksActivities.GetTrackedPerksActivities = _tbl
 C_PerksActivities.RemoveTrackedPerksActivity = _nil
 -- Events: PERKS_ACTIVITIES_TRACKED_LIST_CHANGED, PERKS_ACTIVITIES_TRACKED_UPDATED, PERKS_ACTIVITIES_UPDATED, PERKS_ACTIVITY_COMPLETED

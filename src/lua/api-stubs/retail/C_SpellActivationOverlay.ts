@@ -4,6 +4,6 @@
 // Source: Blizzard_APIDocumentationGenerated/spellactivationoverlaydocumentation.lua
 export const C_SpellActivationOverlay = `
 if C_SpellActivationOverlay == nil then C_SpellActivationOverlay = {} end
-C_SpellActivationOverlay.IsSpellOverlayed = _nil
+C_SpellActivationOverlay.IsSpellOverlayed = _bool
 -- Events: SPELL_ACTIVATION_OVERLAY_GLOW_HIDE, SPELL_ACTIVATION_OVERLAY_GLOW_SHOW, SPELL_ACTIVATION_OVERLAY_HIDE, SPELL_ACTIVATION_OVERLAY_SHOW
 `;

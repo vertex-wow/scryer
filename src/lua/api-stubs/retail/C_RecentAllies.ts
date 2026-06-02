@@ -4,16 +4,16 @@
 // Source: Blizzard_APIDocumentationGenerated/recentalliesdocumentation.lua
 export const C_RecentAllies = `
 if C_RecentAllies == nil then C_RecentAllies = {} end
-C_RecentAllies.CanSetRecentAllyNote = _nil
+C_RecentAllies.CanSetRecentAllyNote = _bool
 C_RecentAllies.GetRecentAllies = _tbl
 C_RecentAllies.GetRecentAllyByFullName = _nil
 C_RecentAllies.GetRecentAllyByGUID = _nil
-C_RecentAllies.IsRecentAllyByFullName = _nil
-C_RecentAllies.IsRecentAllyByGUID = _nil
-C_RecentAllies.IsRecentAllyDataReady = _nil
-C_RecentAllies.IsRecentAllyPinned = _nil
-C_RecentAllies.IsSystemEnabled = _nil
-C_RecentAllies.IsSystemSupported = _nil
+C_RecentAllies.IsRecentAllyByFullName = _bool
+C_RecentAllies.IsRecentAllyByGUID = _bool
+C_RecentAllies.IsRecentAllyDataReady = _bool
+C_RecentAllies.IsRecentAllyPinned = _bool
+C_RecentAllies.IsSystemEnabled = _bool
+C_RecentAllies.IsSystemSupported = _bool
 C_RecentAllies.SetRecentAllyNote = _nil
 C_RecentAllies.SetRecentAllyPinned = _nil
 C_RecentAllies.TryRequestRecentAlliesData = _nil

@@ -3,15 +3,15 @@
 // @sig-hash: sha256:82b962f6df702685
 // Source: Blizzard_APIDocumentationGenerated/builddocumentation.lua
 export const _Build = `
-GetBuildInfo = _nil
-Is64BitClient = _nil
-IsBetaBuild = _nil
-IsDebugBuild = _nil
-IsLinuxClient = _nil
-IsMacClient = _nil
-IsPublicBuild = _nil
-IsPublicTestClient = _nil
-IsTestBuild = _nil
-IsWindowsClient = _nil
-SupportsClipCursor = _nil
+GetBuildInfo = _str
+Is64BitClient = _bool
+IsBetaBuild = _bool
+IsDebugBuild = _bool
+IsLinuxClient = _bool
+IsMacClient = _bool
+IsPublicBuild = _bool
+IsPublicTestClient = _bool
+IsTestBuild = _bool
+IsWindowsClient = _bool
+SupportsClipCursor = _bool
 `;

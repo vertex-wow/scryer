@@ -3,9 +3,9 @@
 // @sig-hash: sha256:f61a6b5ea1dc5adf
 // Source: Blizzard_APIDocumentationGenerated/titledocumentation.lua
 export const _Title = `
-GetCurrentTitle = _nil
-GetNumTitles = _nil
-GetTitleName = _nil
-IsTitleKnown = _nil
+GetCurrentTitle = _num
+GetNumTitles = _num
+GetTitleName = _str
+IsTitleKnown = _bool
 SetCurrentTitle = _nil
 `;

@@ -7,7 +7,7 @@ if C_HousingInspectMode == nil then C_HousingInspectMode = {} end
 C_HousingInspectMode.EnterInspectMode = _nil
 C_HousingInspectMode.ExitInspectMode = _nil
 C_HousingInspectMode.GetHoveredDecorGUID = _nil
-C_HousingInspectMode.IsHoveringDecor = _nil
-C_HousingInspectMode.IsInInspectMode = _nil
+C_HousingInspectMode.IsHoveringDecor = _bool
+C_HousingInspectMode.IsInInspectMode = _bool
 -- Events: HOUSING_INSPECT_MODE_DECOR_HOVERED_CHANGED, HOUSING_INSPECT_MODE_STATE_UPDATED
 `;

@@ -5,7 +5,7 @@
 export const C_NamePlateManager = `
 if C_NamePlateManager == nil then C_NamePlateManager = {} end
 C_NamePlateManager.GetNamePlateHitTestInsets = _nil
-C_NamePlateManager.IsNamePlateUnitBehindCamera = _nil
+C_NamePlateManager.IsNamePlateUnitBehindCamera = _bool
 C_NamePlateManager.SetNamePlateHitTestInsets = _nil
 C_NamePlateManager.SetNamePlateSimplified = _nil
 -- Events: FORBIDDEN_NAME_PLATE_CREATED, FORBIDDEN_NAME_PLATE_UNIT_ADDED, FORBIDDEN_NAME_PLATE_UNIT_REMOVED, NAME_PLATE_CREATED, NAME_PLATE_UNIT_ADDED, NAME_PLATE_UNIT_BEHIND_CAMERA_CHANGED, NAME_PLATE_UNIT_REMOVED

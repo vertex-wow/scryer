@@ -5,14 +5,14 @@
 export const C_AzeriteItem = `
 if C_AzeriteItem == nil then C_AzeriteItem = {} end
 C_AzeriteItem.FindActiveAzeriteItem = _nil
-C_AzeriteItem.GetAzeriteItemXPInfo = _nil
-C_AzeriteItem.GetPowerLevel = _nil
-C_AzeriteItem.GetUnlimitedPowerLevel = _nil
-C_AzeriteItem.HasActiveAzeriteItem = _nil
-C_AzeriteItem.IsAzeriteItem = _nil
-C_AzeriteItem.IsAzeriteItemAtMaxLevel = _nil
-C_AzeriteItem.IsAzeriteItemByID = _nil
-C_AzeriteItem.IsAzeriteItemEnabled = _nil
-C_AzeriteItem.IsUnlimitedLevelingUnlocked = _nil
+C_AzeriteItem.GetAzeriteItemXPInfo = _num
+C_AzeriteItem.GetPowerLevel = _num
+C_AzeriteItem.GetUnlimitedPowerLevel = _num
+C_AzeriteItem.HasActiveAzeriteItem = _bool
+C_AzeriteItem.IsAzeriteItem = _bool
+C_AzeriteItem.IsAzeriteItemAtMaxLevel = _bool
+C_AzeriteItem.IsAzeriteItemByID = _bool
+C_AzeriteItem.IsAzeriteItemEnabled = _bool
+C_AzeriteItem.IsUnlimitedLevelingUnlocked = _bool
 -- Events: AZERITE_ITEM_ENABLED_STATE_CHANGED, AZERITE_ITEM_EXPERIENCE_CHANGED, AZERITE_ITEM_POWER_LEVEL_CHANGED
 `;

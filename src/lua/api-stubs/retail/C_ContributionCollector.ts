@@ -6,21 +6,21 @@ export const C_ContributionCollector = `
 if C_ContributionCollector == nil then C_ContributionCollector = {} end
 C_ContributionCollector.Close = _nil
 C_ContributionCollector.Contribute = _nil
-C_ContributionCollector.GetActive = _nil
+C_ContributionCollector.GetActive = _num
 C_ContributionCollector.GetAtlases = _tbl
-C_ContributionCollector.GetBuffs = _nil
+C_ContributionCollector.GetBuffs = _num
 C_ContributionCollector.GetContributionAppearance = _nil
 C_ContributionCollector.GetContributionCollectorsForMap = _tbl
 C_ContributionCollector.GetContributionResult = _nil
 C_ContributionCollector.GetDescription = _nil
-C_ContributionCollector.GetManagedContributionsForCreatureID = _nil
+C_ContributionCollector.GetManagedContributionsForCreatureID = _num
 C_ContributionCollector.GetName = _nil
-C_ContributionCollector.GetOrderIndex = _nil
+C_ContributionCollector.GetOrderIndex = _num
 C_ContributionCollector.GetRequiredContributionCurrency = _nil
 C_ContributionCollector.GetRequiredContributionItem = _nil
-C_ContributionCollector.GetRewardQuestID = _nil
+C_ContributionCollector.GetRewardQuestID = _num
 C_ContributionCollector.GetState = _nil
-C_ContributionCollector.HasPendingContribution = _nil
-C_ContributionCollector.IsAwaitingRewardQuestData = _nil
+C_ContributionCollector.HasPendingContribution = _bool
+C_ContributionCollector.IsAwaitingRewardQuestData = _bool
 -- Events: CONTRIBUTION_CHANGED, CONTRIBUTION_COLLECTOR_PENDING, CONTRIBUTION_COLLECTOR_UPDATE, CONTRIBUTION_COLLECTOR_UPDATE_SINGLE
 `;

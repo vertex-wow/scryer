@@ -4,6 +4,6 @@
 // Source: Blizzard_APIDocumentationGenerated/incomingsummondocumentation.lua
 export const C_IncomingSummon = `
 if C_IncomingSummon == nil then C_IncomingSummon = {} end
-C_IncomingSummon.HasIncomingSummon = _nil
+C_IncomingSummon.HasIncomingSummon = _bool
 C_IncomingSummon.IncomingSummonStatus = _nil
 `;

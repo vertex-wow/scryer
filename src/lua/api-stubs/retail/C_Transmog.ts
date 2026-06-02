@@ -4,12 +4,12 @@
 // Source: Blizzard_APIDocumentationGenerated/transmogdocumentation.lua
 export const C_Transmog = `
 if C_Transmog == nil then C_Transmog = {} end
-C_Transmog.CanHaveSecondaryAppearanceForSlotID = _nil
+C_Transmog.CanHaveSecondaryAppearanceForSlotID = _bool
 C_Transmog.ExtractTransmogIDList = _tbl
 C_Transmog.GetAllSetAppearancesByID = _tbl
 C_Transmog.GetItemIDForSource = _nil
-C_Transmog.GetSlotForInventoryType = _nil
+C_Transmog.GetSlotForInventoryType = _num
 C_Transmog.GetSlotVisualInfo = _tbl
-C_Transmog.IsAtTransmogNPC = _nil
+C_Transmog.IsAtTransmogNPC = _bool
 -- Events: TRANSMOG_COLLECTION_CAMERA_UPDATE, TRANSMOG_COLLECTION_ITEM_FAVORITE_UPDATE, TRANSMOG_COLLECTION_ITEM_UPDATE, TRANSMOG_COLLECTION_SOURCE_ADDED, TRANSMOG_COLLECTION_SOURCE_REMOVED, TRANSMOG_COLLECTION_UPDATED, TRANSMOG_COSMETIC_COLLECTION_SOURCE_ADDED, TRANSMOG_SEARCH_UPDATED, TRANSMOG_SETS_UPDATE_FAVORITE, TRANSMOG_SOURCE_COLLECTABILITY_UPDATE, TRANSMOGRIFY_CLOSE, TRANSMOGRIFY_ITEM_UPDATE, TRANSMOGRIFY_OPEN, TRANSMOGRIFY_SUCCESS, TRANSMOGRIFY_UPDATE
 `;

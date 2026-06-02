@@ -4,6 +4,24 @@ Completed items moved from [backlog.md](backlog.md). Historical record of what w
 
 ---
 
+## Typed scalar returns in generated stubs
+
+**Status: Done** (2026-06-02)
+
+**What was built:**
+
+`dev/gen-api-stubs.ts` — replaced `needsTableReturn` with `stubRef`, which returns the Lua helper identifier based on the first non-nilable return type: `_num` (number → 0), `_bool` (boolean → false), `_str` (string → ''), or `_tbl`/`_nil` as before. `computeSigHash` updated to use `stubRef` for accurate change detection on future regeneration runs.
+
+`src/lua/api-stubs/index.ts` — prelude extended with `_num`, `_bool`, `_str` helper definitions.
+
+Existing `src/lua/api-stubs/retail/*.ts` stubs — patched via a one-off Node.js script that parsed EmmyLua annotation files from `_reference/vscode-wow-api/Annotations/Core/Blizzard_APIDocumentationGenerated/`. 2096 assignments updated across 226 stub files based on first non-nilable `@return` type.
+
+`test/lua/wow-api.test.ts` — updated to reflect new behavior: added `typed scalar stubs return default values` test; renamed and narrowed the nil check to use a void-returning function.
+
+**Approach used:** Auto-detect from first non-nilable `Returns[0]` type. Enum types (e.g. `Enum.XYZ`) are not detected as scalar since annotations use the enum type name, not `number` — they remain `_nil`. A sidecar override mechanism was not implemented; auto-detect covers the primary `GetNumX()` crash case.
+
+---
+
 ## Blizzard FrameXML template corpus loading (pre-M4)
 
 **Status: Done** (2026-05-26)

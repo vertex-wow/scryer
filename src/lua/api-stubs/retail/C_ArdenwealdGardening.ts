@@ -5,5 +5,5 @@
 export const C_ArdenwealdGardening = `
 if C_ArdenwealdGardening == nil then C_ArdenwealdGardening = {} end
 C_ArdenwealdGardening.GetGardenData = _tbl
-C_ArdenwealdGardening.IsGardenAccessible = _nil
+C_ArdenwealdGardening.IsGardenAccessible = _bool
 `;

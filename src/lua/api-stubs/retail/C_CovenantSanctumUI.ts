@@ -4,21 +4,21 @@
 // Source: Blizzard_APIDocumentationGenerated/covenantsanctumdocumentation.lua
 export const C_CovenantSanctumUI = `
 if C_CovenantSanctumUI == nil then C_CovenantSanctumUI = {} end
-C_CovenantSanctumUI.CanAccessReservoir = _nil
-C_CovenantSanctumUI.CanDepositAnima = _nil
+C_CovenantSanctumUI.CanAccessReservoir = _bool
+C_CovenantSanctumUI.CanDepositAnima = _bool
 C_CovenantSanctumUI.DepositAnima = _nil
 C_CovenantSanctumUI.EndInteraction = _nil
-C_CovenantSanctumUI.GetAnimaInfo = _nil
+C_CovenantSanctumUI.GetAnimaInfo = _num
 C_CovenantSanctumUI.GetCurrentTalentTreeID = _nil
 C_CovenantSanctumUI.GetFeatures = _tbl
-C_CovenantSanctumUI.GetRenownLevel = _nil
+C_CovenantSanctumUI.GetRenownLevel = _num
 C_CovenantSanctumUI.GetRenownLevels = _tbl
 C_CovenantSanctumUI.GetRenownRewardsForLevel = _tbl
 C_CovenantSanctumUI.GetSanctumType = _nil
 C_CovenantSanctumUI.GetSoulCurrencies = _tbl
-C_CovenantSanctumUI.HasMaximumRenown = _nil
-C_CovenantSanctumUI.IsPlayerInRenownCatchUpMode = _nil
-C_CovenantSanctumUI.IsWeeklyRenownCapped = _nil
+C_CovenantSanctumUI.HasMaximumRenown = _bool
+C_CovenantSanctumUI.IsPlayerInRenownCatchUpMode = _bool
+C_CovenantSanctumUI.IsWeeklyRenownCapped = _bool
 C_CovenantSanctumUI.RequestCatchUpState = _nil
 -- Events: COVENANT_RENOWN_CATCH_UP_STATE_UPDATE, COVENANT_SANCTUM_RENOWN_LEVEL_CHANGED
 `;

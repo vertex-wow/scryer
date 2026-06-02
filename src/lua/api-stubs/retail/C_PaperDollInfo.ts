@@ -4,21 +4,21 @@
 // Source: Blizzard_APIDocumentationGenerated/paperdollinfodocumentation.lua
 export const C_PaperDollInfo = `
 if C_PaperDollInfo == nil then C_PaperDollInfo = {} end
-C_PaperDollInfo.CanAutoEquipCursorItem = _nil
-C_PaperDollInfo.CanCursorCanGoInSlot = _nil
-C_PaperDollInfo.GetArmorEffectiveness = _nil
+C_PaperDollInfo.CanAutoEquipCursorItem = _bool
+C_PaperDollInfo.CanCursorCanGoInSlot = _bool
+C_PaperDollInfo.GetArmorEffectiveness = _num
 C_PaperDollInfo.GetArmorEffectivenessAgainstTarget = _nil
 C_PaperDollInfo.GetInspectAzeriteItemEmpoweredChoices = _tbl
-C_PaperDollInfo.GetInspectGuildInfo = _nil
-C_PaperDollInfo.GetInspectItemLevel = _nil
+C_PaperDollInfo.GetInspectGuildInfo = _num
+C_PaperDollInfo.GetInspectItemLevel = _num
 C_PaperDollInfo.GetInspectRatedBGBlitzData = _tbl
 C_PaperDollInfo.GetInspectRatedBGData = _tbl
 C_PaperDollInfo.GetInspectRatedSoloShuffleData = _tbl
 C_PaperDollInfo.GetMinItemLevel = _nil
-C_PaperDollInfo.GetStaggerPercentage = _nil
-C_PaperDollInfo.IsInventorySlotEnabled = _nil
-C_PaperDollInfo.IsRangedSlotShown = _nil
-C_PaperDollInfo.OffhandHasShield = _nil
-C_PaperDollInfo.OffhandHasWeapon = _nil
+C_PaperDollInfo.GetStaggerPercentage = _num
+C_PaperDollInfo.IsInventorySlotEnabled = _bool
+C_PaperDollInfo.IsRangedSlotShown = _bool
+C_PaperDollInfo.OffhandHasShield = _bool
+C_PaperDollInfo.OffhandHasWeapon = _bool
 -- Events: AVOIDANCE_UPDATE, CHARACTER_POINTS_CHANGED, CHARACTER_UPGRADE_SPELL_TIER_SET, COMBAT_RATING_UPDATE, DISABLE_XP_GAIN, ENABLE_XP_GAIN, EQUIP_BIND_CONFIRM, INSPECT_HONOR_UPDATE, INSPECT_READY, LIFESTEAL_UPDATE, MASTERY_UPDATE, PET_SPELL_POWER_UPDATE, PLAYER_AVG_ITEM_LEVEL_UPDATE, PLAYER_EQUIPMENT_CHANGED, PROFESSION_EQUIPMENT_CHANGED, PVP_POWER_UPDATE, SPEED_UPDATE, SPELL_POWER_CHANGED, STURDINESS_UPDATE, UPDATE_FACTION, UPDATE_INVENTORY_ALERTS, UPDATE_INVENTORY_DURABILITY, WEAPON_SLOT_CHANGED
 `;

@@ -3,6 +3,6 @@
 // @sig-hash: sha256:af5134590bf5971c
 // Source: Blizzard_APIDocumentationGenerated/osdocumentation.lua
 export const _Os = `
-CopyToClipboard = _nil
-GetTimePreciseSec = _nil
+CopyToClipboard = _num
+GetTimePreciseSec = _num
 `;

@@ -4,20 +4,20 @@
 // Source: Blizzard_APIDocumentationGenerated/combataudioalertdocumentation.lua
 export const C_CombatAudioAlert = `
 if C_CombatAudioAlert == nil then C_CombatAudioAlert = {} end
-C_CombatAudioAlert.AddToKnownTargetingList = _nil
-C_CombatAudioAlert.GetCategoryVoice = _nil
-C_CombatAudioAlert.GetCategoryVolume = _nil
-C_CombatAudioAlert.GetFormatSetting = _nil
-C_CombatAudioAlert.GetSpeakerSpeed = _nil
-C_CombatAudioAlert.GetSpecSetting = _nil
-C_CombatAudioAlert.GetThrottle = _nil
-C_CombatAudioAlert.IsEnabled = _nil
-C_CombatAudioAlert.RemoveFromKnownTargetingList = _nil
-C_CombatAudioAlert.SetCategoryVoice = _nil
-C_CombatAudioAlert.SetCategoryVolume = _nil
-C_CombatAudioAlert.SetFormatSetting = _nil
-C_CombatAudioAlert.SetSpeakerSpeed = _nil
-C_CombatAudioAlert.SetSpecSetting = _nil
-C_CombatAudioAlert.SetThrottle = _nil
+C_CombatAudioAlert.AddToKnownTargetingList = _bool
+C_CombatAudioAlert.GetCategoryVoice = _num
+C_CombatAudioAlert.GetCategoryVolume = _num
+C_CombatAudioAlert.GetFormatSetting = _num
+C_CombatAudioAlert.GetSpeakerSpeed = _num
+C_CombatAudioAlert.GetSpecSetting = _num
+C_CombatAudioAlert.GetThrottle = _num
+C_CombatAudioAlert.IsEnabled = _bool
+C_CombatAudioAlert.RemoveFromKnownTargetingList = _bool
+C_CombatAudioAlert.SetCategoryVoice = _bool
+C_CombatAudioAlert.SetCategoryVolume = _bool
+C_CombatAudioAlert.SetFormatSetting = _bool
+C_CombatAudioAlert.SetSpeakerSpeed = _bool
+C_CombatAudioAlert.SetSpecSetting = _bool
+C_CombatAudioAlert.SetThrottle = _bool
 C_CombatAudioAlert.SpeakText = _nil
 `;

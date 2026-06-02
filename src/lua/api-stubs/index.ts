@@ -383,8 +383,9 @@ import { _UnitRole as _r_UnitRole } from "./retail/_UnitRole.js";
 import { _Unknown as _r_Unknown } from "./retail/_Unknown.js";
 import { _ZoneScript as _r_ZoneScript } from "./retail/_ZoneScript.js";
 
-// Prelude defines _nil/_tbl helpers used by all stubs
-const _pre = "local _nil = function() end\nlocal _tbl = function() return {} end\n";
+// Prelude defines _nil/_tbl/_num/_bool/_str helpers used by all stubs
+const _pre =
+  "local _nil = function() end\nlocal _tbl = function() return {} end\nlocal _num = function() return 0 end\nlocal _bool = function() return false end\nlocal _str = function() return '' end\n";
 
 const _retailLua =
   _pre +

@@ -11,7 +11,7 @@ C_ScenarioInfo.GetJailersTowerTypeString = _nil
 C_ScenarioInfo.GetScenarioInfo = _tbl
 C_ScenarioInfo.GetScenarioStepInfo = _tbl
 C_ScenarioInfo.GetTieredEntranceActiveSpells = _tbl
-C_ScenarioInfo.GetUnitCriteriaProgressValues = _nil
-C_ScenarioInfo.IsTieredEntranceScenario = _nil
+C_ScenarioInfo.GetUnitCriteriaProgressValues = _num
+C_ScenarioInfo.IsTieredEntranceScenario = _bool
 -- Events: JAILERS_TOWER_LEVEL_UPDATE, SCENARIO_BONUS_OBJECTIVE_COMPLETE, SCENARIO_BONUS_VISIBILITY_UPDATE, SCENARIO_COMPLETED, SCENARIO_CRITERIA_SHOW_STATE_UPDATE, SCENARIO_CRITERIA_UPDATE, SCENARIO_POI_UPDATE, SCENARIO_SPELL_UPDATE, SCENARIO_UPDATE
 `;

@@ -5,14 +5,14 @@
 export const C_Texture = `
 if C_Texture == nil then C_Texture = {} end
 C_Texture.ClearTitleIconTexture = _nil
-C_Texture.GetAtlasElementID = _nil
+C_Texture.GetAtlasElementID = _num
 C_Texture.GetAtlasElements = _tbl
-C_Texture.GetAtlasExists = _nil
-C_Texture.GetAtlasID = _nil
+C_Texture.GetAtlasExists = _bool
+C_Texture.GetAtlasID = _num
 C_Texture.GetAtlasInfo = _tbl
-C_Texture.GetFilenameFromFileDataID = _nil
+C_Texture.GetFilenameFromFileDataID = _str
 C_Texture.GetTitleIconTexture = _nil
-C_Texture.IsTitleIconTextureReady = _nil
+C_Texture.IsTitleIconTextureReady = _bool
 C_Texture.SetTitleIconTexture = _nil
 C_Texture.SetURLTexture = _nil
 `;

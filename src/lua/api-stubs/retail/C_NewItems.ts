@@ -5,6 +5,6 @@
 export const C_NewItems = `
 if C_NewItems == nil then C_NewItems = {} end
 C_NewItems.ClearAll = _nil
-C_NewItems.IsNewItem = _nil
+C_NewItems.IsNewItem = _bool
 C_NewItems.RemoveNewItem = _nil
 `;

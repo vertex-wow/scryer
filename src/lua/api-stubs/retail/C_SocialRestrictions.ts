@@ -5,12 +5,12 @@
 export const C_SocialRestrictions = `
 if C_SocialRestrictions == nil then C_SocialRestrictions = {} end
 C_SocialRestrictions.AcknowledgeRegionalChatDisabled = _nil
-C_SocialRestrictions.CanReceiveChat = _nil
-C_SocialRestrictions.CanSendChat = _nil
-C_SocialRestrictions.IsChatDisabled = _nil
-C_SocialRestrictions.IsMuted = _nil
-C_SocialRestrictions.IsSilenced = _nil
-C_SocialRestrictions.IsSquelched = _nil
+C_SocialRestrictions.CanReceiveChat = _bool
+C_SocialRestrictions.CanSendChat = _bool
+C_SocialRestrictions.IsChatDisabled = _bool
+C_SocialRestrictions.IsMuted = _bool
+C_SocialRestrictions.IsSilenced = _bool
+C_SocialRestrictions.IsSquelched = _bool
 C_SocialRestrictions.SetChatDisabled = _nil
 -- Events: ALERT_REGIONAL_CHAT_DISABLED, CHAT_DISABLED_CHANGE_FAILED, CHAT_DISABLED_CHANGED
 `;

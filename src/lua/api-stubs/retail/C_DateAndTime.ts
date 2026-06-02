@@ -7,7 +7,7 @@ if C_DateAndTime == nil then C_DateAndTime = {} end
 C_DateAndTime.AdjustTimeByDays = _tbl
 C_DateAndTime.AdjustTimeByMinutes = _tbl
 C_DateAndTime.AdjustTimeByMonths = _tbl
-C_DateAndTime.CompareCalendarTime = _nil
+C_DateAndTime.CompareCalendarTime = _num
 C_DateAndTime.GetCalendarTimeFromEpoch = _tbl
 C_DateAndTime.GetCurrentCalendarTime = _tbl
 C_DateAndTime.GetSecondsUntilDailyReset = _nil

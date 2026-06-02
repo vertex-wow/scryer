@@ -4,30 +4,30 @@
 // Source: Blizzard_APIDocumentationGenerated/specializationinfodocumentation.lua
 export const C_SpecializationInfo = `
 if C_SpecializationInfo == nil then C_SpecializationInfo = {} end
-C_SpecializationInfo.CanPlayerUsePVPTalentUI = _nil
-C_SpecializationInfo.CanPlayerUseTalentSpecUI = _nil
-C_SpecializationInfo.CanPlayerUseTalentUI = _nil
-C_SpecializationInfo.GetActiveSpecGroup = _nil
+C_SpecializationInfo.CanPlayerUsePVPTalentUI = _bool
+C_SpecializationInfo.CanPlayerUseTalentSpecUI = _bool
+C_SpecializationInfo.CanPlayerUseTalentUI = _bool
+C_SpecializationInfo.GetActiveSpecGroup = _num
 C_SpecializationInfo.GetAllSelectedPvpTalentIDs = _tbl
 C_SpecializationInfo.GetClassIDFromSpecID = _nil
 C_SpecializationInfo.GetInspectSelectedPvpTalent = _nil
-C_SpecializationInfo.GetNumSpecializationsForClassID = _nil
-C_SpecializationInfo.GetPvpTalentAlertStatus = _nil
+C_SpecializationInfo.GetNumSpecializationsForClassID = _num
+C_SpecializationInfo.GetPvpTalentAlertStatus = _bool
 C_SpecializationInfo.GetPvpTalentInfo = _nil
 C_SpecializationInfo.GetPvpTalentSlotInfo = _nil
 C_SpecializationInfo.GetPvpTalentSlotUnlockLevel = _nil
 C_SpecializationInfo.GetPvpTalentUnlockLevel = _nil
 C_SpecializationInfo.GetSpecIDs = _tbl
-C_SpecializationInfo.GetSpecialization = _nil
+C_SpecializationInfo.GetSpecialization = _num
 C_SpecializationInfo.GetSpecializationInfo = _nil
 C_SpecializationInfo.GetSpecializationMasterySpells = _tbl
 C_SpecializationInfo.GetSpellsDisplay = _tbl
 C_SpecializationInfo.GetTalentInfo = _nil
-C_SpecializationInfo.IsInitialized = _nil
-C_SpecializationInfo.IsPvpTalentLocked = _nil
-C_SpecializationInfo.MatchesCurrentSpecSet = _nil
+C_SpecializationInfo.IsInitialized = _bool
+C_SpecializationInfo.IsPvpTalentLocked = _bool
+C_SpecializationInfo.MatchesCurrentSpecSet = _bool
 C_SpecializationInfo.SetPetSpecialization = _nil
 C_SpecializationInfo.SetPvpTalentLocked = _nil
-C_SpecializationInfo.SetSpecialization = _nil
+C_SpecializationInfo.SetSpecialization = _bool
 -- Events: ACTIVE_TALENT_GROUP_CHANGED, CONFIRM_PET_UNLEARN, CONFIRM_TALENT_WIPE, PET_SPECIALIZATION_CHANGED, PLAYER_LEARN_PVP_TALENT_FAILED, PLAYER_LEARN_TALENT_FAILED, PLAYER_PVP_TALENT_UPDATE, PLAYER_TALENT_UPDATE, SPEC_INVOLUNTARILY_CHANGED, TALENTS_INVOLUNTARILY_RESET
 `;

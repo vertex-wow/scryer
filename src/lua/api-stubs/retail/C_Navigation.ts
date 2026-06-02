@@ -4,11 +4,11 @@
 // Source: Blizzard_APIDocumentationGenerated/ingamenavigationdocumentation.lua
 export const C_Navigation = `
 if C_Navigation == nil then C_Navigation = {} end
-C_Navigation.GetDistance = _nil
+C_Navigation.GetDistance = _num
 C_Navigation.GetFrame = _nil
-C_Navigation.GetNearestPartyMemberToken = _nil
+C_Navigation.GetNearestPartyMemberToken = _str
 C_Navigation.GetTargetState = _nil
-C_Navigation.HasValidScreenPosition = _nil
-C_Navigation.WasClampedToScreen = _nil
+C_Navigation.HasValidScreenPosition = _bool
+C_Navigation.WasClampedToScreen = _bool
 -- Events: NAVIGATION_DESTINATION_REACHED, NAVIGATION_FRAME_CREATED, NAVIGATION_FRAME_DESTROYED
 `;

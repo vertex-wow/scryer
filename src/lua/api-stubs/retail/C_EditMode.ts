@@ -4,11 +4,11 @@
 // Source: Blizzard_APIDocumentationGenerated/editmodemanagerdocumentation.lua
 export const C_EditMode = `
 if C_EditMode == nil then C_EditMode = {} end
-C_EditMode.ConvertLayoutInfoToString = _nil
+C_EditMode.ConvertLayoutInfoToString = _str
 C_EditMode.ConvertStringToLayoutInfo = _tbl
 C_EditMode.GetAccountSettings = _tbl
 C_EditMode.GetLayouts = _tbl
-C_EditMode.IsValidLayoutName = _nil
+C_EditMode.IsValidLayoutName = _bool
 C_EditMode.OnEditModeExit = _nil
 C_EditMode.OnLayoutAdded = _nil
 C_EditMode.OnLayoutDeleted = _nil

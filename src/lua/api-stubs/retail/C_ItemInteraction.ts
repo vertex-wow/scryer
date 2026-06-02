@@ -9,10 +9,10 @@ C_ItemInteraction.CloseUI = _nil
 C_ItemInteraction.GetChargeInfo = _tbl
 C_ItemInteraction.GetItemConversionCurrencyCost = _tbl
 C_ItemInteraction.GetItemInteractionInfo = _nil
-C_ItemInteraction.GetItemInteractionSpellId = _nil
+C_ItemInteraction.GetItemInteractionSpellId = _num
 C_ItemInteraction.InitializeFrame = _nil
 C_ItemInteraction.PerformItemInteraction = _nil
 C_ItemInteraction.Reset = _nil
-C_ItemInteraction.SetPendingItem = _nil
+C_ItemInteraction.SetPendingItem = _bool
 -- Events: ITEM_INTERACTION_CHARGE_INFO_UPDATED, ITEM_INTERACTION_ITEM_SELECTION_UPDATED
 `;

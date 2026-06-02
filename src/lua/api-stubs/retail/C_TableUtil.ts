@@ -4,9 +4,9 @@
 // Source: Blizzard_APIDocumentationGenerated/luatableutildocumentation.lua
 export const C_TableUtil = `
 if C_TableUtil == nil then C_TableUtil = {} end
-C_TableUtil.count = _nil
+C_TableUtil.count = _num
 C_TableUtil.create = _nil
 C_TableUtil.FindIndexedMismatch = _nil
 C_TableUtil.freeze = _nil
-C_TableUtil.isfrozen = _nil
+C_TableUtil.isfrozen = _bool
 `;

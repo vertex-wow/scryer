@@ -5,7 +5,7 @@
 export const C_SplashScreen = `
 if C_SplashScreen == nil then C_SplashScreen = {} end
 C_SplashScreen.AcknowledgeSplash = _nil
-C_SplashScreen.CanViewSplashScreen = _nil
+C_SplashScreen.CanViewSplashScreen = _bool
 C_SplashScreen.RequestLatestSplashScreen = _nil
 C_SplashScreen.SendSplashScreenActionLaunchedTelem = _nil
 C_SplashScreen.SendSplashScreenCloseTelem = _nil
