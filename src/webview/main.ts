@@ -419,14 +419,18 @@ function applyAsset(rawPath: string, uri: string): void {
         tilesV: boolean;
         useAtlasSize: boolean;
       };
-      // Scale the sheet so that the atlas region exactly fills the element.
+
+      // Scale the sheet so the atlas region fills the element.
+      // For tiling axes: keep native scale so tiles repeat at their natural logical size
+      // rather than being stretched to fill the element (which zooms/distorts the tile).
+      // For non-tiling axes: scale to fill (element dimension drives the scale).
       // Never override the element's CSS dimensions here — the layout engine has
       // already set them correctly (e.g. NineSlice Center spans the full inner area
       // via two opposing anchors; overriding to atlas size would shrink it to 64×64).
       const elemW = el.offsetWidth || crop.width;
       const elemH = el.offsetHeight || crop.height;
-      const scaleX = elemW / crop.width;
-      const scaleY = elemH / crop.height;
+      const scaleX = crop.tilesH ? 1 : elemW / crop.width;
+      const scaleY = crop.tilesV ? 1 : elemH / crop.height;
       const bgW = crop.sheetW * scaleX;
       const bgH = crop.sheetH * scaleY;
       el.style.backgroundSize = `${bgW}px ${bgH}px`;

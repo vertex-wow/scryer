@@ -61,6 +61,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>XS</td>
   <td>—</td>
 </tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#nineslice-border-rendering-fidelity-diamondmetal">NineSlice border rendering fidelity (DiamondMetal)</a></td>
+  <td>📋 Pending</td>
+  <td>Fix edge tiling stride so DiamondMetal borders render as solid metal strips with correct corner protrusion</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
 </tbody>
 </table>
 

@@ -195,7 +195,8 @@ function renderFrame(
   el.dataset.name = frame.name ?? "";
   el.dataset.kind = frame.kind;
   el.style.position = "absolute";
-  el.style.overflow = "hidden";
+  // WoW doesn't clip frame children; border NineSlice corners must bleed past frame bounds.
+  el.style.overflow = frame.useParentLevel ? "visible" : "hidden";
   // useParentLevel frames share the parent's frame level in WoW — their content should
   // composite below the parent's ARTWORK layer. CSS stacking can't split a child's layers
   // across parent layers, so we approximate by placing the whole child div in the BORDER

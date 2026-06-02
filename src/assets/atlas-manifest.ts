@@ -27,21 +27,23 @@ function resolveAtlasInTexture(tex: TextureIR, manifest: AtlasManifest): void {
   const origLower = tex.atlas.toLowerCase();
   const stripped = tex.atlas.replace(/^[_!]+/, "");
   const strippedLower = stripped.toLowerCase();
-  const entry =
-    manifest[tex.atlas] ??
-    manifest[origLower] ??
-    manifest[stripped] ??
-    manifest[strippedLower] ??
-    manifest[strippedLower + "-2x"];
+  let entry =
+    manifest[tex.atlas] ?? manifest[origLower] ?? manifest[stripped] ?? manifest[strippedLower];
+  let scaleDivisor = 1;
+  if (!entry) {
+    entry = manifest[origLower + "-2x"] ?? manifest[strippedLower + "-2x"];
+    if (entry) scaleDivisor = 2;
+  }
   if (!entry) return;
+  const d = scaleDivisor;
   tex.resolvedAtlas = {
     file: entry.file,
-    x: entry.x,
-    y: entry.y,
-    width: entry.width,
-    height: entry.height,
-    sheetW: entry.sheetW,
-    sheetH: entry.sheetH,
+    x: entry.x / d,
+    y: entry.y / d,
+    width: entry.width / d,
+    height: entry.height / d,
+    sheetW: entry.sheetW / d,
+    sheetH: entry.sheetH / d,
     tilesH: entry.tilesH,
     tilesV: entry.tilesV,
   };

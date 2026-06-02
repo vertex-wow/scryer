@@ -1300,3 +1300,83 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 **Plan:** Add `C_ScriptedAnimations.GetAllScriptedAnimationEffects = function() return {} end` in `wow-api.ts` after the C\_\* namespace tables are set up.
 
 **Effort:** XS
+
+---
+
+## NineSlice border rendering fidelity (DiamondMetal)
+
+**Status:** 📋 Pending
+
+**Reference resources:** [`docs/reference/border-rendering/`](../reference/border-rendering/) — full session notes, in-game reference screenshot, and two Scryer screenshots showing intermediate states.
+
+### Problem
+
+`ExampleFrameModalDialog` uses `DialogBorderTemplate`, which applies a NineSlice with DiamondMetal corner and edge art. Two rendering defects remain after the fixes shipped in 2026-06:
+
+1. **Edge tiling stride is wrong.** The horizontal edge sprites (`_UI-Frame-DiamondMetal-EdgeTop`, `_UI-Frame-DiamondMetal-EdgeBottom`) are 64px wide but live in a 128px-wide sheet (right half transparent). CSS `background-repeat` strides at `sheetW = 128px`, producing a 64px-metal / 64px-gap alternating pattern. The border edges look broken or absent. Vertical edges are fine — their sheet height equals sprite height.
+
+2. **Border protrusion is minimal.** With the `overflow:visible` fix in place, diamond corners do visually extend past the dark background. But the effect is subtle (only the 7px Bg inset gap). Compared to the in-game reference at 3440×1440, the border looks thin. This may be a visual scale difference between the in-game capture and Scryer's `frameScale`, not a real rendering error — needs evaluation after fix #1 lands.
+
+### What is confirmed correct (don't re-investigate)
+
+- `Dialog` NineSlice layout has **no x/y offsets** — corners are placed at (0,0) of the border frame by design. The "floating" effect comes from artwork geometry + the 7px Bg inset, not a layout offset.
+- `overflow:visible` on `useParentLevel` frames (`renderer.ts:198`) — shipped, correct. Lets corners extend past frame bounds.
+- Corner sizing: resolves to 64×64 logical via `-2x` ÷ 2. Correct.
+- Bg inset: 7px resolves correctly via `layoutByTwoAnchors`. Correct.
+- `SetHorizTile(true)` is captured correctly all the way to `tilesH: true` in `applyAsset`. The tiling flag is right; only the stride is wrong.
+
+### Atlas sheet layout (confirmed by inspecting the PNG)
+
+Sheet `uiframediamondmetal2x.blp` (128×512 logical):
+
+- Edge sprites at x=0, w=64 — occupy **left half only**. Right half (x=64..128) is transparent.
+- Corner sprites below, also left-half.
+
+Sheet `uiframediamondmetalvertical2x.blp` (256×64 logical):
+
+- Left edge at x=0.5, right edge at x=65.5 — each 64px wide. Sheet height = 64 = sprite height. **No stride problem for vertical edges.**
+
+### Fix plan: canvas-based sprite extraction for horizontal edges
+
+CSS `background-repeat` cannot tile a sub-region of a sprite sheet — the stride always equals `background-size`. The only correct approach is to extract the sprite region to an offscreen canvas and use the canvas data URL as the background tile.
+
+**Approach:**
+
+```typescript
+// In src/webview/main.ts, applyAsset
+// Trigger condition: crop.tilesH && crop.sheetW > crop.width
+const physicalScale = img.naturalWidth / crop.sheetW; // computed from loaded image
+const canvas = document.createElement("canvas");
+canvas.width = crop.width;
+canvas.height = crop.height;
+ctx.drawImage(
+  img,
+  Math.round(crop.x * physicalScale),
+  Math.round(crop.y * physicalScale),
+  Math.round(crop.width * physicalScale),
+  Math.round(crop.height * physicalScale),
+  0,
+  0,
+  crop.width,
+  crop.height,
+);
+// Apply: background-size: crop.width × crop.height; background-repeat: repeat-x
+```
+
+`physicalScale` is computed dynamically from `img.naturalWidth / crop.sheetW` — no upstream IR or atlas-manifest changes needed.
+
+**Why the first canvas attempt failed (2026-06-02):**
+
+The implementation applied the canvas result asynchronously (`Promise.then`), but also ran the CSS placeholder path synchronously first. The two writes raced and/or caused layout artifacts. The correct approach is to NOT fall through to the CSS path for tiling sprites that need canvas — either skip the CSS path entirely for those elements, or set a `data-pending-tile` attribute and apply only after the canvas resolves.
+
+**Implementation steps:**
+
+1. Add `loadImage(uri)` → `Promise<HTMLImageElement>` with a `Map` cache (keyed by URI).
+2. Add `extractSpriteDataUrl(uri, crop)` → `Promise<string>` with a result cache (keyed by `uri:x,y,w,h`).
+3. In `applyAsset`, when `needsCanvasH || needsCanvasV`:
+   - Skip the CSS placeholder path for the tiling axes.
+   - Call `extractSpriteDataUrl` and apply only after resolution.
+   - Set a placeholder background (solid or the non-tiling CSS) until the promise resolves.
+4. Vertical edges (`crop.tilesV && crop.sheetH > crop.height`): same treatment, but in practice the current vertical DiamondMetal sheets don't need it (sheetH = crop.height). Handle generically anyway.
+
+**Effort:** S — the logic is understood; the first attempt failed on async ordering. ~2–4 hours to implement correctly.

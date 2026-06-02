@@ -690,19 +690,21 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
       const prefixTilesH = name.startsWith("_");
       const prefixTilesV = name.startsWith("!");
       if (manifest) {
-        const entry =
-          manifest[origLower] ??
-          manifest[stripped] ??
-          manifest[strippedLower] ??
-          manifest[strippedLower + "-2x"];
+        let entry = manifest[origLower] ?? manifest[stripped] ?? manifest[strippedLower];
+        let scaleDivisor = 1;
+        if (!entry) {
+          entry = manifest[origLower + "-2x"] ?? manifest[strippedLower + "-2x"];
+          if (entry) scaleDivisor = 2;
+        }
         if (entry) {
           const { x, y, width, height, sheetW, sheetH, tilesH, tilesV } = entry;
-          // texcoords in 0–1 UV space
+          const d = scaleDivisor;
+          // texcoords in 0–1 UV space (ratios are scale-invariant)
           return {
             tilesHorizontally: tilesH || prefixTilesH,
             tilesVertically: tilesV || prefixTilesV,
-            width,
-            height,
+            width: width / d,
+            height: height / d,
             leftTexCoord: x / sheetW,
             rightTexCoord: (x + width) / sheetW,
             topTexCoord: y / sheetH,

@@ -10,5 +10,6 @@
   "files.insertFinalNewline": true,
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
-  "scryer.showRuler": true
+  "scryer.showRuler": true,
+  "scryer.screenResolution": "3440x1440"
 }
