@@ -383,15 +383,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#typed-scalar-returns-in-generated-stubs">Typed scalar returns</a>, <a href="backlog-archive.md#wow-type-system-generation">WoW type system generation</a>, <a href="backlog-archive.md#event-name-constants-generation">Event name constants</a></td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td><a href="backlog.md#enum-stub-generation">Enum stub generation</a></td>
-  <td>⬜ Deferred</td>
-  <td>Generate _Enum.ts stub table from Enumeration documentation entries</td>
-  <td>S</td>
-  <td>13</td>
+  <td colspan="5">✅ <a href="backlog-archive.md#typed-scalar-returns-in-generated-stubs">Typed scalar returns</a>, <a href="backlog-archive.md#wow-type-system-generation">WoW type system generation</a>, <a href="backlog-archive.md#event-name-constants-generation">Event name constants</a>, <a href="backlog-archive.md#enum-stub-generation">Enum stub generation</a></td>
 </tr>
 </tbody>
 </table>

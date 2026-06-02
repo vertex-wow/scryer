@@ -796,3 +796,11 @@ Added `C_ScriptedAnimations.GetAllScriptedAnimationEffects = function() return {
 **Status: ✅ Done (2026-06-02)**
 
 Added `generateEventsContent()` to `dev/gen-api-stubs.ts`. On a retail run it now emits `src/lua/api-stubs/_Events.ts` — a `WowEvents` const object (1739 entries, all retail event literal names) with a derived `WowEventName` union type. `index.ts` re-exports `WowEventName`. The file is hash-checked via `writeIfChanged` so unchanged runs don't dirty git. Initial `_Events.ts` generated from existing retail stub event comments.
+
+---
+
+## Enum stub generation
+
+**Status: ✅ Done (2026-06-02)**
+
+Added `EnumValue?: number` to `DocField`, `generateEnumContent()` to `dev/gen-api-stubs.ts`, and wired it into the retail block of `run()`. On a retail run it emits `src/lua/api-stubs/_Enum.ts` — a Lua code string that replaces the `_deep_proxy()` stub with real numeric constants (830 enum tables, ~12 000 entries). `generateIndex()` now imports `_Enum` and prepends it to `_retailLua` so all flavors get correct `Enum.X.Y` values at runtime.

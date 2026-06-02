@@ -461,15 +461,3 @@ The implementation applied the canvas result asynchronously (`Promise.then`), bu
 See `docs/plan/013_api_stub_autogen.md` for full architecture.
 
 **Effort:** M
-
----
-
-## Enum stub generation
-
-**Status:** ⬜ Deferred (after M13)
-
-**Problem:** The global `Enum` table (`Enum.TitleIconVersion`, `Enum.AddOnEnableState`, etc.) is populated by the C layer. Currently `Enum = {}` is empty. When Blizzard Lua compares against `Enum.X` constants it gets nil — usually harmless but can cause wrong-branch execution.
-
-**Plan:** Extend `gen-api-stubs.ts` to parse `Type = "Enumeration"` tables in the Documentation files and emit `src/lua/api-stubs/_Enum.ts` with numeric constant stubs. Register via `registerStubs` alongside the function stubs.
-
-**Effort:** S
