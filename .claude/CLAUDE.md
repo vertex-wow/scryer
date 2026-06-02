@@ -21,14 +21,14 @@ Implementation roadmap. One file per milestone (`000_overview.md`, `001_xml_pars
 `000_overview.md` uses **one HTML `<table>` per milestone**, each under a `###` subheading. The table structure is:
 
 - **Milestone row** — 6 columns (`#`, `Name`, `Status`, `Description`, `Effort`, `Depends on`), name in `<strong>`.
-- **Completed ↳ row** — a single row with `↳` in col 1 and `colspan="5"` on col 2, containing a ✅ prefix followed by comma-separated `<a>` links to backlog.md anchors. All completed backlog items for a milestone collapse into one row — no dates or descriptions in the table.
+- **Completed ↳ row** — a single row with `↳` in col 1 and `colspan="5"` on col 2, containing a ✅ prefix followed by comma-separated `<a>` links to **backlog-archive.md** anchors. All completed backlog items for a milestone collapse into one row — no dates or descriptions in the table.
 - **Pending ↳ rows** — full 6-column rows, one per item, with status emoji, description, effort, and depends-on filled in.
 - **No ↳ milestones** — table contains only the milestone row.
 
 **Editing rules:**
 
 - **Adding a pending ↳:** Add a full 6-column `<tr>` below any completed ↳ row, under the milestone that enables or most naturally precedes it.
-- **Completing a ↳:** Remove the full pending row. Add a link to it in the completed ↳ row's `colspan="5"` cell (create that row if it doesn't exist yet). No date needed in the table — dates live in backlog.md.
+- **Completing a ↳:** Remove the full pending row. Add a link to it in the completed ↳ row's `colspan="5"` cell (create that row if it doesn't exist yet). No date needed in the table — dates live in backlog-archive.md. Move the full entry from backlog.md to backlog-archive.md.
 - **After any table edit:** confirm no pending ↳ `<tr>` appears above the completed ↳ `<tr>` within the same `<tbody>`.
 
 ### `docs/decisions/`
@@ -68,7 +68,7 @@ Any time future work is identified — during implementation, writing reference 
 
 To record a deferred item:
 1. **`docs/plan/000_overview.md` first** — add a pending `↳` row to the milestone table under the milestone that most naturally enables or precedes the work. This is the visibility step; skipping it means the item is invisible to anyone scanning the roadmap.
-2. **`docs/plan/backlog.md` second** — add a full entry with a short description, the problem it solves, a rough plan, and an effort estimate. The overview row links here.
+2. **`docs/plan/backlog.md` second** — add a full entry with a short description, the problem it solves, a rough plan, and an effort estimate. The overview row links here. When an item is completed, move its entry to `docs/plan/backlog-archive.md` and update the overview link to point at the archive.
 
 Do not silently discard deferred items or bury them in reference doc prose. They belong in `docs/plan/` so they are visible and prioritizable rather than lost in a document someone may never re-read.
 
