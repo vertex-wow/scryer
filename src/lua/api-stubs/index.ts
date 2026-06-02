@@ -789,3 +789,4 @@ export async function registerStubs(
 }
 
 export { retailManifest } from "./manifest.retail.js";
+export type { WowEventName } from "./_Events.js";

@@ -464,18 +464,6 @@ See `docs/plan/013_api_stub_autogen.md` for full architecture.
 
 ---
 
-## Event name constants generation
-
-**Status:** ⬜ Deferred (after M13)
-
-**Problem:** Event name strings (e.g. `"TEXTURE_ATLASES_UPDATED"`) are scattered as literals through Lua and TypeScript. Documentation files include typed event definitions. A generated constants file would catch typos and enable IDE autocomplete.
-
-**Plan:** Extend `gen-api-stubs.ts` to emit `src/lua/api-stubs/_Events.ts` with a typed const object mapping event name to its literal string type (or a union of all known event names). Currently events are emitted as comments in namespace files only.
-
-**Effort:** S
-
----
-
 ## Enum stub generation
 
 **Status:** ⬜ Deferred (after M13)

@@ -788,3 +788,11 @@ Added `UnitSex = function(unit) return 2 end` to the WoW API stubs.
 **Status: ✅ Done (2026-05-30)**
 
 Added `C_ScriptedAnimations.GetAllScriptedAnimationEffects = function() return {} end` after the C\_\* namespace tables in `wow-api.ts`.
+
+---
+
+## Event name constants generation
+
+**Status: ✅ Done (2026-06-02)**
+
+Added `generateEventsContent()` to `dev/gen-api-stubs.ts`. On a retail run it now emits `src/lua/api-stubs/_Events.ts` — a `WowEvents` const object (1739 entries, all retail event literal names) with a derived `WowEventName` union type. `index.ts` re-exports `WowEventName`. The file is hash-checked via `writeIfChanged` so unchanged runs don't dirty git. Initial `_Events.ts` generated from existing retail stub event comments.
