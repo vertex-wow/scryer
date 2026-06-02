@@ -28,4 +28,9 @@ await Promise.all([
     entryPoints: ["dev/gen-globalstrings.ts"],
     outfile: "dist/gen-globalstrings.js",
   }),
+  esbuild.build({
+    ...shared,
+    entryPoints: ["dev/gen-api-stubs.ts"],
+    outfile: "dist/gen-api-stubs.js",
+  }),
 ]);

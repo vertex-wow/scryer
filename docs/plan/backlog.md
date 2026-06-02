@@ -320,6 +320,27 @@ See [measurements.md Q1b](../measurements.md#q1b-how-fast-can-we-pre-filter-list
 
 ---
 
+## Standardize on lowercase extraction paths
+
+**Status:** 📋 Pending
+
+**Problem:** `community-listfile-withcapitalization.csv` is preferred but some releases don't ship it, forcing a fallback to the lowercase `community-listfile.csv`. When the fallback is used, rustydemon-cli extracts files to lowercase paths (e.g. `interface/addons/...`). Any code that constructs or compares paths using the mixed-case form (`Interface/AddOns/...`) then fails to find the files on a case-sensitive filesystem (Linux, WSL `/tmp`). Today we work around this in `gen-api-stubs.ts` with a `findDirCaseInsensitive` helper, but every extraction consumer has the same latent bug.
+
+**Why:** WoW's virtual filesystem is case-insensitive. All paths in CASC are stored lowercase internally. The capitalized listfile is a community convenience artifact, not authoritative. Standardizing on lowercase removes the dependency on that artifact and eliminates a whole class of case-mismatch bugs.
+
+**Plan:**
+
+1. **Flip listfile priority** in `extract-core.ts`: try `community-listfile.csv` (plain, always lowercase) first; try `-withcapitalization` as the opt-in if explicitly requested or if the user somehow needs mixed-case paths for non-WoW tooling.
+2. **Post-extraction normalize** in `extractRetailPaths` / `extractLoosePaths`: after rustydemon or loose-file copy completes, walk the output subtree and rename any directory or file whose name is not already lowercase. One-time pass, idempotent on repeat runs.
+3. **Update all path constants** (`TEXTURE_GLOBS`, `INTERFACE_GLOBS`, `API_DOC_GLOB`, cache lookup keys) to use lowercase. All internal path construction uses `.toLowerCase()` at the boundary where paths enter the system (user input, CASC output).
+4. **Remove `findDirCaseInsensitive`** from `gen-api-stubs.ts` once the normalization step above is in place.
+
+**Why:** Fixes fallback-listfile extraction silently landing files at wrong case paths. Immune to Blizzard renaming folders between patches. One fewer exception to reason about across the whole pipeline.
+
+**Effort:** S
+
+---
+
 ## WoW build version tracking and cache invalidation
 
 **Status: Done** (2026-05-27)
@@ -1380,3 +1401,75 @@ The implementation applied the canvas result asynchronously (`Promise.then`), bu
 4. Vertical edges (`crop.tilesV && crop.sheetH > crop.height`): same treatment, but in practice the current vertical DiamondMetal sheets don't need it (sheetH = crop.height). Handle generically anyway.
 
 **Effort:** S — the logic is understood; the first attempt failed on async ordering. ~2–4 hours to implement correctly.
+
+---
+
+## API stub autogeneration (`gen-api-stubs.ts`)
+
+**Status:** ⬜ Pending (M13)
+
+**Problem:** Hand-maintaining WoW API stubs in `wow-api.ts` doesn't scale. There are 329 `Blizzard_APIDocumentationGenerated` files covering 5000+ functions. Currently only two functions are hand-patched to return non-nil (the ones that crash Lua on nil). All other C\_\* calls return nil via a metatable fallback — correct for now, but as more Blizzard Lua loads, more functions will need correct return shapes.
+
+**Plan:** `dev/gen-api-stubs.ts` script:
+
+1. Extracts `Interface/AddOns/Blizzard_APIDocumentationGenerated/*.lua` from the game via cascTool (same pattern as `dev/extract.ts`, reusing `extractPaths` from `src/assets/extract-core.ts`)
+2. Parses each file by executing it in a wasmoon sandbox with a stub `APIDocumentation:AddDocumentationTable` collector (no regex)
+3. Generates `src/lua/api-stubs/base/<Namespace>.ts` from retail (one file per namespace, named by namespace not section name)
+4. Generates `src/lua/api-stubs/<flavor>/<Namespace>.ts` delta files for classic/classic_era — only when a namespace is absent from base or has a different return shape
+5. Return-shape-aware zero values: `IsArray` return → `[]`, non-nilable Structure return → `{}`, else → `undefined`
+6. File-level change detection via `// @gen-hash: sha256:<lua-bytes>` header — skip write if unchanged; stubs accumulate and are never deleted
+7. Per-flavor manifests (`manifest.<flavor>.ts`) list exactly which functions exist in that flavor — drive registration, act as the filter at runtime
+8. Generates `src/lua/api-stubs/index.ts` with `registerStubs(lua, flavor)`
+9. Manual overrides live in `src/lua/api/base/` and `src/lua/api/<flavor>/` — imported after stubs, last writer wins; override files use `import type` from stub for compile-time orphan detection
+
+See `docs/plan/013_api_stub_autogen.md` for full architecture.
+
+**Effort:** M
+
+---
+
+## Typed scalar returns in generated stubs
+
+**Status:** ⬜ Deferred (after M13)
+
+**Problem:** Generated stubs return `undefined` (nil) for all scalar returns. For functions like `GetNumX()` used as loop bounds (`for i=1,GetNumX() do`), nil causes a Lua arithmetic error. Currently deferred because nil surfaces the gap visibly rather than masking it with a wrong value.
+
+**Plan:** Opt-in override layer — a JSON sidecar (e.g. `src/lua/api-stubs/.overrides.json`) maps `Namespace.FunctionName` → explicit return value. Generator writes `undefined` by default; the sidecar patches specific functions to return `0`, `false`, `""` etc. Could also auto-detect: if `Returns[0].Type == "number"` and `Nilable == false`, emit `0`.
+
+**Effort:** S
+
+---
+
+## WoW type system generation
+
+**Status:** ⬜ Deferred (after M13)
+
+**Problem:** Generated stubs use `unknown` for all params and returns. Custom implementations in `src/lua/api/` have no type guidance for what shapes to return. A TypeScript interface per Blizzard Structure table would give implementors correct field names and catch shape errors at compile time.
+
+**Plan:** Extend `gen-api-stubs.ts` to also emit `src/lua/api-stubs/types.ts` with a TypeScript interface per `Type = "Structure"` table. Upgrade stub param/return types from `unknown` to the generated types. Structs referencing other structs get proper imports.
+
+**Effort:** M
+
+---
+
+## Event name constants generation
+
+**Status:** ⬜ Deferred (after M13)
+
+**Problem:** Event name strings (e.g. `"TEXTURE_ATLASES_UPDATED"`) are scattered as literals through Lua and TypeScript. Documentation files include typed event definitions. A generated constants file would catch typos and enable IDE autocomplete.
+
+**Plan:** Extend `gen-api-stubs.ts` to emit `src/lua/api-stubs/_Events.ts` with a typed const object mapping event name to its literal string type (or a union of all known event names). Currently events are emitted as comments in namespace files only.
+
+**Effort:** S
+
+---
+
+## Enum stub generation
+
+**Status:** ⬜ Deferred (after M13)
+
+**Problem:** The global `Enum` table (`Enum.TitleIconVersion`, `Enum.AddOnEnableState`, etc.) is populated by the C layer. Currently `Enum = {}` is empty. When Blizzard Lua compares against `Enum.X` constants it gets nil — usually harmless but can cause wrong-branch execution.
+
+**Plan:** Extend `gen-api-stubs.ts` to parse `Type = "Enumeration"` tables in the Documentation files and emit `src/lua/api-stubs/_Enum.ts` with numeric constant stubs. Register via `registerStubs` alongside the function stubs.
+
+**Effort:** S

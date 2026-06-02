@@ -129,6 +129,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>S–M</td>
   <td>—</td>
 </tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#standardize-on-lowercase-extraction-paths">Lowercase extraction paths</a></td>
+  <td>📋 Pending</td>
+  <td>Use plain lowercase listfile as primary; normalize all extracted paths to lowercase so all lookup code is case-agnostic</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
 </tbody>
 </table>
 
@@ -356,6 +364,54 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>Secondary Lua API to drive simulated game state; test one addon's reaction through another</td>
   <td>M–L</td>
   <td>12</td>
+</tr>
+</tbody>
+</table>
+
+### M13 — API Stub Autogeneration
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>13</td>
+  <td><strong><a href="013_api_stub_autogen.md">API Stub Autogeneration</a></strong></td>
+  <td>⬜ Pending</td>
+  <td>dev/gen-api-stubs.ts extracts Blizzard_APIDocumentationGenerated, parses it, auto-generates src/lua/api-stubs/ per flavor</td>
+  <td>M</td>
+  <td>6</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#typed-scalar-returns-in-generated-stubs">Typed scalar returns</a></td>
+  <td>⬜ Deferred</td>
+  <td>Fabricate 0/false for non-nilable scalar returns where nil causes crashes</td>
+  <td>S</td>
+  <td>13</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#wow-type-system-generation">WoW type system generation</a></td>
+  <td>⬜ Deferred</td>
+  <td>Generate TypeScript interfaces for all Blizzard Structure tables in src/lua/api-stubs/types.ts</td>
+  <td>M</td>
+  <td>13</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#event-name-constants-generation">Event name constants</a></td>
+  <td>⬜ Deferred</td>
+  <td>Generate typed constants for all Blizzard event literal names</td>
+  <td>S</td>
+  <td>13</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#enum-stub-generation">Enum stub generation</a></td>
+  <td>⬜ Deferred</td>
+  <td>Generate _Enum.ts stub table from Enumeration documentation entries</td>
+  <td>S</td>
+  <td>13</td>
 </tr>
 </tbody>
 </table>

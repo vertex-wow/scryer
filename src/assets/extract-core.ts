@@ -73,6 +73,8 @@ const LOOSE_INTERFACE_EXTS = new Set([".lua", ".xml", ".toc"]);
 
 const LISTFILE_URL =
   "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile-withcapitalization.csv";
+const LISTFILE_URL_FALLBACK =
+  "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv";
 
 /** Stream a URL (following redirects) to a local file. */
 function streamToFile(url: string, outPath: string, log?: (line: string) => void): Promise<void> {
@@ -119,7 +121,16 @@ export async function ensureListfile(
   if (fs.existsSync(listfilePath)) return listfilePath;
   await fs.promises.mkdir(listfileDir, { recursive: true });
   log?.(`Downloading community listfile to ${listfilePath}...`);
-  await streamToFile(LISTFILE_URL, listfilePath, log);
+  try {
+    await streamToFile(LISTFILE_URL, listfilePath, log);
+  } catch (err) {
+    if ((err as Error).message?.includes("HTTP 404")) {
+      log?.(`  (withcapitalization not available, falling back to plain listfile)`);
+      await streamToFile(LISTFILE_URL_FALLBACK, listfilePath, log);
+    } else {
+      throw err;
+    }
+  }
   return listfilePath;
 }
 

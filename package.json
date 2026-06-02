@@ -278,6 +278,7 @@
     "links": "node dev/bench.build.mjs && node dist/links.js",
     "assets": "node dev/bench.build.mjs && node dist/assets.js",
     "gen-globalstrings": "node dev/bench.build.mjs && node dist/gen-globalstrings.js",
+    "gen-api-stubs": "node dev/bench.build.mjs && node dist/gen-api-stubs.js",
     "package": "pnpm run build && vsce package --no-dependencies",
     "publish": "pnpm run build && vsce publish --no-dependencies",
     "prepare": "husky"
