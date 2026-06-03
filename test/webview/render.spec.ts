@@ -94,6 +94,10 @@ async function queryRendered(page: Page) {
         height: parseInt(el.style.height) || el.offsetHeight,
         left: parseInt(el.style.left),
         top: parseInt(el.style.top),
+        text:
+          el.dataset.kind === "FontString"
+            ? (el.querySelector("span")?.textContent ?? "")
+            : undefined,
       })),
   );
 }
@@ -217,4 +221,39 @@ test("emits requestAsset for textures with file paths", async ({ page }) => {
   );
   expect(assetRequests.length).toBeGreaterThan(0);
   expect(assetRequests.some((m) => m.path?.includes("spell_holy_flash"))).toBe(true);
+});
+
+test("FontString text content appears in DOM", async ({ page }) => {
+  await renderFrames(page, [
+    makeFrame({
+      name: "LabelFrame",
+      size: { x: 300, y: 60 },
+      anchors: [{ point: "CENTER" }],
+      layers: [
+        {
+          level: "ARTWORK",
+          subLevel: 0,
+          objects: [
+            {
+              kind: "FontString",
+              name: "LabelText",
+              inherits: [],
+              mixin: [],
+              virtual: false,
+              anchors: [{ point: "CENTER" }],
+              keyValues: [],
+              sourceFile: "test",
+              text: "Hello World",
+            },
+          ],
+        },
+      ],
+    }),
+  ]);
+
+  const rendered = await queryRendered(page);
+  const fs = rendered.find((el) => el.name === "LabelText");
+  expect(fs).toBeDefined();
+  expect(fs!.kind).toBe("FontString");
+  expect(fs!.text).toBe("Hello World");
 });
