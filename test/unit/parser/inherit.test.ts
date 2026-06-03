@@ -1,6 +1,6 @@
-import { parseXmlFile } from "../../src/parser/xml";
-import { resolveInheritance } from "../../src/parser/inherit";
-import type { FrameIR } from "../../src/parser/ir";
+import { parseXmlFile } from "../../../src/parser/xml";
+import { resolveInheritance } from "../../../src/parser/inherit";
+import type { FrameIR } from "../../../src/parser/ir";
 
 function singleDoc(xml: string) {
   const doc = parseXmlFile("test.xml", xml);

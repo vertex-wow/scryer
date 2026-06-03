@@ -1,7 +1,7 @@
 import * as path from "path";
-import { createSandbox, doStringWithTimeout, isLuaTimeout } from "../../src/lua/sandbox";
+import { createSandbox, doStringWithTimeout, isLuaTimeout } from "../../../src/lua/sandbox";
 
-const WASM_PATH = path.join(__dirname, "../../node_modules/wasmoon/dist/glue.wasm");
+const WASM_PATH = path.join(__dirname, "../../../node_modules/wasmoon/dist/glue.wasm");
 
 async function lua(script: string): Promise<unknown> {
   const sandbox = await createSandbox(WASM_PATH);

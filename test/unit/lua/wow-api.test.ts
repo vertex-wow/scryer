@@ -1,11 +1,11 @@
 import * as fs from "fs";
 import * as path from "path";
-import { createSandbox } from "../../src/lua/sandbox";
-import { registerWowApi, VirtualClock } from "../../src/lua/wow-api";
+import { createSandbox } from "../../../src/lua/sandbox";
+import { registerWowApi, VirtualClock } from "../../../src/lua/wow-api";
 import type { LuaEngine } from "wasmoon";
 
-const WASM_PATH = path.join(__dirname, "../../node_modules/wasmoon/dist/glue.wasm");
-const CALLBACK_HANDLER_PATH = path.join(__dirname, "../fixtures/libs/CallbackHandler-1.0.lua");
+const WASM_PATH = path.join(__dirname, "../../../node_modules/wasmoon/dist/glue.wasm");
+const CALLBACK_HANDLER_PATH = path.join(__dirname, "../../fixtures/libs/CallbackHandler-1.0.lua");
 
 async function make(
   opts: { printed?: string[] } = {},

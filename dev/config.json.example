@@ -5,5 +5,7 @@
 
   "wowAccount": "youraccountname",
 
-  "cascToolPath": "/path/to/rustydemon-cli"
+  "cascToolPath": "/path/to/rustydemon-cli",
+
+  "extractedAssetsDir": "/path/to/extracted/assets"
 }

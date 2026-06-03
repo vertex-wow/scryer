@@ -1,12 +1,12 @@
 import * as path from "path";
-import { createSandbox } from "../../src/lua/sandbox";
-import { registerWowApi, VirtualClock } from "../../src/lua/wow-api";
-import { registerFrameModel } from "../../src/lua/createframe";
-import { FrameRegistry } from "../../src/lua/frame-registry";
-import { importXmlFile, type ImportContext } from "../../src/lua/xml-importer";
+import { createSandbox } from "../../../src/lua/sandbox";
+import { registerWowApi, VirtualClock } from "../../../src/lua/wow-api";
+import { registerFrameModel } from "../../../src/lua/createframe";
+import { FrameRegistry } from "../../../src/lua/frame-registry";
+import { importXmlFile, type ImportContext } from "../../../src/lua/xml-importer";
 import type { LuaEngine } from "wasmoon";
 
-const WASM_PATH = path.join(__dirname, "../../node_modules/wasmoon/dist/glue.wasm");
+const WASM_PATH = path.join(__dirname, "../../../node_modules/wasmoon/dist/glue.wasm");
 
 async function setup(): Promise<{ lua: LuaEngine; registry: FrameRegistry }> {
   const registry = new FrameRegistry(1024, 768);

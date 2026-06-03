@@ -1,4 +1,4 @@
-import { FrameRegistry } from "../../src/lua/frame-registry";
+import { FrameRegistry } from "../../../src/lua/frame-registry";
 
 describe("FrameRegistry", () => {
   function make(w = 1024, h = 768) {

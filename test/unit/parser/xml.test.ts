@@ -1,9 +1,9 @@
 import * as fs from "fs";
 import * as path from "path";
-import { parseXmlFile } from "../../src/parser/xml";
-import type { FrameIR, TextureIR } from "../../src/parser/ir";
+import { parseXmlFile } from "../../../src/parser/xml";
+import type { FrameIR, TextureIR } from "../../../src/parser/ir";
 
-const LIVE = path.join(__dirname, "../../_live/Addons");
+const LIVE = path.join(__dirname, "../../../_live/Addons");
 const describeIfLive = fs.existsSync(LIVE) ? describe : describe.skip;
 
 function readFixture(rel: string): string {
@@ -570,7 +570,7 @@ describe("parseXmlFile — ExampleControlMoveableFrame (cookbook)", () => {
 
 // describeIfCookbook — reads files from the _reference/wow-cookbook symlink.
 // Skipped when the sibling repo is absent (e.g. fresh clone in CI without it).
-const COOKBOOK = path.join(__dirname, "../../_reference/wow-cookbook/docs/frames/Addons");
+const COOKBOOK = path.join(__dirname, "../../../_reference/wow-cookbook/docs/frames/Addons");
 const describeIfCookbook = fs.existsSync(COOKBOOK) ? describe : describe.skip;
 
 describeIfCookbook("parseXmlFile — ExampleControlBottomTabs (cookbook file)", () => {

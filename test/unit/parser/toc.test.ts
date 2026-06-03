@@ -1,8 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
-import { isTocFile, parseToc } from "../../src/parser/toc";
+import { isTocFile, parseToc } from "../../../src/parser/toc";
 
-const LIVE = path.join(__dirname, "../../_live/Addons");
+const LIVE = path.join(__dirname, "../../../_live/Addons");
 const describeIfLive = fs.existsSync(LIVE) ? describe : describe.skip;
 
 describe("isTocFile", () => {

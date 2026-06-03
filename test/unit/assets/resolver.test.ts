@@ -1,7 +1,11 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { clearResolutionMemo, normalizePath, resolveTexturePath } from "../../src/assets/resolver";
+import {
+  clearResolutionMemo,
+  normalizePath,
+  resolveTexturePath,
+} from "../../../src/assets/resolver";
 
 describe("normalizePath", () => {
   it("converts backslashes to forward slashes", () => {

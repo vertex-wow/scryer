@@ -11,7 +11,7 @@ import {
   readBuildStamp,
   readBuildText,
   writeBuildStamp,
-} from "../../src/assets/build-info";
+} from "../../../src/assets/build-info";
 
 // Minimal realistic .build.info content (pipe-delimited, two products).
 const SAMPLE_BUILD_INFO = [

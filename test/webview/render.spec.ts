@@ -1,106 +1,17 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-
-// ---------------------------------------------------------------------------
-// Fixture config — read defaults.json directly so values stay in sync.
-// ---------------------------------------------------------------------------
-
-const DEFAULTS_JSON = JSON.parse(
-  readFileSync(resolve(__dirname, "../../src/flavors/defaults.json"), "utf8"),
-);
-const D = DEFAULTS_JSON.default;
-
-const FLAVOR_CONFIG = {
-  ...D,
-  uiParentWidth: Math.round((D.uiParentHeight * D.screenWidth) / D.screenHeight),
-};
-
-const VIEWPORT = { w: FLAVOR_CONFIG.uiParentWidth, h: FLAVOR_CONFIG.uiParentHeight };
-const TOOLBAR_STATE = { flavor: "retail", locale: "enUS", screenResolution: "1920x1080" };
-const HARNESS = `file://${resolve(__dirname, "harness.html")}`;
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makeFrame(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  return {
-    kind: "Frame",
-    inherits: [],
-    mixin: [],
-    virtual: false,
-    anchors: [],
-    keyValues: [],
-    layers: [],
-    children: [],
-    scripts: [],
-    templateChain: [],
-    sourceFile: "test",
-    ...overrides,
-  };
-}
-
-function makeTexture(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  return {
-    kind: "Texture",
-    inherits: [],
-    mixin: [],
-    virtual: false,
-    anchors: [],
-    setAllPoints: true,
-    keyValues: [],
-    sourceFile: "test",
-    ...overrides,
-  };
-}
-
-async function renderFrames(page: Page, frames: Record<string, unknown>[]): Promise<void> {
-  await page.goto(HARNESS);
-  await page.evaluate(
-    ({ frames, viewport, flavorConfig, toolbarState }) => {
-      window.postMessage(
-        {
-          type: "render",
-          frames,
-          viewport,
-          warnings: 0,
-          extractionPending: false,
-          pendingFiles: 0,
-          flavorConfig,
-          toolbarState,
-        },
-        "*",
-      );
-    },
-    { frames, viewport: VIEWPORT, flavorConfig: FLAVOR_CONFIG, toolbarState: TOOLBAR_STATE },
-  );
-  // Wait for render — #debug updates to "rendered N frame(s) ✓" synchronously after the message.
-  await expect(page.locator("#debug")).toContainText("rendered", { timeout: 2000 });
-}
-
-/**
- * Query all named rendered elements from the live DOM.
- * Returns CSS layout values (WoW logical pixels, unaffected by pan/zoom transforms).
- */
-async function queryRendered(page: Page) {
-  return page.evaluate(() =>
-    Array.from(document.querySelectorAll<HTMLElement>("#viewport [data-name]"))
-      .filter((el) => el.dataset.name !== "")
-      .map((el) => ({
-        name: el.dataset.name!,
-        kind: el.dataset.kind ?? "unknown",
-        width: parseInt(el.style.width) || el.offsetWidth,
-        height: parseInt(el.style.height) || el.offsetHeight,
-        left: parseInt(el.style.left),
-        top: parseInt(el.style.top),
-        text:
-          el.dataset.kind === "FontString"
-            ? (el.querySelector("span")?.textContent ?? "")
-            : undefined,
-      })),
-  );
-}
+import { blpToPng } from "../../src/assets/blp";
+import {
+  VIEWPORT,
+  FLAVOR_CONFIG,
+  TOOLBAR_STATE,
+  HARNESS,
+  makeFrame,
+  makeTexture,
+  renderFrames,
+  queryRendered,
+} from "./helpers";
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -221,6 +132,115 @@ test("emits requestAsset for textures with file paths", async ({ page }) => {
   );
   expect(assetRequests.length).toBeGreaterThan(0);
   expect(assetRequests.some((m) => m.path?.includes("spell_holy_flash"))).toBe(true);
+});
+
+test("applies assetResolved uri to texture backgroundImage (BLP fixture)", async ({ page }) => {
+  const pngBuf = blpToPng(resolve(__dirname, "../fixtures/assets/vertex-icon.blp"));
+  const dataUri = `data:image/png;base64,${pngBuf.toString("base64")}`;
+
+  const texturePath = "Interface\\Textures\\vertex-icon.blp";
+
+  await renderFrames(page, [
+    makeFrame({
+      name: "BlpTextureFrame",
+      size: { x: 64, y: 64 },
+      anchors: [{ point: "CENTER" }],
+      layers: [
+        {
+          level: "ARTWORK",
+          subLevel: 0,
+          objects: [makeTexture({ name: "BlpTex", file: texturePath })],
+        },
+      ],
+    }),
+  ]);
+
+  // Frame is 64×64 and centered in the viewport.
+  const rendered = await queryRendered(page);
+  const frame = rendered.find((f) => f.name === "BlpTextureFrame");
+  expect(frame).toBeDefined();
+  expect(frame!.width).toBe(64);
+  expect(frame!.height).toBe(64);
+  expect(frame!.left).toBe(Math.round(VIEWPORT.w / 2 - 32));
+  expect(frame!.top).toBe(VIEWPORT.h / 2 - 32);
+
+  // Verify the webview requested the asset.
+  const messages = await page.evaluate(
+    () => (window as Window & { _vscodeMessages: unknown[] })._vscodeMessages,
+  );
+  const requested = (messages as Array<{ type: string; path?: string }>).some(
+    (m) => m.type === "requestAsset" && m.path === texturePath,
+  );
+  expect(requested).toBe(true);
+
+  // Simulate the extension responding with the decoded PNG.
+  await page.evaluate(
+    ({ path, uri }) => {
+      window.postMessage({ type: "assetResolved", path, uri }, "*");
+    },
+    { path: texturePath, uri: dataUri },
+  );
+
+  // Texture fills the frame (setAllPoints=true) and backgroundImage is applied.
+  const texStyle = await page.evaluate((path) => {
+    const escaped = path.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const el = document.querySelector<HTMLElement>(`[data-asset-path="${escaped}"]`);
+    return el
+      ? { backgroundImage: el.style.backgroundImage, backgroundSize: el.style.backgroundSize }
+      : null;
+  }, texturePath);
+
+  expect(texStyle).not.toBeNull();
+  expect(texStyle!.backgroundImage).toContain("url(");
+  expect(texStyle!.backgroundSize).toBe("100% 100%");
+});
+
+test("frameStrata maps to correct z-index", async ({ page }) => {
+  await renderFrames(page, [
+    makeFrame({ name: "MediumFrame", frameStrata: "MEDIUM", anchors: [{ point: "CENTER" }] }),
+    makeFrame({ name: "HighFrame", frameStrata: "HIGH", anchors: [{ point: "CENTER" }] }),
+    makeFrame({ name: "BgFrame", frameStrata: "BACKGROUND", anchors: [{ point: "CENTER" }] }),
+  ]);
+
+  const zIndices = await page.evaluate(() => {
+    function z(name: string) {
+      const el = document.querySelector<HTMLElement>(`[data-name="${name}"]`);
+      return el ? parseInt(el.style.zIndex) : null;
+    }
+    return { medium: z("MediumFrame"), high: z("HighFrame"), bg: z("BgFrame") };
+  });
+
+  // strataIndex * 1000: BACKGROUND=1, MEDIUM=3, HIGH=4
+  expect(zIndices.bg).toBe(1000);
+  expect(zIndices.medium).toBe(3000);
+  expect(zIndices.high).toBe(4000);
+});
+
+test("layer level maps to correct z-index within a frame", async ({ page }) => {
+  await renderFrames(page, [
+    makeFrame({
+      name: "LayerFrame",
+      anchors: [{ point: "CENTER" }],
+      layers: [
+        { level: "BACKGROUND", subLevel: 0, objects: [makeTexture({ name: "BgTex" })] },
+        { level: "ARTWORK", subLevel: 0, objects: [makeTexture({ name: "ArtTex" })] },
+        { level: "OVERLAY", subLevel: 0, objects: [makeTexture({ name: "OvTex" })] },
+      ],
+    }),
+  ]);
+
+  const layerZ = await page.evaluate(() => {
+    function z(layer: string) {
+      const el = document.querySelector<HTMLElement>(`[data-layer="${layer}"]`);
+      return el ? parseInt(el.style.zIndex) : null;
+    }
+    return { bg: z("BACKGROUND"), art: z("ARTWORK"), ov: z("OVERLAY") };
+  });
+
+  // layerIndex * 20 + subLevel(0) + 8: BACKGROUND=8, ARTWORK=48, OVERLAY=68
+  expect(layerZ.bg).toBe(8);
+  expect(layerZ.art).toBe(48);
+  expect(layerZ.ov).toBe(68);
 });
 
 test("FontString text content appears in DOM", async ({ page }) => {

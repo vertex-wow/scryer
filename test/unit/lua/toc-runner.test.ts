@@ -1,15 +1,15 @@
 import * as fs from "fs";
 import * as path from "path";
-import { createSandbox } from "../../src/lua/sandbox";
-import { registerWowApi, VirtualClock } from "../../src/lua/wow-api";
-import { registerFrameModel } from "../../src/lua/createframe";
-import { FrameRegistry } from "../../src/lua/frame-registry";
-import { parseToc } from "../../src/parser/toc";
-import { runTocAddon } from "../../src/lua/toc-runner";
+import { createSandbox } from "../../../src/lua/sandbox";
+import { registerWowApi, VirtualClock } from "../../../src/lua/wow-api";
+import { registerFrameModel } from "../../../src/lua/createframe";
+import { FrameRegistry } from "../../../src/lua/frame-registry";
+import { parseToc } from "../../../src/parser/toc";
+import { runTocAddon } from "../../../src/lua/toc-runner";
 import type { LuaEngine } from "wasmoon";
 
-const WASM_PATH = path.join(__dirname, "../../node_modules/wasmoon/dist/glue.wasm");
-const FIXTURE_DIR = path.join(__dirname, "../fixtures/SimpleAddon");
+const WASM_PATH = path.join(__dirname, "../../../node_modules/wasmoon/dist/glue.wasm");
+const FIXTURE_DIR = path.join(__dirname, "../../fixtures/SimpleAddon");
 
 async function setup(): Promise<{ lua: LuaEngine; registry: FrameRegistry; clock: VirtualClock }> {
   const registry = new FrameRegistry(1024, 768);
