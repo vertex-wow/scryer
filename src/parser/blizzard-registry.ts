@@ -87,7 +87,11 @@ function tocXmlFiles(tocPath: string): string[] {
  * Only paths that exist on disk are included. Returns empty array if the addon
  * is not extracted or has no TOC.
  */
-export function blizzardAddonLuaFiles(addonsDir: string, addonName: string): string[] {
+export function blizzardAddonLuaFiles(
+  addonsDir: string,
+  addonName: string,
+  onMissing?: (relPath: string) => void,
+): string[] {
   const tocPath = findTocPath(resolveCI(addonsDir, addonName), addonName);
   if (!tocPath) return [];
   const addonDir = path.dirname(tocPath);
@@ -98,17 +102,17 @@ export function blizzardAddonLuaFiles(addonsDir: string, addonName: string): str
     return [];
   }
   const toc = parseToc(content);
-  return toc.files
-    .filter((f) => f.type === "lua")
-    .map((f) => resolveCI(addonDir, f.path))
-    .filter((p) => {
-      try {
-        fs.accessSync(p, fs.constants.R_OK);
-        return true;
-      } catch {
-        return false;
-      }
-    });
+  const result: string[] = [];
+  for (const f of toc.files.filter((f) => f.type === "lua")) {
+    const p = resolveCI(addonDir, f.path);
+    try {
+      fs.accessSync(p, fs.constants.R_OK);
+      result.push(p);
+    } catch {
+      onMissing?.(f.path);
+    }
+  }
+  return result;
 }
 
 /**

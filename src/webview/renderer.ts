@@ -73,6 +73,9 @@ function renderTexture(tex: TextureIR, rect: Rect, config: ResolvedFlavorConfig)
   if (tex.texCoords) {
     el.dataset.texCoords = JSON.stringify(tex.texCoords);
   }
+  if (tex.maskFile) {
+    el.dataset.maskFile = tex.maskFile;
+  }
 
   // Suppress if hidden
   if (tex.hidden) el.style.opacity = "0.4";
@@ -195,8 +198,9 @@ function renderFrame(
   el.dataset.name = frame.name ?? "";
   el.dataset.kind = frame.kind;
   el.style.position = "absolute";
-  // WoW doesn't clip frame children; border NineSlice corners must bleed past frame bounds.
-  el.style.overflow = frame.useParentLevel ? "visible" : "hidden";
+  // WoW never clips frame children — portrait icons, tooltips, and NineSlice corners all
+  // intentionally bleed past their parent's bounds.
+  el.style.overflow = "visible";
   // useParentLevel frames share the parent's frame level in WoW — their content should
   // composite below the parent's ARTWORK layer. CSS stacking can't split a child's layers
   // across parent layers, so we approximate by placing the whole child div in the BORDER

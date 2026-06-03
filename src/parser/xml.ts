@@ -338,6 +338,19 @@ function parseTexture(node: RawNode, sourceFile: string): TextureIR {
       case "Color":
         tex.color = parseColor(child);
         break;
+      case "MaskedTextures":
+        for (const mt of childrenOf(child)) {
+          if (tagOf(mt) === "MaskedTexture") {
+            const key = strAttr(attrsOf(mt), "childKey");
+            if (key) (tex.maskedChildKeys ??= []).push(key);
+          }
+        }
+        break;
+      case "MaskedTexture": {
+        const key = strAttr(attrsOf(child), "childKey");
+        if (key) (tex.maskedChildKeys ??= []).push(key);
+        break;
+      }
       case "TexCoords": {
         const ca = attrsOf(child);
         tex.texCoords = {
@@ -429,7 +442,28 @@ function parseLayer(
     // Line and other render objects: silently skip for now
   }
 
-  return { level, subLevel, objects };
+  // Link MaskTexture → target textures, then remove MaskTextures from rendered objects.
+  const byParentKey = new Map<string, TextureIR>();
+  for (const obj of objects) {
+    if ((obj.kind === "Texture" || obj.kind === "MaskTexture") && obj.parentKey) {
+      byParentKey.set(obj.parentKey, obj as TextureIR);
+    }
+  }
+  const rendered: RenderObjectIR[] = [];
+  for (const obj of objects) {
+    if (obj.kind === "MaskTexture") {
+      const mask = obj as TextureIR;
+      if (mask.file && mask.maskedChildKeys) {
+        for (const key of mask.maskedChildKeys) {
+          const target = byParentKey.get(key);
+          if (target) target.maskFile = mask.file;
+        }
+      }
+      continue; // mask is metadata only, not a visual element
+    }
+    rendered.push(obj);
+  }
+  return { level, subLevel, objects: rendered };
 }
 
 // Forward declaration — parseFrame references itself for children

@@ -70,6 +70,7 @@ export class ScryerPanel {
         localResourceRoots: [
           vscode.Uri.joinPath(context.extensionUri, "dist"),
           ...assets.webviewResourceRoots(),
+          ...(vscode.workspace.workspaceFolders ?? []).map((f) => f.uri),
         ],
         retainContextWhenHidden: true,
       },

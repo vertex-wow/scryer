@@ -371,17 +371,19 @@ window.addEventListener("resize", () => {
 // Asset helpers
 // ---------------------------------------------------------------------------
 
-/** After a render, collect all unique [data-asset-path] values and request each. */
+/** After a render, collect all unique [data-asset-path] and [data-mask-file] values and request each. */
 function requestRenderedAssets(): void {
-  const els = Array.from(viewport!.querySelectorAll<HTMLElement>("[data-asset-path]"));
   const seen = new Set<string>();
-  for (const el of els) {
-    const p = el.dataset.assetPath;
+  const request = (p: string | undefined) => {
     if (p && !seen.has(p)) {
       seen.add(p);
       vscode.postMessage({ type: "requestAsset", path: p });
     }
-  }
+  };
+  for (const el of viewport!.querySelectorAll<HTMLElement>("[data-asset-path]"))
+    request(el.dataset.assetPath);
+  for (const el of viewport!.querySelectorAll<HTMLElement>("[data-mask-file]"))
+    request(el.dataset.maskFile);
 }
 
 /** Inject or update the @font-face rule for the WoWDefaultFont family. */
@@ -398,7 +400,7 @@ function applyDefaultFont(uri: string): void {
 
 /** Apply a resolved asset URI to all texture elements sharing that path. */
 function applyAsset(rawPath: string, uri: string): void {
-  const selector = `[data-asset-path="${rawPath.replace(/"/g, '\\"')}"]`;
+  const selector = `[data-asset-path="${rawPath.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"]`;
   const els = Array.from(viewport!.querySelectorAll<HTMLElement>(selector));
   for (const el of els) {
     el.style.backgroundImage = `url("${uri}")`;
@@ -458,6 +460,14 @@ function applyAsset(rawPath: string, uri: string): void {
     const ph = el.querySelector("[data-placeholder]");
     if (ph) ph.remove();
     el.style.pointerEvents = "none";
+  }
+
+  // Apply as mask-image to any texture masked by this path.
+  const escapedMask = rawPath.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  for (const el of viewport!.querySelectorAll<HTMLElement>(`[data-mask-file="${escapedMask}"]`)) {
+    el.style.maskImage = `url("${uri}")`;
+    el.style.maskSize = "100% 100%";
+    el.style.maskRepeat = "no-repeat";
   }
 }
 

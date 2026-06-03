@@ -100,6 +100,7 @@ export class ScryerLivePanel {
         localResourceRoots: [
           vscode.Uri.joinPath(context.extensionUri, "dist"),
           ...assets.webviewResourceRoots(),
+          ...(vscode.workspace.workspaceFolders ?? []).map((f) => f.uri),
         ],
         retainContextWhenHidden: true,
       },
@@ -268,6 +269,11 @@ export class ScryerLivePanel {
       return;
     }
     const uri = this.panel.webview.asWebviewUri(vscode.Uri.file(absPath)).toString();
+    try {
+      this.output.trace(`    assetResolved: ${rawPath} → ${uri}`);
+    } catch {
+      /* disposed */
+    }
     const msg: HostMessage = { type: "assetResolved", path: rawPath, uri };
     void this.panel.webview.postMessage(msg);
   }
@@ -407,7 +413,11 @@ export class ScryerLivePanel {
       // not silent skips. If a file fails, fix the missing C stub or add the dependency
       // addon to this list; do not add a shadow stub in wow-api.ts.
       for (const addonName of ["Blizzard_SharedXMLBase", "Blizzard_Colors", "Blizzard_SharedXML"]) {
-        for (const luaPath of this.assets.blizzardAddonLuaFiles(addonName)) {
+        for (const luaPath of this.assets.blizzardAddonLuaFiles(addonName, (rel) => {
+          this.output.warn(
+            `[Live] Blizzard Lua not extracted — ${addonName}/${rel} (run full extraction to fix)`,
+          );
+        })) {
           try {
             const content = Buffer.from(
               await vscode.workspace.fs.readFile(vscode.Uri.file(luaPath)),

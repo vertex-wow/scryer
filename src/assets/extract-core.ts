@@ -142,7 +142,7 @@ function filterListfile(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     log?.(`Filtering listfile to Interface/ and Fonts/ entries...`);
-    const proc = cp.spawn("grep", ["-F", "-e", ";Interface/", "-e", ";Fonts/", fullPath]);
+    const proc = cp.spawn("grep", ["-F", "-i", "-e", ";Interface/", "-e", ";Fonts/", fullPath]);
     const ws = fs.createWriteStream(filteredPath);
     proc.stdout.pipe(ws);
     proc.stderr.resume();
@@ -176,21 +176,26 @@ export async function ensureFilteredListfile(
   const filteredPath = path.join(listfileDir, "listfile-templates.csv");
   const stampPath = path.join(listfileDir, "listfile-templates.stamp");
 
-  if (buildText) {
-    if (fs.existsSync(filteredPath)) {
-      let stamp: string | null = null;
-      try {
-        stamp = fs.readFileSync(stampPath, "utf8").trim();
-      } catch {
-        // stamp absent — filter needed
+  const filteredExists = fs.existsSync(filteredPath);
+  const filteredEmpty = filteredExists && fs.statSync(filteredPath).size === 0;
+
+  if (!filteredEmpty) {
+    if (buildText) {
+      if (filteredExists) {
+        let stamp: string | null = null;
+        try {
+          stamp = fs.readFileSync(stampPath, "utf8").trim();
+        } catch {
+          // stamp absent — filter needed
+        }
+        if (stamp === buildText) return filteredPath;
       }
-      if (stamp === buildText) return filteredPath;
-    }
-  } else {
-    const filteredStat = fs.existsSync(filteredPath) ? fs.statSync(filteredPath) : null;
-    if (filteredStat) {
-      const fullStat = fs.statSync(fullPath);
-      if (filteredStat.mtimeMs >= fullStat.mtimeMs) return filteredPath;
+    } else {
+      const filteredStat = filteredExists ? fs.statSync(filteredPath) : null;
+      if (filteredStat) {
+        const fullStat = fs.statSync(fullPath);
+        if (filteredStat.mtimeMs >= fullStat.mtimeMs) return filteredPath;
+      }
     }
   }
 
@@ -294,6 +299,57 @@ function spawnRustydemon(
 // Retail extraction
 // ---------------------------------------------------------------------------
 
+/**
+ * Filter `paths` to only those that appear in the CASC listfile, preventing
+ * wasted rustydemon invocations for addon-local files that were never archived.
+ *
+ * Uses a single grep pass (case-insensitive, fixed-string) over the listfile.
+ * On any error (grep absent, listfile unreadable) returns all paths unchanged.
+ */
+async function filterToListfilePaths(
+  listfilePath: string,
+  paths: string[],
+  log?: (line: string) => void,
+): Promise<string[]> {
+  if (paths.length === 0) return [];
+  return new Promise((resolve) => {
+    // Each listfile row is "<FileDataID>;<Path>" — anchor with ";" to avoid partial matches.
+    const args = ["-F", "-i"];
+    for (const p of paths) args.push("-e", `;${p}`);
+    args.push(listfilePath);
+
+    const proc = cp.spawn("grep", args);
+    let out = "";
+    proc.stdout.on("data", (d: Buffer) => (out += d.toString()));
+    proc.stderr.resume();
+    proc.on("error", () => resolve(paths)); // grep not available — skip check
+
+    proc.on("close", () => {
+      const matchedPaths = new Set<string>();
+      for (const line of out.split("\n")) {
+        const semi = line.indexOf(";");
+        if (semi >= 0)
+          matchedPaths.add(
+            line
+              .slice(semi + 1)
+              .trim()
+              .toLowerCase(),
+          );
+      }
+
+      const kept: string[] = [];
+      for (const p of paths) {
+        if (matchedPaths.has(p.toLowerCase())) {
+          kept.push(p);
+        } else {
+          log?.(`    listfile: "${p}" not in CASC archive — skipping extraction`);
+        }
+      }
+      resolve(kept);
+    });
+  });
+}
+
 async function extractRetailPaths(
   paths: string[],
   opts: ExtractCoreOptions,
@@ -301,23 +357,21 @@ async function extractRetailPaths(
   const cascTool = findCascTool(opts.cascToolPath);
   // Use the full listfile: paths extracted here may be outside Interface/ (e.g. Fonts/).
   const listfilePath = await ensureListfile(opts.listfileDir, opts.log);
+
+  const extractable = await filterToListfilePaths(listfilePath, paths, opts.log);
+  if (extractable.length === 0) return { exported: 0, skippedExists: 0, errors: 0 };
+
   await fs.promises.mkdir(opts.outDir, { recursive: true });
 
   const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
   opts.log?.(`assets-extraction: "${opts.flavor}/assets" → global cache "${shortOut}"`);
 
-  const totals: ExtractionResult = { exported: 0, skippedExists: 0, errors: 0 };
-  for (const p of paths) {
-    const r = await spawnRustydemon(
-      cascTool,
-      ["export", "-a", opts.wowDir, "-p", p, "-l", listfilePath, "-o", opts.outDir],
-      opts.log,
-    );
-    totals.exported += r.exported;
-    totals.skippedExists += r.skippedExists;
-    totals.errors += r.errors;
-  }
-  return totals;
+  const pattern = extractable.length === 1 ? extractable[0] : `{${extractable.join(",")}}`;
+  return spawnRustydemon(
+    cascTool,
+    ["export", "-a", opts.wowDir, "-p", pattern, "-l", listfilePath, "-o", opts.outDir],
+    opts.log,
+  );
 }
 
 async function extractRetailBulk(

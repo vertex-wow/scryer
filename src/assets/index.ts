@@ -237,7 +237,14 @@ export class AssetService {
   }
 
   private async _resolve(rawPath: string, addonDir?: string): Promise<string | null> {
-    const found = resolveTexturePath(rawPath, this.searchDirs, addonDir);
+    const log = (msg: string) => {
+      try {
+        this.opts.output.trace(msg);
+      } catch {
+        /* disposed */
+      }
+    };
+    const found = resolveTexturePath(rawPath, this.searchDirs, addonDir, log);
     if (!found) return null;
 
     if (found.kind === "png" || found.kind === "font") {
@@ -409,10 +416,10 @@ export class AssetService {
    * Only files that exist on disk are included. Returns empty array if the addon
    * is not extracted or its TOC is missing.
    */
-  blizzardAddonLuaFiles(addonName: string): string[] {
+  blizzardAddonLuaFiles(addonName: string, onMissing?: (relPath: string) => void): string[] {
     if (!this.opts.sourceDir) return [];
     const addonsDir = resolveAddonsDir(this.opts.sourceDir);
-    return blizzardAddonLuaFiles(addonsDir, addonName);
+    return blizzardAddonLuaFiles(addonsDir, addonName, onMissing);
   }
 
   /**

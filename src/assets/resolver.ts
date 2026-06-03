@@ -45,7 +45,7 @@ function probe(absPath: string): ResolvedAsset | null {
 function candidates(norm: string, dir: string): string[] {
   const withoutInterface = norm.replace(/^interface\//, "");
   const hasExt = /\.(blp|tga|png|ttf|otf)$/.test(norm);
-  const exts = hasExt ? [""] : [".blp", ".tga", ".png"];
+  const exts = hasExt ? [""] : [".png", ".blp", ".tga"];
 
   const stems = [norm];
   if (withoutInterface !== norm) stems.push(withoutInterface);
@@ -70,13 +70,17 @@ const memo = new Map<string, ResolvedAsset | null>();
 /**
  * Resolve a raw WoW texture path to an absolute disk file.
  *
- * Search order: extractedAssetsDir, installDir, addonDir (addon-bundled textures).
+ * Search order:
+ *   1. extractedAssetsDir, installDir, addonDir — standard dirs with the full path
+ *   2. Interface/AddOns/<Name>/... paths → parent of addonDir, with CI addon-folder lookup
+ *
  * Returns the first readable match, or null if nothing found.
  */
 export function resolveTexturePath(
   rawPath: string,
   searchDirs: string[],
   addonDir?: string,
+  log?: (msg: string) => void,
 ): ResolvedAsset | null {
   const memoKey = rawPath + "\0" + searchDirs.join(",") + "\0" + (addonDir ?? "");
   if (memo.has(memoKey)) return memo.get(memoKey) ?? null;
@@ -97,13 +101,74 @@ export function resolveTexturePath(
       if (!isSafe(candidate, dir)) continue;
       const found = probe(candidate);
       if (found) {
+        log?.(`    resolve: hit ${found.absPath}`);
         memo.set(memoKey, found);
         return found;
       }
     }
   }
 
+  // Interface/AddOns/<AddonName>/... → resolve relative to the addons root (parent of addonDir).
+  // Handles own-addon and cross-addon references. CI first-segment probe for the addon folder
+  // name so case-sensitive file systems (Linux) work when the path has been lowercased.
+  if (addonDir && norm.startsWith("interface/addons/")) {
+    const rel = norm.slice("interface/addons/".length);
+    const addonsRoot = path.dirname(addonDir);
+    log?.(`    resolve: addon-relative check — root=${addonsRoot} rel=${rel}`);
+    const found = probeAddonRelative(addonsRoot, rel, log);
+    if (found) {
+      log?.(`    resolve: hit ${found.absPath}`);
+      memo.set(memoKey, found);
+      return found;
+    }
+  }
+
+  log?.(`    resolve: miss — ${rawPath}`);
   memo.set(memoKey, null);
+  return null;
+}
+
+/**
+ * Resolve a path relative to an addons root directory.
+ * The first segment (addon folder name) is matched case-insensitively so that
+ * lowercased WoW paths work on case-sensitive file systems.
+ */
+function probeAddonRelative(
+  addonsRoot: string,
+  normRel: string,
+  log?: (msg: string) => void,
+): ResolvedAsset | null {
+  const slashIdx = normRel.indexOf("/");
+  const firstSeg = slashIdx >= 0 ? normRel.slice(0, slashIdx) : normRel;
+  const rest = slashIdx >= 0 ? normRel.slice(slashIdx + 1) : "";
+
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(addonsRoot);
+  } catch (err) {
+    log?.(`    resolve: addon-relative readdirSync failed — ${addonsRoot}: ${err}`);
+    return null;
+  }
+
+  const match = entries.find((e) => e.toLowerCase() === firstSeg);
+  if (!match) {
+    log?.(
+      `    resolve: addon-relative no match for "${firstSeg}" in ${addonsRoot} (entries: ${entries.slice(0, 8).join(", ")}${entries.length > 8 ? ", …" : ""})`,
+    );
+    return null;
+  }
+
+  const addonRoot = path.join(addonsRoot, match);
+  log?.(`    resolve: addon-relative matched "${match}", probing rest="${rest}" in ${addonRoot}`);
+
+  if (!rest) return probe(addonRoot);
+
+  for (const candidate of candidates(rest, addonRoot)) {
+    if (!isSafe(candidate, addonsRoot)) continue;
+    const found = probe(candidate);
+    if (found) return found;
+    log?.(`    resolve: addon-relative miss ${candidate}`);
+  }
   return null;
 }
 
