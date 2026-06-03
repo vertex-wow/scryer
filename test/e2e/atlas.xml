@@ -1,0 +1,38 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+   https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/FrameXML/UI.xsd">
+
+  <!-- Atlas resolves from mock manifest; useAtlasSize=false (default): texture fills parent frame -->
+  <Frame name="Atlas_FillParent" parent="UIParent">
+    <Size x="64" y="64"/>
+    <Anchors><Anchor point="TOPLEFT" x="20" y="-20"/></Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture atlas="mock-button"/>
+      </Layer>
+    </Layers>
+  </Frame>
+
+  <!-- useAtlasSize=true: texture element is sized from atlas region dimensions -->
+  <Frame name="Atlas_UseAtlasSize" parent="UIParent">
+    <Anchors><Anchor point="TOPLEFT" x="100" y="-20"/></Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture atlas="mock-shadow" useAtlasSize="true"/>
+      </Layer>
+    </Layers>
+  </Frame>
+
+  <!-- Unknown atlas name: must render [atlas] placeholder -->
+  <Frame name="Atlas_Unknown" parent="UIParent">
+    <Size x="160" y="32"/>
+    <Anchors><Anchor point="TOPLEFT" x="200" y="-20"/></Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture atlas="not-a-real-atlas-name"/>
+      </Layer>
+    </Layers>
+  </Frame>
+
+</Ui>
