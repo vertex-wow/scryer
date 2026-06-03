@@ -442,16 +442,30 @@ function parseLayer(
     // Line and other render objects: silently skip for now
   }
 
-  // Link MaskTexture → target textures, then remove MaskTextures from rendered objects.
+  // MaskTexture → target linking happens at frame scope (linkMasks), because a
+  // MaskTexture and its target textures often live in different <Layer> blocks.
+  // Keep MaskTextures in the objects list here; linkMasks strips them afterwards.
+  return { level, subLevel, objects };
+}
+
+/**
+ * Link every MaskTexture to its target textures across all layers of a frame,
+ * setting `maskFile` on each target, then remove MaskTextures from the rendered
+ * object lists (they are metadata, not visual elements). Masks frequently
+ * reference targets in a different <Layer>, so this must run at frame scope.
+ */
+function linkMasks(layers: FrameIR["layers"]): void {
   const byParentKey = new Map<string, TextureIR>();
-  for (const obj of objects) {
-    if ((obj.kind === "Texture" || obj.kind === "MaskTexture") && obj.parentKey) {
-      byParentKey.set(obj.parentKey, obj as TextureIR);
+  for (const layer of layers) {
+    for (const obj of layer.objects) {
+      if ((obj.kind === "Texture" || obj.kind === "MaskTexture") && obj.parentKey) {
+        byParentKey.set(obj.parentKey, obj as TextureIR);
+      }
     }
   }
-  const rendered: RenderObjectIR[] = [];
-  for (const obj of objects) {
-    if (obj.kind === "MaskTexture") {
+  for (const layer of layers) {
+    for (const obj of layer.objects) {
+      if (obj.kind !== "MaskTexture") continue;
       const mask = obj as TextureIR;
       if (mask.file && mask.maskedChildKeys) {
         for (const key of mask.maskedChildKeys) {
@@ -459,11 +473,11 @@ function parseLayer(
           if (target) target.maskFile = mask.file;
         }
       }
-      continue; // mask is metadata only, not a visual element
     }
-    rendered.push(obj);
   }
-  return { level, subLevel, objects: rendered };
+  for (const layer of layers) {
+    layer.objects = layer.objects.filter((obj) => obj.kind !== "MaskTexture");
+  }
 }
 
 // Forward declaration — parseFrame references itself for children
@@ -588,6 +602,9 @@ function parseFrame(node: RawNode, sourceFile: string): FrameIR {
         break;
     }
   }
+
+  // Resolve MaskTexture → target links across all layers, then drop the masks.
+  linkMasks(frame.layers);
 
   return frame;
 }

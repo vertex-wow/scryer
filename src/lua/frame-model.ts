@@ -30,6 +30,8 @@ export interface TextureNode {
   color?: { r: number; g: number; b: number; a: number };
   texCoords?: { left: number; right: number; top: number; bottom: number };
   alphaMode?: string;
+  /** Path to the MaskTexture file that clips this texture (circular portrait mask, etc.). */
+  maskFile?: string;
   shown: boolean;
   alpha: number;
   size?: { x?: number; y?: number };
@@ -165,6 +167,7 @@ export function textureNodeToIR(tex: TextureNode): TextureIR {
     color: tex.color,
     texCoords: tex.texCoords,
     alphaMode: tex.alphaMode as TextureIR["alphaMode"],
+    maskFile: tex.maskFile,
   };
 }
 

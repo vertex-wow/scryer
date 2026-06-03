@@ -463,12 +463,29 @@ function applyAsset(rawPath: string, uri: string): void {
   }
 
   // Apply as mask-image to any texture masked by this path.
+  // VS Code's webview is Electron/Chromium, which honors the -webkit- prefixed
+  // mask properties; set both prefixed and unprefixed for safety.
+  // WoW portrait masks (e.g. TempPortraitAlphaMask.blp) are grayscale luminance
+  // masks — a white circle on black. CSS defaults to mask-mode:alpha, and the
+  // BLP→PNG conversion yields an opaque image (alpha=1 everywhere), so an alpha
+  // mask is a no-op and the full square shows. Force luminance mode so the
+  // brightness channel drives the clip.
   const escapedMask = rawPath.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  for (const el of viewport!.querySelectorAll<HTMLElement>(`[data-mask-file="${escapedMask}"]`)) {
+  const masked = viewport!.querySelectorAll<HTMLElement>(`[data-mask-file="${escapedMask}"]`);
+  for (const el of masked) {
+    el.style.webkitMaskImage = `url("${uri}")`;
     el.style.maskImage = `url("${uri}")`;
+    el.style.webkitMaskSize = "100% 100%";
     el.style.maskSize = "100% 100%";
+    el.style.webkitMaskRepeat = "no-repeat";
     el.style.maskRepeat = "no-repeat";
+    // No webkit-prefixed mask-mode exists; -webkit-mask-source-type is the legacy
+    // equivalent (luminance|alpha). Set both so whichever Chromium honors takes effect.
+    el.style.setProperty("-webkit-mask-source-type", "luminance");
+    el.style.maskMode = "luminance";
   }
+  if (masked.length > 0)
+    dbg(`applied mask ${rawPath} to ${masked.length} element${masked.length === 1 ? "" : "s"}`);
 }
 
 // ---------------------------------------------------------------------------

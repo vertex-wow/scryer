@@ -65,6 +65,7 @@ do
   local _tex_set_vert_tile       = __scryer_tex_set_vert_tile
   local _tex_set_draw_layer      = __scryer_tex_set_draw_layer
   local _tex_set_blend           = __scryer_tex_set_blend_mode
+  local _tex_set_mask_file        = __scryer_tex_set_mask_file
   local _tex_set_alpha           = __scryer_tex_set_alpha
   local _tex_get_alpha           = __scryer_tex_get_alpha
   local _tex_show                = __scryer_tex_show
@@ -169,6 +170,8 @@ do
   function TextureMT:GetVertexColor()  return 1, 1, 1, 1                                        end
   function TextureMT:SetColorTexture(r,g,b,a) _tex_set_color_tex(self.__id, r,g,b,a)           end
   function TextureMT:SetBlendMode(m)           _tex_set_blend(self.__id, m)                     end
+  -- Internal: Scryer-only helper to record a MaskTexture file on this texture (not a WoW API).
+  function TextureMT:__SetMaskFile(path)       _tex_set_mask_file(self.__id, path)              end
   function TextureMT:SetAlpha(a)               _tex_set_alpha(self.__id, a)                     end
   function TextureMT:GetAlpha()        return _tex_get_alpha(self.__id)                         end
   function TextureMT:Show()                    _tex_show(self.__id)                             end
@@ -714,6 +717,7 @@ do
   __scryer_tex_set_vert_tile       = nil
   __scryer_tex_set_draw_layer      = nil
   __scryer_tex_set_blend_mode      = nil
+  __scryer_tex_set_mask_file       = nil
   __scryer_tex_set_alpha           = nil
   __scryer_tex_get_alpha           = nil
   __scryer_tex_show                = nil

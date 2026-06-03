@@ -156,6 +156,7 @@ function generateTemplateBody(
         const texAnchorLines: string[] = [];
         emitTplAnchor(`  ${v}`, tex, texAnchorLines);
         for (const l of texAnchorLines) lines.push(l);
+        if (tex.maskFile) lines.push(`  ${v}:__SetMaskFile(${JSON.stringify(tex.maskFile)})`);
         if (tex.parentKey) lines.push(`  ${selfVar}.${tex.parentKey} = ${v}`);
         if (tex.parentArray) {
           lines.push(`  ${selfVar}.${tex.parentArray} = ${selfVar}.${tex.parentArray} or {}`);
@@ -737,6 +738,13 @@ export async function registerFrameModel(
       registry.markDirty();
     },
   );
+
+  lua.global.set("__scryer_tex_set_mask_file", (id: unknown, path: unknown): void => {
+    const t = tex(id);
+    if (!t) return;
+    t.maskFile = typeof path === "string" ? path : undefined;
+    registry.markDirty();
+  });
 
   lua.global.set("__scryer_tex_set_blend_mode", (id: unknown, mode: unknown): void => {
     const t = tex(id);
