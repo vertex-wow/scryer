@@ -69,6 +69,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>S</td>
   <td>—</td>
 </tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#webview-snapshot-golden-image-regression">Webview snapshot / golden-image regression</a></td>
+  <td>📋 Pending</td>
+  <td>Add Playwright <code>toHaveScreenshot()</code> golden images to the renderer test harness for visual regression CI</td>
+  <td>XS</td>
+  <td>—</td>
+</tr>
 </tbody>
 </table>
 

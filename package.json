@@ -264,6 +264,8 @@
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests",
+    "test:webview": "playwright test",
+    "test:webview:ui": "playwright test --ui",
     "typecheck": "tsc --noEmit -p tsconfig.build.json",
     "dev": "node esbuild.mjs --watch",
     "lint": "eslint src/",
@@ -285,6 +287,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.19.41",
     "@types/pngjs": "^6.0.5",
