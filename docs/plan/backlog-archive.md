@@ -4,6 +4,25 @@ Completed items moved from [backlog.md](backlog.md). Historical record of what w
 
 ---
 
+## Webview snapshot / golden-image regression
+
+**Problem:** The Playwright renderer harness (`test/webview/render.spec.ts`) verifies DOM structure and debug text but cannot catch visual regressions — a layout or color change that produces correct-looking metadata would go undetected.
+
+**Plan:**
+
+1. Add `expect(page).toHaveScreenshot("fixture-name.png")` calls to existing render tests. Playwright auto-creates the golden PNG on first run and diffs on subsequent runs.
+2. Commit the generated `test/webview/render.spec.ts-snapshots/` directory to the repo so CI can enforce them.
+3. Add a `pnpm test:webview:update` script (`playwright test --update-snapshots`) for intentional visual changes.
+4. Consider a dedicated visual fixture (e.g. a frame with a solid-color texture and known geometry) so the snapshot is deterministic across platforms. Cross-platform font rendering differences may require per-OS snapshot baselines or `maxDiffPixelRatio` tolerance.
+
+**Effort:** XS — the harness is already in place; this is just enabling Playwright's built-in snapshot API.
+
+**Status: ✅ Done (2026-06-03)**
+
+Added `test/webview/visual.spec.ts` with a dedicated solid-color fixture (canvas fill, centered red box, top-left blue box) that screenshots `#viewport` via `toHaveScreenshot("visual-fixture.png")`. Snapshot stored in `test/webview/visual.spec.ts-snapshots/visual-fixture-chromium-linux.png`. Added `pnpm test:webview:update` script (`playwright test --update-snapshots`) for intentional visual changes.
+
+---
+
 ## Typed scalar returns in generated stubs
 
 **Status: Done** (2026-06-02)

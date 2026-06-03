@@ -266,6 +266,7 @@
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests",
     "test:webview": "playwright test",
     "test:webview:ui": "playwright test --ui",
+    "test:webview:update": "playwright test --update-snapshots",
     "typecheck": "tsc --noEmit -p tsconfig.build.json",
     "dev": "node esbuild.mjs --watch",
     "lint": "eslint src/",

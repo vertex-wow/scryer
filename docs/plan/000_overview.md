@@ -51,7 +51,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#relativekey-anchor-targets-deferred-from-m2">relativeKey anchor resolution</a>, <a href="backlog-archive.md#css-inset--relativekey-renderer-fixes-deferred-from-m2">CSS inset + relativeKey renderer fixes</a>, <a href="backlog-archive.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2">TexCoords sprite-sheet slicing</a>, <a href="backlog-archive.md#fontstring-rendering-fidelity">FontString rendering fidelity</a>, <a href="backlog-archive.md#pixel-ruler-overlay-in-the-preview-panel">Pixel ruler overlay</a>, <a href="backlog-archive.md#texture-placeholder-hover-tooltip">Texture placeholder hover tooltip</a>, <a href="backlog-archive.md#all-preview-chrome-values-configurable-via-defaultsjson">All preview chrome values in defaults.json</a>, <a href="backlog-archive.md#canvas-scroll-in-all-directions-and-always-show-scrollbars">Canvas scroll in all directions + always-show scrollbars</a>, <a href="backlog-archive.md#center-frame-content-on-open">Center frame content on open</a>, <a href="backlog-archive.md#grab-pan-and-zoom-on-the-preview-canvas">Grab pan and zoom on the preview canvas</a></td>
+  <td colspan="5">✅ <a href="backlog-archive.md#relativekey-anchor-targets-deferred-from-m2">relativeKey anchor resolution</a>, <a href="backlog-archive.md#css-inset--relativekey-renderer-fixes-deferred-from-m2">CSS inset + relativeKey renderer fixes</a>, <a href="backlog-archive.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2">TexCoords sprite-sheet slicing</a>, <a href="backlog-archive.md#fontstring-rendering-fidelity">FontString rendering fidelity</a>, <a href="backlog-archive.md#pixel-ruler-overlay-in-the-preview-panel">Pixel ruler overlay</a>, <a href="backlog-archive.md#texture-placeholder-hover-tooltip">Texture placeholder hover tooltip</a>, <a href="backlog-archive.md#all-preview-chrome-values-configurable-via-defaultsjson">All preview chrome values in defaults.json</a>, <a href="backlog-archive.md#canvas-scroll-in-all-directions-and-always-show-scrollbars">Canvas scroll in all directions + always-show scrollbars</a>, <a href="backlog-archive.md#center-frame-content-on-open">Center frame content on open</a>, <a href="backlog-archive.md#grab-pan-and-zoom-on-the-preview-canvas">Grab pan and zoom on the preview canvas</a>, <a href="backlog-archive.md#webview-snapshot--golden-image-regression">Webview snapshot / golden-image regression</a></td>
 </tr>
 <tr>
   <td>↳</td>
@@ -67,14 +67,6 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>📋 Pending</td>
   <td>Fix edge tiling stride so DiamondMetal borders render as solid metal strips with correct corner protrusion</td>
   <td>S</td>
-  <td>—</td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td><a href="backlog.md#webview-snapshot-golden-image-regression">Webview snapshot / golden-image regression</a></td>
-  <td>📋 Pending</td>
-  <td>Add Playwright <code>toHaveScreenshot()</code> golden images to the renderer test harness for visual regression CI</td>
-  <td>XS</td>
   <td>—</td>
 </tr>
 </tbody>

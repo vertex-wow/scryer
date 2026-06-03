@@ -6,21 +6,6 @@ Completed items are in [backlog-archive.md](backlog-archive.md).
 
 ---
 
-## Webview snapshot / golden-image regression
-
-**Problem:** The Playwright renderer harness (`test/webview/render.spec.ts`) verifies DOM structure and debug text but cannot catch visual regressions — a layout or color change that produces correct-looking metadata would go undetected.
-
-**Plan:**
-
-1. Add `expect(page).toHaveScreenshot("fixture-name.png")` calls to existing render tests. Playwright auto-creates the golden PNG on first run and diffs on subsequent runs.
-2. Commit the generated `test/webview/render.spec.ts-snapshots/` directory to the repo so CI can enforce them.
-3. Add a `pnpm test:webview:update` script (`playwright test --update-snapshots`) for intentional visual changes.
-4. Consider a dedicated visual fixture (e.g. a frame with a solid-color texture and known geometry) so the snapshot is deterministic across platforms. Cross-platform font rendering differences may require per-OS snapshot baselines or `maxDiffPixelRatio` tolerance.
-
-**Effort:** XS — the harness is already in place; this is just enabling Playwright's built-in snapshot API.
-
----
-
 ## TGA texture decode (deferred from M3)
 
 **Problem:** TGA (Targa) textures are used by many addon-bundled images. M3 logs a warning and shows a labeled placeholder for `.tga` files; it does not decode them.
