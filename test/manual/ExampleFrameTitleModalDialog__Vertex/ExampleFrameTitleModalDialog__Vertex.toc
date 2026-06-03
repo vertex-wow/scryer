@@ -1,0 +1,9 @@
+## Interface: 110205, 110207, 120000
+## Title: ExampleFrameTitleModalDialog 2026 by Vertex /ev14
+## Notes: Cookbook recipe — title modal dialog frame with slash command /ev14 toggle.
+## Version: 1.0.0
+## Category: Development Tools
+
+ExampleFrameTitleModalDialog.xml
+ExampleFrameTitleModalDialog.lua
+_harness.lua
