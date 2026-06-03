@@ -1,0 +1,62 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+   https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/FrameXML/UI.xsd">
+
+  <!--
+    test_create_texture.xml
+    Tests the dynamic texture pipeline: CreateTexture() → SetAtlas() → SetSize() → SetPoint()
+
+    Without atlas manifest: four labeled placeholders at the four corners.
+    With atlas manifest:    four actual corner sprites sized from the atlas.
+
+    SetSize(32, 32) gives each texture an explicit fallback size so all four
+    are independently visible even when the atlas manifest is absent. Without
+    an explicit size, all four stack at full-frame size and only the last one
+    (BottomRight) is visible — that is the expected single-placeholder behavior
+    you'd see before this fix.
+  -->
+  <Frame name="TestCreateTexture" parent="UIParent">
+    <Size x="240" y="160"/>
+    <Anchors>
+      <Anchor point="CENTER"/>
+    </Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture>
+          <Anchors>
+            <Anchor point="TOPLEFT"/>
+            <Anchor point="BOTTOMRIGHT"/>
+          </Anchors>
+          <Color r="0.1" g="0.1" b="0.1" a="0.8"/>
+        </Texture>
+      </Layer>
+    </Layers>
+    <Scripts>
+      <OnLoad>
+        local sz = 32  -- fallback size; atlas manifest overrides with real sprite size
+
+        local tl = self:CreateTexture(nil, "BORDER")
+        tl:SetAtlas("Tooltip-NineSlice-CornerTopLeft", true)
+        tl:SetSize(sz, sz)
+        tl:SetPoint("TOPLEFT", self, "TOPLEFT", 0, 0)
+
+        local tr = self:CreateTexture(nil, "BORDER")
+        tr:SetAtlas("Tooltip-NineSlice-CornerTopRight", true)
+        tr:SetSize(sz, sz)
+        tr:SetPoint("TOPRIGHT", self, "TOPRIGHT", 0, 0)
+
+        local bl = self:CreateTexture(nil, "BORDER")
+        bl:SetAtlas("Tooltip-NineSlice-CornerBottomLeft", true)
+        bl:SetSize(sz, sz)
+        bl:SetPoint("BOTTOMLEFT", self, "BOTTOMLEFT", 0, 0)
+
+        local br = self:CreateTexture(nil, "BORDER")
+        br:SetAtlas("Tooltip-NineSlice-CornerBottomRight", true)
+        br:SetSize(sz, sz)
+        br:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", 0, 0)
+      </OnLoad>
+    </Scripts>
+  </Frame>
+
+</Ui>

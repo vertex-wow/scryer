@@ -1,0 +1,124 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+   https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/FrameXML/UI.xsd">
+
+  <!--
+    test_atlas.xml
+    Tests atlas texture resolution: manifest lookup, CSS background crop, useAtlasSize.
+
+    Requirements:
+      - atlas-manifest.json in the derived cache (run: node dev/gen-atlas.mjs --out <cache>/retail/derived/atlas-manifest.json)
+      - On first open without a manifest the extension auto-downloads one from wago.tools
+
+    Expected results per frame (left to right, top to bottom):
+
+    Row 1 - useAtlasSize=false (texture fills its parent frame, region is scaled to fit):
+      1. common-button-square-gray-up   64x64 frame, button face fills it
+      2. UI-Frame-DiamondMetal-Header-CornerLeft   64x64, corner piece scaled to fill
+      3. common-search-magnifyingglass  64x64, magnifying glass icon scaled to fill
+
+    Row 2 - useAtlasSize=true (frame auto-sized from atlas region dimensions):
+      4. scoreboard-charactermodels-shadow  auto-sized shadow sprite
+      5. collections-newglow               auto-sized glow sprite
+      6. common-button-square-gray-down    auto-sized button face (pushed state)
+
+    Row 3 - edge cases:
+      7. _UI-Frame-TopTileStreaks    fills 256x32 frame (the atlas from DefaultPanelTemplate)
+      8. not-a-real-atlas-name       unknown name -> "[atlas] not-a-real-atlas-name" placeholder
+      9. common-button-square-gray-up  with explicit texCoords + atlas (atlas takes priority
+         because resolvedAtlas is set before texCoords; verifies no texCoords bleed-over)
+  -->
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Row 1: atlas fills parent (useAtlasSize=false, explicit 64x64 frame) -->
+  <!-- ------------------------------------------------------------------ -->
+
+  <Frame name="Atlas_FillParent_Button" parent="UIParent">
+    <Size x="64" y="64"/>
+    <Anchors><Anchor point="TOPLEFT" x="20" y="-20"/></Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture atlas="common-button-square-gray-up"/>
+      </Layer>
+    </Layers>
+  </Frame>
+
+  <Frame name="Atlas_FillParent_Corner" parent="UIParent">
+    <Size x="64" y="64"/>
+    <Anchors><Anchor point="TOPLEFT" x="100" y="-20"/></Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture atlas="UI-Frame-DiamondMetal-Header-CornerLeft"/>
+      </Layer>
+    </Layers>
+  </Frame>
+
+  <Frame name="Atlas_FillParent_Search" parent="UIParent">
+    <Size x="64" y="64"/>
+    <Anchors><Anchor point="TOPLEFT" x="180" y="-20"/></Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture atlas="common-search-magnifyingglass"/>
+      </Layer>
+    </Layers>
+  </Frame>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Row 2: useAtlasSize=true — frame sizes itself from the atlas region -->
+  <!-- ------------------------------------------------------------------ -->
+
+  <Frame name="Atlas_UseAtlasSize_Shadow" parent="UIParent">
+    <Anchors><Anchor point="TOPLEFT" x="20" y="-100"/></Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture atlas="scoreboard-charactermodels-shadow" useAtlasSize="true"/>
+      </Layer>
+    </Layers>
+  </Frame>
+
+  <Frame name="Atlas_UseAtlasSize_Glow" parent="UIParent">
+    <Anchors><Anchor point="TOPLEFT" x="220" y="-100"/></Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture atlas="collections-newglow" useAtlasSize="true"/>
+      </Layer>
+    </Layers>
+  </Frame>
+
+  <Frame name="Atlas_UseAtlasSize_ButtonDown" parent="UIParent">
+    <Anchors><Anchor point="TOPLEFT" x="420" y="-100"/></Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture atlas="common-button-square-gray-down" useAtlasSize="true"/>
+      </Layer>
+    </Layers>
+  </Frame>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Row 3: edge cases -->
+  <!-- ------------------------------------------------------------------ -->
+
+  <!-- _UI-Frame-TopTileStreaks: the atlas from DefaultPanelTemplate -->
+  <Frame name="Atlas_TopTileStreaks" parent="UIParent">
+    <Size x="256" y="32"/>
+    <Anchors><Anchor point="TOPLEFT" x="20" y="-200"/></Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture atlas="_UI-Frame-TopTileStreaks"/>
+      </Layer>
+    </Layers>
+  </Frame>
+
+  <!-- Unknown atlas name: must show "[atlas] not-a-real-atlas-name" placeholder -->
+  <Frame name="Atlas_UnknownFallback" parent="UIParent">
+    <Size x="160" y="32"/>
+    <Anchors><Anchor point="TOPLEFT" x="290" y="-200"/></Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture atlas="not-a-real-atlas-name"/>
+      </Layer>
+    </Layers>
+  </Frame>
+
+</Ui>

@@ -1,0 +1,4 @@
+## Interface: 110100
+## Title: CreateTexture + SetAtlas test
+
+test_create_texture.xml
