@@ -1,13 +1,17 @@
 /**
  * E2E pipeline test — vertex-icon variant (no CASC required).
  * Runs the real extension parsing pipeline from file to rendered webview.
+ *
+ * Renderer behaviors (assetResolved → backgroundImage, backgroundSize) are
+ * covered by test/webview/render.spec.ts. This test asserts only what the
+ * parse pipeline is responsible for: correct frame geometry and the texture
+ * file path surfacing as a requestAsset message.
  */
 
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { parseXmlFile, resolveInheritance } from "../../src/parser";
-import { blpToPng } from "../../src/assets/blp";
 import { VIEWPORT, renderFrames, queryRendered } from "../webview/helpers";
 
 function parseE2eXml(filename: string): Record<string, unknown>[] {
@@ -19,10 +23,6 @@ function parseE2eXml(filename: string): Record<string, unknown>[] {
 
 test("direct_texture_vertex.xml — full parse→render pipeline", async ({ page }) => {
   const frames = parseE2eXml("direct_texture_vertex.xml");
-
-  const pngBuf = blpToPng(resolve(__dirname, "../fixtures/assets/vertex-icon.blp"));
-  const assetUri = `data:image/png;base64,${pngBuf.toString("base64")}`;
-
   await renderFrames(page, frames);
 
   // <Frame name="TextureTestFrame"> <Size x="64" y="64"/> <Anchor point="CENTER"/>
@@ -34,7 +34,7 @@ test("direct_texture_vertex.xml — full parse→render pipeline", async ({ page
   expect(frame!.left).toBe(Math.round(VIEWPORT.w / 2 - 32));
   expect(frame!.top).toBe(VIEWPORT.h / 2 - 32);
 
-  // Webview emits requestAsset for the texture file path.
+  // Parser extracted the texture file path → webview emits requestAsset with it.
   const messages = await page.evaluate(
     () => (window as Window & { _vscodeMessages: unknown[] })._vscodeMessages,
   );
@@ -42,22 +42,5 @@ test("direct_texture_vertex.xml — full parse→render pipeline", async ({ page
     (m) => m.type === "requestAsset",
   );
   expect(assetReq).toBeDefined();
-
-  // Inject resolved asset; <Texture setAllPoints="true"/> → backgroundSize 100% 100%.
-  await page.evaluate(
-    ({ path, uri }) => window.postMessage({ type: "assetResolved", path, uri }, "*"),
-    { path: assetReq!.path!, uri: assetUri },
-  );
-
-  const texStyle = await page.evaluate((path) => {
-    const escaped = path.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    const el = document.querySelector<HTMLElement>(`[data-asset-path="${escaped}"]`);
-    return el
-      ? { backgroundImage: el.style.backgroundImage, backgroundSize: el.style.backgroundSize }
-      : null;
-  }, assetReq!.path!);
-
-  expect(texStyle).not.toBeNull();
-  expect(texStyle!.backgroundImage).toContain("url(");
-  expect(texStyle!.backgroundSize).toBe("100% 100%");
+  expect(assetReq!.path).toContain("vertex-icon");
 });

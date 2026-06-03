@@ -116,8 +116,11 @@ Only stub things that do not exist in any Blizzard Lua file we load. See `docs/d
 
 - **Package manager: `pnpm` only.** Never use `npm install` or `yarn` — they bypass the `onlyBuiltDependencies` allowlist and `minimum-release-age` security settings.
 - **Building: `pnpm build` (esbuild).** Never use `tsc` to emit JS — it is typecheck-only (`pnpm typecheck` / `tsc --noEmit`).
-- **Tests live in `test/`** (singular). The jest config, tsconfig.test.json, and vscode mock all assume this path.
-- **vscode mock:** Any extension code that imports `vscode` is redirected to `test/__mocks__/vscode.ts` during tests. Expand stubs there as new APIs are needed — do not import the real `vscode` module in unit tests.
+- **Tests live in `test/`** (singular). See `docs/testing.md` for the full picture, but the hierarchy is: e2e pipeline tests are the **primary layer** — unit tests catch root causes, webview protocol tests cover message mechanics.
+- **Primary debugging loop:** When a rendering bug appears, create a minimal XML that reproduces it → drop it in `test/e2e/` unchanged → add assertions for what correct output looks like → fix until green. The XML fixture IS the reproduction case. This is the fastest path from "something looks wrong" to "I know it's fixed."
+- **E2E XML fixtures** live in `test/e2e/` alongside their spec. `test/manual/` is for hand-checked fixtures only — never reference it from automated specs. When a manual fixture gets automated coverage, move it to `test/e2e/`.
+- **`render.spec.ts` is protocol-only.** Only add tests there for webview message behaviors (ready, reload, requestAsset/assetResolved mechanics, z-index formulas) that have no XML equivalent. CSS output assertions (color, size, position, text alignment) belong in the e2e test for the XML fixture that defines them.
+- **vscode mock:** Extension code that imports `vscode` is redirected to `test/unit/__mocks__/vscode.ts` during Jest tests. Expand stubs there when new APIs are needed — never import the real `vscode` module in unit tests.
 - **Always run `pnpm build` before handing off to the user for testing.** When a task is complete and the user is expected to test it, run `pnpm build` as the final step so they receive a ready-to-run artifact.
 - **`pnpm typecheck` must pass before any commit.** The pre-push hook enforces this — a failing typecheck blocks push. Run `pnpm typecheck` and fix all errors before staging.
 
