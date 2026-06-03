@@ -56,7 +56,8 @@
       "Bash(mkdir -p /tmp/*)",
       "Bash(npm show *)",
       "Bash(pnpm run *)",
-      "Bash(find *)"
+      "Bash(find *)",
+      "Bash(npx jest *)"
     ],
     "additionalDirectories": [
       "/tmp"

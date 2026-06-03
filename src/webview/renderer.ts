@@ -212,8 +212,9 @@ function renderFrame(
   applyRect(el, frameRect, parentRect);
 
   // Top-level hidden frames are the preview subject — show them normally.
-  // Child hidden frames are conditional overlays — dim them so layout is visible but reads inactive.
-  if (frame.hidden && !isTopLevel) el.style.opacity = "0.4";
+  // Child hidden frames respect WoW's actual visibility: display:none so panels and
+  // conditional overlays don't bleed through when programmatically hidden.
+  if (frame.hidden && !isTopLevel) el.style.display = "none";
   if (frame.alpha !== undefined) el.style.opacity = String(frame.alpha);
 
   // Attach mouse event listeners for interactive frames (those with OnClick/OnEnter/OnLeave handlers).

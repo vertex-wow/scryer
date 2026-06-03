@@ -151,7 +151,6 @@ function applyTemplate(concrete: FrameIR, template: FrameIR): FrameIR {
     // Concrete frame's identity fields always win
     name: concrete.name,
     parentKey: concrete.parentKey,
-    parentArray: concrete.parentArray,
     virtual: concrete.virtual,
     sourceFile: concrete.sourceFile,
     sourceLine: concrete.sourceLine,
@@ -180,6 +179,7 @@ function applyTemplate(concrete: FrameIR, template: FrameIR): FrameIR {
   if (concrete.disabledFont !== undefined) result.disabledFont = concrete.disabledFont;
   if (concrete.setAllPoints !== undefined) result.setAllPoints = concrete.setAllPoints;
   if (concrete.useParentLevel !== undefined) result.useParentLevel = concrete.useParentLevel;
+  if (concrete.parentArray !== undefined) result.parentArray = concrete.parentArray;
   if (concrete.size !== undefined) result.size = { ...concrete.size };
 
   // Concrete anchors override entirely if present

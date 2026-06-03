@@ -168,10 +168,14 @@ function cacheFileName(addonNames: string[]): string {
   return `blizzard-registry-${suffix}.json`;
 }
 
+// Bump when the parser or IR shape changes in a way that makes old caches incorrect.
+const SCHEMA_VERSION = 2;
+
 interface RegistryCache {
   /** TOC absolute paths → mtime stamps used to detect stale cache. */
   stamp: Record<string, number>;
   entries: [string, FrameIR][];
+  schemaVersion?: number;
 }
 
 function readRegistryCache(registryDir: string, file: string): RegistryCache | null {
@@ -345,9 +349,9 @@ export function loadBlizzardRegistry(
 
   if (tocPaths.size === 0) return new Map();
 
-  // Check disk cache — valid if stamp matches exactly.
+  // Check disk cache — valid if stamp and schema version both match.
   const cached = readRegistryCache(registryDir, cacheFile);
-  if (cached) {
+  if (cached && (cached.schemaVersion ?? 1) === SCHEMA_VERSION) {
     const keys = Object.keys(stamp);
     const ckeys = Object.keys(cached.stamp);
     if (keys.length === ckeys.length && keys.every((k) => cached.stamp[k] === stamp[k])) {
@@ -373,7 +377,11 @@ export function loadBlizzardRegistry(
   // Don't cache partial results — if any XML files were missing, skip the write so
   // the next load re-parses once the extraction has delivered more files.
   if (!incomplete.value) {
-    writeRegistryCache(registryDir, cacheFile, { stamp, entries: Array.from(registry.entries()) });
+    writeRegistryCache(registryDir, cacheFile, {
+      stamp,
+      entries: Array.from(registry.entries()),
+      schemaVersion: SCHEMA_VERSION,
+    });
   }
   return registry;
 }

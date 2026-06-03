@@ -20,6 +20,7 @@ export interface AnchorDef {
 export interface TextureNode {
   id: number;
   name?: string;
+  parentKey?: string;
   layer: string;
   subLevel: number;
   file?: string;
@@ -156,6 +157,7 @@ export function textureNodeToIR(tex: TextureNode): TextureIR {
     sourceFile: "__runtime__",
     // Unnamed runtime textures get a synthetic name so texture-to-texture SetPoint anchors resolve
     name: tex.name ?? `$tex:${tex.id}`,
+    parentKey: tex.parentKey,
     size: tex.size,
     hidden: !tex.shown ? true : undefined,
     alpha: tex.alpha !== 1 ? tex.alpha : undefined,

@@ -114,7 +114,12 @@ function generateTextureCode(
     lines.push(`  ${v}:SetSize(${tex.size?.x ?? 0}, ${tex.size?.y ?? 0})`);
   emitAnchorCode(`  ${v}`, tex, parentVar, lines);
   if (tex.maskFile) lines.push(`  ${v}:__SetMaskFile(${JSON.stringify(tex.maskFile)})`);
-  if (tex.parentKey) lines.push(`  ${parentVar}.${tex.parentKey} = ${v}`);
+  if (tex.parentKey) {
+    lines.push(`  ${parentVar}.${tex.parentKey} = ${v}`);
+    lines.push(
+      `  if __scryer_tex_set_parent_key then __scryer_tex_set_parent_key(${v}.__id, ${JSON.stringify(tex.parentKey)}) end`,
+    );
+  }
   if (tex.parentArray) {
     lines.push(`  ${parentVar}.${tex.parentArray} = ${parentVar}.${tex.parentArray} or {}`);
     lines.push(`  table.insert(${parentVar}.${tex.parentArray}, ${v})`);
@@ -227,6 +232,9 @@ function generateFrameCode(
       for (const l of objLines) lines.push(`  ${l}`);
     }
   }
+
+  // SetText after layers so self.Text FontString exists before the call
+  if (frame.text !== undefined) lines.push(`  ${v}:SetText(${JSON.stringify(frame.text)})`);
 
   // Non-OnLoad scripts registered before children are created
   const onLoadScripts: ScriptIR[] = [];

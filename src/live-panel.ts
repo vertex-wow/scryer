@@ -15,6 +15,7 @@ import { registerWowApi, VirtualClock } from "./lua/wow-api.js";
 import type { FrameIR, TextureIR } from "./parser/ir.js";
 import { parseToc } from "./parser/toc.js";
 import type { HostMessage, Viewport, WebviewMessage } from "./protocol.js";
+import { layoutAll } from "./webview/layout.js";
 
 function getNonce(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -479,6 +480,20 @@ TROUBLESHOOTING:
       // Advance clock one tick to fire any immediate timers
       clock.advance(0.001);
 
+      // Fire Show() on every named root frame so the OnShow cascade runs (e.g.
+      // PanelTemplates_TabResize). Scryer renders all frames for preview regardless
+      // of hidden state, so triggering OnShow here matches what the player would see
+      // after the frame becomes visible in-game.
+      for (const rootFrame of registry.serialize()) {
+        if (rootFrame.name) {
+          try {
+            await sandbox.doString(`if ${rootFrame.name} then ${rootFrame.name}:Show() end`);
+          } catch {
+            // OnShow errors are non-fatal for preview
+          }
+        }
+      }
+
       // Serialize the initial frame tree
       registry.clearDirty();
       const frames = registry.serialize();
@@ -534,6 +549,30 @@ TROUBLESHOOTING:
       }
 
       this.output.debug(`[Live] rendered ${frames.length} root frame(s); event engine started`);
+
+      // ── Tab position debug logging ────────────────────────────────────────
+      const dbgRects = layoutAll(frames, { w: viewport.w, h: viewport.h });
+      const allFrames: FrameIR[] = [];
+      (function collect(list: FrameIR[]) {
+        for (const f of list) {
+          allFrames.push(f);
+          if (f.children) collect(f.children);
+        }
+      })(frames);
+      for (const f of allFrames) {
+        if (!f.name) continue;
+        const rect = dbgRects.get(f);
+        const anchors = f.anchors
+          .map(
+            (a) =>
+              `${a.point}→${a.relativeTo ?? a.relativeKey ?? "(parent)"}[${a.relativePoint ?? a.point}] x=${a.x ?? 0} y=${a.y ?? 0}`,
+          )
+          .join(", ");
+        this.output.debug(
+          `[Live][tab-dbg] ${f.name}: left=${rect ? Math.round(rect.left) : "?"} right=${rect ? Math.round(rect.left + rect.width) : "?"} w=${rect ? Math.round(rect.width) : "?"} anchors=[${anchors}]`,
+        );
+      }
+      // ─────────────────────────────────────────────────────────────────────
     } catch (err) {
       this.stopSession();
       this.output.error(`[Live] Error running ${uri.fsPath}: ${String(err)}`);

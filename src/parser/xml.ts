@@ -593,6 +593,16 @@ function parseFrame(node: RawNode, sourceFile: string): FrameIR {
       case "ButtonText": {
         const ca = attrsOf(child);
         frame.buttonText = strAttr(ca, "text");
+        // Also create a FontString so parentKey="Text" binds tab.Text at runtime,
+        // enabling PanelTemplates_TabResize to call tab.Text:SetWidth / GetStringWidth.
+        const btFs = parseFontString(child, frame.sourceFile ?? "");
+        if (!btFs.text && frame.buttonText) btFs.text = frame.buttonText;
+        let overlay = frame.layers.find((l) => l.level === "OVERLAY");
+        if (!overlay) {
+          overlay = { level: "OVERLAY", subLevel: 0, objects: [] };
+          frame.layers.push(overlay);
+        }
+        overlay.objects.push(btFs);
         break;
       }
       case "HitRectInsets":
