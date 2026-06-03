@@ -119,6 +119,7 @@ Only stub things that do not exist in any Blizzard Lua file we load. See `docs/d
 - **Tests live in `test/`** (singular). The jest config, tsconfig.test.json, and vscode mock all assume this path.
 - **vscode mock:** Any extension code that imports `vscode` is redirected to `test/__mocks__/vscode.ts` during tests. Expand stubs there as new APIs are needed — do not import the real `vscode` module in unit tests.
 - **Always run `pnpm build` before handing off to the user for testing.** When a task is complete and the user is expected to test it, run `pnpm build` as the final step so they receive a ready-to-run artifact.
+- **`pnpm typecheck` must pass before any commit.** The pre-push hook enforces this — a failing typecheck blocks push. Run `pnpm typecheck` and fix all errors before staging.
 
 ## Commit discipline
 
