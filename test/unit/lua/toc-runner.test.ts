@@ -273,3 +273,53 @@ describe("CreateTexture from OnLoad", () => {
     expect(names).toContain("DynTexFrame");
   });
 });
+
+// ─── Mixin via TOC ────────────────────────────────────────────────────────────
+
+const MIXIN_FIXTURE_DIR = path.join(__dirname, "../../fixtures/MixinAddon");
+
+describe("Mixin via TOC", () => {
+  async function runMixinAddon(): Promise<{ registry: FrameRegistry }> {
+    const { lua, registry, clock } = await setup();
+    const tocContent = fs.readFileSync(path.join(MIXIN_FIXTURE_DIR, "MixinAddon.toc"), "utf-8");
+    const toc = parseToc(tocContent, path.join(MIXIN_FIXTURE_DIR, "MixinAddon.toc"));
+    try {
+      await runTocAddon({
+        toc,
+        addonDir: MIXIN_FIXTURE_DIR,
+        sandbox: lua,
+        blizzardTemplates: undefined,
+        readFile,
+        output: { info: console.info, warn: console.warn, error: console.error },
+      });
+      clock.advance(0.001);
+    } finally {
+      lua.global.close();
+    }
+    return { registry };
+  }
+
+  test("MixinExampleFrame appears in registry", async () => {
+    const { registry } = await runMixinAddon();
+    const node = registry.getFrameByName("MixinExampleFrame");
+    expect(node).toBeDefined();
+  });
+
+  test("OnLoad mixin sets text via parentKey — sentinel replaced", async () => {
+    // The XML default text is "(mixin not applied)". The Lua OnLoad applies
+    // MixinExampleFrameMixin and calls self:OnLoad(), which calls
+    // self.TitleText:SetText("Hello from Mixin!"). If parentKey wiring or
+    // Mixin() breaks, the sentinel text survives.
+    const { registry } = await runMixinAddon();
+    const fs = registry.getFrameByName("MixinExampleFrame")!.fontStrings[0];
+    expect(fs.text).toBe("Hello from Mixin!");
+  });
+
+  test("OnLoad mixin applies SetTextColor via parentKey", async () => {
+    const { registry } = await runMixinAddon();
+    const fs = registry.getFrameByName("MixinExampleFrame")!.fontStrings[0];
+    expect(fs.color?.r).toBeCloseTo(1);
+    expect(fs.color?.g).toBeCloseTo(0.82);
+    expect(fs.color?.b).toBeCloseTo(0);
+  });
+});

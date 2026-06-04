@@ -118,9 +118,12 @@ TOC fixture → `runTocAddon` (full Lua execution, OnLoad, events) → webview h
 
 Each spec has a matching TOC fixture directory **in `test/fixtures/`** (shared, reusable) or co-located in `test/toc/`. The TOC + XML + Lua files are the scenario; the spec is the assertion.
 
+**`.lua` module hook:** `playwright.toc.config.ts` registers a `Module._extensions[".lua"]` handler so Node can resolve the `import ... from "*.lua"` statements inside `src/lua/sandbox.ts` and `src/lua/createframe.ts`. This mirrors the Jest `lua-text.mjs` transform. New TOC Playwright configs that import from the Lua pipeline must include the same hook.
+
 | Fixture                        | What it tests                                                                              |
 | ------------------------------ | ------------------------------------------------------------------------------------------ |
 | `fixtures/CreateTextureAddon/` | OnLoad → CreateTexture → SetAtlas / SetSize / SetPoint → registry (unit-level integration) |
+| `fixtures/MixinAddon/`         | Lua file → Mixin() + parentKey FontString → SetText / SetTextColor → rendered DOM          |
 
 ---
 
