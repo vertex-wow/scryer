@@ -150,6 +150,11 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   context.subscriptions.push(toggleRulerCmd);
 
+  const eyedropperCmd = vscode.commands.registerCommand("scryer.eyedropper", () => {
+    (ScryerPanel.activePanel ?? ScryerLivePanel.activePanel)?.toggleEyedropper();
+  });
+  context.subscriptions.push(eyedropperCmd);
+
   const cmd = vscode.commands.registerCommand("scryer.open", (uri?: vscode.Uri) => {
     const resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
     if (!resolved) {

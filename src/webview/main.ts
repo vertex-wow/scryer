@@ -260,6 +260,217 @@ localeSelect?.addEventListener("change", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Eyedropper
+// ---------------------------------------------------------------------------
+
+type EyedropperState = "off" | "sampling";
+let eyedropperState: EyedropperState = "off";
+let eyedropperText: string | null = null;
+
+const eyedropperBtn = document.getElementById("eyedropper-toggle");
+
+function setEyedropperState(next: EyedropperState): void {
+  eyedropperState = next;
+  const active = next !== "off";
+  document.body.classList.toggle("mode-eyedropper", active);
+  eyedropperBtn?.classList.toggle("active", active);
+  if (next === "off") {
+    eyedropperText = null;
+    if (debug) debug.textContent = lastRenderMsg;
+    vscode.postMessage({ type: "eyedropperOff" });
+  } else if (next === "sampling") {
+    vscode.postMessage({ type: "eyedropperOn" });
+  }
+}
+
+eyedropperBtn?.addEventListener("click", () => {
+  if (eyedropperState === "off") {
+    setEyedropperState("sampling");
+  } else {
+    setEyedropperState("off");
+  }
+});
+
+let eyedropperCanvas: HTMLCanvasElement | null = null;
+function getEyedropperCanvas(): HTMLCanvasElement {
+  if (!eyedropperCanvas) {
+    eyedropperCanvas = document.createElement("canvas");
+    eyedropperCanvas.width = 1;
+    eyedropperCanvas.height = 1;
+    eyedropperCanvas.style.display = "none";
+    document.body.appendChild(eyedropperCanvas);
+  }
+  return eyedropperCanvas;
+}
+
+const eyedropperImageCache = new Map<string, HTMLImageElement>();
+
+function parseDim(value: string, ref: number): number {
+  if (!value || value === "auto") return ref;
+  if (value.endsWith("%")) return (parseFloat(value) / 100) * ref;
+  return parseFloat(value);
+}
+
+function sampleTexture(
+  el: HTMLElement,
+  bgImg: string,
+  clientX: number,
+  clientY: number,
+): [number, number, number, number] | null {
+  const m = bgImg.match(/url\("(.+?)"\)/);
+  if (!m) return null;
+  const url = m[1];
+
+  let img = eyedropperImageCache.get(url);
+  if (!img) {
+    img = new Image();
+    img.src = url;
+    eyedropperImageCache.set(url, img);
+  }
+  if (!img.complete || img.naturalWidth === 0) return null;
+
+  const rect = el.getBoundingClientRect();
+  const relX = clientX - rect.left;
+  const relY = clientY - rect.top;
+
+  const cs = getComputedStyle(el);
+  const parts = cs.backgroundSize.trim().split(/\s+/);
+  const bgW = parseDim(parts[0], rect.width);
+  const bgH = parseDim(parts[1] ?? parts[0], rect.height);
+
+  const posParts = cs.backgroundPosition.trim().split(/\s+/);
+  const bgX = posParts[0].endsWith("%")
+    ? (parseFloat(posParts[0]) / 100) * (rect.width - bgW)
+    : parseFloat(posParts[0] || "0");
+  const bgY = (posParts[1] ?? "0").endsWith("%")
+    ? (parseFloat(posParts[1] ?? "0") / 100) * (rect.height - bgH)
+    : parseFloat(posParts[1] ?? "0");
+
+  const imgX = Math.round(((relX - bgX) / bgW) * img.naturalWidth);
+  const imgY = Math.round(((relY - bgY) / bgH) * img.naturalHeight);
+
+  if (imgX < 0 || imgY < 0 || imgX >= img.naturalWidth || imgY >= img.naturalHeight) return null;
+
+  const canvas = getEyedropperCanvas();
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.clearRect(0, 0, 1, 1);
+  try {
+    ctx.drawImage(img, imgX, imgY, 1, 1, 0, 0, 1, 1);
+  } catch {
+    return null;
+  }
+  const data = ctx.getImageData(0, 0, 1, 1).data;
+  return [data[0], data[1], data[2], data[3]];
+}
+
+function parseRgba(color: string): [number, number, number, number] {
+  const m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)/);
+  if (!m) return [0, 0, 0, 255];
+  const r = parseInt(m[1]);
+  const g = parseInt(m[2]);
+  const b = parseInt(m[3]);
+  let a = 255;
+  if (m[4] !== undefined) {
+    a = m[4].endsWith("%")
+      ? Math.round((parseFloat(m[4]) / 100) * 255)
+      : Math.round(parseFloat(m[4]) * 255);
+  }
+  return [r, g, b, a];
+}
+
+// Walk root's subtree and return the deepest descendant that contains (clientX, clientY)
+// and has a visible background-color or background-image. Children are visited last-first
+// (last DOM child = highest stacking context in the flat renderer layout).
+// This intentionally ignores pointer-events so texture/layer elements are reachable.
+function hitTestForColor(root: Element, clientX: number, clientY: number): HTMLElement | null {
+  for (let i = root.children.length - 1; i >= 0; i--) {
+    const child = root.children[i] as HTMLElement;
+    const rect = child.getBoundingClientRect();
+    if (
+      clientX >= rect.left &&
+      clientX < rect.right &&
+      clientY >= rect.top &&
+      clientY < rect.bottom
+    ) {
+      const found = hitTestForColor(child, clientX, clientY);
+      if (found) return found;
+      const cs = getComputedStyle(child);
+      if (cs.backgroundColor !== "transparent" && cs.backgroundColor !== "rgba(0, 0, 0, 0)")
+        return child;
+      if (cs.backgroundImage && cs.backgroundImage !== "none") return child;
+    }
+  }
+  return null;
+}
+
+function sampleAtPoint(clientX: number, clientY: number): [number, number, number, number] | null {
+  const vp = document.getElementById("viewport");
+  const el = vp ? hitTestForColor(vp, clientX, clientY) : null;
+  if (el) {
+    const cs = getComputedStyle(el);
+    const bgImg = cs.backgroundImage;
+    if (bgImg && bgImg !== "none") {
+      const pixel = sampleTexture(el, bgImg, clientX, clientY);
+      if (pixel) return pixel;
+    }
+    const bgColor = cs.backgroundColor;
+    if (bgColor !== "transparent" && bgColor !== "rgba(0, 0, 0, 0)") return parseRgba(bgColor);
+  }
+  return parseRgba(getComputedStyle(document.body).backgroundColor);
+}
+
+function formatEyedropperColor(
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+  x: number,
+  y: number,
+): string {
+  const h = (n: number) => Math.round(n).toString(16).toUpperCase().padStart(2, "0");
+  const hex = `#${h(r)}${h(g)}${h(b)}`;
+  const wow = `|c${h(a)}${h(r)}${h(g)}${h(b)}`;
+  const css = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${(a / 255).toFixed(2)})`;
+  const cc = `CreateColor(${(r / 255).toFixed(2)}, ${(g / 255).toFixed(2)}, ${(b / 255).toFixed(2)}, ${(a / 255).toFixed(2)})`;
+  return `(${x}, ${y})  ${hex}  ${wow}  ${css}  ${cc}`;
+}
+
+window.addEventListener("mousemove", (e: MouseEvent) => {
+  if (eyedropperState !== "sampling") return;
+  const pixel = sampleAtPoint(e.clientX, e.clientY);
+  if (!pixel) return;
+  const [r, g, b, a] = pixel;
+  // Convert viewport client coords → WoW logical pixel coords
+  const x = Math.round((e.clientX - panX) / panZoom / currentScale);
+  const y = Math.round((e.clientY - panY) / panZoom / currentScale);
+  eyedropperText = formatEyedropperColor(r, g, b, a, x, y);
+  if (debug) debug.textContent = eyedropperText;
+  vscode.postMessage({ type: "eyedropperSample", r, g, b, a, x, y });
+});
+
+document.body.addEventListener("click", (e: MouseEvent) => {
+  if (eyedropperState === "off") return;
+  const statusBar = document.getElementById("status-bar");
+  if (statusBar && (e.target === statusBar || statusBar.contains(e.target as Node))) return;
+  e.stopPropagation();
+  setEyedropperState("off");
+});
+
+window.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (eyedropperState !== "off" && e.code === "Escape") {
+    e.stopPropagation();
+    setEyedropperState("off");
+  }
+  if (eyedropperState !== "off" && (e.ctrlKey || e.metaKey) && e.code === "KeyC") {
+    if (eyedropperText) {
+      e.preventDefault();
+      vscode.postMessage({ type: "eyedropperCopy", text: eyedropperText });
+    }
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Drag pan
 // ---------------------------------------------------------------------------
 
@@ -277,6 +488,7 @@ function isGrabActive(e: MouseEvent): boolean {
 document.body.addEventListener("mousedown", (e: MouseEvent) => {
   if (e.button === 2) return;
   if ((e.target as HTMLElement)?.closest?.("#status-bar")) return;
+  if (eyedropperState !== "off") return;
   if (!isGrabActive(e)) return;
   e.preventDefault();
   isDragging = true;
@@ -405,6 +617,8 @@ function applyAsset(rawPath: string, uri: string): void {
   for (const el of els) {
     el.style.backgroundImage = `url("${uri}")`;
     el.style.backgroundRepeat = "no-repeat";
+    // FIXME: possible titleBar texture fix
+    el.style.imageRendering = "pixelated";
 
     const cropRaw = el.dataset.atlasCrop;
     const coordsRaw = el.dataset.texCoords;
@@ -437,6 +651,8 @@ function applyAsset(rawPath: string, uri: string): void {
       const bgH = crop.sheetH * scaleY;
       el.style.backgroundSize = `${bgW}px ${bgH}px`;
       el.style.backgroundPosition = `${-crop.x * scaleX}px ${-crop.y * scaleY}px`;
+      // // FIXME: ppossible titleBar texture fix
+      // el.style.backgroundPosition = `${Math.round(-crop.x * scaleX)}px ${Math.round(-crop.y * scaleY)}px`;
       el.style.backgroundRepeat = crop.tilesH || crop.tilesV ? "repeat" : "no-repeat";
     } else if (coordsRaw) {
       const { left, right, top, bottom } = JSON.parse(coordsRaw) as {
@@ -509,6 +725,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
           msg.viewport,
           msg.flavorConfig,
           (frameId, event, extra) => {
+            if (eyedropperState !== "off") return;
             vscode.postMessage({
               type: "frameEvent",
               frameId,
@@ -566,6 +783,15 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         const label =
           msg.state === "extracting" ? "⏳ Extracting game assets…" : "⏳ Building atlas manifest…";
         if (debug) debug.textContent = label;
+      }
+      break;
+    }
+
+    case "setEyedropper": {
+      if (msg.active && eyedropperState === "off") {
+        setEyedropperState("sampling");
+      } else if (!msg.active && eyedropperState !== "off") {
+        setEyedropperState("off");
       }
       break;
     }

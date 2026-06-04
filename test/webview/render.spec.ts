@@ -329,3 +329,49 @@ test("FontString text content appears in DOM", async ({ page }) => {
   expect(fs!.kind).toBe("FontString");
   expect(fs!.text).toBe("Hello World");
 });
+
+// ---------------------------------------------------------------------------
+// Eyedropper
+// ---------------------------------------------------------------------------
+
+test("eyedropper: setEyedropper activates and mousemove sends eyedropperSample", async ({
+  page,
+}) => {
+  // Fill a large frame with a known red color so it's easy to hit
+  await renderFrames(page, [
+    makeFrame({
+      name: "RedFrame",
+      size: { x: VIEWPORT.w, y: VIEWPORT.h },
+      anchors: [{ point: "CENTER" }],
+      layers: [
+        {
+          level: "BACKGROUND",
+          subLevel: 0,
+          objects: [makeTexture({ name: "RedBg", color: { r: 1.0, g: 0.0, b: 0.0, a: 1.0 } })],
+        },
+      ],
+    }),
+  ]);
+
+  // Activate eyedropper from host
+  await page.evaluate(() => window.postMessage({ type: "setEyedropper", active: true }, "*"));
+  await page.waitForTimeout(50);
+
+  const hasClass = await page.evaluate(() => document.body.classList.contains("mode-eyedropper"));
+  expect(hasClass).toBe(true);
+
+  await page.evaluate(() => {
+    (window as Window & { _vscodeMessages: unknown[] })._vscodeMessages = [];
+  });
+  await page.mouse.move(400, 300);
+  await page.waitForTimeout(50);
+
+  const messages = await page.evaluate(
+    () => (window as Window & { _vscodeMessages: unknown[] })._vscodeMessages,
+  );
+  const sample = messages.find((m: unknown) => (m as { type: string }).type === "eyedropperSample");
+  expect(sample).toBeDefined();
+  // Solid red frame: r should dominate, g/b should be near zero
+  expect((sample as { r: number }).r).toBeGreaterThan(200);
+  expect((sample as { g: number }).g).toBeLessThan(50);
+});

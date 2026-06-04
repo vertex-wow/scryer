@@ -842,3 +842,30 @@ Changes:
 - 7 new unit tests added to `test/unit/parser/inherit.test.ts`.
 
 The immediate fix: `_UI-Frame-TopTileStreaks` (virtual texture with `atlas`, `horizTile="true"`, `size`) now correctly propagates into concrete textures that `inherits="_UI-Frame-TopTileStreaks"`, restoring the streak sheen on `DefaultPanelTemplate` frames.
+
+---
+
+## Eyedropper color picker in preview
+
+**Completed:** 2026-06-04
+
+**Problem:** When authoring UI textures or tuning colors, addon developers have no way to sample a pixel from the preview canvas without leaving VS Code. Picking a color from a frame texture currently requires an external tool.
+
+**Goal:** An eyedropper mode in the preview panel. While active, hovering over the canvas reads the pixel color under the cursor and displays three forms in the status bar:
+
+- **Hex** — `#RRGGBB`
+- **WoW color string** — `|cAARRGGBBtext|r` escape prefix (e.g. `|cFF3A9FD4`), the format used in `SetText` and chat messages
+- **With alpha** — `CreateColor(r, g, b, a)` with components normalized to `[0, 1]` (two decimal places), matching the `CreateColor` / `Color` API used in Blizzard Lua
+
+Pressing **Ctrl+C** while the eyedropper is active copies the full string (all three forms, space-separated) to the clipboard.
+
+**What was built:**
+
+- Toolbar button (pipette icon) in both `ScryerPanel` and `ScryerLivePanel` toggles eyedropper mode.
+- `scryer.eyedropper` VS Code command toggles via the active panel.
+- Eyedropper has three states: `off` → `sampling` (live hover) → `locked` (first click freezes color) → `off` (second click or Escape).
+- Pixel sampling: walks `document.elementsFromPoint` top-to-bottom; tries canvas-based texture pixel sampling for elements with `background-image` (cached `HTMLImageElement` + `drawImage(img, imgX, imgY, 1, 1, 0, 0, 1, 1)`), falls back to computed `backgroundColor`.
+- Status bar (`StatusBarItem`) shows `🔬 #RRGGBB  |cAARRGGBB  CreateColor(...)` while eyedropper is active; restores ruler display on deactivation.
+- Ctrl+C in the webview sends `eyedropperCopy` to the host which calls `vscode.env.clipboard.writeText`.
+- `body.mode-eyedropper { cursor: crosshair }` CSS + `pointer-events: none` on viewport children while sampling.
+- Static `activePanel` tracking added to both panel classes for command routing.

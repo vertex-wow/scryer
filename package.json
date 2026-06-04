@@ -62,6 +62,11 @@
         "category": "Scryer"
       },
       {
+        "command": "scryer.eyedropper",
+        "title": "Toggle Eyedropper",
+        "category": "Scryer"
+      },
+      {
         "command": "scryer.openLiveFolder",
         "title": "Open WoW Live View",
         "category": "Scryer",

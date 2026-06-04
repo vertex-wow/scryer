@@ -90,6 +90,12 @@
       body.mode-grab #viewport * {
         pointer-events: none;
       }
+      body.mode-eyedropper {
+        cursor: crosshair;
+      }
+      body.mode-eyedropper #viewport * {
+        pointer-events: auto;
+      }
     </style>
   </head>
   <body>
@@ -98,6 +104,7 @@
       <button id="grab-toggle" class="toolbar-btn"></button>
       <button id="interact-toggle" class="toolbar-btn"></button>
       <button id="recenter-btn" class="toolbar-btn"></button>
+      <button id="eyedropper-toggle" class="toolbar-btn"></button>
       <select id="flavor-select">
         <option value="retail">Retail</option>
         <option value="classic">Classic</option>
