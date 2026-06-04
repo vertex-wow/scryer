@@ -1,4 +1,0 @@
-## Interface: 110100
-## Title: Blizz Mixin Example
-
-test_blizz_lua_mixin_templates.xml

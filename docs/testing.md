@@ -121,11 +121,12 @@ Each spec has a matching TOC fixture directory **in `test/fixtures/`** (shared, 
 
 **`.lua` module hook:** `playwright.toc.config.ts` registers a `Module._extensions[".lua"]` handler so Node can resolve the `import ... from "*.lua"` statements inside `src/lua/sandbox.ts` and `src/lua/createframe.ts`. This mirrors the Jest `lua-text.mjs` transform. New TOC Playwright configs that import from the Lua pipeline must include the same hook.
 
-| Fixture                        | What it tests                                                                              |
-| ------------------------------ | ------------------------------------------------------------------------------------------ |
-| `fixtures/CreateTextureAddon/` | OnLoad → CreateTexture → SetAtlas / SetSize / SetPoint → registry (unit-level integration) |
-| `fixtures/MixinAddon/`         | Lua file → Mixin() + parentKey FontString → SetText / SetTextColor → rendered DOM          |
-| `fixtures/NineSliceUtilAddon/` | OnLoad → NineSliceUtil.ApplyLayout → 9 atlas textures created (used by toc + toc-casc)     |
+| Fixture                            | What it tests                                                                                              |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `fixtures/CreateTextureAddon/`     | OnLoad → CreateTexture → SetAtlas / SetSize / SetPoint → registry (unit-level integration)                 |
+| `fixtures/MixinAddon/`             | Lua file → Mixin() + parentKey FontString → SetText / SetTextColor → rendered DOM                          |
+| `fixtures/NineSliceUtilAddon/`     | OnLoad → NineSliceUtil.ApplyLayout → 9 atlas textures created (used by toc + toc-casc)                     |
+| `fixtures/BlizzInheritMixinAddon/` | XML `inherits="NineSlicePanelTemplate"` → NineSlicePanelMixin OnLoad → 9 NineSlice pieces (toc + toc-casc) |
 
 ---
 
@@ -135,9 +136,10 @@ Same pipeline as `test/toc/`, but Blizzard Lua files (`Blizzard_SharedXMLBase`, 
 
 Requires `scryer.cacheDir` in `dev/settings.local.json` with `Interface/AddOns/Blizzard_SharedXML/` present under `<cacheDir>/<flavor>/source`. Tests skip automatically when absent.
 
-| Fixture                        | What it tests                                                                                     |
-| ------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `fixtures/NineSliceUtilAddon/` | NineSliceUtil.ApplyLayout → 9 piece textures created + Tooltip-NineSlice-\* requestAsset messages |
+| Fixture                            | What it tests                                                                                                                     |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `fixtures/NineSliceUtilAddon/`     | NineSliceUtil.ApplyLayout → 9 piece textures created + Tooltip-NineSlice-\* requestAsset messages                                 |
+| `fixtures/BlizzInheritMixinAddon/` | NineSlicePanelTemplate inheritance → NineSlicePanelMixin OnLoad → 9 pieces + requestAsset (distinct from direct ApplyLayout call) |
 
 ---
 

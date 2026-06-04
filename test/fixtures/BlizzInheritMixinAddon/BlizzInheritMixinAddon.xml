@@ -4,16 +4,18 @@
    https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/FrameXML/UI.xsd">
 
   <!--
-    test_blizz_lua_mixin_templates.xml
     Verifies code-driven mixin templates render correctly.
     NineSlicePanelTemplate inherits NineSliceCodeTemplate, which defines no XML
-    textures — the nine-slice border pieces are set entirely by NineSlicePanelMixin
+    textures; the nine-slice border pieces are set entirely by NineSlicePanelMixin
     Lua code at runtime, reading the layoutType KeyValue to pick the texture kit.
     The mixin fires via <OnLoad method="OnLoad"/> in NineSliceCodeTemplate.
 
-    ✓  BACKGROUND: solid color fill (semi-transparent black tint on inner frame)
-    ✓  ARTWORK: GameFontNormal FontString  (title label, rendered above NineSlice)
-    ✓  NineSlicePanelTemplate border      (code-driven via mixin OnLoad)
+    Without Blizzard Lua (toc layer):
+      - Only the inline BACKGROUND texture renders (NineSlicePanelTemplate unresolved)
+
+    With Blizzard Lua (toc-casc layer):
+      - NineSlicePanelMixin OnLoad fires via template inheritance
+      - All 9 NineSlice border pieces created
   -->
   <Frame name="ExampleFrameTooltip" parent="UIParent"
          enableMouse="true"
