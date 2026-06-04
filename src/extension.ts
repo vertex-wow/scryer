@@ -295,13 +295,18 @@ export function activate(context: vscode.ExtensionContext): void {
       const allXml = await vscode.workspace.findFiles("**/*.xml");
       const xmlFiles = await filterGitIgnored(allXml);
       output.info(`workspace-prewarm: scanning ${xmlFiles.length} XML file(s)`);
-      const registry = assets.loadBlizzardTemplates();
+      const { frames: blizzardFrames, textures: blizzardTextures } = assets.loadBlizzardTemplates();
       for (const xmlUri of xmlFiles) {
         try {
           const bytes = await vscode.workspace.fs.readFile(xmlUri);
           const content = Buffer.from(bytes).toString("utf-8");
           const doc = parseXmlFile(xmlUri.fsPath, content);
-          const [resolved] = resolveInheritance([doc], registry, { warnings: { count: 0 } });
+          const [resolved] = resolveInheritance(
+            [doc],
+            blizzardFrames,
+            { warnings: { count: 0 } },
+            blizzardTextures,
+          );
           if (!resolved) continue;
           const frames = resolved.frames.filter((f) => !f.virtual);
           const addonDir = path.dirname(xmlUri.fsPath);

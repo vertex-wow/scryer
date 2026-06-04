@@ -162,6 +162,7 @@ export interface UiDocument {
   source: string;
   frames: FrameIR[];
   templates: Map<string, FrameIR>;
+  textureTemplates: Map<string, TextureIR>;
   scriptFiles: string[];
   includes: string[];
 }

@@ -25,10 +25,13 @@ function normPath(p: string) {
 
 function parseFixture(assetsDir: string): Record<string, unknown>[] {
   const addonsDir = join(assetsDir, "Interface", "AddOns");
-  const registry = loadBlizzardRegistry(addonsDir, tmpdir());
+  const { frames: blizzardFrames, textures: blizzardTextures } = loadBlizzardRegistry(
+    addonsDir,
+    tmpdir(),
+  );
   const xmlPath = resolve(__dirname, "blizz_templates.xml");
   const doc = parseXmlFile(xmlPath, readFileSync(xmlPath, "utf8"));
-  const [resolved] = resolveInheritance([doc], registry);
+  const [resolved] = resolveInheritance([doc], blizzardFrames, {}, blizzardTextures);
   return resolved.frames as unknown as Record<string, unknown>[];
 }
 

@@ -20,7 +20,9 @@ async function setup(): Promise<{ lua: LuaEngine; registry: FrameRegistry }> {
 function makeCtx(): ImportContext {
   return {
     addonTemplates: new Map(),
+    addonTextureTemplates: new Map(),
     blizzardTemplates: undefined,
+    blizzardTextureTemplates: undefined,
     output: { warn: () => {}, error: () => {} },
   };
 }

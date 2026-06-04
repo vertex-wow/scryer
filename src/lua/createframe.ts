@@ -234,6 +234,7 @@ export async function registerFrameModel(
   lua: LuaEngine,
   registry: FrameRegistry,
   blizzardTemplates?: Map<string, FrameIR>,
+  blizzardTextureTemplates?: Map<string, TextureIR>,
 ): Promise<void> {
   // ── UIParent / WorldFrame IDs ──────────────────────────────────────────────
   // Expose as globals so frame-class.lua can capture them as upvalues.
@@ -270,10 +271,16 @@ export async function registerFrameModel(
       source: "__apply_template__",
       frames: [synthFrame],
       templates: new Map(),
+      textureTemplates: new Map(),
       scriptFiles: [],
       includes: [],
     };
-    const [resolved] = resolveInheritance([synthDoc], blizzardTemplates, {});
+    const [resolved] = resolveInheritance(
+      [synthDoc],
+      blizzardTemplates,
+      {},
+      blizzardTextureTemplates,
+    );
     const result = resolved.frames[0] ?? null;
     templateCache.set(key, result);
     return result;

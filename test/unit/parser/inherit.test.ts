@@ -342,3 +342,94 @@ describe("resolveInheritance — cross-document", () => {
     expect(resolved2.frames[0].size).toEqual({ x: 80, y: 40 });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Texture template inheritance
+// ---------------------------------------------------------------------------
+
+describe("resolveInheritance — texture template inheritance", () => {
+  const xml = `
+<Ui ${UI_NS}>
+  <Texture name="_TileTpl" atlas="mock-tile" horizTile="true" virtual="true">
+    <Size x="64" y="32"/>
+  </Texture>
+
+  <Frame name="TestFrame">
+    <Size x="200" y="100"/>
+    <Layers>
+      <Layer level="ARTWORK">
+        <Texture name="InheritAll" inherits="_TileTpl">
+          <Anchors>
+            <Anchor point="TOPLEFT"/>
+          </Anchors>
+        </Texture>
+        <Texture name="OverrideAtlas" atlas="my-atlas" inherits="_TileTpl"/>
+      </Layer>
+    </Layers>
+  </Frame>
+</Ui>`;
+
+  let texInheritAll: import("../../../src/parser/ir").TextureIR;
+  let texOverride: import("../../../src/parser/ir").TextureIR;
+
+  beforeAll(() => {
+    const doc = singleDoc(xml);
+    const objs = doc.frames[0].layers[0].objects;
+    texInheritAll = objs[0] as import("../../../src/parser/ir").TextureIR;
+    texOverride = objs[1] as import("../../../src/parser/ir").TextureIR;
+  });
+
+  test("InheritAll: atlas copied from template", () => {
+    expect(texInheritAll.atlas).toBe("mock-tile");
+  });
+
+  test("InheritAll: horizTile copied from template", () => {
+    expect(texInheritAll.horizTile).toBe(true);
+  });
+
+  test("InheritAll: size copied from template", () => {
+    expect(texInheritAll.size).toEqual({ x: 64, y: 32 });
+  });
+
+  test("InheritAll: concrete anchors kept", () => {
+    expect(texInheritAll.anchors).toHaveLength(1);
+    expect(texInheritAll.anchors[0].point).toBe("TOPLEFT");
+  });
+
+  test("OverrideAtlas: concrete atlas wins over template", () => {
+    expect(texOverride.atlas).toBe("my-atlas");
+  });
+
+  test("OverrideAtlas: horizTile still inherited from template", () => {
+    expect(texOverride.horizTile).toBe(true);
+  });
+});
+
+describe("resolveInheritance — texture template from another doc", () => {
+  test("concrete texture inherits template defined in earlier doc", () => {
+    const doc1 = parseXmlFile(
+      "a.xml",
+      `<Ui ${UI_NS}>
+        <Texture name="_VertTile" file="Interface/Misc/Tile.blp" vertTile="true" virtual="true">
+          <Size x="16" y="64"/>
+        </Texture>
+      </Ui>`,
+    );
+    const doc2 = parseXmlFile(
+      "b.xml",
+      `<Ui ${UI_NS}>
+        <Frame name="F">
+          <Layers><Layer level="BACKGROUND">
+            <Texture name="Bg" inherits="_VertTile"/>
+          </Layer></Layers>
+        </Frame>
+      </Ui>`,
+    );
+    const [, resolved] = resolveInheritance([doc1, doc2]);
+    const tex = resolved.frames[0].layers[0]
+      .objects[0] as import("../../../src/parser/ir").TextureIR;
+    expect(tex.file).toBe("Interface/Misc/Tile.blp");
+    expect(tex.vertTile).toBe(true);
+    expect(tex.size).toEqual({ x: 16, y: 64 });
+  });
+});

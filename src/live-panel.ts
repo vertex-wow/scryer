@@ -404,9 +404,10 @@ export class ScryerLivePanel {
       // this returns immediately. We await so the Lua load below sees the files on disk.
       await this.assets.ensureBlizzardFiles();
 
-      const blizzardTemplates = this.assets.loadBlizzardTemplates();
+      const { frames: blizzardTemplates, textures: blizzardTextureTemplates } =
+        this.assets.loadBlizzardTemplates();
 
-      await registerFrameModel(sandbox, registry, blizzardTemplates);
+      await registerFrameModel(sandbox, registry, blizzardTemplates, blizzardTextureTemplates);
 
       // Load Blizzard Lua in dependency order before running the user's addon.
       // SharedXMLBase → Blizzard_Colors (needed by SharedColorConstants.lua) → SharedXML.
@@ -461,6 +462,7 @@ TROUBLESHOOTING:
         addonDir,
         sandbox,
         blizzardTemplates,
+        blizzardTextureTemplates,
         timeout: flavorConfig.sandboxTimeout,
         readFile: async (absPath) => {
           const docUri = vscode.Uri.file(absPath);

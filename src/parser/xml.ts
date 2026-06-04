@@ -306,6 +306,8 @@ function parseTexture(node: RawNode, sourceFile: string): TextureIR {
     sourceFile,
   };
 
+  tex.inherits = splitComma(strAttr(a, "inherits"));
+
   const name = strAttr(a, "name");
   if (name) tex.name = name;
   const parentKey = strAttr(a, "parentKey");
@@ -318,6 +320,10 @@ function parseTexture(node: RawNode, sourceFile: string): TextureIR {
   if (atlas) tex.atlas = atlas;
   const useAtlasSize = boolAttr(a, "useAtlasSize");
   if (useAtlasSize !== undefined) tex.useAtlasSize = useAtlasSize;
+  const horizTile = boolAttr(a, "horizTile");
+  if (horizTile !== undefined) tex.horizTile = horizTile;
+  const vertTile = boolAttr(a, "vertTile");
+  if (vertTile !== undefined) tex.vertTile = vertTile;
   const alphaMode = strAttr(a, "alphaMode");
   if (alphaMode) tex.alphaMode = alphaMode as AlphaMode;
   const setAllPoints = boolAttr(a, "setAllPoints");
@@ -646,6 +652,7 @@ export function parseXmlFile(source: string, content: string): UiDocument {
     source,
     frames: [],
     templates: new Map(),
+    textureTemplates: new Map(),
     scriptFiles: [],
     includes: [],
   };
@@ -665,6 +672,11 @@ export function parseXmlFile(source: string, content: string): UiDocument {
     } else if (tag === "Include") {
       const file = strAttr(a, "file");
       if (file) doc.includes.push(normPath(file));
+    } else if (tag === "Texture" || tag === "MaskTexture") {
+      const tex = parseTexture(child, source);
+      if (tex.virtual && tex.name) {
+        doc.textureTemplates.set(tex.name, tex);
+      }
     } else if (FRAME_TAGS.has(tag)) {
       const frame = parseFrame(child, source);
       if (frame.virtual) {

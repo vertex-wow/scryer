@@ -823,3 +823,22 @@ Added `generateEventsContent()` to `dev/gen-api-stubs.ts`. On a retail run it no
 **Status: ✅ Done (2026-06-02)**
 
 Added `EnumValue?: number` to `DocField`, `generateEnumContent()` to `dev/gen-api-stubs.ts`, and wired it into the retail block of `run()`. On a retail run it emits `src/lua/api-stubs/_Enum.ts` — a Lua code string that replaces the `_deep_proxy()` stub with real numeric constants (830 enum tables, ~12 000 entries). `generateIndex()` now imports `_Enum` and prepends it to `_retailLua` so all flavors get correct `Enum.X.Y` values at runtime.
+
+---
+
+## XML texture template inheritance
+
+**Status: ✅ Done (2026-06-04)**
+
+Layer objects (`TextureIR`) can declare `inherits="SomeName"` pointing at virtual `<Texture>` elements defined at the top level of a `<Ui>` file. Before this change, `resolveFrame` in `inherit.ts` never visited layer objects' `inherits` lists, and `parseTexture` did not read `horizTile`, `vertTile`, or the `inherits` attribute at all.
+
+Changes:
+
+- `ir.ts`: Added `textureTemplates: Map<string, TextureIR>` to `UiDocument`.
+- `xml.ts` (`parseTexture`): Now reads `inherits`, `horizTile`, and `vertTile` attributes. `parseXmlFile` now captures top-level virtual `<Texture>`/`<MaskTexture>` elements into `doc.textureTemplates`.
+- `inherit.ts`: Added `applyTextureTemplate` and `resolveTexture` (analogous to `applyTemplate`/`resolveFrame` for frames). `resolveFrame` now calls `resolveTexture` on every layer object. `resolveInheritance` accepts an optional `blizzardTextureRegistry` (4th param, default empty) and builds a combined texture registry from blizzard + all docs.
+- `blizzard-registry.ts`: `loadXmlIntoRegistry` now populates a texture registry alongside the frame registry. `loadBlizzardRegistry` now returns `BlizzardRegistry { frames, textures }`. Cache schema bumped to version 3 (`textureEntries` field added).
+- All callers updated: `assets/index.ts`, `extension.ts`, `panel.ts`, `live-panel.ts`, `createframe.ts`, `xml-importer.ts`, `toc-runner.ts`, test helpers.
+- 7 new unit tests added to `test/unit/parser/inherit.test.ts`.
+
+The immediate fix: `_UI-Frame-TopTileStreaks` (virtual texture with `atlas`, `horizTile="true"`, `size`) now correctly propagates into concrete textures that `inherits="_UI-Frame-TopTileStreaks"`, restoring the streak sheen on `DefaultPanelTemplate` frames.

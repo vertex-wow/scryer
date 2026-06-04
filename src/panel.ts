@@ -390,19 +390,25 @@ export class ScryerPanel {
       }
 
       // Load Blizzard template registry (disk-cached; fast after first parse).
-      const blizzardRegistry = this.assets.loadBlizzardTemplates();
+      const { frames: blizzardFrames, textures: blizzardTextures } =
+        this.assets.loadBlizzardTemplates();
       this.output.debug(
-        `${rn}:   Blizzard registry: ${blizzardRegistry.size} template${blizzardRegistry.size === 1 ? "" : "s"}`,
+        `${rn}:   Blizzard registry: ${blizzardFrames.size} frame template${blizzardFrames.size === 1 ? "" : "s"}, ${blizzardTextures.size} texture template${blizzardTextures.size === 1 ? "" : "s"}`,
       );
 
       const warnCb = (msg: string) => this.output.warn(msg);
 
       const warns = { count: 0 };
-      const [resolved] = resolveInheritance([doc], blizzardRegistry, {
-        warnings: warns,
-        pending: isFirstExtraction,
-        warn: warnCb,
-      });
+      const [resolved] = resolveInheritance(
+        [doc],
+        blizzardFrames,
+        {
+          warnings: warns,
+          pending: isFirstExtraction,
+          warn: warnCb,
+        },
+        blizzardTextures,
+      );
       if (!resolved) return;
 
       const renderFrames = resolved.frames.filter((f) => !f.virtual);

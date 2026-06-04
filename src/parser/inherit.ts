@@ -10,6 +10,98 @@ import type {
 } from "./ir.js";
 
 // ---------------------------------------------------------------------------
+// Texture template merge helpers
+// ---------------------------------------------------------------------------
+
+function applyTextureTemplate(concrete: TextureIR, template: TextureIR): TextureIR {
+  const result: TextureIR = {
+    ...cloneTexture(template),
+    // Identity fields always from concrete
+    kind: concrete.kind,
+    name: concrete.name,
+    parentKey: concrete.parentKey,
+    parentArray: concrete.parentArray,
+    virtual: concrete.virtual,
+    sourceFile: concrete.sourceFile,
+    sourceLine: concrete.sourceLine,
+    inherits: concrete.inherits,
+    mixin: [...template.mixin, ...concrete.mixin],
+    keyValues: mergeKeyValues(template.keyValues, concrete.keyValues),
+  };
+
+  // Scalar overrides: concrete wins if defined
+  if (concrete.file !== undefined) result.file = concrete.file;
+  if (concrete.atlas !== undefined) result.atlas = concrete.atlas;
+  if (concrete.useAtlasSize !== undefined) result.useAtlasSize = concrete.useAtlasSize;
+  if (concrete.horizTile !== undefined) result.horizTile = concrete.horizTile;
+  if (concrete.vertTile !== undefined) result.vertTile = concrete.vertTile;
+  if (concrete.alphaMode !== undefined) result.alphaMode = concrete.alphaMode;
+  if (concrete.hidden !== undefined) result.hidden = concrete.hidden;
+  if (concrete.alpha !== undefined) result.alpha = concrete.alpha;
+  if (concrete.size !== undefined) result.size = { ...concrete.size };
+  if (concrete.texCoords !== undefined) result.texCoords = { ...concrete.texCoords };
+  if (concrete.color !== undefined) result.color = { ...concrete.color };
+  if (concrete.maskFile !== undefined) result.maskFile = concrete.maskFile;
+  if (concrete.maskedChildKeys !== undefined)
+    result.maskedChildKeys = [...concrete.maskedChildKeys];
+  if (concrete.setAllPoints !== undefined) result.setAllPoints = concrete.setAllPoints;
+  if (concrete.scale !== undefined) result.scale = concrete.scale;
+
+  // Anchors: concrete wins if present
+  if (concrete.anchors.length > 0) {
+    result.anchors = concrete.anchors.map((a) => ({ ...a }));
+  }
+
+  return result;
+}
+
+function resolveTexture(
+  tex: TextureIR,
+  textureRegistry: Map<string, TextureIR>,
+  resolving: Set<string>,
+  opts: ResolveOpts,
+): TextureIR {
+  if (tex.inherits.length === 0) return tex;
+
+  const texName = tex.name;
+  if (texName) {
+    if (resolving.has(texName)) {
+      opts.warn?.(`[scryer] Circular texture template inheritance detected at "${texName}"`);
+      return tex;
+    }
+    resolving.add(texName);
+  }
+
+  let templateBase: TextureIR | null = null;
+  for (const templateName of tex.inherits) {
+    const tmpl = textureRegistry.get(templateName);
+    if (!tmpl) {
+      opts.warn?.(
+        `[scryer] Texture template "${templateName}" not found (referenced by "${texName ?? "<anonymous>"}") — unknown template`,
+      );
+      if (opts.warnings) opts.warnings.count++;
+      continue;
+    }
+    const resolvedTmpl = resolveTexture(
+      cloneTexture(tmpl),
+      textureRegistry,
+      new Set(resolving),
+      opts,
+    );
+    if (templateBase === null) {
+      templateBase = resolvedTmpl;
+    } else {
+      templateBase = applyTextureTemplate(resolvedTmpl, templateBase);
+    }
+  }
+
+  if (texName) resolving.delete(texName);
+  if (templateBase === null) return tex;
+
+  return applyTextureTemplate(tex, templateBase);
+}
+
+// ---------------------------------------------------------------------------
 // Deep-clone helpers (keep IR immutable during merge)
 // ---------------------------------------------------------------------------
 
@@ -240,12 +332,23 @@ interface ResolveOpts {
 function resolveFrame(
   frame: FrameIR,
   registry: Map<string, FrameIR>,
+  textureRegistry: Map<string, TextureIR>,
   resolving: Set<string>,
   opts: ResolveOpts = {},
 ): FrameIR {
   const { warnings, pending = false, warn } = opts;
   // Recursively resolve children first (bottom-up)
-  frame.children = frame.children.map((c) => resolveFrame(c, registry, resolving, opts));
+  frame.children = frame.children.map((c) =>
+    resolveFrame(c, registry, textureRegistry, resolving, opts),
+  );
+
+  // Resolve texture template inheritance on all layer objects
+  for (const layer of frame.layers) {
+    layer.objects = layer.objects.map((obj) => {
+      if (obj.kind === "FontString") return obj;
+      return resolveTexture(obj as TextureIR, textureRegistry, new Set(), opts);
+    });
+  }
 
   if (frame.inherits.length === 0) return frame;
 
@@ -277,7 +380,13 @@ function resolveFrame(
       if (warnings) warnings.count++;
       continue;
     }
-    const resolvedTmpl = resolveFrame(cloneFrame(tmpl), registry, new Set(resolving), opts);
+    const resolvedTmpl = resolveFrame(
+      cloneFrame(tmpl),
+      registry,
+      textureRegistry,
+      new Set(resolving),
+      opts,
+    );
     if (templateBase === null) {
       templateBase = resolvedTmpl;
     } else {
@@ -304,8 +413,9 @@ export function resolveInheritance(
   docs: UiDocument[],
   blizzardRegistry: Map<string, FrameIR> = new Map(),
   opts: ResolveOpts = {},
+  blizzardTextureRegistry: Map<string, TextureIR> = new Map(),
 ): UiDocument[] {
-  // Build global template registry: blizzard first, then user docs in order
+  // Build global frame template registry: blizzard first, then user docs in order
   const registry = new Map<string, FrameIR>(blizzardRegistry);
   for (const doc of docs) {
     for (const [name, frame] of doc.templates) {
@@ -313,9 +423,17 @@ export function resolveInheritance(
     }
   }
 
+  // Build global texture template registry: blizzard first, then user docs in order
+  const textureRegistry = new Map<string, TextureIR>(blizzardTextureRegistry);
+  for (const doc of docs) {
+    for (const [name, tex] of doc.textureTemplates) {
+      textureRegistry.set(name, tex);
+    }
+  }
+
   return docs.map((doc) => {
     const resolvedFrames = doc.frames.map((f) => {
-      const resolved = resolveFrame(cloneFrame(f), registry, new Set(), opts);
+      const resolved = resolveFrame(cloneFrame(f), registry, textureRegistry, new Set(), opts);
       // Expand $parent in top-level frames (parent name is empty string — no substitution)
       resolveFrameName(resolved, "");
       return resolved;
@@ -323,7 +441,7 @@ export function resolveInheritance(
 
     const resolvedTemplates = new Map<string, FrameIR>();
     for (const [name, tmpl] of doc.templates) {
-      const resolved = resolveFrame(cloneFrame(tmpl), registry, new Set(), opts);
+      const resolved = resolveFrame(cloneFrame(tmpl), registry, textureRegistry, new Set(), opts);
       resolvedTemplates.set(name, resolved);
     }
 

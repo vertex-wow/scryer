@@ -69,13 +69,17 @@ export async function runTocFixtureWithBlizzard(
   // Load Blizzard XML templates (same call production makes via asset-service).
   const assetsDir = getExtractedAssetsDir();
   const registryDir = assetsDir ? path.join(assetsDir, "..", "derived", "registry") : "";
-  const blizzardTemplates = loadBlizzardRegistry(addonsDir, registryDir, SHARED_ADDON_NAMES);
+  const { frames: blizzardTemplates, textures: blizzardTextureTemplates } = loadBlizzardRegistry(
+    addonsDir,
+    registryDir,
+    SHARED_ADDON_NAMES,
+  );
 
   const registry = new FrameRegistry(1024, 768);
   const clock = new VirtualClock();
   const lua = await createSandbox(WASM_PATH);
   await registerWowApi(lua, { clock });
-  await registerFrameModel(lua, registry, blizzardTemplates);
+  await registerFrameModel(lua, registry, blizzardTemplates, blizzardTextureTemplates);
 
   try {
     // Load Blizzard Lua in dependency order before running the user's addon.
@@ -97,6 +101,7 @@ export async function runTocFixtureWithBlizzard(
       addonDir: tocDir,
       sandbox: lua,
       blizzardTemplates,
+      blizzardTextureTemplates,
       readFile: async (p) => fs.readFileSync(p, "utf-8"),
       output: { info: () => {}, warn: () => {}, error: console.error },
     });

@@ -12,6 +12,7 @@ import {
   discoverBlizzardPaths,
   loadBlizzardRegistry,
   resolveCI,
+  type BlizzardRegistry,
 } from "../parser/blizzard-registry.js";
 import {
   clearFlavorCache,
@@ -405,8 +406,8 @@ export class AssetService {
    * <Include> chains. Result is disk-cached and invalidated by TOC file mtime.
    * Returns an empty map if extractedAssetsDir is not configured or addons are absent.
    */
-  loadBlizzardTemplates(): Map<string, FrameIR> {
-    if (!this.opts.sourceDir) return new Map();
+  loadBlizzardTemplates(): BlizzardRegistry {
+    if (!this.opts.sourceDir) return { frames: new Map(), textures: new Map() };
     const addonsDir = resolveAddonsDir(this.opts.sourceDir);
     const startupContent =
       vscode.workspace.getConfiguration("scryer").get<string>("startupContent") ?? "none";
@@ -453,8 +454,8 @@ export class AssetService {
   async prewarmBlizzardTextures(addonNames: string[]): Promise<void> {
     if (!this.opts.sourceDir) return;
     const addonsDir = resolveAddonsDir(this.opts.sourceDir);
-    const registry = loadBlizzardRegistry(addonsDir, this.opts.registryDir, addonNames);
-    const frames = Array.from(registry.values());
+    const { frames: frameMap } = loadBlizzardRegistry(addonsDir, this.opts.registryDir, addonNames);
+    const frames = Array.from(frameMap.values());
     const atlasManifest = this.loadAtlasManifest();
     if (atlasManifest) resolveAtlasNames(frames, atlasManifest);
     const paths = collectTexturePaths(frames);
