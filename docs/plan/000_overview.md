@@ -313,7 +313,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>↳</td>
   <td><a href="backlog.md#keyboard-input-handling-in-preview">Keyboard input handling in preview</a></td>
   <td>📋 Pending</td>
-  <td>Key event routing; ESC menu override; WoW default keybinding recreation</td>
+  <td>Toolbar "Game Input" mode (controller icon): captures keystrokes into Lua event bridge; ESC always exits</td>
   <td>S–M</td>
   <td>9</td>
 </tr>
