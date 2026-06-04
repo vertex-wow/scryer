@@ -55,6 +55,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
+  <td><a href="backlog.md#eyedropper-color-picker-in-preview">Eyedropper color picker in preview</a></td>
+  <td>📋 Pending</td>
+  <td>Pick pixel color from preview canvas; show hex + WoW color string + alpha in status bar; Ctrl+C copies</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
   <td><a href="backlog.md#preview-background-philosophy">Preview background philosophy</a></td>
   <td>📋 Pending</td>
   <td>Codify "no game graphics" scope; principled placeholder design; write ADR</td>

@@ -191,6 +191,34 @@ However, there are a few integration questions worth answering before M8 (TOC Ex
 
 ---
 
+## Eyedropper color picker in preview
+
+**Status:** 📋 Pending
+
+**Problem:** When authoring UI textures or tuning colors, addon developers have no way to sample a pixel from the preview canvas without leaving VS Code. Picking a color from a frame texture currently requires an external tool.
+
+**Goal:** An eyedropper mode in the preview panel. While active, hovering over the canvas reads the pixel color under the cursor and displays three forms in the status bar:
+
+- **Hex** — `#RRGGBB`
+- **WoW color string** — `|cAARRGGBBtext|r` escape prefix (e.g. `|cFF3A9FD4`), the format used in `SetText` and chat messages
+- **With alpha** — `CreateColor(r, g, b, a)` with components normalized to `[0, 1]` (two decimal places), matching the `CreateColor` / `Color` API used in Blizzard Lua
+
+Pressing **Ctrl+C** while the eyedropper is active copies the full status bar string (all three forms, space-separated or newline-separated — decide at implementation time) to the clipboard.
+
+**Plan:**
+
+1. **Activate eyedropper** — toolbar button (pipette icon) or command `scryer.eyedropper`. While active, cursor changes to crosshair over the canvas.
+2. **Pixel sampling** — on `mousemove`, sample the pixel at `(x, y)` using `ctx.getImageData(x, y, 1, 1)` on a hidden `<canvas>` that mirrors the webview's rendered content. Alternative: overlay a transparent `<canvas>` on top of the webview and use CSS `mix-blend-mode: normal` with pointer capture — whichever proves simpler to implement given the DOM renderer architecture.
+3. **Status bar display** — update the panel's `StatusBarItem` on each sample. Format: `#3A9FD4  |cFF3A9FD4  CreateColor(0.23, 0.62, 0.83, 1.00)`.
+4. **Ctrl+C copy** — intercept `keydown` in the webview for `Ctrl+C` while eyedropper is active; post a message to the extension host which calls `vscode.env.clipboard.writeText(...)`.
+5. **Deactivate** — click to lock the sampled color (keeps it in the status bar); second click or Escape exits eyedropper mode.
+
+**Alpha note:** The WoW `|cAA` byte is `Math.round(a * 255).toString(16).toUpperCase().padStart(2, '0')`. For fully opaque pixels, `AA = FF`.
+
+**Effort:** S — pixel sampling and status bar wiring are straightforward; the main unknown is whether a canvas overlay approach is needed given the current DOM renderer.
+
+---
+
 ## Preview background philosophy
 
 **Status:** 📋 Pending
