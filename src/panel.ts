@@ -1,13 +1,12 @@
 import * as path from "path";
 import * as vscode from "vscode";
-import { AssetService } from "./assets/index.js";
 import { resolveAtlasNames } from "./assets/atlas-manifest.js";
+import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
+import { AssetService } from "./assets/index.js";
+import { resolveFlavorConfig } from "./flavors/config.js";
+import { collectTexturePaths } from "./parser/collect-textures.js";
 import { parseXmlFile } from "./parser/index.js";
 import { resolveInheritance } from "./parser/inherit.js";
-import { collectTexturePaths } from "./parser/collect-textures.js";
-import type { FrameIR } from "./parser/ir.js";
-import { resolveFlavorConfig } from "./flavors/config.js";
-import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
 import type { HostMessage, Viewport, WebviewMessage } from "./protocol.js";
 
 function getNonce(): string {
@@ -685,6 +684,7 @@ export class ScryerPanel {
       <option value="150">150%</option>
       <option value="200">200%</option>
       <option value="400">400%</option>
+      <option value="800">800%</option>
     </select>
     <span id="debug">script not yet loaded</span>
   </div>

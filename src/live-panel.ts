@@ -773,6 +773,7 @@ TROUBLESHOOTING:
       <option value="150">150%</option>
       <option value="200">200%</option>
       <option value="400">400%</option>
+      <option value="800">800%</option>
     </select>
     <span id="debug">script not yet loaded</span>
   </div>

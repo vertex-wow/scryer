@@ -35,7 +35,7 @@ const flavorSelect = document.getElementById("flavor-select") as HTMLSelectEleme
 const resolutionSelect = document.getElementById("resolution-select") as HTMLSelectElement | null;
 const localeSelect = document.getElementById("locale-select") as HTMLSelectElement | null;
 
-const ZOOM_PRESETS = [25, 50, 75, 100, 150, 200, 400];
+const ZOOM_PRESETS = [25, 50, 75, 100, 150, 200, 400, 800];
 
 function applyTransform(): void {
   viewport!.style.transform = `translate(${panX}px,${panY}px) scale(${panZoom})`;
@@ -558,7 +558,7 @@ document.body.addEventListener(
     e.preventDefault();
     if (isZoom) {
       const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-      zoomAt(Math.max(0.05, Math.min(20, panZoom * factor)), e.clientX, e.clientY);
+      zoomAt(Math.max(0.05, Math.min(40, panZoom * factor)), e.clientX, e.clientY);
     } else {
       panX -= e.deltaX;
       panY -= e.deltaY;
