@@ -109,7 +109,6 @@ export async function runTocFixtureWithBlizzard(
 
   // Resolve atlas names if a manifest is available (<cacheDir>/<flavor>/derived/atlas-manifest.json).
   // assetsDir is <cacheDir>/<flavor>/source, so the manifest is one sibling dir up.
-  const assetsDir = getExtractedAssetsDir();
   if (assetsDir) {
     const manifestPath = path.join(assetsDir, "..", "derived", "atlas-manifest.json");
     const manifest = loadAtlasManifest(manifestPath);
