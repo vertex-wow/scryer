@@ -190,6 +190,25 @@ Screenshot regression via `page.locator("#viewport").toHaveScreenshot(...)`. **O
 
 XML and Lua fixtures for **hand-checking the extension visually**. Not run by any automated runner. When a file here gets automated coverage, move it to `test/xml/` or `test/toc/` (depending on whether it uses Lua execution) in the same change that adds the spec.
 
+### Manual fixture → automated spec mapping
+
+Tracks which manual fixtures have been promoted to automated tests, and which still need coverage. Fixtures that were cleanly promoted are deleted from `test/manual/` in the same commit; those left in place have partial coverage (the automated fixture diverged from the manual one, or the spec only covers a subset of scenarios).
+
+| Manual fixture                          | Template / feature                      | Status             | Automated spec(s)                                                                                        | Notes                                                                              |
+| --------------------------------------- | --------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `test_create_texture/`                  | `CreateTexture` + `SetAtlas`            | Promoted (deleted) | `test/xml/pipeline.spec.ts`                                                                              | Deleted in commit that added CreateTextureAddon fixture                            |
+| `test_mixin/`                           | `Mixin()`, `parentKey` FontString       | Promoted (deleted) | `test/toc/test_mixin.spec.ts`                                                                            |                                                                                    |
+| `test_blizz_inherit_mixin/`             | `NineSlicePanelTemplate` inheritance    | Promoted (deleted) | `test/toc/blizz_inherit_mixin.spec.ts`, `test/toc-casc/blizz_inherit_mixin.spec.ts`                      |                                                                                    |
+| `test_nineslice_util/`                  | `NineSliceUtil.ApplyLayout` direct call | Promoted (deleted) | `test/toc/nineslice_util.spec.ts`, `test/toc-casc/nineslice_util.spec.ts`                                |                                                                                    |
+| `ExampleFrameTitleFrame__Vertex/`       | `DefaultPanelTemplate` + `SetTitle`     | Partial (kept)     | `test/toc/title_frame.spec.ts`, `test/toc/title_frame_mock.spec.ts`, `test/toc-casc/title_frame.spec.ts` | Manual fixture kept alongside; automated fixture is `ExampleFrameTitleFrameAddon/` |
+| `ExampleControlBottomTabs__Vertex/`     | `PanelTabButtonTemplate` tabs           | Not started        | —                                                                                                        |                                                                                    |
+| `ExampleFrameIconPortrait__Vertex/`     | `PortraitFrameTemplate` (icon)          | Not started        | —                                                                                                        |                                                                                    |
+| `ExampleFrameModalDialog__Vertex/`      | `DialogBorderTemplate`                  | Not started        | —                                                                                                        |                                                                                    |
+| `ExampleFrameModelPortrait__Vertex/`    | `PortraitFrameTemplate` (model)         | Not started        | —                                                                                                        |                                                                                    |
+| `ExampleFrameTitleModalDialog__Vertex/` | `DialogBorderTemplate` + title          | Not started        | —                                                                                                        |                                                                                    |
+| `ExampleFrameTooltip__Vertex/`          | `NineSlicePanelTemplate` inline         | Not started        | —                                                                                                        |                                                                                    |
+| `test_blizz_lua_mixin_templates.xml`    | Blizzard Lua mixin templates            | Not started        | —                                                                                                        | Loose file, not a TOC addon                                                        |
+
 ---
 
 ## Decision guide

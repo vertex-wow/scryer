@@ -81,3 +81,64 @@ test("ExampleFrameTitleFrameAddon CASC — SetTitle sets title FontString text",
   );
   expect(titleTexts).toContain("Example Title Frame");
 });
+
+// ---------------------------------------------------------------------------
+// Title bar seam alignment — top NineSlice row corner coordinates
+//
+// DefaultPanelTemplate → NineSlice child (ButtonFrameTemplateNoPortrait) has 8
+// pieces (no Center) in the OVERLAY layer. The top row is 3 pieces:
+// TopLeftCorner, TopEdge, TopRightCorner. Verify that each adjacent pair shares
+// all four boundary-point coordinates (x seam, top-y, bottom-y).
+// ---------------------------------------------------------------------------
+
+test("ExampleFrameTitleFrameAddon CASC — title bar seam alignment", async ({ page }) => {
+  const addonsDir = getBlizzardAddonsDir();
+  test.skip(addonsDir === null, "Blizzard_SharedXML not found under scryer.cacheDir — skipping");
+
+  await renderTocFixtureWithBlizzard(page, FIXTURE_DIR, addonsDir!);
+
+  // ButtonFrameTemplateNoPortrait pieces use OVERLAY layer. TitleContainer's
+  // OVERLAY has only a FontString (no Texture), so this returns exactly the
+  // NineSlice piece textures.
+  const pieces = await page.evaluate(() => {
+    const frameEl = document.querySelector<HTMLElement>('[data-name="ExampleFrameTitleFrame"]');
+    if (!frameEl) return null;
+    return Array.from(
+      frameEl.querySelectorAll<HTMLElement>('[data-layer="OVERLAY"] [data-kind="Texture"]'),
+    ).map((el) => ({
+      left: parseInt(el.style.left),
+      top: parseInt(el.style.top),
+      width: parseInt(el.style.width),
+      height: parseInt(el.style.height),
+    }));
+  });
+
+  expect(pieces).not.toBeNull();
+  // ButtonFrameTemplateNoPortrait: TopLeft/TopRight/BottomLeft/BottomRight corners
+  // + Top/Bottom/Left/Right edges = 8 pieces (no Center).
+  expect(pieces!.length).toBe(8);
+
+  // Top row = the 3 pieces with the minimum top value (corners/edge both at y=-16
+  // due to y=16 WoW offset on the corner anchors).
+  const minTop = Math.min(...pieces!.map((p) => p.top));
+  const topRow = pieces!.filter((p) => p.top === minTop).sort((a, b) => a.left - b.left);
+
+  // Must be exactly 3: TopLeftCorner, TopEdge, TopRightCorner.
+  expect(topRow.length).toBe(3);
+
+  const [topLeft, middle, topRight] = topRow;
+
+  // TopLeft ↔ Middle seam: all 4 boundary-point coordinates must match.
+  // topRight.x == Middle.topLeft.x, topRight.y == Middle.topLeft.y
+  expect(topLeft.left + topLeft.width).toBe(middle.left);
+  expect(topLeft.top).toBe(middle.top);
+  // bottomRight.y == Middle.bottomLeft.y  (x already checked above)
+  expect(topLeft.top + topLeft.height).toBe(middle.top + middle.height);
+
+  // Middle ↔ TopRight seam: all 4 boundary-point coordinates must match.
+  // Middle.topRight.x == topRight.topLeft.x, same y
+  expect(middle.left + middle.width).toBe(topRight.left);
+  expect(middle.top).toBe(topRight.top);
+  // Middle.bottomRight.y == topRight.bottomLeft.y  (x already checked above)
+  expect(middle.top + middle.height).toBe(topRight.top + topRight.height);
+});

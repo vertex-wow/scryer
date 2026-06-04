@@ -33,6 +33,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>↳</td>
   <td colspan="5">✅ <a href="backlog-archive.md#ci-safe-committed-fixtures-deferred-from-m1">CI-safe committed fixtures</a></td>
 </tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#xml-texture-template-inheritance">XML texture template inheritance</a></td>
+  <td>📋 Pending</td>
+  <td>Apply virtual texture template properties (atlas, size, horizTile) to layer TextureIR objects — currently only frames get inheritance resolved</td>
+  <td>S</td>
+  <td>M1</td>
+</tr>
 </tbody>
 </table>
 

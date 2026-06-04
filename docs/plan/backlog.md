@@ -346,6 +346,45 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ---
 
+## XML texture template inheritance
+
+**Status:** 📋 Pending
+
+**Problem:** Layer objects (TextureIR, FontStringIR) can declare `inherits="SomeVirtualTexture"` in XML, but our inheritance resolver only applies template resolution to Frame nodes — never to render objects inside layers. The `_` field is parsed and stored in `tex.inherits`, but `resolveFrame` in `inherit.ts` never visits it.
+
+The immediate symptom is `$parentTopTileStreaks` in `DefaultPanelTemplate` rendering as a 372×0 invisible element. Its concrete XML is:
+
+```xml
+<Texture name="$parentTopTileStreaks" parentKey="TopTileStreaks" inherits="_UI-Frame-TopTileStreaks">
+  <Anchors>
+    <Anchor point="TOPLEFT" x="6" y="-21"/>
+    <Anchor point="TOPRIGHT" x="-2" y="-21"/>
+  </Anchors>
+</Texture>
+```
+
+The template defines `atlas="_UI-Frame-TopTileStreaks"`, `horizTile="true"`, and `<Size x="256" y="43"/>`. None of those reach the concrete texture, so `tex.atlas` is undefined and the atlas size injection never runs — giving height=0. The streak sheen that appears in WoW across the top of `DefaultPanelTemplate` frames is entirely absent in our Live View.
+
+This affects any Blizzard (or addon) texture that uses virtual texture templates for its appearance properties instead of defining them directly — a common pattern in `SharedUIPanelTemplates.xml`.
+
+**Fix plan:**
+
+`inherit.ts` needs a `resolveLayerObject(obj, registry)` function analogous to `resolveFrame`. It should:
+
+1. Look up each name in `obj.inherits` (an array, same as frames) in the shared frame/texture registry.
+2. For each template (in order, earlier templates as base, concrete on top):
+   - Copy `atlas`, `file`, `color`, `size`, `horizTile`, `vertTile`, `texCoords`, `useAtlasSize`, `hidden`, `alpha`, `alphaMode` only when the concrete object doesn't already define them (concrete wins).
+   - Merge `anchors` in the same template-first, concrete-second order used for frames.
+3. Apply after frame inheritance is resolved (textures inside frame layers are processed as part of frame resolution).
+
+`parseTexture` already reads `horizTile` and `vertTile` from XML attributes — confirm this is wired (search `parseTexture` in `xml.ts`; if not, add `boolAttr(a, "horizTile")` / `boolAttr(a, "vertTile")` reads there first).
+
+**Effort:** S — the mechanism is understood; it's a direct extension of the existing frame inheritance pattern.
+
+**Depends on:** M1 (parser, done).
+
+---
+
 ## StatusBar fill texture rendering (deferred from M7)
 
 **Status:** 📋 Pending

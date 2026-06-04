@@ -93,3 +93,63 @@ test("BlizzInheritMixinAddon CASC — requestAsset emitted for NineSlice atlas s
   expect(assetPaths.length).toBeGreaterThan(0);
   expect(assetPaths.every((p) => p.startsWith("interface/"))).toBe(true);
 });
+
+// ---------------------------------------------------------------------------
+// Title bar (top row) seam alignment — NineSlice corner coordinates
+//
+// TooltipDefaultLayout has 9 pieces: corners + edges in BORDER layer, Center in
+// BACKGROUND. The top row is 3 pieces with no coordinate offsets (corners sit
+// flush at the container top edge). Verify adjacent pairs share all 4
+// boundary-point coordinates (x seam, top-y, bottom-y).
+// ---------------------------------------------------------------------------
+
+test("BlizzInheritMixinAddon CASC — title bar seam alignment", async ({ page }) => {
+  const addonsDir = getBlizzardAddonsDir();
+  test.skip(addonsDir === null, "Blizzard_SharedXML not found under scryer.cacheDir — skipping");
+
+  await renderTocFixtureWithBlizzard(page, FIXTURE_DIR, addonsDir!);
+
+  // TooltipDefaultLayout corner/edge pieces use BORDER layer; Center uses
+  // BACKGROUND. Querying BORDER textures within ExampleFrameTooltip returns
+  // exactly the 8 non-Center NineSlice pieces.
+  const pieces = await page.evaluate(() => {
+    const frameEl = document.querySelector<HTMLElement>('[data-name="ExampleFrameTooltip"]');
+    if (!frameEl) return null;
+    return Array.from(
+      frameEl.querySelectorAll<HTMLElement>('[data-layer="BORDER"] [data-kind="Texture"]'),
+    ).map((el) => ({
+      left: parseInt(el.style.left),
+      top: parseInt(el.style.top),
+      width: parseInt(el.style.width),
+      height: parseInt(el.style.height),
+    }));
+  });
+
+  expect(pieces).not.toBeNull();
+  // TooltipDefaultLayout: 8 pieces in BORDER (corners + edges; Center is BACKGROUND).
+  expect(pieces!.length).toBe(8);
+
+  // Top row = the 3 pieces with the minimum top value. TooltipDefaultLayout has
+  // no corner offsets so corners sit flush at top=0 of the NineSlice frame.
+  const minTop = Math.min(...pieces!.map((p) => p.top));
+  const topRow = pieces!.filter((p) => p.top === minTop).sort((a, b) => a.left - b.left);
+
+  // Must be exactly 3: TopLeftCorner, TopEdge, TopRightCorner.
+  expect(topRow.length).toBe(3);
+
+  const [topLeft, middle, topRight] = topRow;
+
+  // TopLeft ↔ Middle seam: all 4 boundary-point coordinates must match.
+  // TopLeft.topRight == Middle.topLeft  (x seam + top-y)
+  expect(topLeft.left + topLeft.width).toBe(middle.left);
+  expect(topLeft.top).toBe(middle.top);
+  // TopLeft.bottomRight == Middle.bottomLeft  (x seam + bottom-y)
+  expect(topLeft.top + topLeft.height).toBe(middle.top + middle.height);
+
+  // Middle ↔ TopRight seam: all 4 boundary-point coordinates must match.
+  // Middle.topRight == TopRight.topLeft  (x seam + top-y)
+  expect(middle.left + middle.width).toBe(topRight.left);
+  expect(middle.top).toBe(topRight.top);
+  // Middle.bottomRight == TopRight.bottomLeft  (x seam + bottom-y)
+  expect(middle.top + middle.height).toBe(topRight.top + topRight.height);
+});
