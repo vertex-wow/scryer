@@ -1,7 +1,7 @@
 /**
  * E2E pipeline test — atlas.xml
  * No CASC required. Uses a mock manifest injected at parse time.
- * No e2e-casc counterpart needed: the CASC layer tests asset extraction (BLP
+ * No xml-casc counterpart needed: the CASC layer tests asset extraction (BLP
  * decode, sprite sheet loading). Atlas manifest is generated separately by
  * dev/gen-atlas.mjs, so a CASC test would only verify that specific WoW atlas
  * names exist in WoW data — not extension pipeline behavior. Everything the

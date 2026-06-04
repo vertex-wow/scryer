@@ -8,7 +8,7 @@
  *   - no spurious requestAsset on color-only frames
  *
  * When a rendering bug is found in the extension, create a minimal XML that
- * reproduces it alongside a new spec file in test/e2e/, add assertions here,
+ * reproduces it alongside a new spec file in test/xml/, add assertions here,
  * fix until green, and the test becomes a permanent regression guard.
  */
 

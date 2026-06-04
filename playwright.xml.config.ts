@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: "test/e2e",
+  testDir: "test/xml",
   testMatch: "*.spec.ts",
   tsconfig: "./tsconfig.playwright.json",
   use: {

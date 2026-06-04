@@ -5,26 +5,27 @@
 When a rendering problem appears in the extension — wrong size, wrong position, missing layer, wrong color — the fastest path to a fix is:
 
 1. Create a minimal XML file that reproduces the problem.
-2. Drop it in `test/e2e/` unchanged.
+2. Drop it in `test/xml/` unchanged.
 3. Add assertions against what you _expect_ to see (geometry, CSS, messages).
-4. Run `pnpm test:e2e` — watch it fail.
+4. Run `pnpm test:xml` — watch it fail.
 5. Fix the bug until the test goes green.
 6. The test is now a permanent regression guard.
 
-This is the key property of the e2e layer: **the fixture is the reproduction case**. You don't need to translate the failure into a synthetic description — the actual XML that fails in the extension goes in unchanged. The assertion is a direct statement of what correct output looks like. When you've fixed the bug, the test tells you so without ambiguity.
+This is the key property of the xml layer: **the fixture is the reproduction case**. You don't need to translate the failure into a synthetic description — the actual XML that fails in the extension goes in unchanged. The assertion is a direct statement of what correct output looks like. When you've fixed the bug, the test tells you so without ambiguity.
 
 ---
 
 ## Layers at a glance
 
-| Layer               | Runner         | Command              | Directory         | Purpose                                                    |
-| ------------------- | -------------- | -------------------- | ----------------- | ---------------------------------------------------------- |
-| Unit                | Jest           | `pnpm test`          | `test/unit/`      | Component precision: parser IR, layout math, Lua execution |
-| Unit (CASC)         | Jest           | `pnpm test:casc`     | `test/unit-casc/` | BLP decode, CASC extraction (needs dev config)             |
-| **E2E pipeline**    | **Playwright** | **`pnpm test:e2e`**  | **`test/e2e/`**   | **Real XML/TOC → full pipeline → DOM/CSS assertions**      |
-| E2E pipeline (CASC) | Playwright     | `pnpm test:e2e-casc` | `test/e2e-casc/`  | Same, with CASC-extracted assets (needs dev config)        |
-| Webview protocol    | Playwright     | `pnpm test:webview`  | `test/webview/`   | Webview message protocol and z-index formulas              |
-| Visual regression   | Playwright     | `pnpm test:webview`  | `test/webview/`   | Screenshot regression for geometry                         |
+| Layer              | Runner         | Command              | Directory         | Purpose                                                     |
+| ------------------ | -------------- | -------------------- | ----------------- | ----------------------------------------------------------- |
+| Unit               | Jest           | `pnpm test`          | `test/unit/`      | Component precision: parser IR, layout math, Lua execution  |
+| Unit (CASC)        | Jest           | `pnpm test:casc`     | `test/unit-casc/` | BLP decode, CASC extraction (needs dev config)              |
+| **XML preview**    | **Playwright** | **`pnpm test:xml`**  | **`test/xml/`**   | **XML file → parse → render → DOM/CSS assertions (no Lua)** |
+| XML preview (CASC) | Playwright     | `pnpm test:xml-casc` | `test/xml-casc/`  | Same, with CASC-extracted assets (needs dev config)         |
+| **TOC live view**  | **Playwright** | **`pnpm test:toc`**  | **`test/toc/`**   | **TOC file → Lua execution → render → DOM/CSS assertions**  |
+| Webview protocol   | Playwright     | `pnpm test:webview`  | `test/webview/`   | Webview message protocol and z-index formulas               |
+| Visual regression  | Playwright     | `pnpm test:webview`  | `test/webview/`   | Screenshot regression for geometry                          |
 
 CASC layers require a game install path in `dev/config.local.json` (copy from `dev/config.json.example`).
 
@@ -34,7 +35,7 @@ CASC layers require a game install path in `dev/config.local.json` (copy from `d
 
 Test individual modules in Node without a browser or extension host. Covers: XML parser (IR structure), layout engine (anchor/size math), Lua sandbox, WoW API stubs, asset resolver, TOC parser.
 
-When an e2e test fails, unit tests tell you _where_ — parser, layout, or renderer — without browser overhead.
+When a test fails, unit tests tell you _where_ — parser, layout, or renderer — without browser overhead.
 
 **vscode mock:** Jest rewrites `import 'vscode'` to `test/unit/__mocks__/vscode.ts`. When extension code uses a new VS Code API, add a stub there.
 
@@ -42,9 +43,9 @@ When an e2e test fails, unit tests tell you _where_ — parser, layout, or rende
 
 ---
 
-## E2E pipeline tests — `test/e2e/` ★ primary layer
+## XML preview tests — `test/xml/`
 
-Real XML fixture → `parseXmlFile` → `resolveInheritance` → webview harness → DOM/CSS assertions. Exercises the complete parse/resolve/render chain.
+Real XML fixture → `parseXmlFile` → `resolveInheritance` → webview harness → DOM/CSS assertions. No Lua execution. Exercises the static parse/resolve/render chain.
 
 ### What goes here
 
@@ -61,14 +62,14 @@ Real XML fixture → `parseXmlFile` → `resolveInheritance` → webview harness
 
 ### XML fixtures
 
-Each spec has a matching XML fixture **in the same directory** (`test/e2e/`). The fixture is the scenario; the spec is the assertion. Fixtures must be valid WoW XML — the same file you'd load in the extension.
+Each spec has a matching XML fixture **in the same directory** (`test/xml/`). The fixture is the scenario; the spec is the assertion. Fixtures must be valid WoW XML — the same file you'd load in the extension.
 
 | Fixture                     | What it tests                                                                                     |
 | --------------------------- | ------------------------------------------------------------------------------------------------- |
 | `direct_texture_vertex.xml` | Frame geometry + texture file path extracted and surfaced as requestAsset                         |
 | `simple_frame.xml`          | Solid-color texture (color, setAllPoints fill), FontString (text, size, position, justify, color) |
 
-### Anatomy of an e2e test
+### Anatomy of an XML preview test
 
 ```typescript
 import { parseXmlFile, resolveInheritance } from "../../src/parser";
@@ -98,6 +99,31 @@ const messages = await page.evaluate(
 
 ---
 
+## TOC live view tests — `test/toc/`
+
+TOC fixture → `runTocAddon` (full Lua execution, OnLoad, events) → webview harness → DOM/CSS assertions. Exercises the Live View path end-to-end.
+
+### What goes here
+
+- Any fixture that requires Lua execution to produce visible output (OnLoad, event handlers, CreateTexture, CreateFontString called from Lua)
+- Assertions about frames/textures created dynamically at runtime
+- Regression guards for the Live View rendering path
+
+### What does NOT go here
+
+- Frames defined purely in XML with no Lua — those belong in `test/xml/`
+- TOC parser or Lua API unit concerns — those belong in `test/unit/`
+
+### TOC fixtures
+
+Each spec has a matching TOC fixture directory **in `test/fixtures/`** (shared, reusable) or co-located in `test/toc/`. The TOC + XML + Lua files are the scenario; the spec is the assertion.
+
+| Fixture                        | What it tests                                                                              |
+| ------------------------------ | ------------------------------------------------------------------------------------------ |
+| `fixtures/CreateTextureAddon/` | OnLoad → CreateTexture → SetAtlas / SetSize / SetPoint → registry (unit-level integration) |
+
+---
+
 ## Webview protocol tests — `test/webview/render.spec.ts`
 
 Tests the webview renderer for behaviors that have **no XML equivalent** — things that are about the message protocol or rendering formula, not about a specific XML attribute.
@@ -114,8 +140,8 @@ Tests the webview renderer for behaviors that have **no XML equivalent** — thi
 
 **Does NOT belong here:**
 
-- CSS output for specific XML attributes (color, setAllPoints, justifyH/V, FontString size/position/color) — those assertions belong in the e2e test for the fixture that defines them
-- Negative requestAsset cases for specific fixture content — covered by the fixture's e2e test
+- CSS output for specific XML attributes (color, setAllPoints, justifyH/V, FontString size/position/color) — those assertions belong in the xml test for the fixture that defines them
+- Negative requestAsset cases for specific fixture content — covered by the fixture's xml test
 
 Uses `makeFrame`/`makeTexture` helpers from `helpers.ts` to construct renderer input directly, bypassing the parser.
 
@@ -129,27 +155,30 @@ Screenshot regression via `page.locator("#viewport").toHaveScreenshot(...)`. **O
 
 ## Shared fixtures — `test/fixtures/`
 
-| Path                    | Contents                                                                   |
-| ----------------------- | -------------------------------------------------------------------------- |
-| `fixtures/assets/`      | BLP/PNG/TGA images (`vertex-icon.*`) — BLP decode and asset pipeline tests |
-| `fixtures/libs/`        | Lua libraries (`CallbackHandler-1.0.lua`) — Lua sandbox integration tests  |
-| `fixtures/SimpleAddon/` | Minimal addon (`SimpleAddon.toc/.lua/.xml`) — TOC and Lua execution tests  |
+| Path                           | Contents                                                                                      |
+| ------------------------------ | --------------------------------------------------------------------------------------------- |
+| `fixtures/assets/`             | BLP/PNG/TGA images (`vertex-icon.*`) — BLP decode and asset pipeline tests                    |
+| `fixtures/libs/`               | Lua libraries (`CallbackHandler-1.0.lua`) — Lua sandbox integration tests                     |
+| `fixtures/SimpleAddon/`        | Minimal addon (`SimpleAddon.toc/.lua/.xml`) — TOC and Lua execution tests                     |
+| `fixtures/CreateTextureAddon/` | TOC+XML with OnLoad → CreateTexture/SetAtlas/SetSize/SetPoint — used by toc-runner unit tests |
 
 ---
 
 ## Manual fixtures — `test/manual/`
 
-XML and Lua fixtures for **hand-checking the extension visually**. Not run by any automated runner. When a file here gets automated coverage, move it to `test/e2e/` in the same change that adds the spec.
+XML and Lua fixtures for **hand-checking the extension visually**. Not run by any automated runner. When a file here gets automated coverage, move it to `test/xml/` or `test/toc/` (depending on whether it uses Lua execution) in the same change that adds the spec.
 
 ---
 
 ## Decision guide
 
-| Scenario                                      | Layer                                                 |
-| --------------------------------------------- | ----------------------------------------------------- |
-| Real-world rendering bug appears              | Create minimal XML → `test/e2e/` fixture + assertions |
-| New parser rule, layout formula, Lua stub     | Unit test                                             |
-| New webview message protocol behavior         | `render.spec.ts`                                      |
-| Visual geometry regression (solid color only) | `visual.spec.ts`                                      |
-| CSS output for a specific XML attribute       | E2E test for the fixture that uses it                 |
-| BLP decode, CASC extraction                   | Unit-CASC or E2E-CASC (needs dev config)              |
+| Scenario                                      | Layer                                                    |
+| --------------------------------------------- | -------------------------------------------------------- |
+| Rendering bug in XML Preview (no Lua)         | Minimal XML → `test/xml/` fixture + assertions           |
+| Rendering bug in Live View (Lua execution)    | TOC+XML fixture → `test/toc/` spec + assertions          |
+| New parser rule, layout formula, Lua stub     | Unit test                                                |
+| New webview message protocol behavior         | `render.spec.ts`                                         |
+| Visual geometry regression (solid color only) | `visual.spec.ts`                                         |
+| CSS output for a specific XML attribute       | `test/xml/` test for the fixture that uses it            |
+| CSS output for a Lua-created frame/texture    | `test/toc/` test for the fixture that uses it            |
+| BLP decode, CASC extraction                   | `test/unit-casc/` or `test/xml-casc/` (needs dev config) |

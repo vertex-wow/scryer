@@ -198,3 +198,78 @@ describe("runTocAddon", () => {
     void registry;
   });
 });
+
+// ─── CreateTexture from OnLoad ────────────────────────────────────────────────
+
+const CREATE_TEXTURE_FIXTURE_DIR = path.join(__dirname, "../../fixtures/CreateTextureAddon");
+
+describe("CreateTexture from OnLoad", () => {
+  async function runCreateTextureAddon(): Promise<{ registry: FrameRegistry }> {
+    const { lua, registry, clock } = await setup();
+    const tocContent = fs.readFileSync(
+      path.join(CREATE_TEXTURE_FIXTURE_DIR, "CreateTextureAddon.toc"),
+      "utf-8",
+    );
+    const toc = parseToc(
+      tocContent,
+      path.join(CREATE_TEXTURE_FIXTURE_DIR, "CreateTextureAddon.toc"),
+    );
+    try {
+      await runTocAddon({
+        toc,
+        addonDir: CREATE_TEXTURE_FIXTURE_DIR,
+        sandbox: lua,
+        blizzardTemplates: undefined,
+        readFile,
+        output: { info: console.info, warn: console.warn, error: console.error },
+      });
+      clock.advance(0.001);
+    } finally {
+      lua.global.close();
+    }
+    return { registry };
+  }
+
+  test("OnLoad-created textures appear in registry", async () => {
+    const { registry } = await runCreateTextureAddon();
+    const node = registry.getFrameByName("DynTexFrame")!;
+    expect(node).toBeDefined();
+    expect(node.textures).toHaveLength(2);
+  });
+
+  test("SetAtlas name stored on dynamically-created texture", async () => {
+    const { registry } = await runCreateTextureAddon();
+    const textures = registry.getFrameByName("DynTexFrame")!.textures;
+    expect(textures[0].atlas).toBe("mock-corner-tl");
+    expect(textures[1].atlas).toBe("mock-corner-tr");
+  });
+
+  test("useAtlasSize stored correctly per texture", async () => {
+    const { registry } = await runCreateTextureAddon();
+    const textures = registry.getFrameByName("DynTexFrame")!.textures;
+    expect(textures[0].useAtlasSize).toBe(false);
+    expect(textures[1].useAtlasSize).toBe(true);
+  });
+
+  test("SetSize stored on dynamically-created textures", async () => {
+    const { registry } = await runCreateTextureAddon();
+    const textures = registry.getFrameByName("DynTexFrame")!.textures;
+    expect(textures[0].size?.x).toBe(32);
+    expect(textures[0].size?.y).toBe(32);
+    expect(textures[1].size?.x).toBe(48);
+    expect(textures[1].size?.y).toBe(48);
+  });
+
+  test("SetPoint anchor stored on dynamically-created textures", async () => {
+    const { registry } = await runCreateTextureAddon();
+    const textures = registry.getFrameByName("DynTexFrame")!.textures;
+    expect(textures[0].anchors[0].point).toBe("TOPLEFT");
+    expect(textures[1].anchors[0].point).toBe("TOPRIGHT");
+  });
+
+  test("DynTexFrame appears in registry serialize()", async () => {
+    const { registry } = await runCreateTextureAddon();
+    const names = registry.serialize().map((f) => f.name ?? "<anon>");
+    expect(names).toContain("DynTexFrame");
+  });
+});

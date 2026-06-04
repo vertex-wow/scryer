@@ -306,6 +306,53 @@ describe("CreateTexture / CreateFontString", () => {
     const node = registry.getFrameByName("ColorFS")!;
     expect(node.fontStrings[0].color).toEqual({ r: 1, g: 1, b: 0, a: 1 });
   });
+
+  test("SetAtlas stores atlas name, useAtlasSize defaults false", async () => {
+    const { registry } = await run(`
+      local f = CreateFrame("Frame", "AtlasTex")
+      local t = f:CreateTexture()
+      t:SetAtlas("mock-corner-tl")
+    `);
+    const node = registry.getFrameByName("AtlasTex")!;
+    expect(node.textures[0].atlas).toBe("mock-corner-tl");
+    expect(node.textures[0].useAtlasSize).toBe(false);
+  });
+
+  test("SetAtlas with useAtlasSize=true", async () => {
+    const { registry } = await run(`
+      local f = CreateFrame("Frame", "AtlasSized")
+      local t = f:CreateTexture()
+      t:SetAtlas("mock-corner-tr", true)
+    `);
+    const node = registry.getFrameByName("AtlasSized")!;
+    expect(node.textures[0].atlas).toBe("mock-corner-tr");
+    expect(node.textures[0].useAtlasSize).toBe(true);
+  });
+
+  test("SetSize stores width and height on texture", async () => {
+    const { registry } = await run(`
+      local f = CreateFrame("Frame", "SizedTex")
+      local t = f:CreateTexture()
+      t:SetSize(32, 48)
+    `);
+    const node = registry.getFrameByName("SizedTex")!;
+    expect(node.textures[0].size?.x).toBe(32);
+    expect(node.textures[0].size?.y).toBe(48);
+  });
+
+  test("SetPoint stores anchor on texture", async () => {
+    const { registry } = await run(`
+      local f = CreateFrame("Frame", "PointTex")
+      local t = f:CreateTexture()
+      t:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -4)
+    `);
+    const node = registry.getFrameByName("PointTex")!;
+    const anchor = node.textures[0].anchors[0];
+    expect(anchor.point).toBe("TOPLEFT");
+    expect(anchor.relativePoint).toBe("TOPLEFT");
+    expect(anchor.x).toBe(4);
+    expect(anchor.y).toBe(-4);
+  });
 });
 
 // ─── GetObjectType / IsObjectType ─────────────────────────────────────────────

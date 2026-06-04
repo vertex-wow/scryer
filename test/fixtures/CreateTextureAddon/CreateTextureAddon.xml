@@ -1,0 +1,21 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Frame name="DynTexFrame" parent="UIParent">
+    <Size x="240" y="160"/>
+    <Anchors>
+      <Anchor point="CENTER"/>
+    </Anchors>
+    <Scripts>
+      <OnLoad>
+        local tl = self:CreateTexture(nil, "BORDER")
+        tl:SetAtlas("mock-corner-tl")
+        tl:SetSize(32, 32)
+        tl:SetPoint("TOPLEFT", self, "TOPLEFT", 0, 0)
+
+        local tr = self:CreateTexture(nil, "BORDER")
+        tr:SetAtlas("mock-corner-tr", true)
+        tr:SetSize(48, 48)
+        tr:SetPoint("TOPRIGHT", self, "TOPRIGHT", 0, 0)
+      </OnLoad>
+    </Scripts>
+  </Frame>
+</Ui>
