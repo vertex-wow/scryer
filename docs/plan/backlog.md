@@ -322,6 +322,33 @@ The toolbar icon should be a small gamepad or controller glyph (e.g. a Unicode `
 
 ---
 
+## Customizable keyboard shortcuts for toolbar actions
+
+**Status:** 📋 Pending
+
+**Problem:** Toolbar buttons (eyedropper, Game Input mode, ruler toggle, etc.) are only reachable by clicking. Power users expect to trigger them from the keyboard, and VS Code's built-in keybinding system (`keybindings.json`) is the right mechanism — it gives users full control without Scryer needing to invent its own binding UI.
+
+**Goal:** Every toolbar action is backed by a named VS Code command so that users can assign or override shortcuts via `keybindings.json` as they would for any other extension.
+
+**Plan:**
+
+1. **Register each toolbar action as a command** in `package.json` under `contributes.commands`. Examples:
+   - `scryer.toggleEyedropper`
+   - `scryer.toggleGameInput`
+   - `scryer.toggleRuler`
+   - `scryer.centerCanvas`
+     Future toolbar buttons get a corresponding command at the time they are added.
+
+2. **Default keybindings** — contribute a small set of sensible defaults in `package.json` under `contributes.keybindings`, scoped to the preview panel focus context (e.g. `when: "scryer.previewFocused"`). Avoid collisions with VS Code built-ins. Leave most unbound by default and let users assign what they want; only bind actions where a default is obviously correct (e.g. no obvious candidate for eyedropper — leave unbound).
+
+3. **Webview → host command bridge** — toolbar button clicks in the webview already post messages to the extension host. The host-side command handlers call the same underlying functions, so adding a command is just registering a `vscode.commands.registerCommand` that calls the existing handler. No new webview logic needed.
+
+4. **Documentation** — add a table of available commands to `docs/configuration.md` so users know what to bind.
+
+**Effort:** XS — commands and keybinding contributions are `package.json` entries + one `registerCommand` call each; no new logic required.
+
+---
+
 ## Addon state emulation
 
 **Status:** 📋 Pending

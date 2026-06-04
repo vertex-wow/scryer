@@ -317,6 +317,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>S–M</td>
   <td>9</td>
 </tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#customizable-keyboard-shortcuts-for-toolbar-actions">Customizable keyboard shortcuts for toolbar actions</a></td>
+  <td>📋 Pending</td>
+  <td>Register toolbar actions as VS Code commands so users can rebind them via keybindings.json</td>
+  <td>XS</td>
+  <td>—</td>
+</tr>
 </tbody>
 </table>
 
