@@ -330,20 +330,24 @@ function sampleTexture(
   if (!img.complete || img.naturalWidth === 0) return null;
 
   const rect = el.getBoundingClientRect();
-  const relX = clientX - rect.left;
-  const relY = clientY - rect.top;
+  // getBoundingClientRect includes CSS transform scale; offsetWidth/Height are layout-only.
+  // Normalize to layout pixel space so relX/relY match getComputedStyle background values.
+  const layoutW = el.offsetWidth || 1;
+  const layoutH = el.offsetHeight || 1;
+  const relX = (clientX - rect.left) * (layoutW / rect.width);
+  const relY = (clientY - rect.top) * (layoutH / rect.height);
 
   const cs = getComputedStyle(el);
   const parts = cs.backgroundSize.trim().split(/\s+/);
-  const bgW = parseDim(parts[0], rect.width);
-  const bgH = parseDim(parts[1] ?? parts[0], rect.height);
+  const bgW = parseDim(parts[0], layoutW);
+  const bgH = parseDim(parts[1] ?? parts[0], layoutH);
 
   const posParts = cs.backgroundPosition.trim().split(/\s+/);
   const bgX = posParts[0].endsWith("%")
-    ? (parseFloat(posParts[0]) / 100) * (rect.width - bgW)
+    ? (parseFloat(posParts[0]) / 100) * (layoutW - bgW)
     : parseFloat(posParts[0] || "0");
   const bgY = (posParts[1] ?? "0").endsWith("%")
-    ? (parseFloat(posParts[1] ?? "0") / 100) * (rect.height - bgH)
+    ? (parseFloat(posParts[1] ?? "0") / 100) * (layoutH - bgH)
     : parseFloat(posParts[1] ?? "0");
 
   const imgX = Math.round(((relX - bgX) / bgW) * img.naturalWidth);
@@ -558,7 +562,7 @@ document.body.addEventListener(
     e.preventDefault();
     if (isZoom) {
       const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-      zoomAt(Math.max(0.05, Math.min(40, panZoom * factor)), e.clientX, e.clientY);
+      zoomAt(Math.max(0.05, Math.min(80, panZoom * factor)), e.clientX, e.clientY);
     } else {
       panX -= e.deltaX;
       panY -= e.deltaY;
