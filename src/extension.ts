@@ -323,14 +323,14 @@ export function activate(context: vscode.ExtensionContext): void {
       // Loose SVGs: convert to PNG alongside the source if no PNG/TGA sibling exists.
       const svgUris = await filterGitIgnored(await vscode.workspace.findFiles("**/*.svg"));
       if (svgUris.length > 0) {
-        if (!isSvgConverterAvailable()) {
+        const cfg = vscode.workspace.getConfiguration("scryer");
+        const rsvgPath = cfg.get<string>("rsvgConvertPath") || undefined;
+        if (!isSvgConverterAvailable(rsvgPath)) {
           output.warn(
-            `workspace-prewarm: skipping ${svgUris.length} SVG(s) — rsvg-convert not found (install librsvg2-bin or set scryer.imageConvertPath)`,
+            `workspace-prewarm: skipping ${svgUris.length} SVG(s) — rsvg-convert not found (install librsvg2-bin on Linux/macOS, or set scryer.rsvgConvertPath)`,
           );
         } else {
-          const explicitConvert =
-            vscode.workspace.getConfiguration("scryer").get<string>("imageConvertPath") ||
-            undefined;
+          const explicitConvert = cfg.get<string>("imageConvertPath") || undefined;
           const flipper = resolveFlipTool(explicitConvert);
           let pngCount = 0;
           let tgaCount = 0;
@@ -341,7 +341,7 @@ export function activate(context: vscode.ExtensionContext): void {
             if (hasPng && hasTga) continue;
             try {
               if (!hasPng) {
-                await svgToPng(uri.fsPath, base + ".png");
+                await svgToPng(uri.fsPath, base + ".png", rsvgPath);
                 pngCount++;
               }
               if (!hasTga && flipper) {

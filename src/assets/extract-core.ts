@@ -34,6 +34,8 @@ export interface ExtractCoreOptions {
   wowDir: string;
   /** Explicit path to rustydemon-cli binary. Auto-detected from PATH if absent. */
   cascToolPath?: string;
+  /** Explicit path to the grep binary. Auto-detected from PATH if absent. */
+  grepPath?: string;
   /** Directory where listfile.csv is cached (and downloaded if absent). */
   listfileDir: string;
   /** Log callback for progress lines. Defaults to console.log. */
@@ -138,11 +140,12 @@ export async function ensureListfile(
 function filterListfile(
   fullPath: string,
   filteredPath: string,
+  grepCmd: string,
   log?: (line: string) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     log?.(`Filtering listfile to Interface/ and Fonts/ entries...`);
-    const proc = cp.spawn("grep", ["-F", "-i", "-e", ";Interface/", "-e", ";Fonts/", fullPath]);
+    const proc = cp.spawn(grepCmd, ["-F", "-i", "-e", ";Interface/", "-e", ";Fonts/", fullPath]);
     const ws = fs.createWriteStream(filteredPath);
     proc.stdout.pipe(ws);
     proc.stderr.resume();
@@ -171,6 +174,7 @@ export async function ensureFilteredListfile(
   listfileDir: string,
   log?: (line: string) => void,
   buildText?: string,
+  grepPath?: string,
 ): Promise<string> {
   const fullPath = await ensureListfile(listfileDir, log);
   const filteredPath = path.join(listfileDir, "listfile-templates.csv");
@@ -199,7 +203,7 @@ export async function ensureFilteredListfile(
     }
   }
 
-  await filterListfile(fullPath, filteredPath, log);
+  await filterListfile(fullPath, filteredPath, grepPath ?? "grep", log);
   if (buildText) fs.writeFileSync(stampPath, buildText, "utf8");
   return filteredPath;
 }
@@ -309,6 +313,7 @@ function spawnRustydemon(
 async function filterToListfilePaths(
   listfilePath: string,
   paths: string[],
+  grepCmd: string,
   log?: (line: string) => void,
 ): Promise<string[]> {
   if (paths.length === 0) return [];
@@ -318,7 +323,7 @@ async function filterToListfilePaths(
     for (const p of paths) args.push("-e", `;${p}`);
     args.push(listfilePath);
 
-    const proc = cp.spawn("grep", args);
+    const proc = cp.spawn(grepCmd, args);
     let out = "";
     proc.stdout.on("data", (d: Buffer) => (out += d.toString()));
     proc.stderr.resume();
@@ -358,7 +363,12 @@ async function extractRetailPaths(
   // Use the full listfile: paths extracted here may be outside Interface/ (e.g. Fonts/).
   const listfilePath = await ensureListfile(opts.listfileDir, opts.log);
 
-  const extractable = await filterToListfilePaths(listfilePath, paths, opts.log);
+  const extractable = await filterToListfilePaths(
+    listfilePath,
+    paths,
+    opts.grepPath ?? "grep",
+    opts.log,
+  );
   if (extractable.length === 0) return { exported: 0, skippedExists: 0, errors: 0 };
 
   await fs.promises.mkdir(opts.outDir, { recursive: true });
@@ -380,7 +390,12 @@ async function extractRetailBulk(
 ): Promise<ExtractionResult> {
   const cascTool = findCascTool(opts.cascToolPath);
   const buildText = readBuildText(opts.wowDir, opts.flavor) ?? undefined;
-  const listfilePath = await ensureFilteredListfile(opts.listfileDir, opts.log, buildText);
+  const listfilePath = await ensureFilteredListfile(
+    opts.listfileDir,
+    opts.log,
+    buildText,
+    opts.grepPath,
+  );
   await fs.promises.mkdir(opts.outDir, { recursive: true });
 
   const globs = [

@@ -1,6 +1,6 @@
 /**
  * E2E pipeline test — CASC variant.
- * Requires extractedAssetsDir in dev/config.local.json; skips automatically otherwise.
+ * Requires scryer.cacheDir in dev/settings.local.json; skips automatically otherwise.
  */
 
 import { test, expect } from "@playwright/test";
@@ -20,7 +20,7 @@ function parseE2eXml(filename: string): Record<string, unknown>[] {
 
 test("direct_texture_casc.xml — full parse→render pipeline (CASC)", async ({ page }) => {
   const assetsDir = getExtractedAssetsDir();
-  test.skip(assetsDir === null, "extractedAssetsDir not set in dev/config.local.json");
+  test.skip(assetsDir === null, "scryer.cacheDir not set in dev/settings.local.json");
 
   const blpPath = join(assetsDir!, "Interface", "Buttons", "UI-CheckBox-Check.blp");
   test.skip(!existsSync(blpPath), `BLP not found: ${blpPath} — extract textures first`);

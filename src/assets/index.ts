@@ -62,6 +62,8 @@ export interface AssetServiceOptions {
   flavor: string;
   /** Path to the CASC extraction tool binary (e.g. rustydemon-cli). Empty = auto-detect from PATH. */
   cascToolPath: string;
+  /** Path to the grep binary. Empty = auto-detect from PATH. */
+  grepPath: string;
   output: vscode.LogOutputChannel;
 }
 
@@ -360,6 +362,7 @@ export class AssetService {
         outDir: this.opts.sourceDir,
         wowDir: this.opts.installDir,
         cascToolPath: this.opts.cascToolPath,
+        grepPath: this.opts.grepPath,
         listfileDir: this.downloadsDir,
         output: this.opts.output,
       });
@@ -477,6 +480,7 @@ export class AssetService {
       outDir: this.opts.sourceDir,
       wowDir: this.opts.installDir,
       cascToolPath: this.opts.cascToolPath,
+      grepPath: this.opts.grepPath,
       listfileDir: this.downloadsDir,
       output: this.opts.output,
     });
@@ -515,6 +519,7 @@ export class AssetService {
     const installDir = cfg.get<string>("installDir") ?? "";
     const flavor = cfg.get<string>("flavor") || "retail";
     const cascToolPath = cfg.get<string>("cascToolPath") ?? "";
+    const grepPath = cfg.get<string>("grepPath") ?? "";
 
     const flavorRoot = path.join(cacheRoot, flavor);
     const installFlavorDir = installDir ? path.join(installDir, flavorSubdir(flavor)) : "";
@@ -528,6 +533,7 @@ export class AssetService {
       cacheRoot,
       flavor,
       cascToolPath,
+      grepPath,
       output,
     });
   }

@@ -6,8 +6,8 @@
  *   node dist/gen-api-stubs.js [retail|classic|classic_era] [options]
  *
  * Options:
- *   --wow-dir <path>      WoW root directory (or installDir in dev/config.local.json)
- *   --casc-tool <path>    cascTool binary path (or cascToolPath in dev/config.local.json)
+ *   --wow-dir <path>      WoW root directory (or installDir in dev/settings.local.json)
+ *   --casc-tool <path>    cascTool binary path (or cascToolPath in dev/settings.local.json)
  *   --temp-dir <dir>      Temp extraction dir (default: os.tmpdir()/wow-api-stubs-<flavor>)
  *   --out-dir <dir>       Stub output root (default: src/lua/api-stubs)
  *   --listfile-dir <dir>  Listfile cache dir (default: .wow-assets)
@@ -159,12 +159,12 @@ EXTRA_PET_STABLE_SLOT = 0
 // ---------------------------------------------------------------------------
 
 interface DevConfig {
-  installDir?: string;
-  cascToolPath?: string;
+  "scryer.installDir"?: string;
+  "scryer.cascToolPath"?: string;
 }
 
 function loadDevConfig(): DevConfig {
-  const p = path.join(PROJECT_ROOT, "dev", "config.local.json");
+  const p = path.join(PROJECT_ROOT, "dev", "settings.local.json");
   if (!fs.existsSync(p)) return {};
   try {
     return JSON.parse(fs.readFileSync(p, "utf-8")) as DevConfig;
@@ -221,8 +221,8 @@ for (; i < args.length; i++) {
 }
 
 const devConfig = loadDevConfig();
-const wowDir = wowDirArg ?? devConfig.installDir;
-const cascToolPath = cascToolArg ?? devConfig.cascToolPath;
+const wowDir = wowDirArg ?? devConfig["scryer.installDir"];
+const cascToolPath = cascToolArg ?? devConfig["scryer.cascToolPath"];
 const tempDir = tempDirArg ?? path.join(os.tmpdir(), `wow-api-stubs-${flavor}`);
 
 // ---------------------------------------------------------------------------
@@ -280,8 +280,8 @@ async function extractApiDocs(): Promise<string> {
 
   if (!wowDir) {
     console.error(
-      "Error: --wow-dir is required (or set installDir in dev/config.local.json).\n" +
-        "  Copy dev/config.json.example to dev/config.local.json and fill in installDir.",
+      "Error: --wow-dir is required (or set scryer.installDir in dev/settings.local.json).\n" +
+        "  Copy dev/settings.json.example to dev/settings.local.json and fill in scryer.installDir.",
     );
     process.exit(1);
   }

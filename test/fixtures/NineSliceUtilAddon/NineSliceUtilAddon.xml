@@ -3,21 +3,6 @@
    xsi:schemaLocation="http://www.blizzard.com/wow/ui/
    https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/FrameXML/UI.xsd">
 
-  <!--
-    test_nineslice_util.xml
-    Tests NineSliceUtil.ApplyLayout directly on a plain frame — no template
-    inheritance, no mixin attribute. Isolates whether NineSlice.lua is loaded
-    and functional before adding the template/mixin layer.
-
-    Expected result: a 240x160 frame with all nine NineSlice pieces visible
-    (corners + edges + center), either as atlas sprites or placeholders.
-
-    If NineSliceUtil is nil, an error is printed to the Scryer output channel
-    and nothing additional appears.
-
-    If CreateTexture works (test_create_texture passes) but this still shows
-    nothing, the issue is in the Blizzard Lua loading step.
-  -->
   <Frame name="TestNineSliceUtil" parent="UIParent">
     <Size x="240" y="160"/>
     <Anchors>
@@ -38,8 +23,6 @@
       <OnLoad>
         if NineSliceUtil and NineSliceLayouts then
           NineSliceUtil.ApplyLayout(self, NineSliceLayouts.TooltipDefaultLayout)
-        else
-          print("[TestNineSliceUtil] NineSliceUtil or NineSliceLayouts is nil — Blizzard Lua not loaded")
         end
       </OnLoad>
     </Scripts>

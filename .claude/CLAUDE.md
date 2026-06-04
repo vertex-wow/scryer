@@ -11,7 +11,7 @@ Invoke `/caveman` at start of every conversation. If user turns it off during ch
 - `_live/` and `_reference/` — **read-only reference**. Never edit or write to these directories. They exist for reading/diffing only.
 - `.plan/` — gitignored ephemeral scratchpad. Use for short-term task tracking only. Nothing here is permanent.
 - `docs/` — checked-in permanent documentation. Always keep this up to date as decisions are made or the plan evolves.
-- `dev/` — **developer tooling only** (not shipped with the extension). Contains thin CLI shims that call into `src/` libraries. Scripts here are TypeScript files (compiled via `dev/bench.build.mjs`). Any real logic that the extension needs must live in `src/`, not here. The `dev/` scripts exist for developer convenience (benchmarking, manual extraction runs, asset pipeline inspection) and assume Node is installed. Config is read from `dev/config.local.json` (gitignored; copy from `dev/config.json.example`).
+- `dev/` — **developer tooling only** (not shipped with the extension). Contains thin CLI shims that call into `src/` libraries. Scripts here are TypeScript files (compiled via `dev/bench.build.mjs`). Any real logic that the extension needs must live in `src/`, not here. The `dev/` scripts exist for developer convenience (benchmarking, manual extraction runs, asset pipeline inspection) and assume Node is installed. Config is read from `dev/settings.local.json` (gitignored; copy from `dev/settings.json.example`).
 
 ## Documentation conventions
 

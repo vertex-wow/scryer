@@ -17,17 +17,18 @@ This is the key property of the xml layer: **the fixture is the reproduction cas
 
 ## Layers at a glance
 
-| Layer              | Runner         | Command              | Directory         | Purpose                                                     |
-| ------------------ | -------------- | -------------------- | ----------------- | ----------------------------------------------------------- |
-| Unit               | Jest           | `pnpm test`          | `test/unit/`      | Component precision: parser IR, layout math, Lua execution  |
-| Unit (CASC)        | Jest           | `pnpm test:casc`     | `test/unit-casc/` | BLP decode, CASC extraction (needs dev config)              |
-| **XML preview**    | **Playwright** | **`pnpm test:xml`**  | **`test/xml/`**   | **XML file → parse → render → DOM/CSS assertions (no Lua)** |
-| XML preview (CASC) | Playwright     | `pnpm test:xml-casc` | `test/xml-casc/`  | Same, with CASC-extracted assets (needs dev config)         |
-| **TOC live view**  | **Playwright** | **`pnpm test:toc`**  | **`test/toc/`**   | **TOC file → Lua execution → render → DOM/CSS assertions**  |
-| Webview protocol   | Playwright     | `pnpm test:webview`  | `test/webview/`   | Webview message protocol and z-index formulas               |
-| Visual regression  | Playwright     | `pnpm test:webview`  | `test/webview/`   | Screenshot regression for geometry                          |
+| Layer                | Runner         | Command              | Directory         | Purpose                                                     |
+| -------------------- | -------------- | -------------------- | ----------------- | ----------------------------------------------------------- |
+| Unit                 | Jest           | `pnpm test`          | `test/unit/`      | Component precision: parser IR, layout math, Lua execution  |
+| Unit (CASC)          | Jest           | `pnpm test:casc`     | `test/unit-casc/` | BLP decode, CASC extraction (needs dev config)              |
+| **XML preview**      | **Playwright** | **`pnpm test:xml`**  | **`test/xml/`**   | **XML file → parse → render → DOM/CSS assertions (no Lua)** |
+| XML preview (CASC)   | Playwright     | `pnpm test:xml-casc` | `test/xml-casc/`  | Same, with CASC-extracted assets (needs dev config)         |
+| **TOC live view**    | **Playwright** | **`pnpm test:toc`**  | **`test/toc/`**   | **TOC file → Lua execution → render → DOM/CSS assertions**  |
+| TOC live view (CASC) | Playwright     | `pnpm test:toc-casc` | `test/toc-casc/`  | Same, with Blizzard Lua preloaded (needs dev config)        |
+| Webview protocol     | Playwright     | `pnpm test:webview`  | `test/webview/`   | Webview message protocol and z-index formulas               |
+| Visual regression    | Playwright     | `pnpm test:webview`  | `test/webview/`   | Screenshot regression for geometry                          |
 
-CASC layers require a game install path in `dev/config.local.json` (copy from `dev/config.json.example`).
+CASC layers require `scryer.cacheDir` in `dev/settings.local.json` (copy from `dev/settings.json.example`). The extracted assets are read from `<cacheDir>/<flavor>/source`.
 
 ---
 
@@ -124,6 +125,19 @@ Each spec has a matching TOC fixture directory **in `test/fixtures/`** (shared, 
 | ------------------------------ | ------------------------------------------------------------------------------------------ |
 | `fixtures/CreateTextureAddon/` | OnLoad → CreateTexture → SetAtlas / SetSize / SetPoint → registry (unit-level integration) |
 | `fixtures/MixinAddon/`         | Lua file → Mixin() + parentKey FontString → SetText / SetTextColor → rendered DOM          |
+| `fixtures/NineSliceUtilAddon/` | OnLoad → NineSliceUtil.ApplyLayout → 9 atlas textures created (used by toc + toc-casc)     |
+
+---
+
+## TOC live view (CASC) tests — `test/toc-casc/`
+
+Same pipeline as `test/toc/`, but Blizzard Lua files (`Blizzard_SharedXMLBase`, `Blizzard_Colors`, `Blizzard_SharedXML`) are preloaded before running the user's addon. This lets tests assert on behaviours that require Blizzard globals such as `NineSliceUtil`, `NineSliceLayouts`, and `Mixin`.
+
+Requires `scryer.cacheDir` in `dev/settings.local.json` with `Interface/AddOns/Blizzard_SharedXML/` present under `<cacheDir>/<flavor>/source`. Tests skip automatically when absent.
+
+| Fixture                        | What it tests                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `fixtures/NineSliceUtilAddon/` | NineSliceUtil.ApplyLayout → 9 piece textures created + Tooltip-NineSlice-\* requestAsset messages |
 
 ---
 

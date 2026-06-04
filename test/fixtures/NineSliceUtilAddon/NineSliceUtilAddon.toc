@@ -1,4 +1,4 @@
 ## Interface: 110100
 ## Title: NineSliceUtil direct test
 
-test_nineslice_util.xml
+NineSliceUtilAddon.xml

@@ -1,6 +1,6 @@
 /**
  * E2E pipeline test — blizz_templates.xml (CASC variant).
- * Requires extractedAssetsDir in dev/config.local.json with Interface/AddOns/ present.
+ * Requires scryer.cacheDir in dev/settings.local.json with Interface/AddOns/ present under <cacheDir>/<flavor>/source.
  *
  * Covers:
  *   - UIPanelGoldButtonTemplate: three gold-button textures resolve via Blizzard registry
@@ -38,7 +38,7 @@ function parseFixture(assetsDir: string): Record<string, unknown>[] {
 
 test("blizz_templates.xml — UIPanelGoldButtonTemplate size and requestAssets", async ({ page }) => {
   const assetsDir = getExtractedAssetsDir();
-  test.skip(assetsDir === null, "extractedAssetsDir not set in dev/config.local.json");
+  test.skip(assetsDir === null, "scryer.cacheDir not set in dev/settings.local.json");
   const addonsDir = join(assetsDir!, "Interface", "AddOns");
   test.skip(!existsSync(addonsDir), `AddOns dir not found: ${addonsDir} — extract first`);
 
@@ -70,7 +70,7 @@ test("blizz_templates.xml — UIMenuButtonStretchTemplate size and requestAsset"
   page,
 }) => {
   const assetsDir = getExtractedAssetsDir();
-  test.skip(assetsDir === null, "extractedAssetsDir not set in dev/config.local.json");
+  test.skip(assetsDir === null, "scryer.cacheDir not set in dev/settings.local.json");
   const addonsDir = join(assetsDir!, "Interface", "AddOns");
   test.skip(!existsSync(addonsDir), `AddOns dir not found: ${addonsDir} — extract first`);
 
@@ -98,7 +98,7 @@ test("blizz_templates.xml — UIMenuButtonStretchTemplate size and requestAsset"
 
 test("blizz_templates.xml — InsetFrameTemplate size and marble requestAsset", async ({ page }) => {
   const assetsDir = getExtractedAssetsDir();
-  test.skip(assetsDir === null, "extractedAssetsDir not set in dev/config.local.json");
+  test.skip(assetsDir === null, "scryer.cacheDir not set in dev/settings.local.json");
   const addonsDir = join(assetsDir!, "Interface", "AddOns");
   test.skip(!existsSync(addonsDir), `AddOns dir not found: ${addonsDir} — extract first`);
 

@@ -11,7 +11,7 @@
  *   3. per-file    — Single file extraction by path (listfile still required).
  *
  * Config: reads from env vars CE_PATH, RD_PATH, WOW_DIR, LISTFILE,
- *         or falls back to dev/config.local.json (wowDir, cascTool) for rustydemon-cli.
+ *         or falls back to dev/settings.local.json (scryer.installDir, scryer.cascToolPath) for rustydemon-cli.
  *
  * Usage:
  *   node dev/bench-casc-comparison.mjs [runs] [warmup]
@@ -34,7 +34,7 @@ const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = path.join(path.dirname(__filename), "..");
 
 function loadDevConfig() {
-  const p = path.join(PROJECT_ROOT, "dev", "config.local.json");
+  const p = path.join(PROJECT_ROOT, "dev", "settings.local.json");
   if (!existsSync(p)) return {};
   try {
     return JSON.parse(readFileSync(p, "utf-8"));
@@ -49,8 +49,8 @@ const RUNS = parseInt(process.argv[2] ?? "3", 10);
 const WARMUP = parseInt(process.argv[3] ?? "1", 10);
 
 const CE_PATH = process.env.CE_PATH ?? "/home/goldilocks/casc-extractor/casc-extractor";
-const RD_PATH = process.env.RD_PATH ?? devCfg.cascTool ?? "rustydemon-cli";
-const WOW_DIR = process.env.WOW_DIR ?? devCfg.wowDir;
+const RD_PATH = process.env.RD_PATH ?? devCfg["scryer.cascToolPath"] ?? "rustydemon-cli";
+const WOW_DIR = process.env.WOW_DIR ?? devCfg["scryer.installDir"];
 const LISTFILE =
   process.env.LISTFILE ??
   `${os.homedir()}/.vscode-server/data/User/globalStorage/vertex-wow.wow-scryer/downloads/listfile.csv`;
@@ -241,8 +241,8 @@ function scenarioRdSingle() {
 // ── main ──────────────────────────────────────────────────────────────────────
 
 if (!WOW_DIR) {
-  console.error("WOW_DIR not set and not found in dev/config.local.json (wowDir).");
-  console.error("Set WOW_DIR env var or add wowDir to dev/config.local.json.");
+  console.error("WOW_DIR not set and not found in dev/settings.local.json (scryer.installDir).");
+  console.error("Set WOW_DIR env var or add scryer.installDir to dev/settings.local.json.");
   process.exit(1);
 }
 

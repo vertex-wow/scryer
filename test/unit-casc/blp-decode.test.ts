@@ -1,7 +1,7 @@
 /**
- * CASC BLP decode tests — require a populated extractedAssetsDir.
+ * CASC BLP decode tests — require a populated scryer.cacheDir.
  *
- * Set extractedAssetsDir in dev/config.local.json then run:
+ * Set scryer.cacheDir in dev/settings.local.json then run:
  *   pnpm test:casc
  *
  * These are skipped automatically when the directory is not configured.
