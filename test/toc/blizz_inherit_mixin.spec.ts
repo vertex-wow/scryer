@@ -82,3 +82,17 @@ test("BlizzInheritMixinAddon — FontString text present", async ({ page }) => {
   });
   expect(text).toBe("Example Tooltip Frame");
 });
+
+// ---------------------------------------------------------------------------
+// $parentTitle name substitution — resolves to ExampleFrameTooltipTitle
+// ---------------------------------------------------------------------------
+
+test("BlizzInheritMixinAddon — $parentTitle resolves to ExampleFrameTooltipTitle", async ({
+  page,
+}) => {
+  await renderTocFixture(page, FIXTURE_DIR);
+
+  const rendered = await queryRendered(page);
+  const title = rendered.find((el) => el.name === "ExampleFrameTooltipTitle");
+  expect(title).toBeDefined();
+});

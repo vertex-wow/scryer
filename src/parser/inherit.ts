@@ -219,8 +219,13 @@ function resolveFrameName(frame: FrameIR, parentName: string): void {
   if (frame.name) {
     frame.name = expandParentName(frame.name, parentName);
   }
-  // Recurse into children — each child's $parent is the frame itself
+  // $parent for layer objects and children is the frame itself (after its own name is resolved)
   const myName = frame.name ?? parentName;
+  for (const layer of frame.layers) {
+    for (const obj of layer.objects) {
+      if (obj.name) obj.name = expandParentName(obj.name, myName);
+    }
+  }
   for (const child of frame.children) {
     resolveFrameName(child, myName);
   }
