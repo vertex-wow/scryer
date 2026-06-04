@@ -65,8 +65,7 @@ function renderTexture(tex: TextureIR, rect: Rect, config: ResolvedFlavorConfig)
     el.appendChild(makePlaceholder(tex.atlas, config, `[atlas] ${tex.atlas}`));
     el.style.pointerEvents = "auto";
   } else {
-    // No file or color — transparent slot; still show a faint outline
-    el.style.outline = "1px dashed rgba(255,255,255,0.15)";
+    // No file or color — transparent slot; render nothing visible.
     el.style.pointerEvents = "none";
   }
 
