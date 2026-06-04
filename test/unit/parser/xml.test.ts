@@ -380,6 +380,24 @@ describe("parseXmlFile — inline XML", () => {
     expect(doc.frames[0].frameStrata).toBe("DIALOG");
   });
 
+  test("TexCoords sub-element on Texture", () => {
+    const xml = `
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Frame name="F">
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture file="Interface\\Buttons\\UI-Silver-Button-Up">
+          <TexCoords left="0.53125" right="0.625" top="0" bottom="0.1875"/>
+        </Texture>
+      </Layer>
+    </Layers>
+  </Frame>
+</Ui>`;
+    const doc = parseXmlFile("test.xml", xml);
+    const tex = doc.frames[0].layers[0].objects[0] as TextureIR;
+    expect(tex.texCoords).toEqual({ left: 0.53125, right: 0.625, top: 0, bottom: 0.1875 });
+  });
+
   test("empty script body does not crash and produces a script entry", () => {
     const xml = `
 <Ui xmlns="http://www.blizzard.com/wow/ui/">

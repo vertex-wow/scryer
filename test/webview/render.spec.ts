@@ -195,6 +195,58 @@ test("applies assetResolved uri to texture backgroundImage (BLP fixture)", async
   expect(texStyle!.backgroundSize).toBe("100% 100%");
 });
 
+test("assetResolved with TexCoords applies UV-to-CSS background formula", async ({ page }) => {
+  const texturePath = "Interface\\Buttons\\UI-Silver-Button-Up";
+  // Minimal 1x1 transparent PNG — content irrelevant; only the CSS formula is under test.
+  const dummyUri =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+  await renderFrames(page, [
+    makeFrame({
+      name: "SliceFrame",
+      size: { x: 48, y: 24 },
+      anchors: [{ point: "CENTER" }],
+      layers: [
+        {
+          level: "BACKGROUND",
+          subLevel: 0,
+          objects: [
+            makeTexture({
+              file: texturePath,
+              texCoords: { left: 0.53125, right: 0.625, top: 0, bottom: 0.1875 },
+            }),
+          ],
+        },
+      ],
+    }),
+  ]);
+
+  await page.evaluate(
+    ({ path, uri }) => {
+      window.postMessage({ type: "assetResolved", path, uri }, "*");
+    },
+    { path: texturePath, uri: dummyUri },
+  );
+
+  // bgW = 48 / (0.625 - 0.53125) = 512
+  // bgH = 24 / 0.1875            = 128
+  // backgroundPosition = -0.53125 * 512 = -272px, -0 * 128 = 0px
+  const texStyle = await page.evaluate((path) => {
+    const escaped = path.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const el = document.querySelector<HTMLElement>(`[data-asset-path="${escaped}"]`);
+    return el
+      ? {
+          backgroundSize: el.style.backgroundSize,
+          backgroundPosition: el.style.backgroundPosition,
+        }
+      : null;
+  }, texturePath);
+
+  expect(texStyle).not.toBeNull();
+  expect(texStyle!.backgroundSize).toBe("512px 128px");
+  expect(texStyle!.backgroundPosition).toBe("-272px 0px");
+});
+
 test("frameStrata maps to correct z-index", async ({ page }) => {
   await renderFrames(page, [
     makeFrame({ name: "MediumFrame", frameStrata: "MEDIUM", anchors: [{ point: "CENTER" }] }),
