@@ -7,7 +7,12 @@ import { registerFrameModel } from "../../src/lua/createframe";
 import { FrameRegistry } from "../../src/lua/frame-registry";
 import { parseToc } from "../../src/parser/toc";
 import { runTocAddon } from "../../src/lua/toc-runner";
-import { blizzardAddonLuaFiles, resolveCI } from "../../src/parser/blizzard-registry";
+import {
+  blizzardAddonLuaFiles,
+  loadBlizzardRegistry,
+  SHARED_ADDON_NAMES,
+  resolveCI,
+} from "../../src/parser/blizzard-registry";
 import type { FrameIR } from "../../src/parser/ir";
 import { loadAtlasManifest, resolveAtlasNames } from "../../src/assets/atlas-manifest";
 import { renderFrames } from "../webview/helpers";
@@ -43,8 +48,10 @@ export function getBlizzardAddonsDir(): string | null {
 
 /**
  * Run a TOC addon fixture through the full Lua pipeline with Blizzard Lua
- * preloaded (SharedXMLBase → Blizzard_Colors → SharedXML), then return
- * FrameIR[] ready to pass to renderFrames().
+ * preloaded (SharedXMLBase → Blizzard_Colors → SharedXML) and Blizzard XML
+ * templates loaded into the template registry. Matches the production path in
+ * live-panel.ts: both Lua execution and XML template inheritance use the
+ * extracted Blizzard assets.
  *
  * Skips Blizzard Lua files that are missing on disk (logs a warning) but does
  * NOT swallow Lua execution errors — those are hard failures per ADR 011.
@@ -59,11 +66,16 @@ export async function runTocFixtureWithBlizzard(
   const tocFile = fs.readdirSync(tocDir).find((f) => f.endsWith(".toc"));
   if (!tocFile) throw new Error(`No .toc file found in ${tocDir}`);
 
+  // Load Blizzard XML templates (same call production makes via asset-service).
+  const assetsDir = getExtractedAssetsDir();
+  const registryDir = assetsDir ? path.join(assetsDir, "..", "derived", "registry") : "";
+  const blizzardTemplates = loadBlizzardRegistry(addonsDir, registryDir, SHARED_ADDON_NAMES);
+
   const registry = new FrameRegistry(1024, 768);
   const clock = new VirtualClock();
   const lua = await createSandbox(WASM_PATH);
   await registerWowApi(lua, { clock });
-  await registerFrameModel(lua, registry);
+  await registerFrameModel(lua, registry, blizzardTemplates);
 
   try {
     // Load Blizzard Lua in dependency order before running the user's addon.
@@ -84,7 +96,7 @@ export async function runTocFixtureWithBlizzard(
       toc,
       addonDir: tocDir,
       sandbox: lua,
-      blizzardTemplates: undefined,
+      blizzardTemplates,
       readFile: async (p) => fs.readFileSync(p, "utf-8"),
       output: { info: () => {}, warn: () => {}, error: console.error },
     });

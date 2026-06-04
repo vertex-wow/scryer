@@ -66,7 +66,8 @@
       "Bash(pnpm test:toc)",
       "Bash(pnpm test:webview *)",
       "Bash(pnpm test:xml *)",
-      "Bash(pnpm test:toc-casc *)"
+      "Bash(pnpm test:toc-casc *)",
+      "Bash(npx playwright *)"
     ],
     "additionalDirectories": [
       "/tmp"

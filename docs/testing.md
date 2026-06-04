@@ -121,25 +121,28 @@ Each spec has a matching TOC fixture directory **in `test/fixtures/`** (shared, 
 
 **`.lua` module hook:** `playwright.toc.config.ts` registers a `Module._extensions[".lua"]` handler so Node can resolve the `import ... from "*.lua"` statements inside `src/lua/sandbox.ts` and `src/lua/createframe.ts`. This mirrors the Jest `lua-text.mjs` transform. New TOC Playwright configs that import from the Lua pipeline must include the same hook.
 
-| Fixture                            | What it tests                                                                                              |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `fixtures/CreateTextureAddon/`     | OnLoad → CreateTexture → SetAtlas / SetSize / SetPoint → registry (unit-level integration)                 |
-| `fixtures/MixinAddon/`             | Lua file → Mixin() + parentKey FontString → SetText / SetTextColor → rendered DOM                          |
-| `fixtures/NineSliceUtilAddon/`     | OnLoad → NineSliceUtil.ApplyLayout → 9 atlas textures created (used by toc + toc-casc)                     |
-| `fixtures/BlizzInheritMixinAddon/` | XML `inherits="NineSlicePanelTemplate"` → NineSlicePanelMixin OnLoad → 9 NineSlice pieces (toc + toc-casc) |
+| Fixture                                     | What it tests                                                                                                                                       |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fixtures/CreateTextureAddon/`              | OnLoad → CreateTexture → SetAtlas / SetSize / SetPoint → registry (unit-level integration)                                                          |
+| `fixtures/MixinAddon/`                      | Lua file → Mixin() + parentKey FontString → SetText / SetTextColor → rendered DOM                                                                   |
+| `fixtures/NineSliceUtilAddon/`              | OnLoad → NineSliceUtil.ApplyLayout → 9 atlas textures created (used by toc + toc-casc)                                                              |
+| `fixtures/BlizzInheritMixinAddon/`          | XML `inherits="NineSlicePanelTemplate"` → NineSlicePanelMixin OnLoad → 9 NineSlice pieces (toc + toc-casc)                                          |
+| `fixtures/ExampleFrameTitleFrameAddon/`     | XML `inherits="DefaultPanelTemplate"` + Lua `SetTitle()` — guard path (template unresolved, SetTitle error swallowed)                               |
+| `fixtures/ExampleFrameTitleFrameMockAddon/` | Same frame + mock `DefaultPanelTemplate` XML stub — template resolves, SetTitle wires up TitleText FontString, title text in DOM (no CASC required) |
 
 ---
 
 ## TOC live view (CASC) tests — `test/toc-casc/`
 
-Same pipeline as `test/toc/`, but Blizzard Lua files (`Blizzard_SharedXMLBase`, `Blizzard_Colors`, `Blizzard_SharedXML`) are preloaded before running the user's addon. This lets tests assert on behaviours that require Blizzard globals such as `NineSliceUtil`, `NineSliceLayouts`, and `Mixin`.
+Same pipeline as `test/toc/`, but Blizzard Lua files (`Blizzard_SharedXMLBase`, `Blizzard_Colors`, `Blizzard_SharedXML`) **and** Blizzard XML templates (via `loadBlizzardRegistry`) are preloaded before running the user's addon. This matches the production path in `live-panel.ts` exactly: both Lua globals and XML template inheritance are available. Tests that require template-mixin wiring (e.g. `DefaultPanelTemplate`, `NineSlicePanelTemplate`) belong here.
 
 Requires `scryer.cacheDir` in `dev/settings.local.json` with `Interface/AddOns/Blizzard_SharedXML/` present under `<cacheDir>/<flavor>/source`. Tests skip automatically when absent.
 
-| Fixture                            | What it tests                                                                                                                     |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `fixtures/NineSliceUtilAddon/`     | NineSliceUtil.ApplyLayout → 9 piece textures created + Tooltip-NineSlice-\* requestAsset messages                                 |
-| `fixtures/BlizzInheritMixinAddon/` | NineSlicePanelTemplate inheritance → NineSlicePanelMixin OnLoad → 9 pieces + requestAsset (distinct from direct ApplyLayout call) |
+| Fixture                                 | What it tests                                                                                                                     |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `fixtures/NineSliceUtilAddon/`          | NineSliceUtil.ApplyLayout → 9 piece textures created + Tooltip-NineSlice-\* requestAsset messages                                 |
+| `fixtures/BlizzInheritMixinAddon/`      | NineSlicePanelTemplate inheritance → NineSlicePanelMixin OnLoad → 9 pieces + requestAsset (distinct from direct ApplyLayout call) |
+| `fixtures/ExampleFrameTitleFrameAddon/` | DefaultPanelTemplate → ButtonFrameTemplate mixin wiring → SetTitle("…") sets title FontString text                                |
 
 ---
 

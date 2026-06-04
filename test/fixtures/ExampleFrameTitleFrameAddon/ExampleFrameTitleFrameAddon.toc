@@ -1,0 +1,7 @@
+## Interface: 110205, 110207, 120000
+## Title: ExampleFrameTitleFrame
+## Notes: Cookbook recipe — title frame with DefaultPanelTemplate + SetTitle.
+## Version: 1.0.0
+
+ExampleFrameTitleFrame.xml
+ExampleFrameTitleFrame.lua
