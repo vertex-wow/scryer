@@ -11,6 +11,12 @@ body:
       required: true
 
   - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Paste any error output or screenshots here.
+
+  - type: textarea
     id: steps
     attributes:
       label: Steps to reproduce
@@ -27,12 +33,6 @@ body:
     attributes:
       label: Expected behavior
       description: What should have happened?
-
-  - type: textarea
-    id: actual
-    attributes:
-      label: Actual behavior
-      description: What actually happened? Paste any error output or screenshots here.
 
   - type: dropdown
     id: wow_target
@@ -54,9 +54,12 @@ body:
       label: Content type
       description: What kind of file were you previewing when the bug occurred?
       options:
-        - XML (frame definition)
-        - Lua
-        - Both / other
+        - Open WoW Preview (.xml)
+        - Open Live View (.toc)
+        - Run / Execute (.toc)
+        - XML only (frame definition)
+        - Lua only
+        - Other
         - Not sure / not relevant
     validations:
       required: true
