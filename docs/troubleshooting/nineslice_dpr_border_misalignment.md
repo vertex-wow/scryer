@@ -9,13 +9,13 @@
 ## Visual progression
 
 **Partial improvement — top, bottom, and separation all wrong:**
-![title_bar_weird__2026-06-04_2139.png](title_bar_weird__2026-06-04_2139.png)
+![title_bar_weird__2026-06-04_2139.png](assets/title_bar_weird__2026-06-04_2139.png)
 
 **After Fix 2+3 — bottom border fixed, top border and separation still wrong:**
-![title_bar_weird__2026-06-05_0013.png](title_bar_weird__2026-06-05_0013.png)
+![title_bar_weird__2026-06-05_0013.png](assets/title_bar_weird__2026-06-05_0013.png)
 
 **After Fix 4 — top border fixed, separation remains (may be acceptable for a rough preview):**
-![title_bar_weird__2026-06-05_0707.png](title_bar_weird__2026-06-05_0707.png)
+![title_bar_weird__2026-06-05_0707.png](assets/title_bar_weird__2026-06-05_0707.png)
 
 ---
 
