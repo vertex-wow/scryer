@@ -89,3 +89,4 @@ test-results/
 
 # AI
 !.claude/
+.claude/settings.local.json
