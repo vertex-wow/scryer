@@ -82,9 +82,15 @@ function renderTexture(tex: TextureIR, rect: Rect, config: ResolvedFlavorConfig)
 
   // Position: explicit rect if sized; useAtlasSize falls back to atlas dimensions; else fill parent.
   if (rect.width > 0 || rect.height > 0) {
-    el.style.left = `${Math.round(rect.left)}px`;
+    // Seam bleed for h-only tiles (TopEdge, BottomEdge): extend 1 CSS px each side to
+    // prevent the 1-device-pixel transparent gap that appears at corner/edge element
+    // boundaries under fractional DPR × panZoom. These tiles are x-uniform (pure
+    // y-gradient), so the overlap columns are visually identical to the main content.
+    const ra = tex.resolvedAtlas;
+    const seamBleed = ra && (tex.horizTile ?? ra.tilesH) && !(tex.vertTile ?? ra.tilesV) ? 1 : 0;
+    el.style.left = `${Math.round(rect.left) - seamBleed}px`;
     el.style.top = `${Math.round(rect.top)}px`;
-    el.style.width = `${Math.round(rect.width)}px`;
+    el.style.width = `${Math.round(rect.width) + 2 * seamBleed}px`;
     el.style.height = `${Math.round(rect.height)}px`;
   } else if (tex.useAtlasSize && tex.resolvedAtlas) {
     el.style.left = `${Math.round(rect.left)}px`;

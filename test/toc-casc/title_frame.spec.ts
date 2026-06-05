@@ -132,13 +132,14 @@ test("ExampleFrameTitleFrameAddon CASC — title bar seam alignment", async ({ p
 
   const [topLeft, middle, topRight] = topRow;
 
-  // TopLeft <-> Middle seam: all 4 boundary-point coordinates must match.
-  expect(topLeft.left + topLeft.width).toBe(middle.left);
+  // TopLeft <-> Middle seam: Middle extends 1px into TopLeft (seam-bleed overlap).
+  // Vertical coords must still match exactly.
+  expect(middle.left).toBe(topLeft.left + topLeft.width - 1);
   expect(topLeft.top).toBe(middle.top);
   expect(topLeft.top + topLeft.height).toBe(middle.top + middle.height);
 
-  // Middle <-> TopRight seam: all 4 boundary-point coordinates must match.
-  expect(middle.left + middle.width).toBe(topRight.left);
+  // Middle <-> TopRight seam: Middle extends 1px into TopRight (seam-bleed overlap).
+  expect(middle.left + middle.width).toBe(topRight.left + 1);
   expect(middle.top).toBe(topRight.top);
   expect(middle.top + middle.height).toBe(topRight.top + topRight.height);
 });

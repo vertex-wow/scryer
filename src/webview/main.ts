@@ -648,6 +648,15 @@ function applyAsset(rawPath: string, uri: string): void {
       // via two opposing anchors; overriding to atlas size would shrink it to 64×64).
       const elemW = el.offsetWidth || crop.width;
       const elemH = el.offsetHeight || crop.height;
+
+      // H-only tiles (TopEdge, BottomEdge) are extended 1px each side in renderer.ts
+      // (seam bleed) so that no device pixel falls between adjacent element boxes at
+      // fractional DPR × panZoom. elemW here is the already-extended width; the
+      // background must fill that extended width, so scaleX uses elemW directly.
+      // bgPosX shifts right by 1 to keep atlas content visually aligned after the
+      // element shifted left by 1px.
+      const seamBleed = crop.tilesH && !crop.tilesV ? 1 : 0;
+
       // H-only tiles: stretch to element width instead of repeating. The
       // TopEdge tile is y-gradient/x-uniform so stretching is visually identical
       // to repeat-x, but forces no-repeat on X — the same Chromium render path
@@ -658,10 +667,10 @@ function applyAsset(rawPath: string, uri: string): void {
         crop.tilesH && !crop.tilesV ? elemW / crop.width : crop.tilesH ? 1 : elemW / crop.width;
       const scaleY =
         crop.tilesV && !crop.tilesH ? elemH / crop.height : crop.tilesV ? 1 : elemH / crop.height;
-      const bgW = crop.sheetW * scaleX;
-      const bgH = crop.sheetH * scaleY;
+      const bgW = Math.round(crop.sheetW * scaleX);
+      const bgH = Math.round(crop.sheetH * scaleY);
       el.style.backgroundSize = `${bgW}px ${bgH}px`;
-      el.style.backgroundPosition = `${Math.round(-crop.x * scaleX)}px ${Math.round(-crop.y * scaleY)}px`;
+      el.style.backgroundPosition = `${Math.round(-crop.x * scaleX) + seamBleed}px ${Math.round(-crop.y * scaleY)}px`;
       // All pieces use no-repeat now that tiling is handled by stretching.
       el.style.backgroundRepeat = "no-repeat no-repeat";
     } else if (coordsRaw) {

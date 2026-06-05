@@ -17,6 +17,9 @@
 **After Fix 4 — top border fixed, separation remains (may be acceptable for a rough preview):**
 ![title_bar_weird__2026-06-05_0707.png](assets/title_bar_weird__2026-06-05_0707.png)
 
+**After Fix 5 — seam bleed + background-size rounding: right seam near-eliminated, left seam faint:**
+![title_bar_weird__2026-06-05_0827.png](assets/title_bar_weird__2026-06-05_0827.png)
+
 ---
 
 ## Root cause 1 — fractional `background-position` (bottom border)
@@ -42,6 +45,25 @@ At 1.82x DPR a 0.16 device-px difference shifts which blend of the semi-transpar
 
 ---
 
+---
+
+## Root cause 3 — device-pixel gap between adjacent CSS element boxes (vertical seams)
+
+After Fix 4, two vertical seam lines appeared at the horizontal junctions where corner pieces meet the edge piece (TopLeft/TopEdge boundary and TopEdge/TopRight boundary). These lines are visible only at non-1x DPR because they arise from the same class of Chromium compositing rounding that affected the horizontal borders.
+
+**Mechanism:** The parent `#viewport` carries `transform: scale(panZoom)`. Chromium rasterises each element's device extent independently before compositing, then scales the entire layer. At fractional net scale (panZoom × DPR), the device-pixel extents of adjacent elements can fail to be perfectly adjacent — a 1-device-pixel column at the seam belongs to neither element and shows through as a transparent gap wherever the NineSlice tiles are semi-transparent (the gradient area above the title bar body).
+
+A secondary contributor: `background-size` was computed as a raw float (`sheetW × elemW / cropW`). At fractional DPR the background could fall 1 device pixel short of the element's right edge, exposing the element's transparent background.
+
+**Fix (committed):**
+
+- `renderer.ts`: h-only tiles (`tilesH && !tilesV` — TopEdge, BottomEdge) are extended 1 CSS px left and 1 CSS px right at render time. These tiles are x-uniform (pure y-gradient), so the 1px bleed columns are visually identical to any other column. `applyAsset` reads the already-extended `offsetWidth`, so `scaleX`/`bgW` fill the wider element correctly; `bgPosX` shifts +1 to keep atlas content visually aligned.
+- `main.ts`: `bgW` and `bgH` now rounded to integer px (`Math.round`), eliminating background-size underfill.
+
+**Remaining issue (left seam, accepted):** After Fix 5, the right seam (TopEdge/TopRight) is nearly eliminated; the left seam (TopLeft/TopEdge) remains faint. The asymmetry likely reflects different device-pixel rounding at the two boundary positions under the specific DPR × panZoom combination in use. A deeper fix (device-pixel-aligned layout or per-seam bleed tuning) is out of scope for now — the result is acceptable for a rough preview. Tracked in `.plan/005_title_lines.md`.
+
+---
+
 ## Investigation path
 
 1. Noticed top/bottom border mismatch in live VS Code view only (not headless 1x tests).
@@ -57,3 +79,4 @@ At 1.82x DPR a 0.16 device-px difference shifts which blend of the semi-transpar
 - `top-row NineSlice background-position-y is integer` — guards Fix 2 (no fractional position).
 - `horizontal-only NineSlice tiles use no-repeat (stretch-to-fill)` — guards Fix 4 (h-only = stretch + `no-repeat no-repeat`, `bgSizeW >= elemW`).
 - Pixel-color assertions at known corner/edge coordinates for top and bottom border rows.
+- `title bar seam alignment` updated — assertions now expect 1px intentional overlap (`middle.left === topLeft.right − 1`) rather than flush join, reflecting the Fix 5 seam bleed.
