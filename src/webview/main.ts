@@ -621,7 +621,6 @@ function applyAsset(rawPath: string, uri: string): void {
   for (const el of els) {
     el.style.backgroundImage = `url("${uri}")`;
     el.style.backgroundRepeat = "no-repeat";
-    // FIXME: possible titleBar texture fix
     el.style.imageRendering = "pixelated";
 
     const cropRaw = el.dataset.atlasCrop;
@@ -654,10 +653,11 @@ function applyAsset(rawPath: string, uri: string): void {
       const bgW = crop.sheetW * scaleX;
       const bgH = crop.sheetH * scaleY;
       el.style.backgroundSize = `${bgW}px ${bgH}px`;
-      el.style.backgroundPosition = `${-crop.x * scaleX}px ${-crop.y * scaleY}px`;
-      // // FIXME: ppossible titleBar texture fix
-      // el.style.backgroundPosition = `${Math.round(-crop.x * scaleX)}px ${Math.round(-crop.y * scaleY)}px`;
-      el.style.backgroundRepeat = crop.tilesH || crop.tilesV ? "repeat" : "no-repeat";
+      el.style.backgroundPosition = `${Math.round(-crop.x * scaleX)}px ${Math.round(-crop.y * scaleY)}px`;
+      // Per-axis repeat so the non-tiling axis uses no-repeat rendering.
+      // "repeat" on a non-tiling axis triggers Chromium's tile-fit rounding,
+      // which shifts content vertically at fractional DPR vs no-repeat corners.
+      el.style.backgroundRepeat = `${crop.tilesH ? "repeat" : "no-repeat"} ${crop.tilesV ? "repeat" : "no-repeat"}`;
     } else if (coordsRaw) {
       const { left, right, top, bottom } = JSON.parse(coordsRaw) as {
         left: number;

@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { createSandbox } from "../../src/lua/sandbox";
 import { registerWowApi, VirtualClock } from "../../src/lua/wow-api";
 import { registerFrameModel } from "../../src/lua/createframe";
@@ -15,7 +15,8 @@ import {
 } from "../../src/parser/blizzard-registry";
 import type { FrameIR } from "../../src/parser/ir";
 import { loadAtlasManifest, resolveAtlasNames } from "../../src/assets/atlas-manifest";
-import { renderFrames } from "../webview/helpers";
+import { blpToPng } from "../../src/assets/blp";
+import { renderFrames, FLAVOR_CONFIG, HARNESS, TOOLBAR_STATE } from "../webview/helpers";
 import { getExtractedAssetsDir } from "../unit-casc/helpers";
 
 export { queryRendered, VIEWPORT } from "../webview/helpers";
@@ -133,4 +134,220 @@ export async function renderTocFixtureWithBlizzard(
 ): Promise<void> {
   const frames = await runTocFixtureWithBlizzard(tocDir, addonsDir);
   await renderFrames(page, frames as unknown as Record<string, unknown>[]);
+}
+
+/**
+ * Run a TOC addon fixture with Blizzard Lua, render at a custom screen
+ * resolution, and inject resolved atlas assets from the cache. Intended for
+ * pixel-color tests whose coordinates were sampled via the eyedropper at a
+ * specific resolution in the Scryer live view.
+ *
+ * The browser viewport is widened automatically if the WoW UI width exceeds
+ * the current window size. After this call the page is ready for
+ * sampleAtWowCoord() calls — no additional waiting is required.
+ */
+export async function renderTocFixtureWithScreenResolution(
+  page: Page,
+  tocDir: string,
+  addonsDir: string,
+  assetsDir: string,
+  screenW: number,
+  screenH: number,
+): Promise<void> {
+  const uiH = FLAVOR_CONFIG.uiParentHeight as number;
+  const uiW = Math.round((uiH * screenW) / screenH);
+  const wideConfig = { ...FLAVOR_CONFIG, uiParentWidth: uiW };
+  const wideViewport = { w: uiW, h: uiH };
+
+  // Ensure the browser window is wide enough for the WoW viewport to fit after
+  // centering (centering offsets by ~half the remaining space, so uiW + slack).
+  await page.setViewportSize({
+    width: Math.max(uiW + 100, 1600),
+    height: Math.max(uiH + 200, 900),
+  });
+
+  const frames = await runTocFixtureWithBlizzard(tocDir, addonsDir);
+
+  await page.goto(HARNESS);
+  await page.evaluate(
+    ({ frames, viewport, flavorConfig, toolbarState }) => {
+      window.postMessage(
+        {
+          type: "render",
+          frames,
+          viewport,
+          warnings: 0,
+          extractionPending: false,
+          pendingFiles: 0,
+          flavorConfig,
+          toolbarState,
+        },
+        "*",
+      );
+    },
+    {
+      frames: frames as unknown as Record<string, unknown>[],
+      viewport: wideViewport,
+      flavorConfig: wideConfig as Record<string, unknown>,
+      toolbarState: {
+        ...TOOLBAR_STATE,
+        screenResolution: `${screenW}x${screenH}`,
+      },
+    },
+  );
+  await expect(page.locator("#debug")).toContainText("rendered", { timeout: 2000 });
+
+  await injectResolvedAssets(page, assetsDir);
+
+  // Let postMessage events drain and Chromium repaint before sampling.
+  await page.waitForTimeout(200);
+}
+
+/**
+ * Replicate the eyedropper's canvas-based pixel sampling at a WoW logical
+ * coordinate. Returns the raw RGBA value from the atlas image (not the
+ * composited screen color), matching exactly what the live-view eyedropper
+ * reports in the status bar.
+ *
+ * Returns null if no element with a loaded background-image is found at the
+ * given coordinate, or if the atlas image has not been resolved yet.
+ */
+export async function sampleAtWowCoord(
+  page: Page,
+  wowX: number,
+  wowY: number,
+): Promise<{ r: number; g: number; b: number; a: number } | null> {
+  return page.evaluate(
+    async ({ wowX, wowY }: { wowX: number; wowY: number }) => {
+      const vp = document.getElementById("viewport");
+      if (!vp) return null;
+
+      const vpRect = vp.getBoundingClientRect();
+      const clientX = vpRect.left + wowX;
+      const clientY = vpRect.top + wowY;
+
+      function hitTest(root: Element, cx: number, cy: number): HTMLElement | null {
+        for (let i = root.children.length - 1; i >= 0; i--) {
+          const child = root.children[i] as HTMLElement;
+          const r = child.getBoundingClientRect();
+          if (cx >= r.left && cx < r.right && cy >= r.top && cy < r.bottom) {
+            const found = hitTest(child, cx, cy);
+            if (found) return found;
+            const cs = window.getComputedStyle(child);
+            if (cs.backgroundColor !== "transparent" && cs.backgroundColor !== "rgba(0, 0, 0, 0)")
+              return child;
+            if (cs.backgroundImage && cs.backgroundImage !== "none") return child;
+          }
+        }
+        return null;
+      }
+
+      const el = hitTest(vp, clientX, clientY);
+      if (!el) return null;
+
+      const cs = window.getComputedStyle(el);
+      const bgImg = cs.backgroundImage;
+      if (!bgImg || bgImg === "none") return null;
+
+      const m = bgImg.match(/url\("(.+?)"\)/);
+      if (!m) return null;
+      const url = m[1];
+
+      const img = new Image();
+      await new Promise<void>((resolve) => {
+        if (img.complete && img.naturalWidth > 0) {
+          resolve();
+          return;
+        }
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+        img.src = url;
+        setTimeout(resolve, 2000);
+      });
+      if (img.naturalWidth === 0) return null;
+
+      const rect = el.getBoundingClientRect();
+      const layoutW = el.offsetWidth || 1;
+      const layoutH = el.offsetHeight || 1;
+      const relX = (clientX - rect.left) * (layoutW / rect.width);
+      const relY = (clientY - rect.top) * (layoutH / rect.height);
+
+      const parseDim = (v: string, ref: number): number => {
+        if (!v || v === "auto") return ref;
+        if (v.endsWith("%")) return (parseFloat(v) / 100) * ref;
+        return parseFloat(v);
+      };
+
+      const sizeParts = cs.backgroundSize.trim().split(/\s+/);
+      const bgW = parseDim(sizeParts[0], layoutW);
+      const bgH = parseDim(sizeParts[1] ?? sizeParts[0], layoutH);
+
+      const posParts = cs.backgroundPosition.trim().split(/\s+/);
+      const bgX = posParts[0].endsWith("%")
+        ? (parseFloat(posParts[0]) / 100) * (layoutW - bgW)
+        : parseFloat(posParts[0] || "0");
+      const bgY = (posParts[1] ?? "0").endsWith("%")
+        ? (parseFloat(posParts[1] ?? "0") / 100) * (layoutH - bgH)
+        : parseFloat(posParts[1] ?? "0");
+
+      const imgX = Math.round(((relX - bgX) / bgW) * img.naturalWidth);
+      const imgY = Math.round(((relY - bgY) / bgH) * img.naturalHeight);
+
+      if (imgX < 0 || imgY < 0 || imgX >= img.naturalWidth || imgY >= img.naturalHeight)
+        return null;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.drawImage(img, imgX, imgY, 1, 1, 0, 0, 1, 1);
+      const data = ctx.getImageData(0, 0, 1, 1).data;
+      return { r: data[0], g: data[1], b: data[2], a: data[3] };
+    },
+    { wowX, wowY },
+  );
+}
+
+/**
+ * Resolve all pending requestAsset messages by reading the BLP files from
+ * assetsDir, decoding them to PNG, and posting assetResolved back into the
+ * webview. After this call the caller should wait for a repaint tick before
+ * taking screenshots (e.g. page.waitForTimeout).
+ *
+ * Paths that cannot be found or decoded are silently skipped.
+ */
+export async function injectResolvedAssets(page: Page, assetsDir: string): Promise<void> {
+  const msgs = await page.evaluate(
+    () => (window as Window & { _vscodeMessages: unknown[] })._vscodeMessages,
+  );
+  const uniquePaths = [
+    ...new Set(
+      (msgs as Array<{ type: string; path?: string }>)
+        .filter((m) => m.type === "requestAsset" && m.path)
+        .map((m) => m.path!),
+    ),
+  ];
+
+  for (const assetPath of uniquePaths) {
+    let filePath: string;
+    try {
+      filePath = resolveCI(assetsDir, assetPath);
+    } catch {
+      continue;
+    }
+    if (!fs.existsSync(filePath)) continue;
+    let pngBuf: Buffer;
+    try {
+      pngBuf = blpToPng(filePath);
+    } catch {
+      continue;
+    }
+    const uri = `data:image/png;base64,${pngBuf.toString("base64")}`;
+    await page.evaluate(
+      ({ p, u }: { p: string; u: string }) =>
+        window.postMessage({ type: "assetResolved", path: p, uri: u }, "*"),
+      { p: assetPath, u: uri },
+    );
+  }
 }
