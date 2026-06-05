@@ -443,7 +443,7 @@ test("ExampleFrameTitleFrameAddon CASC — bottom border bright row aligns betwe
   expect(Math.abs(cornerBest.y - middleBest.y)).toBeLessThanOrEqual(1);
 });
 
-test("ExampleFrameTitleFrameAddon CASC — horizontal-only NineSlice tiles use repeat-x not repeat", async ({
+test("ExampleFrameTitleFrameAddon CASC — horizontal-only NineSlice tiles use no-repeat (stretch-to-fill)", async ({
   page,
 }) => {
   const addonsDir = getBlizzardAddonsDir();
@@ -464,10 +464,14 @@ test("ExampleFrameTitleFrameAddon CASC — horizontal-only NineSlice tiles use r
       .filter((el) => getComputedStyle(el).backgroundImage !== "none" && el.dataset.atlasCrop)
       .map((el) => {
         const crop = JSON.parse(el.dataset.atlasCrop!) as { tilesH: boolean; tilesV: boolean };
+        const cs = getComputedStyle(el);
+        const bgSizeW = parseFloat(cs.backgroundSize.split(" ")[0]);
         return {
           tilesH: crop.tilesH,
           tilesV: crop.tilesV,
-          repeat: getComputedStyle(el).backgroundRepeat,
+          repeat: cs.backgroundRepeat,
+          elemW: el.offsetWidth,
+          bgSizeW,
         };
       })
       .filter((p) => p.tilesH && !p.tilesV);
@@ -477,7 +481,10 @@ test("ExampleFrameTitleFrameAddon CASC — horizontal-only NineSlice tiles use r
   expect(hOnlyPieces!.length).toBeGreaterThan(0); // TopEdge must be present
 
   for (const piece of hOnlyPieces!) {
-    // Must be repeat-x (or the two-value equivalent) — never full "repeat".
-    expect(["repeat-x", "repeat no-repeat"]).toContain(piece.repeat);
+    // All h-only tiles must use no-repeat (stretch-to-fill).
+    expect(piece.repeat).toBe("no-repeat");
+    // bgSizeW = sheetW * (elemW / cropW). When tile < sheet, bgSizeW > elemW and CSS
+    // clips the overflow. The tile region itself fills the element: bgSizeW >= elemW.
+    expect(piece.bgSizeW).toBeGreaterThanOrEqual(piece.elemW - 1);
   }
 });

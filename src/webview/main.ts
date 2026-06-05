@@ -648,16 +648,22 @@ function applyAsset(rawPath: string, uri: string): void {
       // via two opposing anchors; overriding to atlas size would shrink it to 64×64).
       const elemW = el.offsetWidth || crop.width;
       const elemH = el.offsetHeight || crop.height;
-      const scaleX = crop.tilesH ? 1 : elemW / crop.width;
-      const scaleY = crop.tilesV ? 1 : elemH / crop.height;
+      // H-only tiles: stretch to element width instead of repeating. The
+      // TopEdge tile is y-gradient/x-uniform so stretching is visually identical
+      // to repeat-x, but forces no-repeat on X — the same Chromium render path
+      // as the corner pieces. This eliminates the device-pixel phase snapping that
+      // repeat-x applies on the tiling axis, which causes a 1-device-pixel Y shift
+      // vs no-repeat corners at non-integer DPR.
+      const scaleX =
+        crop.tilesH && !crop.tilesV ? elemW / crop.width : crop.tilesH ? 1 : elemW / crop.width;
+      const scaleY =
+        crop.tilesV && !crop.tilesH ? elemH / crop.height : crop.tilesV ? 1 : elemH / crop.height;
       const bgW = crop.sheetW * scaleX;
       const bgH = crop.sheetH * scaleY;
       el.style.backgroundSize = `${bgW}px ${bgH}px`;
       el.style.backgroundPosition = `${Math.round(-crop.x * scaleX)}px ${Math.round(-crop.y * scaleY)}px`;
-      // Per-axis repeat so the non-tiling axis uses no-repeat rendering.
-      // "repeat" on a non-tiling axis triggers Chromium's tile-fit rounding,
-      // which shifts content vertically at fractional DPR vs no-repeat corners.
-      el.style.backgroundRepeat = `${crop.tilesH ? "repeat" : "no-repeat"} ${crop.tilesV ? "repeat" : "no-repeat"}`;
+      // All pieces use no-repeat now that tiling is handled by stretching.
+      el.style.backgroundRepeat = "no-repeat no-repeat";
     } else if (coordsRaw) {
       const { left, right, top, bottom } = JSON.parse(coordsRaw) as {
         left: number;
