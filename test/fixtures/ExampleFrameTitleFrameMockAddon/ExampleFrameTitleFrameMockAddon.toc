@@ -1,0 +1,8 @@
+## Interface: 110205, 110207, 120000
+## Title: ExampleFrameTitleFrame (mock template)
+## Notes: Test fixture — mock DefaultPanelTemplate for non-CASC SetTitle coverage.
+
+MockDefaultPanelMixin.lua
+MockDefaultPanel.xml
+ExampleFrameTitleFrame.xml
+ExampleFrameTitleFrame.lua

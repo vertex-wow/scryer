@@ -33,4 +33,9 @@ await Promise.all([
     entryPoints: ["dev/gen-api-stubs.ts"],
     outfile: "dist/gen-api-stubs.js",
   }),
+  esbuild.build({
+    ...shared,
+    entryPoints: ["dev/png-to-blp.ts"],
+    outfile: "dist/png-to-blp.js",
+  }),
 ]);

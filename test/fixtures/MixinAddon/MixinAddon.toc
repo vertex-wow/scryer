@@ -1,0 +1,5 @@
+## Interface: 110100
+## Title: Mixin Example
+
+MixinAddon.lua
+MixinAddon.xml

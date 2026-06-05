@@ -11,7 +11,7 @@ Invoke `/caveman` at start of every conversation. If user turns it off during ch
 - `_live/` and `_reference/` — **read-only reference**. Never edit or write to these directories. They exist for reading/diffing only.
 - `.plan/` — gitignored ephemeral scratchpad. Use for short-term task tracking only. Nothing here is permanent.
 - `docs/` — checked-in permanent documentation. Always keep this up to date as decisions are made or the plan evolves.
-- `dev/` — **developer tooling only** (not shipped with the extension). Contains thin CLI shims that call into `src/` libraries. Scripts here are TypeScript files (compiled via `dev/bench.build.mjs`). Any real logic that the extension needs must live in `src/`, not here. The `dev/` scripts exist for developer convenience (benchmarking, manual extraction runs, asset pipeline inspection) and assume Node is installed. Config is read from `dev/config.local.json` (gitignored; copy from `dev/config.json.example`).
+- `dev/` — **developer tooling only** (not shipped with the extension). Contains thin CLI shims that call into `src/` libraries. Scripts here are TypeScript files (compiled via `dev/bench.build.mjs`). Any real logic that the extension needs must live in `src/`, not here. The `dev/` scripts exist for developer convenience (benchmarking, manual extraction runs, asset pipeline inspection) and assume Node is installed. Config is read from `dev/settings.local.json` (gitignored; copy from `dev/settings.json.example`).
 
 ## Documentation conventions
 
@@ -116,8 +116,11 @@ Only stub things that do not exist in any Blizzard Lua file we load. See `docs/d
 
 - **Package manager: `pnpm` only.** Never use `npm install` or `yarn` — they bypass the `onlyBuiltDependencies` allowlist and `minimum-release-age` security settings.
 - **Building: `pnpm build` (esbuild).** Never use `tsc` to emit JS — it is typecheck-only (`pnpm typecheck` / `tsc --noEmit`).
-- **Tests live in `test/`** (singular). The jest config, tsconfig.test.json, and vscode mock all assume this path.
-- **vscode mock:** Any extension code that imports `vscode` is redirected to `test/__mocks__/vscode.ts` during tests. Expand stubs there as new APIs are needed — do not import the real `vscode` module in unit tests.
+- **Tests live in `test/`** (singular). See `docs/testing.md` for the full picture. Two Playwright pipeline layers: `test/xml/` (XML Preview — static parse, no Lua) and `test/toc/` (Live View — full Lua execution). Unit tests catch root causes; webview protocol tests cover message mechanics.
+- **Primary debugging loop:** When a rendering bug appears, create a minimal fixture → drop it in `test/xml/` (static XML, no Lua) or `test/toc/` (requires Lua execution) → add assertions for what correct output looks like → fix until green. The fixture IS the reproduction case. This is the fastest path from "something looks wrong" to "I know it's fixed."
+- **XML preview fixtures** live in `test/xml/` alongside their spec. TOC live view fixtures use addon directories under `test/fixtures/`. `test/manual/` is for hand-checked fixtures only — never reference it from automated specs. When a manual fixture gets automated coverage, move it to `test/xml/` or `test/toc/` (whichever applies) in the same change that adds the spec.
+- **`render.spec.ts` is protocol-only.** Only add tests there for webview message behaviors (ready, reload, requestAsset/assetResolved mechanics, z-index formulas) that have no XML equivalent. CSS output assertions (color, size, position, text alignment) belong in the `test/xml/` or `test/toc/` test for the fixture that defines them.
+- **vscode mock:** Extension code that imports `vscode` is redirected to `test/unit/__mocks__/vscode.ts` during Jest tests. Expand stubs there when new APIs are needed — never import the real `vscode` module in unit tests.
 - **Always run `pnpm build` before handing off to the user for testing.** When a task is complete and the user is expected to test it, run `pnpm build` as the final step so they receive a ready-to-run artifact.
 - **`pnpm typecheck` must pass before any commit.** The pre-push hook enforces this — a failing typecheck blocks push. Run `pnpm typecheck` and fix all errors before staging.
 

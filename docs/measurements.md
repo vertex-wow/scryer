@@ -524,7 +524,7 @@ node dev/bench-casc-comparison.mjs [runs] [warmup]
 # defaults: 3 runs, 1 warmup
 ```
 
-Config reads from `dev/config.local.json` (`wowDir`, `cascTool`) or env vars `CE_PATH`, `RD_PATH`, `WOW_DIR`, `LISTFILE`.
+Config reads from `dev/settings.local.json` (`scryer.installDir`, `scryer.cascToolPath`) or env vars `CE_PATH`, `RD_PATH`, `WOW_DIR`, `LISTFILE`.
 
 **Scenarios:** CASC open (list/dry-run, no writes), bulk Interface/AddOns extraction (8 threads), per-file extraction by path.
 

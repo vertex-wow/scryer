@@ -6,8 +6,12 @@ import type { LuaEngine } from "wasmoon";
 export interface ImportContext {
   /** Templates accumulated from this addon's own XML files (updated in-place). */
   addonTemplates: Map<string, FrameIR>;
-  /** Pre-loaded Blizzard virtual template registry, or undefined if not available. */
+  /** Texture templates accumulated from this addon's own XML files (updated in-place). */
+  addonTextureTemplates: Map<string, TextureIR>;
+  /** Pre-loaded Blizzard virtual frame template registry, or undefined if not available. */
   blizzardTemplates: Map<string, FrameIR> | undefined;
+  /** Pre-loaded Blizzard virtual texture template registry, or undefined if not available. */
+  blizzardTextureTemplates: Map<string, TextureIR> | undefined;
   output: { warn: (msg: string) => void; error: (msg: string) => void };
 }
 
@@ -302,13 +306,24 @@ export async function importXmlFile(
   for (const [name, tpl] of doc.templates) {
     ctx.addonTemplates.set(name, tpl);
   }
+  for (const [name, tex] of doc.textureTemplates) {
+    ctx.addonTextureTemplates.set(name, tex);
+  }
 
   // Resolve inheritance: blizzard templates + previously-seen addon templates + this doc
-  const allTemplates = new Map([...(ctx.blizzardTemplates ?? new Map()), ...ctx.addonTemplates]);
+  const allFrameTemplates = new Map([
+    ...(ctx.blizzardTemplates ?? new Map()),
+    ...ctx.addonTemplates,
+  ]);
+  const allTextureTemplates = new Map([
+    ...(ctx.blizzardTextureTemplates ?? new Map()),
+    ...ctx.addonTextureTemplates,
+  ]);
   const pseudoTemplateDoc: UiDocument = {
     source: "",
     frames: [],
-    templates: allTemplates,
+    templates: allFrameTemplates,
+    textureTemplates: allTextureTemplates,
     scriptFiles: [],
     includes: [],
   };

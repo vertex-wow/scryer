@@ -1,0 +1,57 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+   https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/FrameXML/UI.xsd">
+
+  <!--
+    relativekey_stretch.xml  -  relativeKey two-anchor stretch layout
+
+    ThreePieceStretchTemplate: three BACKGROUND solid-color textures.
+      Left  (12x26) anchored TOPLEFT        - fixed left cap
+      Right (12x26) anchored TOPRIGHT       - fixed right cap
+      Middle (no explicit size) anchored between Left.TOPRIGHT and Right.BOTTOMLEFT
+             via relativeKey - fills the gap
+
+    StretchTest (160x26, CENTER): inherits template.
+      Expected piece geometry (frame-relative):
+        Left:   left=0,   top=0, w=12,  h=26
+        Right:  left=148, top=0, w=12,  h=26  (160 - 12)
+        Middle: left=12,  top=0, w=136, h=26  (160 - 12 - 12)
+  -->
+
+  <Frame name="ThreePieceStretchTemplate" virtual="true">
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture parentKey="Left" name="LeftPiece">
+          <Size x="12" y="26"/>
+          <Anchors>
+            <Anchor point="TOPLEFT"/>
+          </Anchors>
+          <Color r="1" g="0" b="0" a="1"/>
+        </Texture>
+        <Texture parentKey="Right" name="RightPiece">
+          <Size x="12" y="26"/>
+          <Anchors>
+            <Anchor point="TOPRIGHT"/>
+          </Anchors>
+          <Color r="0" g="0" b="1" a="1"/>
+        </Texture>
+        <Texture parentKey="Middle" name="MiddlePiece">
+          <Anchors>
+            <Anchor point="TOPLEFT" relativeKey="$parent.Left" relativePoint="TOPRIGHT"/>
+            <Anchor point="BOTTOMRIGHT" relativeKey="$parent.Right" relativePoint="BOTTOMLEFT"/>
+          </Anchors>
+          <Color r="0" g="1" b="0" a="1"/>
+        </Texture>
+      </Layer>
+    </Layers>
+  </Frame>
+
+  <Frame name="StretchTest" inherits="ThreePieceStretchTemplate" parent="UIParent">
+    <Size x="160" y="26"/>
+    <Anchors>
+      <Anchor point="CENTER"/>
+    </Anchors>
+  </Frame>
+
+</Ui>

@@ -1,13 +1,12 @@
 import * as path from "path";
 import * as vscode from "vscode";
-import { AssetService } from "./assets/index.js";
 import { resolveAtlasNames } from "./assets/atlas-manifest.js";
+import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
+import { AssetService } from "./assets/index.js";
+import { resolveFlavorConfig } from "./flavors/config.js";
+import { collectTexturePaths } from "./parser/collect-textures.js";
 import { parseXmlFile } from "./parser/index.js";
 import { resolveInheritance } from "./parser/inherit.js";
-import { collectTexturePaths } from "./parser/collect-textures.js";
-import type { FrameIR } from "./parser/ir.js";
-import { resolveFlavorConfig } from "./flavors/config.js";
-import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
 import type { HostMessage, Viewport, WebviewMessage } from "./protocol.js";
 
 function getNonce(): string {
@@ -20,11 +19,28 @@ function getNonce(): string {
 // How long after the last unresolved-asset report to wait before triggering extraction.
 const EXTRACT_DEBOUNCE_MS = 300;
 
+function formatColorForStatusBar(
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+  x: number,
+  y: number,
+): string {
+  const h = (n: number) => Math.round(n).toString(16).toUpperCase().padStart(2, "0");
+  const hex = `#${h(r)}${h(g)}${h(b)}`;
+  const wow = `|c${h(a)}${h(r)}${h(g)}${h(b)}`;
+  const css = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${(a / 255).toFixed(2)})`;
+  const cc = `CreateColor(${(r / 255).toFixed(2)}, ${(g / 255).toFixed(2)}, ${(b / 255).toFixed(2)}, ${(a / 255).toFixed(2)})`;
+  return `(${x}, ${y})  ${hex}  ${wow}  ${css}  ${cc}`;
+}
+
 // How long after the last document change to wait before re-rendering in current-file mode.
 const RENDER_DEBOUNCE_MS = 300;
 
 export class ScryerPanel {
   static readonly viewType = "scryer.preview";
+  static activePanel: ScryerPanel | undefined;
 
   private readonly panel: vscode.WebviewPanel;
   private readonly output: vscode.LogOutputChannel;
@@ -35,6 +51,8 @@ export class ScryerPanel {
   private disposables: vscode.Disposable[] = [];
   private readonly pendingOps = new Set<"extracting" | "buildingAtlas">();
   private assets: AssetService;
+  private eyedropperActive = false;
+  private lastEyedropperText: string | undefined;
 
   // rawPath → addonDir for textures that could not be resolved in the current render cycle.
   private missingPaths = new Map<string, string>();
@@ -125,6 +143,15 @@ export class ScryerPanel {
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 
+    this.panel.onDidChangeViewState(
+      () => {
+        if (this.panel.active) ScryerPanel.activePanel = this;
+      },
+      null,
+      this.disposables,
+    );
+    if (this.panel.active) ScryerPanel.activePanel = this;
+
     // Re-resolve assets and propagate setting changes to the webview.
     vscode.workspace.onDidChangeConfiguration(
       (e) => {
@@ -179,8 +206,21 @@ export class ScryerPanel {
   }
 
   private updateStatusBar(): void {
-    const show = vscode.workspace.getConfiguration("scryer").get<boolean>("showRuler") ?? true;
-    this.statusBar.text = `📏 ${show ? "ON" : "OFF"}`;
+    if (this.eyedropperActive && this.lastEyedropperText) {
+      this.statusBar.text = `🔬 ${this.lastEyedropperText}`;
+      this.statusBar.tooltip = "Eyedropper — Ctrl+C in preview to copy";
+    } else {
+      const show = vscode.workspace.getConfiguration("scryer").get<boolean>("showRuler") ?? true;
+      this.statusBar.text = `📏 ${show ? "ON" : "OFF"}`;
+      this.statusBar.tooltip = "Toggle pixel ruler overlay";
+    }
+  }
+
+  toggleEyedropper(): void {
+    this.eyedropperActive = !this.eyedropperActive;
+    if (!this.eyedropperActive) this.lastEyedropperText = undefined;
+    void this.panel.webview.postMessage({ type: "setEyedropper", active: this.eyedropperActive });
+    this.updateStatusBar();
   }
 
   private updateInstallDirBar(): void {
@@ -253,6 +293,29 @@ export class ScryerPanel {
 
       case "dbg":
         this.output.trace(`status: ${msg.text ?? ""}`);
+        break;
+
+      case "eyedropperOn":
+        this.eyedropperActive = true;
+        this.updateStatusBar();
+        break;
+
+      case "eyedropperOff":
+        this.eyedropperActive = false;
+        this.lastEyedropperText = undefined;
+        this.updateStatusBar();
+        break;
+
+      case "eyedropperSample": {
+        const { r, g, b, a } = msg;
+        this.lastEyedropperText = formatColorForStatusBar(r, g, b, a, msg.x, msg.y);
+        this.statusBar.text = `🔬 ${this.lastEyedropperText}`;
+        this.statusBar.tooltip = "Eyedropper — Ctrl+C in preview to copy";
+        break;
+      }
+
+      case "eyedropperCopy":
+        void vscode.env.clipboard.writeText(msg.text);
         break;
     }
   }
@@ -390,19 +453,25 @@ export class ScryerPanel {
       }
 
       // Load Blizzard template registry (disk-cached; fast after first parse).
-      const blizzardRegistry = this.assets.loadBlizzardTemplates();
+      const { frames: blizzardFrames, textures: blizzardTextures } =
+        this.assets.loadBlizzardTemplates();
       this.output.debug(
-        `${rn}:   Blizzard registry: ${blizzardRegistry.size} template${blizzardRegistry.size === 1 ? "" : "s"}`,
+        `${rn}:   Blizzard registry: ${blizzardFrames.size} frame template${blizzardFrames.size === 1 ? "" : "s"}, ${blizzardTextures.size} texture template${blizzardTextures.size === 1 ? "" : "s"}`,
       );
 
       const warnCb = (msg: string) => this.output.warn(msg);
 
       const warns = { count: 0 };
-      const [resolved] = resolveInheritance([doc], blizzardRegistry, {
-        warnings: warns,
-        pending: isFirstExtraction,
-        warn: warnCb,
-      });
+      const [resolved] = resolveInheritance(
+        [doc],
+        blizzardFrames,
+        {
+          warnings: warns,
+          pending: isFirstExtraction,
+          warn: warnCb,
+        },
+        blizzardTextures,
+      );
       if (!resolved) return;
 
       const renderFrames = resolved.frames.filter((f) => !f.virtual);
@@ -560,6 +629,7 @@ export class ScryerPanel {
     body.mode-grab{cursor:grab}
     body.mode-grab.panning{cursor:grabbing}
     body.mode-grab #viewport *{pointer-events:none}
+    body.mode-eyedropper{cursor:crosshair}
   </style>
 </head>
 <body>
@@ -568,6 +638,7 @@ export class ScryerPanel {
     <button id="grab-toggle" class="toolbar-btn" title="Grab — pan and zoom (drag · middle-drag · space-drag · ctrl+scroll · ctrl+0 fit · ctrl+shift+0 reset)"><svg width="12" height="13" viewBox="0 0 12 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="2" width="2" height="6" rx="1"/><rect x="4" y="0" width="2" height="8" rx="1"/><rect x="7" y="0" width="2" height="8" rx="1"/><rect x="10" y="2" width="2" height="6" rx="1"/><rect x="0" y="7" width="12" height="6" rx="2"/></svg></button>
     <button id="interact-toggle" class="toolbar-btn" title="Interact — normal mouse cursor"><svg width="10" height="13" viewBox="0 0 10 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><polygon points="0,0 0,10 2.5,7.5 4.5,12.5 6,12 4,7 7.5,7"/></svg></button>
     <button id="recenter-btn" class="toolbar-btn" title="Re-center canvas"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="2.8"/><line x1="6.5" y1="0.5" x2="6.5" y2="3.7"/><line x1="6.5" y1="9.3" x2="6.5" y2="12.5"/><line x1="0.5" y1="6.5" x2="3.7" y2="6.5"/><line x1="9.3" y1="6.5" x2="12.5" y2="6.5"/></svg></button>
+    <button id="eyedropper-toggle" class="toolbar-btn" title="Eyedropper &mdash; sample pixel color (Ctrl+C to copy)"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M13.354.646a1.207 1.207 0 0 0-1.708 0L8.5 3.793l-.646-.647a.5.5 0 1 0-.708.708L8.293 5l-7.147 7.146A.5.5 0 0 0 1 12.5v1.793l-.854.853a.5.5 0 1 0 .708.707L1.707 15H3.5a.5.5 0 0 0 .354-.146L11 7.707l1.146 1.147a.5.5 0 0 0 .708-.708l-.647-.646 3.147-3.146a1.207 1.207 0 0 0 0-1.708zM2 12.707l7-7L10.293 7l-7 7H2z"/></svg></button>
     <select id="flavor-select" title="WoW flavor (✓ = installed)">
       ${flavorOptions}
     </select>
@@ -613,6 +684,7 @@ export class ScryerPanel {
       <option value="150">150%</option>
       <option value="200">200%</option>
       <option value="400">400%</option>
+      <option value="800">800%</option>
     </select>
     <span id="debug">script not yet loaded</span>
   </div>
@@ -623,6 +695,7 @@ export class ScryerPanel {
   }
 
   dispose(): void {
+    if (ScryerPanel.activePanel === this) ScryerPanel.activePanel = undefined;
     if (this.extractDebounce !== undefined) {
       clearTimeout(this.extractDebounce);
     }

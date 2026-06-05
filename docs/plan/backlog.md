@@ -6,21 +6,6 @@ Completed items are in [backlog-archive.md](backlog-archive.md).
 
 ---
 
-## Webview snapshot / golden-image regression
-
-**Problem:** The Playwright renderer harness (`test/webview/render.spec.ts`) verifies DOM structure and debug text but cannot catch visual regressions — a layout or color change that produces correct-looking metadata would go undetected.
-
-**Plan:**
-
-1. Add `expect(page).toHaveScreenshot("fixture-name.png")` calls to existing render tests. Playwright auto-creates the golden PNG on first run and diffs on subsequent runs.
-2. Commit the generated `test/webview/render.spec.ts-snapshots/` directory to the repo so CI can enforce them.
-3. Add a `pnpm test:webview:update` script (`playwright test --update-snapshots`) for intentional visual changes.
-4. Consider a dedicated visual fixture (e.g. a frame with a solid-color texture and known geometry) so the snapshot is deterministic across platforms. Cross-platform font rendering differences may require per-OS snapshot baselines or `maxDiffPixelRatio` tolerance.
-
-**Effort:** XS — the harness is already in place; this is just enabling Playwright's built-in snapshot API.
-
----
-
 ## TGA texture decode (deferred from M3)
 
 **Problem:** TGA (Targa) textures are used by many addon-bundled images. M3 logs a warning and shows a labeled placeholder for `.tga` files; it does not decode them.
@@ -276,24 +261,63 @@ Once M8 (TOC Execution Pipeline) and M9 (Script Events) are complete, the full a
 
 **Status:** 📋 Pending
 
-Once the full runtime (M8+M9) is running, the preview webview becomes an interactive WoW-like surface. WoW addons register keyboard handlers, open/close frames on key presses, and rely on the default WoW keybindings (e.g. ESC closes the topmost open frame). The webview's default key behavior will conflict with this.
+Once the full runtime (M8+M9) is running, the preview webview becomes an interactive WoW-like surface. WoW addons register keyboard handlers, open/close frames on key presses, and rely on the default WoW keybindings (e.g. ESC closes the topmost open frame). The webview's default key behavior will conflict with this — VS Code owns most keys while the panel is not focused.
 
-**Questions to resolve before implementing:**
+### Design: "Game Input" mode
 
-1. **ESC key** — In VS Code's webview, ESC closes the panel or blurs the editor. In WoW, ESC closes the topmost open full-screen frame (the "UISpecialFrames" stack). These two behaviors conflict. Options: (a) intercept ESC in the webview and synthesize a WoW `ESCAPE_PRESSED` event, letting VS Code's ESC only fire if no WoW frame consumes it; (b) provide a toggle to "capture keyboard input" that swallows ESC; (c) document the conflict and let addon authors work around it.
+The solution is an explicit opt-in toolbar toggle rather than any automatic capture heuristic. The toolbar shows a gamepad/controller icon button. Clicking it enters **Game Input mode**:
 
-2. **WoW default keybindings** — WoW has a large default keybinding table (movement, targeting, action bars, etc.). Most are irrelevant to UI addon development. The preview only needs to emulate bindings that addons are likely to test: ESC, Enter, Tab, and any custom bindings an addon registers via `SetBinding`/`SetBindingClick`.
+- The preview canvas receives a visible focus ring or overlay indicator (e.g. a subtle colored border) so the user knows input is captured.
+- All keystrokes are intercepted in the webview and routed through the Lua event bridge (`KeyDown`, `KeyUp`, and synthesized WoW binding events) rather than bubbling to VS Code.
+- **ESC exits Game Input mode** — it does not fire `ESCAPE_PRESSED` into the addon. This gives the user a reliable, always-available escape hatch without any chord to remember. If an addon needs to handle ESC, the user can re-enter Game Input mode and press ESC again; that second ESC press, while already in the game layer, fires `ESCAPE_PRESSED`. (This two-press pattern matches how browser fullscreen / pointer lock APIs work and sets clear expectations.)
+- While Game Input mode is inactive, all keys stay with VS Code as normal — no capture, no routing, no side effects.
 
-3. **Input capture toggle** — A panel control (button or checkbox: "Capture keyboard") that, when active, routes all keystrokes through the Lua event bridge (`KeyDown`, `KeyUp` events) rather than letting them bubble to VS Code. Pressing the toggle again (or pressing a configurable release chord like Ctrl+ESC) releases capture.
+The toolbar icon should be a small gamepad or controller glyph (e.g. a Unicode `🎮` or an SVG controller icon from the VS Code icon set). The button toggles between an idle state (outline / dimmed) and an active state (filled / accent color) to make current mode immediately obvious.
 
-4. **Virtual gamepad / binding emulation** — Out of scope for now, but note it for the future: addons that use controller input will need a different strategy.
+### Implementation plan
 
-**Approach:**
+1. **Toolbar button** — add a "Game Input" toggle button to the preview panel toolbar (alongside existing controls like the eyedropper and ruler). State: idle / active. Icon: controller or gamepad.
+2. **Enter Game Input mode** — on click, the webview posts a message to itself (or handles it inline) to begin `keydown`/`keyup` interception via `addEventListener` with `{ capture: true }`. Apply a focus-indicator style to the canvas wrapper.
+3. **Key routing** — intercepted keys are translated to WoW key names (e.g. `"a"` → `"A"`, `"F1"` → `"F1"`, `"ESCAPE"` → `"Escape"`) and posted to the extension host, which fires `KeyDown` / `KeyUp` script events on the focused frame (or the UIParent if no frame is focused).
+4. **ESC exits** — `keydown` handler checks for `Escape` first: if Game Input mode is active, exit the mode (remove interception, clear indicator) and swallow the event. No WoW event fires on this first ESC. A subsequent ESC press while back in Game Input mode does fire `ESCAPE_PRESSED`.
+5. **WoW default keybindings** — out of scope for phase 1. Only raw `KeyDown`/`KeyUp` events are dispatched. `SetBinding`/`SetBindingClick` emulation is a separate follow-up item if real addons need it.
+6. **Virtual gamepad / controller input** — out of scope; noted for future consideration.
 
-- Phase 1 (this item): resolve questions 1–3, write an ADR on the keyboard capture strategy, and implement input capture toggle + ESC routing in the webview.
-- Phase 2 (deferred): full binding table emulation if real addons require it.
+### Open questions
 
-**Effort:** S–M — the design question is the hard part; once the strategy is decided, webview event listener setup + Lua event dispatch is ~4–8 hours.
+- Should clicking anywhere inside the canvas auto-enter Game Input mode, or must the user always click the toolbar button? (Recommendation: toolbar only — avoids accidental capture when clicking to inspect a frame.)
+- Should the `StatusBarItem` also reflect Game Input mode state (e.g. show `[Game Input]` label)?
+
+**Depends on:** M9 (Script Events) for the `KeyDown`/`KeyUp` event bridge.
+
+**Effort:** S–M — the mode toggle and ESC escape hatch are ~2–4 hours; key-name translation and Lua event dispatch add another ~2–4 hours depending on how complete the key map needs to be.
+
+---
+
+## Customizable keyboard shortcuts for toolbar actions
+
+**Status:** 📋 Pending
+
+**Problem:** Toolbar buttons (eyedropper, Game Input mode, ruler toggle, etc.) are only reachable by clicking. Power users expect to trigger them from the keyboard, and VS Code's built-in keybinding system (`keybindings.json`) is the right mechanism — it gives users full control without Scryer needing to invent its own binding UI.
+
+**Goal:** Every toolbar action is backed by a named VS Code command so that users can assign or override shortcuts via `keybindings.json` as they would for any other extension.
+
+**Plan:**
+
+1. **Register each toolbar action as a command** in `package.json` under `contributes.commands`. Examples:
+   - `scryer.toggleEyedropper`
+   - `scryer.toggleGameInput`
+   - `scryer.toggleRuler`
+   - `scryer.centerCanvas`
+     Future toolbar buttons get a corresponding command at the time they are added.
+
+2. **Default keybindings** — contribute a small set of sensible defaults in `package.json` under `contributes.keybindings`, scoped to the preview panel focus context (e.g. `when: "scryer.previewFocused"`). Avoid collisions with VS Code built-ins. Leave most unbound by default and let users assign what they want; only bind actions where a default is obviously correct (e.g. no obvious candidate for eyedropper — leave unbound).
+
+3. **Webview → host command bridge** — toolbar button clicks in the webview already post messages to the extension host. The host-side command handlers call the same underlying functions, so adding a command is just registering a `vscode.commands.registerCommand` that calls the existing handler. No new webview logic needed.
+
+4. **Documentation** — add a table of available commands to `docs/configuration.md` so users know what to bind.
+
+**Effort:** XS — commands and keybinding contributions are `package.json` entries + one `registerCommand` call each; no new logic required.
 
 ---
 
@@ -476,3 +500,22 @@ The implementation applied the canvas result asynchronously (`Promise.then`), bu
 See `docs/plan/013_api_stub_autogen.md` for full architecture.
 
 **Effort:** M
+
+---
+
+## features.md — rendering features table per flavor
+
+**Status:** 📋 Pending
+
+**Problem:** There is no single place that tells an addon developer (or contributor) which frame types, XML attributes, and rendering behaviors Scryer actually supports — and which are stubs, placeholders, or not yet implemented. As coverage grows and flavors diverge, this gap becomes harder to fill from source inspection alone.
+
+**Plan:** Write `docs/features.md` containing:
+
+1. **Frame type support table** — rows for each WoW widget type (`Frame`, `Button`, `Texture`, `FontString`, `StatusBar`, `NineSlice`, `ScrollFrame`, etc.). Columns: Retail / Classic / Classic Era support status (✅ rendered, 🟡 partial, ❌ not implemented, N/A if the type doesn't exist in that flavor).
+2. **Attribute coverage notes** — for each frame type, a brief note on which XML attributes are rendered vs silently ignored (e.g. `hidden`, `setAllPoints`, `inherits`).
+3. **Rendering behavior table** — cross-cutting behaviors: anchor resolution, strata/layer z-order, NineSlice, atlas textures, TexCoords, tiling, FontString font/size/color, template inheritance. Same per-flavor columns.
+4. **Known gaps** — short list of features that parse correctly but produce placeholder output (e.g. `StatusBar` fill, TGA textures).
+
+Update this file alongside any future rendering work that adds or changes feature coverage.
+
+**Effort:** XS — the information already exists in code, tests, and backlog entries; this is purely documentation assembly.

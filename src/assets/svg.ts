@@ -22,8 +22,9 @@ export interface FlipTool {
   flavor: "gm" | "convert";
 }
 
-/** Returns true if rsvg-convert is available on PATH. */
-export function isSvgConverterAvailable(): boolean {
+/** Returns true if rsvg-convert is available. Checks explicitPath first, then PATH. */
+export function isSvgConverterAvailable(explicitPath?: string): boolean {
+  if (explicitPath) return probe(explicitPath);
   return probe("rsvg-convert");
 }
 
@@ -44,9 +45,9 @@ export function resolveFlipTool(explicitPath?: string): FlipTool | null {
   return null;
 }
 
-/** Convert an SVG file to PNG using rsvg-convert. Rejects if the tool fails. */
-export function svgToPng(svgPath: string, pngPath: string): Promise<void> {
-  return spawn("rsvg-convert", [svgPath, "-o", pngPath]);
+/** Convert an SVG file to PNG using rsvg-convert (or explicitPath). Rejects if the tool fails. */
+export function svgToPng(svgPath: string, pngPath: string, explicitPath?: string): Promise<void> {
+  return spawn(explicitPath ?? "rsvg-convert", [svgPath, "-o", pngPath]);
 }
 
 /**

@@ -1,0 +1,45 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+   https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/FrameXML/UI.xsd">
+
+  <!--
+    blizz_templates.xml  -  Blizzard template inheritance (CASC required)
+
+    Requires a Blizzard registry loaded from extractedAssetsDir/Interface/AddOns.
+    NineSlice is excluded (pending M4).
+
+    GoldBtn (120x32):  UIPanelGoldButtonTemplate
+      requestAsset: goldbutton-up-left, goldbutton-up-right, goldbutton-up-middle
+      Middle anchors via relativeKey between Left.TOPRIGHT and Right.BOTTOMLEFT
+
+    SilverBtn (160x26): UIMenuButtonStretchTemplate
+      requestAsset: UI-Silver-Button-Up (shared across all 9 pieces)
+      Corner+edge pieces use relativeKey stretch
+
+    InsetTest (200x100): InsetFrameTemplate
+      requestAsset: UI-Background-Marble (setAllPoints fill)
+  -->
+
+  <Button name="GoldBtn" inherits="UIPanelGoldButtonTemplate" parent="UIParent">
+    <Size x="120" y="32"/>
+    <Anchors>
+      <Anchor point="TOPLEFT" x="10" y="-10"/>
+    </Anchors>
+  </Button>
+
+  <Button name="SilverBtn" inherits="UIMenuButtonStretchTemplate" parent="UIParent">
+    <Size x="160" y="26"/>
+    <Anchors>
+      <Anchor point="TOPLEFT" x="10" y="-60"/>
+    </Anchors>
+  </Button>
+
+  <Frame name="InsetTest" inherits="InsetFrameTemplate" parent="UIParent">
+    <Size x="200" y="100"/>
+    <Anchors>
+      <Anchor point="TOPLEFT" x="10" y="-100"/>
+    </Anchors>
+  </Frame>
+
+</Ui>

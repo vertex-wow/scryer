@@ -150,6 +150,11 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   context.subscriptions.push(toggleRulerCmd);
 
+  const eyedropperCmd = vscode.commands.registerCommand("scryer.eyedropper", () => {
+    (ScryerPanel.activePanel ?? ScryerLivePanel.activePanel)?.toggleEyedropper();
+  });
+  context.subscriptions.push(eyedropperCmd);
+
   const cmd = vscode.commands.registerCommand("scryer.open", (uri?: vscode.Uri) => {
     const resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
     if (!resolved) {
@@ -295,13 +300,18 @@ export function activate(context: vscode.ExtensionContext): void {
       const allXml = await vscode.workspace.findFiles("**/*.xml");
       const xmlFiles = await filterGitIgnored(allXml);
       output.info(`workspace-prewarm: scanning ${xmlFiles.length} XML file(s)`);
-      const registry = assets.loadBlizzardTemplates();
+      const { frames: blizzardFrames, textures: blizzardTextures } = assets.loadBlizzardTemplates();
       for (const xmlUri of xmlFiles) {
         try {
           const bytes = await vscode.workspace.fs.readFile(xmlUri);
           const content = Buffer.from(bytes).toString("utf-8");
           const doc = parseXmlFile(xmlUri.fsPath, content);
-          const [resolved] = resolveInheritance([doc], registry, { warnings: { count: 0 } });
+          const [resolved] = resolveInheritance(
+            [doc],
+            blizzardFrames,
+            { warnings: { count: 0 } },
+            blizzardTextures,
+          );
           if (!resolved) continue;
           const frames = resolved.frames.filter((f) => !f.virtual);
           const addonDir = path.dirname(xmlUri.fsPath);
@@ -323,14 +333,14 @@ export function activate(context: vscode.ExtensionContext): void {
       // Loose SVGs: convert to PNG alongside the source if no PNG/TGA sibling exists.
       const svgUris = await filterGitIgnored(await vscode.workspace.findFiles("**/*.svg"));
       if (svgUris.length > 0) {
-        if (!isSvgConverterAvailable()) {
+        const cfg = vscode.workspace.getConfiguration("scryer");
+        const rsvgPath = cfg.get<string>("rsvgConvertPath") || undefined;
+        if (!isSvgConverterAvailable(rsvgPath)) {
           output.warn(
-            `workspace-prewarm: skipping ${svgUris.length} SVG(s) — rsvg-convert not found (install librsvg2-bin or set scryer.imageConvertPath)`,
+            `workspace-prewarm: skipping ${svgUris.length} SVG(s) — rsvg-convert not found (install librsvg2-bin on Linux/macOS, or set scryer.rsvgConvertPath)`,
           );
         } else {
-          const explicitConvert =
-            vscode.workspace.getConfiguration("scryer").get<string>("imageConvertPath") ||
-            undefined;
+          const explicitConvert = cfg.get<string>("imageConvertPath") || undefined;
           const flipper = resolveFlipTool(explicitConvert);
           let pngCount = 0;
           let tgaCount = 0;
@@ -341,7 +351,7 @@ export function activate(context: vscode.ExtensionContext): void {
             if (hasPng && hasTga) continue;
             try {
               if (!hasPng) {
-                await svgToPng(uri.fsPath, base + ".png");
+                await svgToPng(uri.fsPath, base + ".png", rsvgPath);
                 pngCount++;
               }
               if (!hasTga && flipper) {

@@ -57,7 +57,18 @@
       "Bash(npm show *)",
       "Bash(pnpm run *)",
       "Bash(find *)",
-      "Bash(npx jest *)"
+      "Bash(npx jest *)",
+      "Bash(pnpm test:webview)",
+      "Bash(pnpm test:webview:update)",
+      "Bash(pnpm test:casc)",
+      "Bash(pnpm test:xml)",
+      "Bash(pnpm test:xml-casc)",
+      "Bash(pnpm test:toc)",
+      "Bash(pnpm test:webview *)",
+      "Bash(pnpm test:xml *)",
+      "Bash(pnpm test:toc-casc *)",
+      "Bash(npx playwright *)",
+      "Bash(pnpm exec *)"
     ],
     "additionalDirectories": [
       "/tmp"

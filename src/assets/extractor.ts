@@ -24,6 +24,7 @@ export interface ExtractorOptions {
   /** WoW root directory. Empty string means extraction is unavailable. */
   wowDir?: string;
   cascToolPath?: string;
+  grepPath?: string;
   listfileDir?: string;
   output: vscode.LogOutputChannel;
 }
@@ -78,6 +79,7 @@ function makeCoreOpts(opts: ExtractorOptions): ExtractCoreOptions {
     outDir: opts.outDir,
     wowDir: opts.wowDir!,
     cascToolPath: opts.cascToolPath,
+    grepPath: opts.grepPath,
     listfileDir: opts.listfileDir ?? "",
     log: (line: string) => writeLogLine(opts.output, line),
   };

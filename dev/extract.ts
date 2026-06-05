@@ -13,12 +13,12 @@
  *   --out-dir <dir>       Output root (default: .wow-assets/ at project root).
  *   --type textures|interface|all  Category to extract (default: textures). Ignored with --paths-file.
  *   --paths-file <file>   Newline-delimited list of specific paths to extract.
- *   --wow-dir <path>      WoW root directory. Falls back to dev/config.local.json → wowDir.
- *   --casc-tool <path>    CASC binary path. Falls back to dev/config.local.json → cascTool.
+ *   --wow-dir <path>      WoW root directory. Falls back to dev/settings.local.json → wowDir.
+ *   --casc-tool <path>    CASC binary path. Falls back to dev/settings.local.json → cascTool.
  *   --listfile-dir <dir>  Directory for listfile.csv cache (default: .wow-assets/).
  *
- * Config: dev/config.local.json (gitignored) may supply wowDir and cascTool as defaults.
- * Copy dev/config.json.example to dev/config.local.json and fill in your local paths.
+ * Config: dev/settings.local.json (gitignored) may supply wowDir and cascTool as defaults.
+ * Copy dev/settings.json.example to dev/settings.local.json and fill in your local paths.
  */
 
 import * as fs from "fs";
@@ -33,16 +33,16 @@ import {
 const PROJECT_ROOT = path.join(__dirname, "..");
 
 // ---------------------------------------------------------------------------
-// Load optional dev/config.local.json
+// Load optional dev/settings.local.json
 // ---------------------------------------------------------------------------
 
 interface DevConfig {
-  installDir?: string;
-  cascToolPath?: string;
+  "scryer.installDir"?: string;
+  "scryer.cascToolPath"?: string;
 }
 
 function loadDevConfig(): DevConfig {
-  const configPath = path.join(PROJECT_ROOT, "dev", "config.local.json");
+  const configPath = path.join(PROJECT_ROOT, "dev", "settings.local.json");
   if (!fs.existsSync(configPath)) return {};
   try {
     return JSON.parse(fs.readFileSync(configPath, "utf-8")) as DevConfig;
@@ -110,13 +110,13 @@ for (; i < args.length; i++) {
 }
 
 const devConfig = loadDevConfig();
-const wowDir = wowDirArg ?? devConfig.installDir;
-const cascToolPath = cascToolArg ?? devConfig.cascToolPath;
+const wowDir = wowDirArg ?? devConfig["scryer.installDir"];
+const cascToolPath = cascToolArg ?? devConfig["scryer.cascToolPath"];
 
 if (!wowDir) {
   console.error(
-    "Error: --wow-dir is required (or set installDir in dev/config.local.json).\n" +
-      "  Copy dev/config.json.example to dev/config.local.json and fill in installDir.",
+    "Error: --wow-dir is required (or set scryer.installDir in dev/settings.local.json).\n" +
+      "  Copy dev/settings.json.example to dev/settings.local.json and fill in scryer.installDir.",
   );
   process.exit(1);
 }

@@ -1,0 +1,23 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+   https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/FrameXML/UI.xsd">
+
+  <!--
+    Minimal stand-in for DefaultPanelTemplate used in non-CASC tests.
+    Provides only what ExampleFrameTitleFrame.lua needs: a TitleText FontString
+    reachable via frame.TitleText so that SetTitle() can call SetText on it.
+  -->
+  <Frame name="DefaultPanelTemplate" virtual="true" mixin="DefaultPanelTemplateMixin">
+    <Layers>
+      <Layer level="OVERLAY">
+        <FontString name="$parentTitleText" parentKey="TitleText">
+          <Anchors>
+            <Anchor point="TOP" y="-16"/>
+          </Anchors>
+        </FontString>
+      </Layer>
+    </Layers>
+  </Frame>
+
+</Ui>

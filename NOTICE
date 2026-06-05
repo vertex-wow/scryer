@@ -1,3 +1,7 @@
+## Icons
+
+- [Bootstrap Icons](https://icons.getbootstrap.com/) by The Bootstrap Authors, MIT. The eyedropper icon (`bi-eyedropper`) is embedded inline as SVG in the preview panel toolbar.
+
 ## Lua References
 
 - [wasmoon](https://github.com/ceifa/wasmoon) by Gabriel Francisco, MIT. Lua 5.4 WASM with JS interop.
