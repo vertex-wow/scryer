@@ -3,6 +3,7 @@ import "../../api-stubs/retail/C_Texture.js";
 import type { LuaEngine } from "wasmoon";
 
 interface AtlasEntry {
+  file: string;
   x: number;
   y: number;
   width: number;
@@ -11,6 +12,8 @@ interface AtlasEntry {
   sheetH: number;
   tilesH: boolean;
   tilesV: boolean;
+  logicalW: number;
+  logicalH: number;
 }
 
 // Always overridden so NineSlice and similar code get a truthy result for any
@@ -36,7 +39,11 @@ export async function registerC_Texture(
       let scaleDivisor = 1;
       if (!entry) {
         entry = manifest[origLower + "-2x"] ?? manifest[strippedLower + "-2x"];
-        if (entry) scaleDivisor = 2;
+        if (entry) {
+          // Use the DB2 OverrideWidth to derive the exact divisor when available;
+          // fall back to ÷2 for -2x entries that carry no override.
+          scaleDivisor = entry.logicalW > 0 ? entry.width / entry.logicalW : 2;
+        }
       }
       if (entry) {
         const { x, y, width, height, sheetW, sheetH, tilesH, tilesV } = entry;

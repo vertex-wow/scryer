@@ -10,6 +10,7 @@ export interface WowApiOverrideOpts {
   atlasManifest?: Record<
     string,
     {
+      file: string;
       x: number;
       y: number;
       width: number;
@@ -18,6 +19,8 @@ export interface WowApiOverrideOpts {
       sheetH: number;
       tilesH: boolean;
       tilesV: boolean;
+      logicalW: number;
+      logicalH: number;
     }
   > | null;
 }

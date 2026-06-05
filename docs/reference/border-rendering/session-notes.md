@@ -256,10 +256,55 @@ After fixing edge tiling: will the 7px corner protrusion look right, or will it 
 
 ---
 
-## Current git state
+## Current git state (end of session 2)
 
 - Branch: `main`
 - Unstaged changes in: `src/assets/atlas-manifest.ts`, `src/lua/wow-api.ts`, `src/webview/main.ts`
 - New untracked files: `test/manual/ExampleFrameModalDialog__Vertex/` (XML + TOC + harness)
 - `pnpm build` is current (built successfully)
 - Nothing staged yet — the fix is partial, commit when resolved
+
+---
+
+## Session 3 — DiamondMetal scale factor (2026-06-05)
+
+### Problem
+
+After all previous fixes, the body border on `ExampleFrameModalDialog` and
+`ExampleFrameTitleModalDialog` is still visually thicker than the title bar header border
+(`DialogHeaderTemplate`). The user confirmed the header renders correctly and identified
+the body border as the wrong size.
+
+### Root cause: DiamondMetal is a 4× atlas, not 2×
+
+All DiamondMetal atlas entries exist only as `-2x` variants in our manifest. The standard
+÷2 scale factor gives 64×64 logical units for the body corners. But the correct size is
+**32×32**.
+
+Calibration: `DialogHeaderTemplate` XML hard-codes its DiamondMetal header corners at
+`<Size x="32" y="39"/>`. Those corners live in the 128×156 `-2x` atlas entry.
+`128 ÷ 2 = 64` (wrong); `128 ÷ 4 = 32` (correct). The explicit XML size is the ground truth.
+
+The same ÷4 factor applies to all DiamondMetal sheets (body corners, edges, header pieces).
+See `docs/reference/atlas-scale-factors.md` for full analysis.
+
+### Fix
+
+In both `-2x` fallback branches:
+
+- `src/assets/atlas-manifest.ts` — `resolveAtlasInTexture()`
+- `src/lua/api/retail/C_Texture.ts` — `__scryer_atlas_getinfo`
+
+Detect DiamondMetal by file path (`entry.file.includes("uiframediamondmetal")`) and use
+`scaleDivisor = 4` instead of `2`. All other `-2x` atlases (e.g. Metal corners at 75×75)
+remain unchanged.
+
+Also added `file: string` field to the `AtlasEntry` interface in `C_Texture.ts`,
+`api/index.ts`, and `wow-api.ts` (previously missing from the local definition).
+
+### Status
+
+- All 400 unit tests pass. `pnpm build` + `pnpm typecheck` pass.
+- Visual verification pending (user testing in live panel).
+- Whether Blizzard uses the same workaround or resolves this differently is unknown.
+  See `docs/reference/atlas-scale-factors.md`.

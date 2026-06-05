@@ -8,9 +8,9 @@ export interface AtlasEntry {
   x: number;
   /** Pixel Y offset of the region in the sheet (CommittedTop). */
   y: number;
-  /** Pixel width of the region. */
+  /** Physical pixel width of the region (Width column). */
   width: number;
-  /** Pixel height of the region. */
+  /** Physical pixel height of the region (Height column). */
   height: number;
   /** Total pixel width of the sprite sheet. */
   sheetW: number;
@@ -18,6 +18,16 @@ export interface AtlasEntry {
   sheetH: number;
   tilesH: boolean;
   tilesV: boolean;
+  /**
+   * Explicit logical WoW-unit size from the DB2 OverrideWidth column (0 = not set).
+   * When non-zero, `width / logicalW` gives the pixel-per-unit divisor for this atlas
+   * family, which may differ from the naive ÷2 applied to all -2x entries.
+   */
+  logicalW: number;
+  /**
+   * Explicit logical WoW-unit size from the DB2 OverrideHeight column (0 = not set).
+   */
+  logicalH: number;
 }
 
 export type AtlasManifest = Record<string, AtlasEntry>;
@@ -32,7 +42,13 @@ function resolveAtlasInTexture(tex: TextureIR, manifest: AtlasManifest): void {
   let scaleDivisor = 1;
   if (!entry) {
     entry = manifest[origLower + "-2x"] ?? manifest[strippedLower + "-2x"];
-    if (entry) scaleDivisor = 2;
+    if (entry) {
+      // When the DB2 row carries an explicit logical-size override (OverrideWidth /
+      // OverrideHeight), derive the divisor from it so we get the exact WoW logical size
+      // without relying on a hardcoded "÷2 for all -2x" assumption.
+      // For entries without an override (logicalW=0), fall back to ÷2.
+      scaleDivisor = entry.logicalW > 0 ? entry.width / entry.logicalW : 2;
+    }
   }
   if (!entry) return;
   const d = scaleDivisor;

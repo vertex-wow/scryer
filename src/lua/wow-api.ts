@@ -541,6 +541,7 @@ export interface WowApiOptions {
   atlasManifest?: Record<
     string,
     {
+      file: string;
       x: number;
       y: number;
       width: number;
@@ -549,6 +550,8 @@ export interface WowApiOptions {
       sheetH: number;
       tilesH: boolean;
       tilesV: boolean;
+      logicalW: number;
+      logicalH: number;
     }
   > | null;
 }

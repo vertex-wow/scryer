@@ -189,6 +189,11 @@ export async function generateAtlasManifest(opts: AtlasGenOptions): Promise<void
       sheetH: number;
       tilesH: boolean;
       tilesV: boolean;
+      // Non-zero when the DB2 row carries an explicit logical-size override (OverrideWidth /
+      // OverrideHeight columns). Use these to compute the correct pixel→WoW-unit divisor
+      // for -2x atlas entries instead of blindly dividing physical dimensions by 2.
+      logicalW: number;
+      logicalH: number;
     }
   > = {};
   let resolved = 0;
@@ -203,7 +208,9 @@ export async function generateAtlasManifest(opts: AtlasGenOptions): Promise<void
     const y = parseInt(row["CommittedTop"] ?? row["Committed Top"] ?? "0", 10);
     const width = parseInt(row["Width"] ?? "0", 10);
     const height = parseInt(row["Height"] ?? "0", 10);
-    const flags = parseInt(row["Flags"] ?? row["Flags_0x1"] ?? "0", 10);
+    const flags = parseInt(row["Flags"] ?? row["CommittedFlags"] ?? "0", 10);
+    const logicalW = parseInt(row["OverrideWidth"] ?? "0", 10);
+    const logicalH = parseInt(row["OverrideHeight"] ?? "0", 10);
 
     const sheet = atlasById.get(atlasID);
     if (!sheet?.fileDataID) {
@@ -227,6 +234,8 @@ export async function generateAtlasManifest(opts: AtlasGenOptions): Promise<void
       sheetH: sheet.sheetH,
       tilesH: (flags & 0x1) !== 0,
       tilesV: (flags & 0x2) !== 0,
+      logicalW,
+      logicalH,
     };
     resolved++;
   }
