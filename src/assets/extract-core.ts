@@ -203,7 +203,7 @@ export async function ensureFilteredListfile(
     }
   }
 
-  await filterListfile(fullPath, filteredPath, grepPath ?? "grep", log);
+  await filterListfile(fullPath, filteredPath, grepPath || "grep", log);
   if (buildText) fs.writeFileSync(stampPath, buildText, "utf8");
   return filteredPath;
 }
@@ -366,7 +366,7 @@ async function extractRetailPaths(
   const extractable = await filterToListfilePaths(
     listfilePath,
     paths,
-    opts.grepPath ?? "grep",
+    opts.grepPath || "grep",
     opts.log,
   );
   if (extractable.length === 0) return { exported: 0, skippedExists: 0, errors: 0 };
