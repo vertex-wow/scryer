@@ -614,6 +614,66 @@ function applyDefaultFont(uri: string): void {
   style.textContent = `@font-face { font-family: "WoWDefaultFont"; src: url("${uri}"); }`;
 }
 
+// ---------------------------------------------------------------------------
+// Canvas sprite extraction — used when a tiling sprite doesn't fill its sheet
+// ---------------------------------------------------------------------------
+
+const imageCache = new Map<string, Promise<HTMLImageElement>>();
+const spriteDataUrlCache = new Map<string, string>();
+
+function loadImage(uri: string): Promise<HTMLImageElement> {
+  if (!imageCache.has(uri)) {
+    imageCache.set(
+      uri,
+      new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = uri;
+      }),
+    );
+  }
+  return imageCache.get(uri)!;
+}
+
+/**
+ * Extract a sprite sub-region from its sheet to a canvas data URL.
+ * The canvas is drawn at physical resolution (img.naturalWidth / sheetW scale)
+ * so CSS can render it at logical size without double-resampling.
+ * Results are cached keyed by "uri:x,y,w,h".
+ */
+function extractSpriteDataUrl(
+  uri: string,
+  crop: { x: number; y: number; width: number; height: number; sheetW: number; sheetH: number },
+): Promise<string> {
+  const key = `${uri}:${crop.x},${crop.y},${crop.width},${crop.height}`;
+  const cached = spriteDataUrlCache.get(key);
+  if (cached) return Promise.resolve(cached);
+  return loadImage(uri).then((img) => {
+    const physicalScale = img.naturalWidth / crop.sheetW;
+    const physW = Math.round(crop.width * physicalScale);
+    const physH = Math.round(crop.height * physicalScale);
+    const canvas = document.createElement("canvas");
+    canvas.width = physW;
+    canvas.height = physH;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(
+      img,
+      Math.round(crop.x * physicalScale),
+      Math.round(crop.y * physicalScale),
+      physW,
+      physH,
+      0,
+      0,
+      physW,
+      physH,
+    );
+    const dataUrl = canvas.toDataURL();
+    spriteDataUrlCache.set(key, dataUrl);
+    return dataUrl;
+  });
+}
+
 /** Apply a resolved asset URI to all texture elements sharing that path. */
 function applyAsset(rawPath: string, uri: string): void {
   const selector = `[data-asset-path="${rawPath.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"]`;
@@ -656,6 +716,37 @@ function applyAsset(rawPath: string, uri: string): void {
       // bgPosX shifts right by 1 to keep atlas content visually aligned after the
       // element shifted left by 1px.
       const seamBleed = crop.tilesH && !crop.tilesV ? 1 : 0;
+
+      // When a tiling sprite doesn't fill its sheet width/height, CSS background-repeat
+      // strides at the full sheet dimension rather than the sprite dimension, producing
+      // gaps. Extract the sprite sub-region to a canvas and tile that instead.
+      const needsCanvasH = crop.tilesH && crop.sheetW > crop.width;
+      const needsCanvasV = crop.tilesV && crop.sheetH > crop.height;
+      if (needsCanvasH || needsCanvasV) {
+        const capturedEl = el;
+        const capturedElemW = elemW;
+        const capturedElemH = elemH;
+        void extractSpriteDataUrl(uri, crop).then((dataUrl) => {
+          capturedEl.style.backgroundImage = `url("${dataUrl}")`;
+          if (needsCanvasH && !needsCanvasV) {
+            capturedEl.style.backgroundSize = `${crop.width}px ${capturedElemH}px`;
+            capturedEl.style.backgroundPosition = `${seamBleed}px 0px`;
+            capturedEl.style.backgroundRepeat = "repeat-x no-repeat";
+          } else if (needsCanvasV && !needsCanvasH) {
+            capturedEl.style.backgroundSize = `${capturedElemW}px ${crop.height}px`;
+            capturedEl.style.backgroundPosition = `0px 0px`;
+            capturedEl.style.backgroundRepeat = "no-repeat repeat-y";
+          } else {
+            capturedEl.style.backgroundSize = `${crop.width}px ${crop.height}px`;
+            capturedEl.style.backgroundPosition = `0px 0px`;
+            capturedEl.style.backgroundRepeat = "repeat";
+          }
+          const ph = capturedEl.querySelector("[data-placeholder]");
+          if (ph) ph.remove();
+          capturedEl.style.pointerEvents = "none";
+        });
+        continue; // placeholder stays until async resolves; skip CSS path below
+      }
 
       // H-only tiles: stretch to element width instead of repeating. The
       // TopEdge tile is y-gradient/x-uniform so stretching is visually identical

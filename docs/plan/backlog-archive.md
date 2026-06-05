@@ -869,3 +869,47 @@ Pressing **Ctrl+C** while the eyedropper is active copies the full string (all t
 - Ctrl+C in the webview sends `eyedropperCopy` to the host which calls `vscode.env.clipboard.writeText`.
 - `body.mode-eyedropper { cursor: crosshair }` CSS + `pointer-events: none` on viewport children while sampling.
 - Static `activePanel` tracking added to both panel classes for command routing.
+
+---
+
+## NineSlice border rendering fidelity (DiamondMetal)
+
+**Completed:** 2026-06-05
+
+**Reference resources:** [`docs/reference/border-rendering/`](../reference/border-rendering/) — full session notes, in-game reference screenshot, and two Scryer screenshots showing intermediate states.
+
+### Problem
+
+`ExampleFrameModalDialog` uses `DialogBorderTemplate`, which applies a NineSlice with DiamondMetal corner and edge art. Two rendering defects remained after the fixes shipped in 2026-06:
+
+1. **Edge tiling stride is wrong.** The horizontal edge sprites (`_UI-Frame-DiamondMetal-EdgeTop`, `_UI-Frame-DiamondMetal-EdgeBottom`) are 64px wide but live in a 128px-wide sheet (right half transparent). CSS `background-repeat` strides at `sheetW = 128px`, producing a 64px-metal / 64px-gap alternating pattern. The border edges look broken or absent. Vertical edges are fine — their sheet height equals sprite height.
+
+2. **Border protrusion is minimal.** With the `overflow:visible` fix in place, diamond corners do visually extend past the dark background. But the effect is subtle (only the 7px Bg inset gap). Compared to the in-game reference at 3440×1440, the border looks thin. This may be a visual scale difference between the in-game capture and Scryer's `frameScale`, not a real rendering error — deferred for visual evaluation post-fix.
+
+### What was confirmed correct (don't re-investigate)
+
+- `Dialog` NineSlice layout has **no x/y offsets** — corners are placed at (0,0) of the border frame by design. The "floating" effect comes from artwork geometry + the 7px Bg inset, not a layout offset.
+- `overflow:visible` on `useParentLevel` frames (`renderer.ts:198`) — shipped, correct. Lets corners extend past frame bounds.
+- Corner sizing: resolves to 64×64 logical via `-2x` ÷ 2. Correct.
+- Bg inset: 7px resolves correctly via `layoutByTwoAnchors`. Correct.
+- `SetHorizTile(true)` is captured correctly all the way to `tilesH: true` in `applyAsset`. The tiling flag is right; only the stride is wrong.
+
+### Atlas sheet layout (confirmed by inspecting the PNG)
+
+Sheet `uiframediamondmetal2x.blp` (128×512 logical):
+
+- Edge sprites at x=0, w=64 — occupy **left half only**. Right half (x=64..128) is transparent.
+- Corner sprites below, also left-half.
+
+Sheet `uiframediamondmetalvertical2x.blp` (256×64 logical):
+
+- Left edge at x=0.5, right edge at x=65.5 — each 64px wide. Sheet height = 64 = sprite height. **No stride problem for vertical edges.**
+
+### What was built
+
+Canvas-based sprite extraction in `src/webview/main.ts`:
+
+- `loadImage(uri)` — loads an image and caches the `Promise<HTMLImageElement>` keyed by URI.
+- `extractSpriteDataUrl(uri, crop)` — extracts the sprite sub-region to an offscreen canvas at physical resolution (`img.naturalWidth / crop.sheetW` scale), returns a data URL, caches by `uri:x,y,w,h`.
+- In `applyAsset`, when `needsCanvasH = crop.tilesH && crop.sheetW > crop.width` (or `needsCanvasV`): dispatches the async extraction and uses `continue` to skip the synchronous CSS path. Placeholder stays until the promise resolves. On resolution: sets `background-image` to the canvas data URL, `background-repeat: repeat-x no-repeat` (or `no-repeat repeat-y` / `repeat` for the other cases), and `background-size` to the sprite's logical dimensions scaled to fit the element's non-tiling axis.
+- The key lesson from the first failed attempt (2026-06-02): do NOT fall through to the CSS path for canvas sprites. The async write raced with the synchronous sheet URI, producing layout artifacts. The `continue` skips all CSS writes; the callback does the full apply in one shot.
