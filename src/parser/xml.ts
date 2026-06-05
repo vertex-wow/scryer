@@ -306,6 +306,8 @@ function parseTexture(node: RawNode, sourceFile: string): TextureIR {
     sourceFile,
   };
 
+  tex.inherits = splitComma(strAttr(a, "inherits"));
+
   const name = strAttr(a, "name");
   if (name) tex.name = name;
   const parentKey = strAttr(a, "parentKey");
@@ -318,6 +320,10 @@ function parseTexture(node: RawNode, sourceFile: string): TextureIR {
   if (atlas) tex.atlas = atlas;
   const useAtlasSize = boolAttr(a, "useAtlasSize");
   if (useAtlasSize !== undefined) tex.useAtlasSize = useAtlasSize;
+  const horizTile = boolAttr(a, "horizTile");
+  if (horizTile !== undefined) tex.horizTile = horizTile;
+  const vertTile = boolAttr(a, "vertTile");
+  if (vertTile !== undefined) tex.vertTile = vertTile;
   const alphaMode = strAttr(a, "alphaMode");
   if (alphaMode) tex.alphaMode = alphaMode as AlphaMode;
   const setAllPoints = boolAttr(a, "setAllPoints");
@@ -338,6 +344,19 @@ function parseTexture(node: RawNode, sourceFile: string): TextureIR {
       case "Color":
         tex.color = parseColor(child);
         break;
+      case "MaskedTextures":
+        for (const mt of childrenOf(child)) {
+          if (tagOf(mt) === "MaskedTexture") {
+            const key = strAttr(attrsOf(mt), "childKey");
+            if (key) (tex.maskedChildKeys ??= []).push(key);
+          }
+        }
+        break;
+      case "MaskedTexture": {
+        const key = strAttr(attrsOf(child), "childKey");
+        if (key) (tex.maskedChildKeys ??= []).push(key);
+        break;
+      }
       case "TexCoords": {
         const ca = attrsOf(child);
         tex.texCoords = {
@@ -429,7 +448,42 @@ function parseLayer(
     // Line and other render objects: silently skip for now
   }
 
+  // MaskTexture → target linking happens at frame scope (linkMasks), because a
+  // MaskTexture and its target textures often live in different <Layer> blocks.
+  // Keep MaskTextures in the objects list here; linkMasks strips them afterwards.
   return { level, subLevel, objects };
+}
+
+/**
+ * Link every MaskTexture to its target textures across all layers of a frame,
+ * setting `maskFile` on each target, then remove MaskTextures from the rendered
+ * object lists (they are metadata, not visual elements). Masks frequently
+ * reference targets in a different <Layer>, so this must run at frame scope.
+ */
+function linkMasks(layers: FrameIR["layers"]): void {
+  const byParentKey = new Map<string, TextureIR>();
+  for (const layer of layers) {
+    for (const obj of layer.objects) {
+      if ((obj.kind === "Texture" || obj.kind === "MaskTexture") && obj.parentKey) {
+        byParentKey.set(obj.parentKey, obj as TextureIR);
+      }
+    }
+  }
+  for (const layer of layers) {
+    for (const obj of layer.objects) {
+      if (obj.kind !== "MaskTexture") continue;
+      const mask = obj as TextureIR;
+      if (mask.file && mask.maskedChildKeys) {
+        for (const key of mask.maskedChildKeys) {
+          const target = byParentKey.get(key);
+          if (target) target.maskFile = mask.file;
+        }
+      }
+    }
+  }
+  for (const layer of layers) {
+    layer.objects = layer.objects.filter((obj) => obj.kind !== "MaskTexture");
+  }
 }
 
 // Forward declaration — parseFrame references itself for children
@@ -545,6 +599,16 @@ function parseFrame(node: RawNode, sourceFile: string): FrameIR {
       case "ButtonText": {
         const ca = attrsOf(child);
         frame.buttonText = strAttr(ca, "text");
+        // Also create a FontString so parentKey="Text" binds tab.Text at runtime,
+        // enabling PanelTemplates_TabResize to call tab.Text:SetWidth / GetStringWidth.
+        const btFs = parseFontString(child, frame.sourceFile ?? "");
+        if (!btFs.text && frame.buttonText) btFs.text = frame.buttonText;
+        let overlay = frame.layers.find((l) => l.level === "OVERLAY");
+        if (!overlay) {
+          overlay = { level: "OVERLAY", subLevel: 0, objects: [] };
+          frame.layers.push(overlay);
+        }
+        overlay.objects.push(btFs);
         break;
       }
       case "HitRectInsets":
@@ -554,6 +618,9 @@ function parseFrame(node: RawNode, sourceFile: string): FrameIR {
         break;
     }
   }
+
+  // Resolve MaskTexture → target links across all layers, then drop the masks.
+  linkMasks(frame.layers);
 
   return frame;
 }
@@ -585,6 +652,7 @@ export function parseXmlFile(source: string, content: string): UiDocument {
     source,
     frames: [],
     templates: new Map(),
+    textureTemplates: new Map(),
     scriptFiles: [],
     includes: [],
   };
@@ -604,6 +672,11 @@ export function parseXmlFile(source: string, content: string): UiDocument {
     } else if (tag === "Include") {
       const file = strAttr(a, "file");
       if (file) doc.includes.push(normPath(file));
+    } else if (tag === "Texture" || tag === "MaskTexture") {
+      const tex = parseTexture(child, source);
+      if (tex.virtual && tex.name) {
+        doc.textureTemplates.set(tex.name, tex);
+      }
     } else if (FRAME_TAGS.has(tag)) {
       const frame = parseFrame(child, source);
       if (frame.virtual) {

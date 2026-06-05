@@ -17,7 +17,7 @@
  *   --listfile-dir <dir>  Directory containing listfile.csv (alternative to --listfile).
  *   --build <buildID>     WoW build ID for wago.tools URL (e.g. "11.0.7.58187").
  *
- * Config (dev/config.local.json): no keys used by this script; --listfile is required.
+ * Config (dev/settings.local.json): no keys used by this script; --listfile is required.
  */
 
 import * as path from "path";

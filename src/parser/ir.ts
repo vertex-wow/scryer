@@ -140,6 +140,10 @@ export interface TextureIR extends LayoutFrameBase {
   alphaMode?: AlphaMode;
   texCoords?: { left: number; right: number; top: number; bottom: number };
   color?: Color;
+  /** Path to the MaskTexture file that clips this texture (circular portrait mask, etc.). */
+  maskFile?: string;
+  /** parentKeys of textures this MaskTexture clips — consumed during layer parsing, not used at render time. */
+  maskedChildKeys?: string[];
 }
 
 export interface FontStringIR extends LayoutFrameBase {
@@ -158,6 +162,7 @@ export interface UiDocument {
   source: string;
   frames: FrameIR[];
   templates: Map<string, FrameIR>;
+  textureTemplates: Map<string, TextureIR>;
   scriptFiles: string[];
   includes: string[];
 }

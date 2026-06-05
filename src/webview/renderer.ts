@@ -65,13 +65,15 @@ function renderTexture(tex: TextureIR, rect: Rect, config: ResolvedFlavorConfig)
     el.appendChild(makePlaceholder(tex.atlas, config, `[atlas] ${tex.atlas}`));
     el.style.pointerEvents = "auto";
   } else {
-    // No file or color — transparent slot; still show a faint outline
-    el.style.outline = "1px dashed rgba(255,255,255,0.15)";
+    // No file or color — transparent slot; render nothing visible.
     el.style.pointerEvents = "none";
   }
 
   if (tex.texCoords) {
     el.dataset.texCoords = JSON.stringify(tex.texCoords);
+  }
+  if (tex.maskFile) {
+    el.dataset.maskFile = tex.maskFile;
   }
 
   // Suppress if hidden
@@ -80,9 +82,15 @@ function renderTexture(tex: TextureIR, rect: Rect, config: ResolvedFlavorConfig)
 
   // Position: explicit rect if sized; useAtlasSize falls back to atlas dimensions; else fill parent.
   if (rect.width > 0 || rect.height > 0) {
-    el.style.left = `${Math.round(rect.left)}px`;
+    // Seam bleed for h-only tiles (TopEdge, BottomEdge): extend 1 CSS px each side to
+    // prevent the 1-device-pixel transparent gap that appears at corner/edge element
+    // boundaries under fractional DPR × panZoom. These tiles are x-uniform (pure
+    // y-gradient), so the overlap columns are visually identical to the main content.
+    const ra = tex.resolvedAtlas;
+    const seamBleed = ra && (tex.horizTile ?? ra.tilesH) && !(tex.vertTile ?? ra.tilesV) ? 1 : 0;
+    el.style.left = `${Math.round(rect.left) - seamBleed}px`;
     el.style.top = `${Math.round(rect.top)}px`;
-    el.style.width = `${Math.round(rect.width)}px`;
+    el.style.width = `${Math.round(rect.width) + 2 * seamBleed}px`;
     el.style.height = `${Math.round(rect.height)}px`;
   } else if (tex.useAtlasSize && tex.resolvedAtlas) {
     el.style.left = `${Math.round(rect.left)}px`;
@@ -195,8 +203,9 @@ function renderFrame(
   el.dataset.name = frame.name ?? "";
   el.dataset.kind = frame.kind;
   el.style.position = "absolute";
-  // WoW doesn't clip frame children; border NineSlice corners must bleed past frame bounds.
-  el.style.overflow = frame.useParentLevel ? "visible" : "hidden";
+  // WoW never clips frame children — portrait icons, tooltips, and NineSlice corners all
+  // intentionally bleed past their parent's bounds.
+  el.style.overflow = "visible";
   // useParentLevel frames share the parent's frame level in WoW — their content should
   // composite below the parent's ARTWORK layer. CSS stacking can't split a child's layers
   // across parent layers, so we approximate by placing the whole child div in the BORDER
@@ -208,8 +217,9 @@ function renderFrame(
   applyRect(el, frameRect, parentRect);
 
   // Top-level hidden frames are the preview subject — show them normally.
-  // Child hidden frames are conditional overlays — dim them so layout is visible but reads inactive.
-  if (frame.hidden && !isTopLevel) el.style.opacity = "0.4";
+  // Child hidden frames respect WoW's actual visibility: display:none so panels and
+  // conditional overlays don't bleed through when programmatically hidden.
+  if (frame.hidden && !isTopLevel) el.style.display = "none";
   if (frame.alpha !== undefined) el.style.opacity = String(frame.alpha);
 
   // Attach mouse event listeners for interactive frames (those with OnClick/OnEnter/OnLeave handlers).

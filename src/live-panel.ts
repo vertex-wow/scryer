@@ -15,6 +15,7 @@ import { registerWowApi, VirtualClock } from "./lua/wow-api.js";
 import type { FrameIR, TextureIR } from "./parser/ir.js";
 import { parseToc } from "./parser/toc.js";
 import type { HostMessage, Viewport, WebviewMessage } from "./protocol.js";
+import { layoutAll } from "./webview/layout.js";
 
 function getNonce(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -26,6 +27,22 @@ function getNonce(): string {
 /** Strip WoW color codes like |cAARRGGBBtext|r from a string. */
 function stripWowColorCodes(s: string): string {
   return s.replace(/\|c[0-9a-fA-F]{8}(.*?)\|r/g, "$1").replace(/\|c[0-9a-fA-F]{8}/g, "");
+}
+
+function formatColorForStatusBar(
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+  x: number,
+  y: number,
+): string {
+  const h = (n: number) => Math.round(n).toString(16).toUpperCase().padStart(2, "0");
+  const hex = `#${h(r)}${h(g)}${h(b)}`;
+  const wow = `|c${h(a)}${h(r)}${h(g)}${h(b)}`;
+  const css = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${(a / 255).toFixed(2)})`;
+  const cc = `CreateColor(${(r / 255).toFixed(2)}, ${(g / 255).toFixed(2)}, ${(b / 255).toFixed(2)}, ${(a / 255).toFixed(2)})`;
+  return `(${x}, ${y})  ${hex}  ${wow}  ${css}  ${cc}`;
 }
 
 const RENDER_DEBOUNCE_MS = 400;
@@ -66,6 +83,7 @@ interface LiveSession {
 
 export class ScryerLivePanel {
   static readonly viewType = "scryer.live";
+  static activePanel: ScryerLivePanel | undefined;
 
   private readonly panel: vscode.WebviewPanel;
   private readonly output: vscode.LogOutputChannel;
@@ -73,6 +91,8 @@ export class ScryerLivePanel {
   private readonly statusBar: vscode.StatusBarItem;
   private disposables: vscode.Disposable[] = [];
   private assets: AssetService;
+  private eyedropperActive = false;
+  private lastEyedropperText: string | undefined;
 
   private session: LiveSession | undefined;
   private missingPaths = new Map<string, string>();
@@ -100,6 +120,7 @@ export class ScryerLivePanel {
         localResourceRoots: [
           vscode.Uri.joinPath(context.extensionUri, "dist"),
           ...assets.webviewResourceRoots(),
+          ...(vscode.workspace.workspaceFolders ?? []).map((f) => f.uri),
         ],
         retainContextWhenHidden: true,
       },
@@ -136,6 +157,15 @@ export class ScryerLivePanel {
     );
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+
+    this.panel.onDidChangeViewState(
+      () => {
+        if (this.panel.active) ScryerLivePanel.activePanel = this;
+      },
+      null,
+      this.disposables,
+    );
+    if (this.panel.active) ScryerLivePanel.activePanel = this;
 
     vscode.workspace.onDidChangeConfiguration(
       (e) => {
@@ -202,8 +232,21 @@ export class ScryerLivePanel {
   }
 
   private updateStatusBar(): void {
-    const show = vscode.workspace.getConfiguration("scryer").get<boolean>("showRuler") ?? true;
-    this.statusBar.text = `📏 ${show ? "ON" : "OFF"}`;
+    if (this.eyedropperActive && this.lastEyedropperText) {
+      this.statusBar.text = `🔬 ${this.lastEyedropperText}`;
+      this.statusBar.tooltip = "Eyedropper — Ctrl+C in preview to copy";
+    } else {
+      const show = vscode.workspace.getConfiguration("scryer").get<boolean>("showRuler") ?? true;
+      this.statusBar.text = `📏 ${show ? "ON" : "OFF"}`;
+      this.statusBar.tooltip = "Toggle pixel ruler overlay";
+    }
+  }
+
+  toggleEyedropper(): void {
+    this.eyedropperActive = !this.eyedropperActive;
+    if (!this.eyedropperActive) this.lastEyedropperText = undefined;
+    void this.panel.webview.postMessage({ type: "setEyedropper", active: this.eyedropperActive });
+    this.updateStatusBar();
   }
 
   // ── Session lifecycle ────────────────────────────────────────────────────────
@@ -255,6 +298,29 @@ export class ScryerLivePanel {
         await this.session.engine.dispatchFrameEvent(msg.frameId, msg.event, msg.extra ?? []);
         break;
       }
+
+      case "eyedropperOn":
+        this.eyedropperActive = true;
+        this.updateStatusBar();
+        break;
+
+      case "eyedropperOff":
+        this.eyedropperActive = false;
+        this.lastEyedropperText = undefined;
+        this.updateStatusBar();
+        break;
+
+      case "eyedropperSample": {
+        const { r, g, b, a } = msg;
+        this.lastEyedropperText = formatColorForStatusBar(r, g, b, a, msg.x, msg.y);
+        this.statusBar.text = `🔬 ${this.lastEyedropperText}`;
+        this.statusBar.tooltip = "Eyedropper — Ctrl+C in preview to copy";
+        break;
+      }
+
+      case "eyedropperCopy":
+        void vscode.env.clipboard.writeText(msg.text);
+        break;
     }
   }
 
@@ -268,6 +334,11 @@ export class ScryerLivePanel {
       return;
     }
     const uri = this.panel.webview.asWebviewUri(vscode.Uri.file(absPath)).toString();
+    try {
+      this.output.trace(`    assetResolved: ${rawPath} → ${uri}`);
+    } catch {
+      /* disposed */
+    }
     const msg: HostMessage = { type: "assetResolved", path: rawPath, uri };
     void this.panel.webview.postMessage(msg);
   }
@@ -397,9 +468,10 @@ export class ScryerLivePanel {
       // this returns immediately. We await so the Lua load below sees the files on disk.
       await this.assets.ensureBlizzardFiles();
 
-      const blizzardTemplates = this.assets.loadBlizzardTemplates();
+      const { frames: blizzardTemplates, textures: blizzardTextureTemplates } =
+        this.assets.loadBlizzardTemplates();
 
-      await registerFrameModel(sandbox, registry, blizzardTemplates);
+      await registerFrameModel(sandbox, registry, blizzardTemplates, blizzardTextureTemplates);
 
       // Load Blizzard Lua in dependency order before running the user's addon.
       // SharedXMLBase → Blizzard_Colors (needed by SharedColorConstants.lua) → SharedXML.
@@ -407,7 +479,11 @@ export class ScryerLivePanel {
       // not silent skips. If a file fails, fix the missing C stub or add the dependency
       // addon to this list; do not add a shadow stub in wow-api.ts.
       for (const addonName of ["Blizzard_SharedXMLBase", "Blizzard_Colors", "Blizzard_SharedXML"]) {
-        for (const luaPath of this.assets.blizzardAddonLuaFiles(addonName)) {
+        for (const luaPath of this.assets.blizzardAddonLuaFiles(addonName, (rel) => {
+          this.output.warn(
+            `[Live] Blizzard Lua not extracted — ${addonName}/${rel} (run full extraction to fix)`,
+          );
+        })) {
           try {
             const content = Buffer.from(
               await vscode.workspace.fs.readFile(vscode.Uri.file(luaPath)),
@@ -450,6 +526,7 @@ TROUBLESHOOTING:
         addonDir,
         sandbox,
         blizzardTemplates,
+        blizzardTextureTemplates,
         timeout: flavorConfig.sandboxTimeout,
         readFile: async (absPath) => {
           const docUri = vscode.Uri.file(absPath);
@@ -468,6 +545,20 @@ TROUBLESHOOTING:
 
       // Advance clock one tick to fire any immediate timers
       clock.advance(0.001);
+
+      // Fire Show() on every named root frame so the OnShow cascade runs (e.g.
+      // PanelTemplates_TabResize). Scryer renders all frames for preview regardless
+      // of hidden state, so triggering OnShow here matches what the player would see
+      // after the frame becomes visible in-game.
+      for (const rootFrame of registry.serialize()) {
+        if (rootFrame.name) {
+          try {
+            await sandbox.doString(`if ${rootFrame.name} then ${rootFrame.name}:Show() end`);
+          } catch {
+            // OnShow errors are non-fatal for preview
+          }
+        }
+      }
 
       // Serialize the initial frame tree
       registry.clearDirty();
@@ -524,6 +615,30 @@ TROUBLESHOOTING:
       }
 
       this.output.debug(`[Live] rendered ${frames.length} root frame(s); event engine started`);
+
+      // ── Tab position debug logging ────────────────────────────────────────
+      const dbgRects = layoutAll(frames, { w: viewport.w, h: viewport.h });
+      const allFrames: FrameIR[] = [];
+      (function collect(list: FrameIR[]) {
+        for (const f of list) {
+          allFrames.push(f);
+          if (f.children) collect(f.children);
+        }
+      })(frames);
+      for (const f of allFrames) {
+        if (!f.name) continue;
+        const rect = dbgRects.get(f);
+        const anchors = f.anchors
+          .map(
+            (a) =>
+              `${a.point}→${a.relativeTo ?? a.relativeKey ?? "(parent)"}[${a.relativePoint ?? a.point}] x=${a.x ?? 0} y=${a.y ?? 0}`,
+          )
+          .join(", ");
+        this.output.debug(
+          `[Live][tab-dbg] ${f.name}: left=${rect ? Math.round(rect.left) : "?"} right=${rect ? Math.round(rect.left + rect.width) : "?"} w=${rect ? Math.round(rect.width) : "?"} anchors=[${anchors}]`,
+        );
+      }
+      // ─────────────────────────────────────────────────────────────────────
     } catch (err) {
       this.stopSession();
       this.output.error(`[Live] Error running ${uri.fsPath}: ${String(err)}`);
@@ -603,6 +718,7 @@ TROUBLESHOOTING:
     body.mode-grab{cursor:grab}
     body.mode-grab.panning{cursor:grabbing}
     body.mode-grab #viewport *{pointer-events:none}
+    body.mode-eyedropper{cursor:crosshair}
   </style>
 </head>
 <body>
@@ -611,6 +727,7 @@ TROUBLESHOOTING:
     <button id="grab-toggle" class="toolbar-btn" title="Grab — pan and zoom (drag · middle-drag · space-drag · ctrl+scroll · ctrl+0 fit · ctrl+shift+0 reset)"><svg width="12" height="13" viewBox="0 0 12 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="2" width="2" height="6" rx="1"/><rect x="4" y="0" width="2" height="8" rx="1"/><rect x="7" y="0" width="2" height="8" rx="1"/><rect x="10" y="2" width="2" height="6" rx="1"/><rect x="0" y="7" width="12" height="6" rx="2"/></svg></button>
     <button id="interact-toggle" class="toolbar-btn" title="Interact — normal mouse cursor"><svg width="10" height="13" viewBox="0 0 10 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><polygon points="0,0 0,10 2.5,7.5 4.5,12.5 6,12 4,7 7.5,7"/></svg></button>
     <button id="recenter-btn" class="toolbar-btn" title="Re-center canvas"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="2.8"/><line x1="6.5" y1="0.5" x2="6.5" y2="3.7"/><line x1="6.5" y1="9.3" x2="6.5" y2="12.5"/><line x1="0.5" y1="6.5" x2="3.7" y2="6.5"/><line x1="9.3" y1="6.5" x2="12.5" y2="6.5"/></svg></button>
+    <button id="eyedropper-toggle" class="toolbar-btn" title="Eyedropper &mdash; sample pixel color (Ctrl+C to copy)"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M13.354.646a1.207 1.207 0 0 0-1.708 0L8.5 3.793l-.646-.647a.5.5 0 1 0-.708.708L8.293 5l-7.147 7.146A.5.5 0 0 0 1 12.5v1.793l-.854.853a.5.5 0 1 0 .708.707L1.707 15H3.5a.5.5 0 0 0 .354-.146L11 7.707l1.146 1.147a.5.5 0 0 0 .708-.708l-.647-.646 3.147-3.146a1.207 1.207 0 0 0 0-1.708zM2 12.707l7-7L10.293 7l-7 7H2z"/></svg></button>
     <select id="flavor-select" title="WoW flavor (✓ = installed)">
       ${flavorOptions}
     </select>
@@ -656,6 +773,7 @@ TROUBLESHOOTING:
       <option value="150">150%</option>
       <option value="200">200%</option>
       <option value="400">400%</option>
+      <option value="800">800%</option>
     </select>
     <span id="debug">script not yet loaded</span>
   </div>
@@ -666,6 +784,7 @@ TROUBLESHOOTING:
   }
 
   dispose(): void {
+    if (ScryerLivePanel.activePanel === this) ScryerLivePanel.activePanel = undefined;
     if (this.extractDebounce !== undefined) clearTimeout(this.extractDebounce);
     if (this.renderDebounce !== undefined) clearTimeout(this.renderDebounce);
     this.stopSession();

@@ -1,8 +1,13 @@
 import * as fs from "fs";
 import * as path from "path";
-import type { FrameIR } from "./ir.js";
+import type { FrameIR, TextureIR } from "./ir.js";
 import { parseToc } from "./toc.js";
 import { parseXmlFile } from "./xml.js";
+
+export interface BlizzardRegistry {
+  frames: Map<string, FrameIR>;
+  textures: Map<string, TextureIR>;
+}
 
 // Addons to scan, in dependency order (base templates first).
 export const ADDON_NAMES = ["Blizzard_SharedXMLBase", "Blizzard_SharedXML", "Blizzard_FrameXML"];
@@ -87,7 +92,11 @@ function tocXmlFiles(tocPath: string): string[] {
  * Only paths that exist on disk are included. Returns empty array if the addon
  * is not extracted or has no TOC.
  */
-export function blizzardAddonLuaFiles(addonsDir: string, addonName: string): string[] {
+export function blizzardAddonLuaFiles(
+  addonsDir: string,
+  addonName: string,
+  onMissing?: (relPath: string) => void,
+): string[] {
   const tocPath = findTocPath(resolveCI(addonsDir, addonName), addonName);
   if (!tocPath) return [];
   const addonDir = path.dirname(tocPath);
@@ -98,17 +107,17 @@ export function blizzardAddonLuaFiles(addonsDir: string, addonName: string): str
     return [];
   }
   const toc = parseToc(content);
-  return toc.files
-    .filter((f) => f.type === "lua")
-    .map((f) => resolveCI(addonDir, f.path))
-    .filter((p) => {
-      try {
-        fs.accessSync(p, fs.constants.R_OK);
-        return true;
-      } catch {
-        return false;
-      }
-    });
+  const result: string[] = [];
+  for (const f of toc.files.filter((f) => f.type === "lua")) {
+    const p = resolveCI(addonDir, f.path);
+    try {
+      fs.accessSync(p, fs.constants.R_OK);
+      result.push(p);
+    } catch {
+      onMissing?.(f.path);
+    }
+  }
+  return result;
 }
 
 /**
@@ -119,6 +128,7 @@ export function blizzardAddonLuaFiles(addonsDir: string, addonName: string): str
 function loadXmlIntoRegistry(
   xmlPath: string,
   registry: Map<string, FrameIR>,
+  textureRegistry: Map<string, TextureIR>,
   visited: Set<string>,
   incomplete: { value: boolean },
 ): void {
@@ -144,10 +154,13 @@ function loadXmlIntoRegistry(
   for (const [name, frame] of doc.templates) {
     registry.set(name, frame);
   }
+  for (const [name, tex] of doc.textureTemplates) {
+    textureRegistry.set(name, tex);
+  }
 
   const baseDir = path.dirname(abs);
   for (const inc of doc.includes) {
-    loadXmlIntoRegistry(resolveCI(baseDir, inc), registry, visited, incomplete);
+    loadXmlIntoRegistry(resolveCI(baseDir, inc), registry, textureRegistry, visited, incomplete);
   }
 }
 
@@ -164,10 +177,15 @@ function cacheFileName(addonNames: string[]): string {
   return `blizzard-registry-${suffix}.json`;
 }
 
+// Bump when the parser or IR shape changes in a way that makes old caches incorrect.
+const SCHEMA_VERSION = 3;
+
 interface RegistryCache {
   /** TOC absolute paths → mtime stamps used to detect stale cache. */
   stamp: Record<string, number>;
   entries: [string, FrameIR][];
+  textureEntries: [string, TextureIR][];
+  schemaVersion?: number;
 }
 
 function readRegistryCache(registryDir: string, file: string): RegistryCache | null {
@@ -321,8 +339,9 @@ export function loadBlizzardRegistry(
   addonsDir: string,
   registryDir: string,
   addonNames: string[] = ADDON_NAMES,
-): Map<string, FrameIR> {
-  if (!addonsDir) return new Map();
+): BlizzardRegistry {
+  const empty: BlizzardRegistry = { frames: new Map(), textures: new Map() };
+  if (!addonsDir) return empty;
 
   const cacheFile = cacheFileName(addonNames);
 
@@ -339,21 +358,25 @@ export function loadBlizzardRegistry(
     }
   }
 
-  if (tocPaths.size === 0) return new Map();
+  if (tocPaths.size === 0) return empty;
 
-  // Check disk cache — valid if stamp matches exactly.
+  // Check disk cache — valid if stamp and schema version both match.
   const cached = readRegistryCache(registryDir, cacheFile);
-  if (cached) {
+  if (cached && (cached.schemaVersion ?? 1) === SCHEMA_VERSION) {
     const keys = Object.keys(stamp);
     const ckeys = Object.keys(cached.stamp);
     if (keys.length === ckeys.length && keys.every((k) => cached.stamp[k] === stamp[k])) {
-      return new Map(cached.entries);
+      return {
+        frames: new Map(cached.entries),
+        textures: new Map(cached.textureEntries ?? []),
+      };
     }
   }
 
   // Cache miss (or stale) — parse from disk.
   console.log(`[scryer] Parsing Blizzard template corpus from ${addonsDir}…`);
-  const registry = new Map<string, FrameIR>();
+  const frames = new Map<string, FrameIR>();
+  const textures = new Map<string, TextureIR>();
   const visited = new Set<string>();
   const incomplete = { value: false };
 
@@ -361,15 +384,22 @@ export function loadBlizzardRegistry(
     const tocPath = tocPaths.get(addonName);
     if (!tocPath) continue;
     for (const xmlFile of tocXmlFiles(tocPath)) {
-      loadXmlIntoRegistry(xmlFile, registry, visited, incomplete);
+      loadXmlIntoRegistry(xmlFile, frames, textures, visited, incomplete);
     }
   }
 
-  console.log(`[scryer] Blizzard registry: ${registry.size} templates loaded.`);
+  console.log(
+    `[scryer] Blizzard registry: ${frames.size} frame templates, ${textures.size} texture templates loaded.`,
+  );
   // Don't cache partial results — if any XML files were missing, skip the write so
   // the next load re-parses once the extraction has delivered more files.
   if (!incomplete.value) {
-    writeRegistryCache(registryDir, cacheFile, { stamp, entries: Array.from(registry.entries()) });
+    writeRegistryCache(registryDir, cacheFile, {
+      stamp,
+      entries: Array.from(frames.entries()),
+      textureEntries: Array.from(textures.entries()),
+      schemaVersion: SCHEMA_VERSION,
+    });
   }
-  return registry;
+  return { frames, textures };
 }

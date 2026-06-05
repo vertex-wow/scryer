@@ -1,0 +1,56 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+   https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/FrameXML/UI.xsd">
+
+  <!--
+    inherit_depth.xml  -  multi-level template inheritance
+
+    InheritDepthBase (virtual): 80x40, BACKGROUND solid-color fill
+    InheritDepthMid  (virtual): inherits Base, adds ARTWORK FontString "FromMid"
+    ConcreteFrame:              inherits Mid, TOPLEFT anchor
+
+    Verifies that size and layers from a grandparent template propagate
+    through an intermediate template to the concrete frame.
+
+    Expected output:
+      ConcreteFrame: 80x40, left=10 top=10 (TOPLEFT x=10 y=-10)
+      BACKGROUND: solid rgb(255,51,51) fill (r=1 g=0.2 b=0.2)
+      ARTWORK:    FontString "FromMid", centered, left=0 top=10 w=80 h=20
+  -->
+
+  <Frame name="InheritDepthBase" virtual="true">
+    <Size x="80" y="40"/>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture>
+          <Anchors>
+            <Anchor point="TOPLEFT"/>
+            <Anchor point="BOTTOMRIGHT"/>
+          </Anchors>
+          <Color r="1" g="0.2" b="0.2" a="1"/>
+        </Texture>
+      </Layer>
+    </Layers>
+  </Frame>
+
+  <Frame name="InheritDepthMid" inherits="InheritDepthBase" virtual="true">
+    <Layers>
+      <Layer level="ARTWORK">
+        <FontString name="MidLabel" text="FromMid" justifyH="CENTER" justifyV="MIDDLE">
+          <Size x="80" y="20"/>
+          <Anchors>
+            <Anchor point="CENTER"/>
+          </Anchors>
+        </FontString>
+      </Layer>
+    </Layers>
+  </Frame>
+
+  <Frame name="ConcreteFrame" inherits="InheritDepthMid" parent="UIParent">
+    <Anchors>
+      <Anchor point="TOPLEFT" x="10" y="-10"/>
+    </Anchors>
+  </Frame>
+
+</Ui>

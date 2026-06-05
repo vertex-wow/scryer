@@ -4,6 +4,25 @@ Completed items moved from [backlog.md](backlog.md). Historical record of what w
 
 ---
 
+## Webview snapshot / golden-image regression
+
+**Problem:** The Playwright renderer harness (`test/webview/render.spec.ts`) verifies DOM structure and debug text but cannot catch visual regressions — a layout or color change that produces correct-looking metadata would go undetected.
+
+**Plan:**
+
+1. Add `expect(page).toHaveScreenshot("fixture-name.png")` calls to existing render tests. Playwright auto-creates the golden PNG on first run and diffs on subsequent runs.
+2. Commit the generated `test/webview/render.spec.ts-snapshots/` directory to the repo so CI can enforce them.
+3. Add a `pnpm test:webview:update` script (`playwright test --update-snapshots`) for intentional visual changes.
+4. Consider a dedicated visual fixture (e.g. a frame with a solid-color texture and known geometry) so the snapshot is deterministic across platforms. Cross-platform font rendering differences may require per-OS snapshot baselines or `maxDiffPixelRatio` tolerance.
+
+**Effort:** XS — the harness is already in place; this is just enabling Playwright's built-in snapshot API.
+
+**Status: ✅ Done (2026-06-03)**
+
+Added `test/webview/visual.spec.ts` with a dedicated solid-color fixture (canvas fill, centered red box, top-left blue box) that screenshots `#viewport` via `toHaveScreenshot("visual-fixture.png")`. Snapshot stored in `test/webview/visual.spec.ts-snapshots/visual-fixture-chromium-linux.png`. Added `pnpm test:webview:update` script (`playwright test --update-snapshots`) for intentional visual changes.
+
+---
+
 ## Typed scalar returns in generated stubs
 
 **Status: Done** (2026-06-02)
@@ -804,3 +823,49 @@ Added `generateEventsContent()` to `dev/gen-api-stubs.ts`. On a retail run it no
 **Status: ✅ Done (2026-06-02)**
 
 Added `EnumValue?: number` to `DocField`, `generateEnumContent()` to `dev/gen-api-stubs.ts`, and wired it into the retail block of `run()`. On a retail run it emits `src/lua/api-stubs/_Enum.ts` — a Lua code string that replaces the `_deep_proxy()` stub with real numeric constants (830 enum tables, ~12 000 entries). `generateIndex()` now imports `_Enum` and prepends it to `_retailLua` so all flavors get correct `Enum.X.Y` values at runtime.
+
+---
+
+## XML texture template inheritance
+
+**Status: ✅ Done (2026-06-04)**
+
+Layer objects (`TextureIR`) can declare `inherits="SomeName"` pointing at virtual `<Texture>` elements defined at the top level of a `<Ui>` file. Before this change, `resolveFrame` in `inherit.ts` never visited layer objects' `inherits` lists, and `parseTexture` did not read `horizTile`, `vertTile`, or the `inherits` attribute at all.
+
+Changes:
+
+- `ir.ts`: Added `textureTemplates: Map<string, TextureIR>` to `UiDocument`.
+- `xml.ts` (`parseTexture`): Now reads `inherits`, `horizTile`, and `vertTile` attributes. `parseXmlFile` now captures top-level virtual `<Texture>`/`<MaskTexture>` elements into `doc.textureTemplates`.
+- `inherit.ts`: Added `applyTextureTemplate` and `resolveTexture` (analogous to `applyTemplate`/`resolveFrame` for frames). `resolveFrame` now calls `resolveTexture` on every layer object. `resolveInheritance` accepts an optional `blizzardTextureRegistry` (4th param, default empty) and builds a combined texture registry from blizzard + all docs.
+- `blizzard-registry.ts`: `loadXmlIntoRegistry` now populates a texture registry alongside the frame registry. `loadBlizzardRegistry` now returns `BlizzardRegistry { frames, textures }`. Cache schema bumped to version 3 (`textureEntries` field added).
+- All callers updated: `assets/index.ts`, `extension.ts`, `panel.ts`, `live-panel.ts`, `createframe.ts`, `xml-importer.ts`, `toc-runner.ts`, test helpers.
+- 7 new unit tests added to `test/unit/parser/inherit.test.ts`.
+
+The immediate fix: `_UI-Frame-TopTileStreaks` (virtual texture with `atlas`, `horizTile="true"`, `size`) now correctly propagates into concrete textures that `inherits="_UI-Frame-TopTileStreaks"`, restoring the streak sheen on `DefaultPanelTemplate` frames.
+
+---
+
+## Eyedropper color picker in preview
+
+**Completed:** 2026-06-04
+
+**Problem:** When authoring UI textures or tuning colors, addon developers have no way to sample a pixel from the preview canvas without leaving VS Code. Picking a color from a frame texture currently requires an external tool.
+
+**Goal:** An eyedropper mode in the preview panel. While active, hovering over the canvas reads the pixel color under the cursor and displays three forms in the status bar:
+
+- **Hex** — `#RRGGBB`
+- **WoW color string** — `|cAARRGGBBtext|r` escape prefix (e.g. `|cFF3A9FD4`), the format used in `SetText` and chat messages
+- **With alpha** — `CreateColor(r, g, b, a)` with components normalized to `[0, 1]` (two decimal places), matching the `CreateColor` / `Color` API used in Blizzard Lua
+
+Pressing **Ctrl+C** while the eyedropper is active copies the full string (all three forms, space-separated) to the clipboard.
+
+**What was built:**
+
+- Toolbar button (pipette icon) in both `ScryerPanel` and `ScryerLivePanel` toggles eyedropper mode.
+- `scryer.eyedropper` VS Code command toggles via the active panel.
+- Eyedropper has three states: `off` → `sampling` (live hover) → `locked` (first click freezes color) → `off` (second click or Escape).
+- Pixel sampling: walks `document.elementsFromPoint` top-to-bottom; tries canvas-based texture pixel sampling for elements with `background-image` (cached `HTMLImageElement` + `drawImage(img, imgX, imgY, 1, 1, 0, 0, 1, 1)`), falls back to computed `backgroundColor`.
+- Status bar (`StatusBarItem`) shows `🔬 #RRGGBB  |cAARRGGBB  CreateColor(...)` while eyedropper is active; restores ruler display on deactivation.
+- Ctrl+C in the webview sends `eyedropperCopy` to the host which calls `vscode.env.clipboard.writeText`.
+- `body.mode-eyedropper { cursor: crosshair }` CSS + `pointer-events: none` on viewport children while sampling.
+- Static `activePanel` tracking added to both panel classes for command routing.

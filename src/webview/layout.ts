@@ -79,13 +79,19 @@ export function layoutByTwoAnchors(
   const f1 = POINT_FRACTION[anchor1.point];
   const f2 = POINT_FRACTION[anchor2.point];
 
-  const width =
-    Math.abs(f2.x - f1.x) > epsilon ? (p2.x - p1.x) / (f2.x - f1.x) : (explicitWidth ?? 0);
+  const xSame = Math.abs(f2.x - f1.x) <= epsilon;
+  const ySame = Math.abs(f2.y - f1.y) <= epsilon;
 
-  const height =
-    Math.abs(f2.y - f1.y) > epsilon ? (p2.y - p1.y) / (f2.y - f1.y) : (explicitHeight ?? 0);
+  const width = xSame ? (explicitWidth ?? 0) : (p2.x - p1.x) / (f2.x - f1.x);
+  const height = ySame ? (explicitHeight ?? 0) : (p2.y - p1.y) / (f2.y - f1.y);
 
-  return { left: p1.x - f1.x * width, top: p1.y - f1.y * height, width, height };
+  // When both anchors constrain the same axis, anchor2 (later-set) wins for position.
+  const xRef = xSame ? p2 : p1;
+  const yRef = ySame ? p2 : p1;
+  const fxRef = xSame ? f2 : f1;
+  const fyRef = ySame ? f2 : f1;
+
+  return { left: xRef.x - fxRef.x * width, top: yRef.y - fyRef.y * height, width, height };
 }
 
 // ---------------------------------------------------------------------------

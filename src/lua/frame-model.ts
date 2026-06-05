@@ -20,6 +20,7 @@ export interface AnchorDef {
 export interface TextureNode {
   id: number;
   name?: string;
+  parentKey?: string;
   layer: string;
   subLevel: number;
   file?: string;
@@ -30,6 +31,8 @@ export interface TextureNode {
   color?: { r: number; g: number; b: number; a: number };
   texCoords?: { left: number; right: number; top: number; bottom: number };
   alphaMode?: string;
+  /** Path to the MaskTexture file that clips this texture (circular portrait mask, etc.). */
+  maskFile?: string;
   shown: boolean;
   alpha: number;
   size?: { x?: number; y?: number };
@@ -154,6 +157,7 @@ export function textureNodeToIR(tex: TextureNode): TextureIR {
     sourceFile: "__runtime__",
     // Unnamed runtime textures get a synthetic name so texture-to-texture SetPoint anchors resolve
     name: tex.name ?? `$tex:${tex.id}`,
+    parentKey: tex.parentKey,
     size: tex.size,
     hidden: !tex.shown ? true : undefined,
     alpha: tex.alpha !== 1 ? tex.alpha : undefined,
@@ -165,6 +169,7 @@ export function textureNodeToIR(tex: TextureNode): TextureIR {
     color: tex.color,
     texCoords: tex.texCoords,
     alphaMode: tex.alphaMode as TextureIR["alphaMode"],
+    maskFile: tex.maskFile,
   };
 }
 

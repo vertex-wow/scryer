@@ -62,6 +62,11 @@
         "category": "Scryer"
       },
       {
+        "command": "scryer.eyedropper",
+        "title": "Toggle Eyedropper",
+        "category": "Scryer"
+      },
+      {
         "command": "scryer.openLiveFolder",
         "title": "Open WoW Live View",
         "category": "Scryer",
@@ -138,11 +143,6 @@
           "type": "string",
           "default": "",
           "description": "Path to the CASC extraction tool binary (e.g. rustydemon-cli). Passed to the extraction script via --casc-tool. If empty, the tool is auto-detected from PATH."
-        },
-        "scryer.blp2pngPath": {
-          "type": "string",
-          "default": "",
-          "description": "Optional path to a blp2png CLI binary used as fallback for unsupported BLP variants."
         },
         "scryer.defaultTarget": {
           "type": "string",
@@ -245,6 +245,16 @@
           "default": "",
           "description": "Path to gm (GraphicsMagick) or convert (ImageMagick) for PNG→TGA conversion during workspace SVG pre-warm. Auto-detected from PATH when empty."
         },
+        "scryer.rsvgConvertPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the rsvg-convert binary used to convert SVG addon textures to PNG during workspace pre-warm. Auto-detected from PATH when empty (install librsvg2-bin on Linux/macOS)."
+        },
+        "scryer.grepPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the grep binary used to filter CASC listfiles during extraction. Auto-detected from PATH when empty. On Linux and macOS grep is typically available by default; on Windows install via Git for Windows, MSYS2, or similar and either add to PATH or set this."
+        },
         "scryer.flavorConfigPath": {
           "type": "string",
           "default": "",
@@ -264,6 +274,14 @@
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests",
+    "test:casc": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.casc.config.mjs",
+    "test:webview": "playwright test",
+    "test:webview:ui": "playwright test --ui",
+    "test:webview:update": "playwright test --update-snapshots",
+    "test:xml": "playwright test --config playwright.xml.config.ts",
+    "test:xml-casc": "playwright test --config playwright.xml-casc.config.ts",
+    "test:toc": "playwright test --config playwright.toc.config.ts",
+    "test:toc-casc": "playwright test --config playwright.toc-casc.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.build.json",
     "dev": "node esbuild.mjs --watch",
     "lint": "eslint src/",
@@ -280,17 +298,19 @@
     "assets": "node dev/bench.build.mjs && node dist/assets.js",
     "gen-globalstrings": "node dev/bench.build.mjs && node dist/gen-globalstrings.js",
     "gen-api-stubs": "node dev/bench.build.mjs && node dist/gen-api-stubs.js && pnpm run lint:fix",
+    "png-to-blp": "node dev/bench.build.mjs && node dist/png-to-blp.js",
     "package": "pnpm run build && vsce package --no-dependencies",
     "publish": "pnpm run build && vsce publish --no-dependencies",
     "prepare": "husky"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.19.41",
     "@types/pngjs": "^6.0.5",
     "@types/vscode": "^1.120.0",
     "@vscode/vsce": "^3.9.1",
-    "esbuild": "^0.21.5",
+    "esbuild": "^0.28.0",
     "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
@@ -299,7 +319,7 @@
     "lint-staged": "^17.0.5",
     "prettier": "^3.8.3",
     "ts-jest": "^29.4.11",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.60.0"
   },
   "dependencies": {

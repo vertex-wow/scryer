@@ -2,6 +2,7 @@ import type { FrameIR, TextureIR } from "./ir.js";
 
 function collectFromTexture(tex: TextureIR | undefined, out: Set<string>): void {
   if (tex?.file) out.add(tex.file);
+  if (tex?.maskFile) out.add(tex.maskFile);
   if (tex?.resolvedAtlas?.file) out.add(tex.resolvedAtlas.file);
 }
 

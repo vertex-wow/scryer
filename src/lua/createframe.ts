@@ -156,7 +156,13 @@ function generateTemplateBody(
         const texAnchorLines: string[] = [];
         emitTplAnchor(`  ${v}`, tex, texAnchorLines);
         for (const l of texAnchorLines) lines.push(l);
-        if (tex.parentKey) lines.push(`  ${selfVar}.${tex.parentKey} = ${v}`);
+        if (tex.maskFile) lines.push(`  ${v}:__SetMaskFile(${JSON.stringify(tex.maskFile)})`);
+        if (tex.parentKey) {
+          lines.push(`  ${selfVar}.${tex.parentKey} = ${v}`);
+          lines.push(
+            `  if __scryer_tex_set_parent_key then __scryer_tex_set_parent_key(${v}.__id, ${JSON.stringify(tex.parentKey)}) end`,
+          );
+        }
         if (tex.parentArray) {
           lines.push(`  ${selfVar}.${tex.parentArray} = ${selfVar}.${tex.parentArray} or {}`);
           lines.push(`  table.insert(${selfVar}.${tex.parentArray}, ${v})`);
@@ -228,6 +234,7 @@ export async function registerFrameModel(
   lua: LuaEngine,
   registry: FrameRegistry,
   blizzardTemplates?: Map<string, FrameIR>,
+  blizzardTextureTemplates?: Map<string, TextureIR>,
 ): Promise<void> {
   // ── UIParent / WorldFrame IDs ──────────────────────────────────────────────
   // Expose as globals so frame-class.lua can capture them as upvalues.
@@ -264,10 +271,16 @@ export async function registerFrameModel(
       source: "__apply_template__",
       frames: [synthFrame],
       templates: new Map(),
+      textureTemplates: new Map(),
       scriptFiles: [],
       includes: [],
     };
-    const [resolved] = resolveInheritance([synthDoc], blizzardTemplates, {});
+    const [resolved] = resolveInheritance(
+      [synthDoc],
+      blizzardTemplates,
+      {},
+      blizzardTextureTemplates,
+    );
     const result = resolved.frames[0] ?? null;
     templateCache.set(key, result);
     return result;
@@ -524,6 +537,11 @@ export async function registerFrameModel(
     },
   );
 
+  lua.global.set("__scryer_tex_set_parent_key", (id: unknown, key: unknown): void => {
+    const tex = registry.getTexture(toNum(id)!);
+    if (tex && typeof key === "string") tex.parentKey = key;
+  });
+
   lua.global.set(
     "__scryer_frame_create_texture",
     (id: unknown, name: unknown, layer: unknown, subLevel: unknown): number | undefined => {
@@ -737,6 +755,13 @@ export async function registerFrameModel(
       registry.markDirty();
     },
   );
+
+  lua.global.set("__scryer_tex_set_mask_file", (id: unknown, path: unknown): void => {
+    const t = tex(id);
+    if (!t) return;
+    t.maskFile = typeof path === "string" ? path : undefined;
+    registry.markDirty();
+  });
 
   lua.global.set("__scryer_tex_set_blend_mode", (id: unknown, mode: unknown): void => {
     const t = tex(id);
@@ -990,4 +1015,13 @@ export async function registerFrameModel(
 
   // ── Bootstrap Lua class ────────────────────────────────────────────────────
   await lua.doString(frameClassLua);
+
+  // GameTooltip and GlueTooltip are C-layer frame globals. Create them after
+  // frame-class.lua so CreateFrame is available. GetAppropriateTooltip() (from
+  // Blizzard_SharedXMLBase/FrameUtil.lua) returns GameTooltip, so it must exist
+  // or any OnEnter/OnLeave that calls tooltip:Hide() etc. will crash.
+  await lua.doString(`
+    GameTooltip = CreateFrame("GameTooltip", "GameTooltip", UIParent)
+    GlueTooltip = GameTooltip
+  `);
 }

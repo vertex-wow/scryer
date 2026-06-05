@@ -12,6 +12,7 @@ import {
   discoverBlizzardPaths,
   loadBlizzardRegistry,
   resolveCI,
+  type BlizzardRegistry,
 } from "../parser/blizzard-registry.js";
 import {
   clearFlavorCache,
@@ -62,6 +63,8 @@ export interface AssetServiceOptions {
   flavor: string;
   /** Path to the CASC extraction tool binary (e.g. rustydemon-cli). Empty = auto-detect from PATH. */
   cascToolPath: string;
+  /** Path to the grep binary. Empty = auto-detect from PATH. */
+  grepPath: string;
   output: vscode.LogOutputChannel;
 }
 
@@ -237,7 +240,14 @@ export class AssetService {
   }
 
   private async _resolve(rawPath: string, addonDir?: string): Promise<string | null> {
-    const found = resolveTexturePath(rawPath, this.searchDirs, addonDir);
+    const log = (msg: string) => {
+      try {
+        this.opts.output.trace(msg);
+      } catch {
+        /* disposed */
+      }
+    };
+    const found = resolveTexturePath(rawPath, this.searchDirs, addonDir, log);
     if (!found) return null;
 
     if (found.kind === "png" || found.kind === "font") {
@@ -353,6 +363,7 @@ export class AssetService {
         outDir: this.opts.sourceDir,
         wowDir: this.opts.installDir,
         cascToolPath: this.opts.cascToolPath,
+        grepPath: this.opts.grepPath,
         listfileDir: this.downloadsDir,
         output: this.opts.output,
       });
@@ -395,8 +406,8 @@ export class AssetService {
    * <Include> chains. Result is disk-cached and invalidated by TOC file mtime.
    * Returns an empty map if extractedAssetsDir is not configured or addons are absent.
    */
-  loadBlizzardTemplates(): Map<string, FrameIR> {
-    if (!this.opts.sourceDir) return new Map();
+  loadBlizzardTemplates(): BlizzardRegistry {
+    if (!this.opts.sourceDir) return { frames: new Map(), textures: new Map() };
     const addonsDir = resolveAddonsDir(this.opts.sourceDir);
     const startupContent =
       vscode.workspace.getConfiguration("scryer").get<string>("startupContent") ?? "none";
@@ -409,10 +420,10 @@ export class AssetService {
    * Only files that exist on disk are included. Returns empty array if the addon
    * is not extracted or its TOC is missing.
    */
-  blizzardAddonLuaFiles(addonName: string): string[] {
+  blizzardAddonLuaFiles(addonName: string, onMissing?: (relPath: string) => void): string[] {
     if (!this.opts.sourceDir) return [];
     const addonsDir = resolveAddonsDir(this.opts.sourceDir);
-    return blizzardAddonLuaFiles(addonsDir, addonName);
+    return blizzardAddonLuaFiles(addonsDir, addonName, onMissing);
   }
 
   /**
@@ -443,8 +454,8 @@ export class AssetService {
   async prewarmBlizzardTextures(addonNames: string[]): Promise<void> {
     if (!this.opts.sourceDir) return;
     const addonsDir = resolveAddonsDir(this.opts.sourceDir);
-    const registry = loadBlizzardRegistry(addonsDir, this.opts.registryDir, addonNames);
-    const frames = Array.from(registry.values());
+    const { frames: frameMap } = loadBlizzardRegistry(addonsDir, this.opts.registryDir, addonNames);
+    const frames = Array.from(frameMap.values());
     const atlasManifest = this.loadAtlasManifest();
     if (atlasManifest) resolveAtlasNames(frames, atlasManifest);
     const paths = collectTexturePaths(frames);
@@ -470,6 +481,7 @@ export class AssetService {
       outDir: this.opts.sourceDir,
       wowDir: this.opts.installDir,
       cascToolPath: this.opts.cascToolPath,
+      grepPath: this.opts.grepPath,
       listfileDir: this.downloadsDir,
       output: this.opts.output,
     });
@@ -508,6 +520,7 @@ export class AssetService {
     const installDir = cfg.get<string>("installDir") ?? "";
     const flavor = cfg.get<string>("flavor") || "retail";
     const cascToolPath = cfg.get<string>("cascToolPath") ?? "";
+    const grepPath = cfg.get<string>("grepPath") ?? "";
 
     const flavorRoot = path.join(cacheRoot, flavor);
     const installFlavorDir = installDir ? path.join(installDir, flavorSubdir(flavor)) : "";
@@ -521,6 +534,7 @@ export class AssetService {
       cacheRoot,
       flavor,
       cascToolPath,
+      grepPath,
       output,
     });
   }

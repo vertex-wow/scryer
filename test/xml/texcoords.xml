@@ -1,0 +1,54 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+   https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/FrameXML/UI.xsd">
+
+  <!--
+    texcoords.xml  -  TexCoords sprite-sheet slicing
+
+    Two frames using the same sprite sheet:
+      FullSheet   - no TexCoords, shows the whole texture (128x64)
+      SliceTopRight - TexCoords isolating the top-right corner region
+
+    UIMenuButtonStretchTemplate top-right corner coords:
+      left=0.53125, right=0.625, top=0, bottom=0.1875
+
+    CSS math (48x24 element):
+      bgW = 48 / (0.625 - 0.53125) = 512
+      bgH = 24 / 0.1875            = 128
+      backgroundSize     = 512px 128px
+      backgroundPosition = -272px 0px
+  -->
+
+  <!-- Full sprite sheet reference (no TexCoords) -->
+  <Frame name="FullSheet" parent="UIParent">
+    <Size x="128" y="64"/>
+    <Anchors>
+      <Anchor point="TOPLEFT" x="20" y="-20"/>
+    </Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture file="Interface\Buttons\UI-Silver-Button-Up">
+          <Anchors><Anchor point="TOPLEFT"/><Anchor point="BOTTOMRIGHT"/></Anchors>
+        </Texture>
+      </Layer>
+    </Layers>
+  </Frame>
+
+  <!-- Top-right corner slice: non-zero left/top UV offset -->
+  <Frame name="SliceTopRight" parent="UIParent">
+    <Size x="48" y="24"/>
+    <Anchors>
+      <Anchor point="TOPLEFT" x="20" y="-100"/>
+    </Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture file="Interface\Buttons\UI-Silver-Button-Up">
+          <Anchors><Anchor point="TOPLEFT"/><Anchor point="BOTTOMRIGHT"/></Anchors>
+          <TexCoords left="0.53125" right="0.625" top="0" bottom="0.1875"/>
+        </Texture>
+      </Layer>
+    </Layers>
+  </Frame>
+
+</Ui>

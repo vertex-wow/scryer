@@ -6,8 +6,12 @@ import type { LuaEngine } from "wasmoon";
 export interface ImportContext {
   /** Templates accumulated from this addon's own XML files (updated in-place). */
   addonTemplates: Map<string, FrameIR>;
-  /** Pre-loaded Blizzard virtual template registry, or undefined if not available. */
+  /** Texture templates accumulated from this addon's own XML files (updated in-place). */
+  addonTextureTemplates: Map<string, TextureIR>;
+  /** Pre-loaded Blizzard virtual frame template registry, or undefined if not available. */
   blizzardTemplates: Map<string, FrameIR> | undefined;
+  /** Pre-loaded Blizzard virtual texture template registry, or undefined if not available. */
+  blizzardTextureTemplates: Map<string, TextureIR> | undefined;
   output: { warn: (msg: string) => void; error: (msg: string) => void };
 }
 
@@ -113,7 +117,13 @@ function generateTextureCode(
   if (tex.size?.x !== undefined || tex.size?.y !== undefined)
     lines.push(`  ${v}:SetSize(${tex.size?.x ?? 0}, ${tex.size?.y ?? 0})`);
   emitAnchorCode(`  ${v}`, tex, parentVar, lines);
-  if (tex.parentKey) lines.push(`  ${parentVar}.${tex.parentKey} = ${v}`);
+  if (tex.maskFile) lines.push(`  ${v}:__SetMaskFile(${JSON.stringify(tex.maskFile)})`);
+  if (tex.parentKey) {
+    lines.push(`  ${parentVar}.${tex.parentKey} = ${v}`);
+    lines.push(
+      `  if __scryer_tex_set_parent_key then __scryer_tex_set_parent_key(${v}.__id, ${JSON.stringify(tex.parentKey)}) end`,
+    );
+  }
   if (tex.parentArray) {
     lines.push(`  ${parentVar}.${tex.parentArray} = ${parentVar}.${tex.parentArray} or {}`);
     lines.push(`  table.insert(${parentVar}.${tex.parentArray}, ${v})`);
@@ -227,6 +237,9 @@ function generateFrameCode(
     }
   }
 
+  // SetText after layers so self.Text FontString exists before the call
+  if (frame.text !== undefined) lines.push(`  ${v}:SetText(${JSON.stringify(frame.text)})`);
+
   // Non-OnLoad scripts registered before children are created
   const onLoadScripts: ScriptIR[] = [];
   for (const script of frame.scripts) {
@@ -293,13 +306,24 @@ export async function importXmlFile(
   for (const [name, tpl] of doc.templates) {
     ctx.addonTemplates.set(name, tpl);
   }
+  for (const [name, tex] of doc.textureTemplates) {
+    ctx.addonTextureTemplates.set(name, tex);
+  }
 
   // Resolve inheritance: blizzard templates + previously-seen addon templates + this doc
-  const allTemplates = new Map([...(ctx.blizzardTemplates ?? new Map()), ...ctx.addonTemplates]);
+  const allFrameTemplates = new Map([
+    ...(ctx.blizzardTemplates ?? new Map()),
+    ...ctx.addonTemplates,
+  ]);
+  const allTextureTemplates = new Map([
+    ...(ctx.blizzardTextureTemplates ?? new Map()),
+    ...ctx.addonTextureTemplates,
+  ]);
   const pseudoTemplateDoc: UiDocument = {
     source: "",
     frames: [],
-    templates: allTemplates,
+    templates: allFrameTemplates,
+    textureTemplates: allTextureTemplates,
     scriptFiles: [],
     includes: [],
   };

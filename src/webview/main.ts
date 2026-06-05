@@ -35,7 +35,7 @@ const flavorSelect = document.getElementById("flavor-select") as HTMLSelectEleme
 const resolutionSelect = document.getElementById("resolution-select") as HTMLSelectElement | null;
 const localeSelect = document.getElementById("locale-select") as HTMLSelectElement | null;
 
-const ZOOM_PRESETS = [25, 50, 75, 100, 150, 200, 400];
+const ZOOM_PRESETS = [25, 50, 75, 100, 150, 200, 400, 800];
 
 function applyTransform(): void {
   viewport!.style.transform = `translate(${panX}px,${panY}px) scale(${panZoom})`;
@@ -260,6 +260,221 @@ localeSelect?.addEventListener("change", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Eyedropper
+// ---------------------------------------------------------------------------
+
+type EyedropperState = "off" | "sampling";
+let eyedropperState: EyedropperState = "off";
+let eyedropperText: string | null = null;
+
+const eyedropperBtn = document.getElementById("eyedropper-toggle");
+
+function setEyedropperState(next: EyedropperState): void {
+  eyedropperState = next;
+  const active = next !== "off";
+  document.body.classList.toggle("mode-eyedropper", active);
+  eyedropperBtn?.classList.toggle("active", active);
+  if (next === "off") {
+    eyedropperText = null;
+    if (debug) debug.textContent = lastRenderMsg;
+    vscode.postMessage({ type: "eyedropperOff" });
+  } else if (next === "sampling") {
+    vscode.postMessage({ type: "eyedropperOn" });
+  }
+}
+
+eyedropperBtn?.addEventListener("click", () => {
+  if (eyedropperState === "off") {
+    setEyedropperState("sampling");
+  } else {
+    setEyedropperState("off");
+  }
+});
+
+let eyedropperCanvas: HTMLCanvasElement | null = null;
+function getEyedropperCanvas(): HTMLCanvasElement {
+  if (!eyedropperCanvas) {
+    eyedropperCanvas = document.createElement("canvas");
+    eyedropperCanvas.width = 1;
+    eyedropperCanvas.height = 1;
+    eyedropperCanvas.style.display = "none";
+    document.body.appendChild(eyedropperCanvas);
+  }
+  return eyedropperCanvas;
+}
+
+const eyedropperImageCache = new Map<string, HTMLImageElement>();
+
+function parseDim(value: string, ref: number): number {
+  if (!value || value === "auto") return ref;
+  if (value.endsWith("%")) return (parseFloat(value) / 100) * ref;
+  return parseFloat(value);
+}
+
+function sampleTexture(
+  el: HTMLElement,
+  bgImg: string,
+  clientX: number,
+  clientY: number,
+): [number, number, number, number] | null {
+  const m = bgImg.match(/url\("(.+?)"\)/);
+  if (!m) return null;
+  const url = m[1];
+
+  let img = eyedropperImageCache.get(url);
+  if (!img) {
+    img = new Image();
+    img.src = url;
+    eyedropperImageCache.set(url, img);
+  }
+  if (!img.complete || img.naturalWidth === 0) return null;
+
+  const rect = el.getBoundingClientRect();
+  // getBoundingClientRect includes CSS transform scale; offsetWidth/Height are layout-only.
+  // Normalize to layout pixel space so relX/relY match getComputedStyle background values.
+  const layoutW = el.offsetWidth || 1;
+  const layoutH = el.offsetHeight || 1;
+  const relX = (clientX - rect.left) * (layoutW / rect.width);
+  const relY = (clientY - rect.top) * (layoutH / rect.height);
+
+  const cs = getComputedStyle(el);
+  const parts = cs.backgroundSize.trim().split(/\s+/);
+  const bgW = parseDim(parts[0], layoutW);
+  const bgH = parseDim(parts[1] ?? parts[0], layoutH);
+
+  const posParts = cs.backgroundPosition.trim().split(/\s+/);
+  const bgX = posParts[0].endsWith("%")
+    ? (parseFloat(posParts[0]) / 100) * (layoutW - bgW)
+    : parseFloat(posParts[0] || "0");
+  const bgY = (posParts[1] ?? "0").endsWith("%")
+    ? (parseFloat(posParts[1] ?? "0") / 100) * (layoutH - bgH)
+    : parseFloat(posParts[1] ?? "0");
+
+  const imgX = Math.round(((relX - bgX) / bgW) * img.naturalWidth);
+  const imgY = Math.round(((relY - bgY) / bgH) * img.naturalHeight);
+
+  if (imgX < 0 || imgY < 0 || imgX >= img.naturalWidth || imgY >= img.naturalHeight) return null;
+
+  const canvas = getEyedropperCanvas();
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.clearRect(0, 0, 1, 1);
+  try {
+    ctx.drawImage(img, imgX, imgY, 1, 1, 0, 0, 1, 1);
+  } catch {
+    return null;
+  }
+  const data = ctx.getImageData(0, 0, 1, 1).data;
+  return [data[0], data[1], data[2], data[3]];
+}
+
+function parseRgba(color: string): [number, number, number, number] {
+  const m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)/);
+  if (!m) return [0, 0, 0, 255];
+  const r = parseInt(m[1]);
+  const g = parseInt(m[2]);
+  const b = parseInt(m[3]);
+  let a = 255;
+  if (m[4] !== undefined) {
+    a = m[4].endsWith("%")
+      ? Math.round((parseFloat(m[4]) / 100) * 255)
+      : Math.round(parseFloat(m[4]) * 255);
+  }
+  return [r, g, b, a];
+}
+
+// Walk root's subtree and return the deepest descendant that contains (clientX, clientY)
+// and has a visible background-color or background-image. Children are visited last-first
+// (last DOM child = highest stacking context in the flat renderer layout).
+// This intentionally ignores pointer-events so texture/layer elements are reachable.
+function hitTestForColor(root: Element, clientX: number, clientY: number): HTMLElement | null {
+  for (let i = root.children.length - 1; i >= 0; i--) {
+    const child = root.children[i] as HTMLElement;
+    const rect = child.getBoundingClientRect();
+    if (
+      clientX >= rect.left &&
+      clientX < rect.right &&
+      clientY >= rect.top &&
+      clientY < rect.bottom
+    ) {
+      const found = hitTestForColor(child, clientX, clientY);
+      if (found) return found;
+      const cs = getComputedStyle(child);
+      if (cs.backgroundColor !== "transparent" && cs.backgroundColor !== "rgba(0, 0, 0, 0)")
+        return child;
+      if (cs.backgroundImage && cs.backgroundImage !== "none") return child;
+    }
+  }
+  return null;
+}
+
+function sampleAtPoint(clientX: number, clientY: number): [number, number, number, number] | null {
+  const vp = document.getElementById("viewport");
+  const el = vp ? hitTestForColor(vp, clientX, clientY) : null;
+  if (el) {
+    const cs = getComputedStyle(el);
+    const bgImg = cs.backgroundImage;
+    if (bgImg && bgImg !== "none") {
+      const pixel = sampleTexture(el, bgImg, clientX, clientY);
+      if (pixel) return pixel;
+    }
+    const bgColor = cs.backgroundColor;
+    if (bgColor !== "transparent" && bgColor !== "rgba(0, 0, 0, 0)") return parseRgba(bgColor);
+  }
+  return parseRgba(getComputedStyle(document.body).backgroundColor);
+}
+
+function formatEyedropperColor(
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+  x: number,
+  y: number,
+): string {
+  const h = (n: number) => Math.round(n).toString(16).toUpperCase().padStart(2, "0");
+  const hex = `#${h(r)}${h(g)}${h(b)}`;
+  const wow = `|c${h(a)}${h(r)}${h(g)}${h(b)}`;
+  const css = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${(a / 255).toFixed(2)})`;
+  const cc = `CreateColor(${(r / 255).toFixed(2)}, ${(g / 255).toFixed(2)}, ${(b / 255).toFixed(2)}, ${(a / 255).toFixed(2)})`;
+  return `(${x}, ${y})  ${hex}  ${wow}  ${css}  ${cc}`;
+}
+
+window.addEventListener("mousemove", (e: MouseEvent) => {
+  if (eyedropperState !== "sampling") return;
+  const pixel = sampleAtPoint(e.clientX, e.clientY);
+  if (!pixel) return;
+  const [r, g, b, a] = pixel;
+  // Convert viewport client coords → WoW logical pixel coords
+  const x = Math.round((e.clientX - panX) / panZoom / currentScale);
+  const y = Math.round((e.clientY - panY) / panZoom / currentScale);
+  eyedropperText = formatEyedropperColor(r, g, b, a, x, y);
+  if (debug) debug.textContent = eyedropperText;
+  vscode.postMessage({ type: "eyedropperSample", r, g, b, a, x, y });
+});
+
+document.body.addEventListener("click", (e: MouseEvent) => {
+  if (eyedropperState === "off") return;
+  const statusBar = document.getElementById("status-bar");
+  if (statusBar && (e.target === statusBar || statusBar.contains(e.target as Node))) return;
+  e.stopPropagation();
+  setEyedropperState("off");
+});
+
+window.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (eyedropperState !== "off" && e.code === "Escape") {
+    e.stopPropagation();
+    setEyedropperState("off");
+  }
+  if (eyedropperState !== "off" && (e.ctrlKey || e.metaKey) && e.code === "KeyC") {
+    if (eyedropperText) {
+      e.preventDefault();
+      vscode.postMessage({ type: "eyedropperCopy", text: eyedropperText });
+    }
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Drag pan
 // ---------------------------------------------------------------------------
 
@@ -277,6 +492,7 @@ function isGrabActive(e: MouseEvent): boolean {
 document.body.addEventListener("mousedown", (e: MouseEvent) => {
   if (e.button === 2) return;
   if ((e.target as HTMLElement)?.closest?.("#status-bar")) return;
+  if (eyedropperState !== "off") return;
   if (!isGrabActive(e)) return;
   e.preventDefault();
   isDragging = true;
@@ -346,7 +562,7 @@ document.body.addEventListener(
     e.preventDefault();
     if (isZoom) {
       const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-      zoomAt(Math.max(0.05, Math.min(20, panZoom * factor)), e.clientX, e.clientY);
+      zoomAt(Math.max(0.05, Math.min(80, panZoom * factor)), e.clientX, e.clientY);
     } else {
       panX -= e.deltaX;
       panY -= e.deltaY;
@@ -371,17 +587,19 @@ window.addEventListener("resize", () => {
 // Asset helpers
 // ---------------------------------------------------------------------------
 
-/** After a render, collect all unique [data-asset-path] values and request each. */
+/** After a render, collect all unique [data-asset-path] and [data-mask-file] values and request each. */
 function requestRenderedAssets(): void {
-  const els = Array.from(viewport!.querySelectorAll<HTMLElement>("[data-asset-path]"));
   const seen = new Set<string>();
-  for (const el of els) {
-    const p = el.dataset.assetPath;
+  const request = (p: string | undefined) => {
     if (p && !seen.has(p)) {
       seen.add(p);
       vscode.postMessage({ type: "requestAsset", path: p });
     }
-  }
+  };
+  for (const el of viewport!.querySelectorAll<HTMLElement>("[data-asset-path]"))
+    request(el.dataset.assetPath);
+  for (const el of viewport!.querySelectorAll<HTMLElement>("[data-mask-file]"))
+    request(el.dataset.maskFile);
 }
 
 /** Inject or update the @font-face rule for the WoWDefaultFont family. */
@@ -398,11 +616,12 @@ function applyDefaultFont(uri: string): void {
 
 /** Apply a resolved asset URI to all texture elements sharing that path. */
 function applyAsset(rawPath: string, uri: string): void {
-  const selector = `[data-asset-path="${rawPath.replace(/"/g, '\\"')}"]`;
+  const selector = `[data-asset-path="${rawPath.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"]`;
   const els = Array.from(viewport!.querySelectorAll<HTMLElement>(selector));
   for (const el of els) {
     el.style.backgroundImage = `url("${uri}")`;
     el.style.backgroundRepeat = "no-repeat";
+    el.style.imageRendering = "pixelated";
 
     const cropRaw = el.dataset.atlasCrop;
     const coordsRaw = el.dataset.texCoords;
@@ -429,13 +648,31 @@ function applyAsset(rawPath: string, uri: string): void {
       // via two opposing anchors; overriding to atlas size would shrink it to 64×64).
       const elemW = el.offsetWidth || crop.width;
       const elemH = el.offsetHeight || crop.height;
-      const scaleX = crop.tilesH ? 1 : elemW / crop.width;
-      const scaleY = crop.tilesV ? 1 : elemH / crop.height;
-      const bgW = crop.sheetW * scaleX;
-      const bgH = crop.sheetH * scaleY;
+
+      // H-only tiles (TopEdge, BottomEdge) are extended 1px each side in renderer.ts
+      // (seam bleed) so that no device pixel falls between adjacent element boxes at
+      // fractional DPR × panZoom. elemW here is the already-extended width; the
+      // background must fill that extended width, so scaleX uses elemW directly.
+      // bgPosX shifts right by 1 to keep atlas content visually aligned after the
+      // element shifted left by 1px.
+      const seamBleed = crop.tilesH && !crop.tilesV ? 1 : 0;
+
+      // H-only tiles: stretch to element width instead of repeating. The
+      // TopEdge tile is y-gradient/x-uniform so stretching is visually identical
+      // to repeat-x, but forces no-repeat on X — the same Chromium render path
+      // as the corner pieces. This eliminates the device-pixel phase snapping that
+      // repeat-x applies on the tiling axis, which causes a 1-device-pixel Y shift
+      // vs no-repeat corners at non-integer DPR.
+      const scaleX =
+        crop.tilesH && !crop.tilesV ? elemW / crop.width : crop.tilesH ? 1 : elemW / crop.width;
+      const scaleY =
+        crop.tilesV && !crop.tilesH ? elemH / crop.height : crop.tilesV ? 1 : elemH / crop.height;
+      const bgW = Math.round(crop.sheetW * scaleX);
+      const bgH = Math.round(crop.sheetH * scaleY);
       el.style.backgroundSize = `${bgW}px ${bgH}px`;
-      el.style.backgroundPosition = `${-crop.x * scaleX}px ${-crop.y * scaleY}px`;
-      el.style.backgroundRepeat = crop.tilesH || crop.tilesV ? "repeat" : "no-repeat";
+      el.style.backgroundPosition = `${Math.round(-crop.x * scaleX) + seamBleed}px ${Math.round(-crop.y * scaleY)}px`;
+      // All pieces use no-repeat now that tiling is handled by stretching.
+      el.style.backgroundRepeat = "no-repeat no-repeat";
     } else if (coordsRaw) {
       const { left, right, top, bottom } = JSON.parse(coordsRaw) as {
         left: number;
@@ -459,6 +696,31 @@ function applyAsset(rawPath: string, uri: string): void {
     if (ph) ph.remove();
     el.style.pointerEvents = "none";
   }
+
+  // Apply as mask-image to any texture masked by this path.
+  // VS Code's webview is Electron/Chromium, which honors the -webkit- prefixed
+  // mask properties; set both prefixed and unprefixed for safety.
+  // WoW portrait masks (e.g. TempPortraitAlphaMask.blp) are grayscale luminance
+  // masks — a white circle on black. CSS defaults to mask-mode:alpha, and the
+  // BLP→PNG conversion yields an opaque image (alpha=1 everywhere), so an alpha
+  // mask is a no-op and the full square shows. Force luminance mode so the
+  // brightness channel drives the clip.
+  const escapedMask = rawPath.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const masked = viewport!.querySelectorAll<HTMLElement>(`[data-mask-file="${escapedMask}"]`);
+  for (const el of masked) {
+    el.style.webkitMaskImage = `url("${uri}")`;
+    el.style.maskImage = `url("${uri}")`;
+    el.style.webkitMaskSize = "100% 100%";
+    el.style.maskSize = "100% 100%";
+    el.style.webkitMaskRepeat = "no-repeat";
+    el.style.maskRepeat = "no-repeat";
+    // No webkit-prefixed mask-mode exists; -webkit-mask-source-type is the legacy
+    // equivalent (luminance|alpha). Set both so whichever Chromium honors takes effect.
+    el.style.setProperty("-webkit-mask-source-type", "luminance");
+    el.style.maskMode = "luminance";
+  }
+  if (masked.length > 0)
+    dbg(`applied mask ${rawPath} to ${masked.length} element${masked.length === 1 ? "" : "s"}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -482,6 +744,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
           msg.viewport,
           msg.flavorConfig,
           (frameId, event, extra) => {
+            if (eyedropperState !== "off") return;
             vscode.postMessage({
               type: "frameEvent",
               frameId,
@@ -539,6 +802,15 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         const label =
           msg.state === "extracting" ? "⏳ Extracting game assets…" : "⏳ Building atlas manifest…";
         if (debug) debug.textContent = label;
+      }
+      break;
+    }
+
+    case "setEyedropper": {
+      if (msg.active && eyedropperState === "off") {
+        setEyedropperState("sampling");
+      } else if (!msg.active && eyedropperState !== "off") {
+        setEyedropperState("off");
       }
       break;
     }

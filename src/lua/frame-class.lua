@@ -65,6 +65,7 @@ do
   local _tex_set_vert_tile       = __scryer_tex_set_vert_tile
   local _tex_set_draw_layer      = __scryer_tex_set_draw_layer
   local _tex_set_blend           = __scryer_tex_set_blend_mode
+  local _tex_set_mask_file        = __scryer_tex_set_mask_file
   local _tex_set_alpha           = __scryer_tex_set_alpha
   local _tex_get_alpha           = __scryer_tex_get_alpha
   local _tex_show                = __scryer_tex_show
@@ -121,6 +122,21 @@ do
     end
   end
 
+  -- Fire OnShow for frame then recursively for all shown children (WoW cascade).
+  local function _cascade_show(frame)
+    _fire_script(frame, "OnShow")
+    local n = _frame_child_count(frame.__id)
+    for i = 0, n - 1 do
+      local cid = _frame_child_at(frame.__id, i)
+      if cid ~= nil then
+        local child = _refs[cid]
+        if child and _frame_is_shown(cid) then
+          _cascade_show(child)
+        end
+      end
+    end
+  end
+
   -- ── _update_frames management ────────────────────────────────────────────────
   local function _track_update(frame, has_handler)
     local id = frame.__id
@@ -169,6 +185,8 @@ do
   function TextureMT:GetVertexColor()  return 1, 1, 1, 1                                        end
   function TextureMT:SetColorTexture(r,g,b,a) _tex_set_color_tex(self.__id, r,g,b,a)           end
   function TextureMT:SetBlendMode(m)           _tex_set_blend(self.__id, m)                     end
+  -- Internal: Scryer-only helper to record a MaskTexture file on this texture (not a WoW API).
+  function TextureMT:__SetMaskFile(path)       _tex_set_mask_file(self.__id, path)              end
   function TextureMT:SetAlpha(a)               _tex_set_alpha(self.__id, a)                     end
   function TextureMT:GetAlpha()        return _tex_get_alpha(self.__id)                         end
   function TextureMT:Show()                    _tex_show(self.__id)                             end
@@ -291,7 +309,7 @@ do
   function FrameMT:SetAllPoints(rTo)     _frame_set_all_points(self.__id, _relTo(rTo))     end
   function FrameMT:Show()
     _frame_show(self.__id)
-    _fire_script(self, "OnShow")
+    _cascade_show(self)
   end
   function FrameMT:Hide()
     _frame_hide(self.__id)
@@ -433,7 +451,10 @@ do
   local ButtonMT = setmetatable({}, { __index = FrameMT })
   ButtonMT.__index = ButtonMT
 
-  function ButtonMT:SetText(t)           _btn_set_text(self.__id, t)                       end
+  function ButtonMT:SetText(t)
+    _btn_set_text(self.__id, t)
+    if self.Text then self.Text:SetText(t) end
+  end
   function ButtonMT:GetText()    return _btn_get_text(self.__id)                            end
   function ButtonMT:SetNormalTexture(v)
     if type(v) == "string" then _btn_set_normal_tex(self.__id, v) end
@@ -542,12 +563,13 @@ do
   local GameTooltipMT = setmetatable({}, { __index = FrameMT })
   GameTooltipMT.__index = GameTooltipMT
 
-  function GameTooltipMT:SetOwner()       end
-  function GameTooltipMT:AddLine()        end
-  function GameTooltipMT:AddDoubleLine()  end
-  function GameTooltipMT:SetText()        end
-  function GameTooltipMT:ClearLines()     end
-  function GameTooltipMT:NumLines() return 0 end
+  function GameTooltipMT:SetOwner()             end
+  function GameTooltipMT:AddLine()              end
+  function GameTooltipMT:AddDoubleLine()        end
+  function GameTooltipMT:SetText()              end
+  function GameTooltipMT:ClearLines()           end
+  function GameTooltipMT:NumLines()    return 0 end
+  function GameTooltipMT:IsOwned()     return false end
   function GameTooltipMT:GetObjectType() return "GameTooltip" end
 
   -- ── Frame type → metatable map ───────────────────────────────────────────────
@@ -714,8 +736,10 @@ do
   __scryer_tex_set_vert_tile       = nil
   __scryer_tex_set_draw_layer      = nil
   __scryer_tex_set_blend_mode      = nil
+  __scryer_tex_set_mask_file       = nil
   __scryer_tex_set_alpha           = nil
   __scryer_tex_get_alpha           = nil
+  __scryer_tex_set_parent_key      = nil
   __scryer_tex_show                = nil
   __scryer_tex_hide                = nil
   __scryer_tex_is_shown            = nil

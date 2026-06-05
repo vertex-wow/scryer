@@ -42,7 +42,8 @@ export type HostMessage =
   | { type: "assetResolved"; path: string; uri: string }
   | { type: "fontResolved"; uri: string }
   | { type: "setRuler"; show: boolean }
-  | { type: "setStatus"; state: "idle" | "extracting" | "buildingAtlas" };
+  | { type: "setStatus"; state: "idle" | "extracting" | "buildingAtlas" }
+  | { type: "setEyedropper"; active: boolean };
 
 // Webview → extension host
 export type WebviewMessage =
@@ -56,4 +57,8 @@ export type WebviewMessage =
       event: "OnClick" | "OnEnter" | "OnLeave";
       extra?: unknown[];
     }
-  | { type: "settingChange"; key: "flavor" | "locale" | "screenResolution"; value: string };
+  | { type: "settingChange"; key: "flavor" | "locale" | "screenResolution"; value: string }
+  | { type: "eyedropperOn" }
+  | { type: "eyedropperOff" }
+  | { type: "eyedropperSample"; r: number; g: number; b: number; a: number; x: number; y: number }
+  | { type: "eyedropperCopy"; text: string };

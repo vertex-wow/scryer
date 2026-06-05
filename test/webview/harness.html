@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Scryer Webview Test Harness</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: #1a1a1a;
+        overflow: hidden;
+        position: fixed;
+        inset: 0;
+        user-select: none;
+      }
+      #viewport {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform-origin: 0 0;
+        will-change: transform;
+      }
+      #status-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 22px;
+        background: #252526;
+        display: flex;
+        align-items: center;
+        z-index: 10001;
+        border-bottom: 1px solid #3c3c3c;
+        font:
+          11px/1 "Segoe UI",
+          sans-serif;
+        color: #ccc;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .toolbar-btn {
+        flex-shrink: 0;
+        background: none;
+        border: none;
+        border-right: 1px solid #3c3c3c;
+        cursor: pointer;
+        height: 22px;
+        padding: 0 7px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        color: #ccc;
+        opacity: 0.55;
+      }
+      #zoom-select,
+      #flavor-select,
+      #resolution-select,
+      #locale-select {
+        flex-shrink: 0;
+        background: none;
+        border: none;
+        border-right: 1px solid #3c3c3c;
+        cursor: pointer;
+        height: 22px;
+        padding: 0 4px;
+        color: #ccc;
+        font:
+          11px/1 "Segoe UI",
+          sans-serif;
+        outline: none;
+        opacity: 0.7;
+      }
+      #debug {
+        padding: 0 4px;
+        white-space: pre-wrap;
+        font:
+          11px/1 "Segoe UI",
+          sans-serif;
+      }
+      #ruler-top,
+      #ruler-left,
+      #ruler-corner {
+        display: none;
+      }
+      body.mode-grab #viewport * {
+        pointer-events: none;
+      }
+      body.mode-eyedropper {
+        cursor: crosshair;
+      }
+      body.mode-eyedropper #viewport * {
+        pointer-events: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="status-bar">
+      <button id="ruler-toggle" class="toolbar-btn" title="Toggle pixel ruler">📏</button>
+      <button id="grab-toggle" class="toolbar-btn"></button>
+      <button id="interact-toggle" class="toolbar-btn"></button>
+      <button id="recenter-btn" class="toolbar-btn"></button>
+      <button id="eyedropper-toggle" class="toolbar-btn"></button>
+      <select id="flavor-select">
+        <option value="retail">Retail</option>
+        <option value="classic">Classic</option>
+        <option value="classic_era">Classic Era</option>
+      </select>
+      <select id="resolution-select">
+        <option value="1920x1080" selected>1920x1080</option>
+      </select>
+      <select id="locale-select">
+        <option value="enUS" selected>enUS</option>
+      </select>
+      <select id="zoom-select">
+        <option value="fit">Fit</option>
+        <option value="100" selected>100%</option>
+      </select>
+      <span id="debug">loading…</span>
+    </div>
+    <div id="ruler-top"></div>
+    <div id="ruler-left"></div>
+    <div id="ruler-corner"></div>
+    <div id="viewport"></div>
+
+    <script>
+      // Mock must exist before webview.js IIFE executes — it calls acquireVsCodeApi() at load time.
+      window._vscodeMessages = [];
+      window.acquireVsCodeApi = function () {
+        return {
+          postMessage: function (msg) {
+            window._vscodeMessages.push(msg);
+          },
+        };
+      };
+    </script>
+    <script src="../../dist/webview.js"></script>
+  </body>
+</html>

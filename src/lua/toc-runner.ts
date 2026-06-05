@@ -1,7 +1,7 @@
 import * as nodePath from "path";
 import type { LuaEngine } from "wasmoon";
 import type { TocFile } from "../parser/toc.js";
-import type { FrameIR } from "../parser/ir.js";
+import type { FrameIR, TextureIR } from "../parser/ir.js";
 import { importXmlFile, type ImportContext } from "./xml-importer.js";
 import { doStringWithTimeout, isLuaTimeout } from "./sandbox.js";
 
@@ -9,8 +9,10 @@ export interface TocRunnerOptions {
   toc: TocFile;
   addonDir: string;
   sandbox: LuaEngine;
-  /** Blizzard virtual template registry from AssetService, or undefined if not available. */
+  /** Blizzard virtual frame template registry from AssetService, or undefined if not available. */
   blizzardTemplates: Map<string, FrameIR> | undefined;
+  /** Blizzard virtual texture template registry from AssetService, or undefined if not available. */
+  blizzardTextureTemplates?: Map<string, TextureIR>;
   /** Read file content by absolute path. Throws if the file is missing. */
   readFile: (absPath: string) => Promise<string>;
   /** Per-call Lua execution timeout in milliseconds. Undefined disables timeout. */
@@ -53,7 +55,9 @@ export async function runTocAddon(opts: TocRunnerOptions): Promise<void> {
   // Import context accumulates this addon's own virtual templates across XML files
   const importCtx: ImportContext = {
     addonTemplates: new Map<string, FrameIR>(),
+    addonTextureTemplates: new Map<string, TextureIR>(),
     blizzardTemplates: opts.blizzardTemplates,
+    blizzardTextureTemplates: opts.blizzardTextureTemplates,
     output: { warn: output.warn, error: output.error },
   };
 
