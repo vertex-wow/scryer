@@ -46,6 +46,8 @@ const BASE = {
   sheetH: 128,
   tilesH: false,
   tilesV: false,
+  logicalW: 0,
+  logicalH: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -110,6 +112,8 @@ describe("resolveAtlasNames — 2x scale divisor", () => {
     sheetH: 256,
     tilesH: false,
     tilesV: false,
+    logicalW: 0,
+    logicalH: 0,
   };
 
   it("halves all pixel dimensions when -2x suffix entry is used", () => {

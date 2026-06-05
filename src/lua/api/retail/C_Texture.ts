@@ -40,8 +40,8 @@ export async function registerC_Texture(
       if (!entry) {
         entry = manifest[origLower + "-2x"] ?? manifest[strippedLower + "-2x"];
         if (entry) {
-          // Use the DB2 OverrideWidth to derive the exact divisor when available;
-          // fall back to ÷2 for -2x entries that carry no override.
+          // Use DB2-derived logical size when available; ÷2 otherwise.
+          // See docs/reference/atlas-scale-factors.md for UiCanvas conversion details.
           scaleDivisor = entry.logicalW > 0 ? entry.width / entry.logicalW : 2;
         }
       }

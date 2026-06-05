@@ -43,10 +43,9 @@ function resolveAtlasInTexture(tex: TextureIR, manifest: AtlasManifest): void {
   if (!entry) {
     entry = manifest[origLower + "-2x"] ?? manifest[strippedLower + "-2x"];
     if (entry) {
-      // When the DB2 row carries an explicit logical-size override (OverrideWidth /
-      // OverrideHeight), derive the divisor from it so we get the exact WoW logical size
-      // without relying on a hardcoded "÷2 for all -2x" assumption.
-      // For entries without an override (logicalW=0), fall back to ÷2.
+      // Use the DB2-derived logical size when available (physicalW / logicalW gives the
+      // exact pixel-per-unit divisor). Falls back to ÷2 when no override was recorded.
+      // See docs/reference/atlas-scale-factors.md for the UiCanvas conversion details.
       scaleDivisor = entry.logicalW > 0 ? entry.width / entry.logicalW : 2;
     }
   }

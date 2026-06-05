@@ -165,13 +165,27 @@ export async function generateAtlasManifest(opts: AtlasGenOptions): Promise<void
   const atlasRows = parseCsv(atlasCsv);
   log(`  UiTextureAtlas: ${atlasRows.length} rows`);
 
-  const atlasById = new Map<number, { fileDataID: number; sheetW: number; sheetH: number }>();
+  // UiCanvas 1 = 1024×768 (standard), UiCanvas 2 = 2048×1536 (2× HiDPI).
+  // The OverrideWidth/Height on UiTextureAtlasMember rows are expressed in canvas pixels,
+  // not WoW UI logical units. To convert: logicalW = overrideW × (1024 / canvasWidth).
+  // We fetch UiCanvas widths keyed by canvas ID so atlas-gen can do this conversion.
+  const canvasWidthById = new Map<number, number>([
+    [1, 1024],
+    [2, 2048],
+  ]);
+
+  const atlasById = new Map<
+    number,
+    { fileDataID: number; sheetW: number; sheetH: number; canvasWidth: number }
+  >();
   for (const row of atlasRows) {
     const id = parseInt(row["ID"], 10);
     const fileDataID = parseInt(row["FileDataID"] ?? row["File Data ID"] ?? "0", 10);
     const sheetW = parseInt(row["AtlasWidth"] ?? row["Atlas Width"] ?? "0", 10);
     const sheetH = parseInt(row["AtlasHeight"] ?? row["Atlas Height"] ?? "0", 10);
-    if (!isNaN(id)) atlasById.set(id, { fileDataID, sheetW, sheetH });
+    const canvasId = parseInt(row["UiCanvasID"] ?? "0", 10);
+    const canvasWidth = canvasWidthById.get(canvasId) ?? 1024;
+    if (!isNaN(id)) atlasById.set(id, { fileDataID, sheetW, sheetH, canvasWidth });
   }
 
   const memberRows = parseCsv(membersCsv);
@@ -209,8 +223,10 @@ export async function generateAtlasManifest(opts: AtlasGenOptions): Promise<void
     const width = parseInt(row["Width"] ?? "0", 10);
     const height = parseInt(row["Height"] ?? "0", 10);
     const flags = parseInt(row["Flags"] ?? row["CommittedFlags"] ?? "0", 10);
-    const logicalW = parseInt(row["OverrideWidth"] ?? "0", 10);
-    const logicalH = parseInt(row["OverrideHeight"] ?? "0", 10);
+    const overrideW = parseInt(row["OverrideWidth"] ?? "0", 10);
+    const overrideH = parseInt(row["OverrideHeight"] ?? "0", 10);
+    // Member's own UiCanvasID, if set (0 = inherit from atlas).
+    const memberCanvasId = parseInt(row["UiCanvasID"] ?? "0", 10);
 
     const sheet = atlasById.get(atlasID);
     if (!sheet?.fileDataID) {
@@ -223,6 +239,16 @@ export async function generateAtlasManifest(opts: AtlasGenOptions): Promise<void
       missing++;
       continue;
     }
+
+    // Resolve the canvas the OverrideWidth/Height are expressed in:
+    // member's own canvas if set, otherwise the atlas's canvas.
+    const canvasWidth =
+      (memberCanvasId ? canvasWidthById.get(memberCanvasId) : undefined) ?? sheet.canvasWidth;
+
+    // Convert from canvas pixels to WoW logical units (UIParent = 768 units = 1024 canvas px).
+    // logicalW=0 means no override was given; the caller falls back to physical÷2.
+    const logicalW = overrideW > 0 ? Math.round((overrideW * 1024) / canvasWidth) : 0;
+    const logicalH = overrideH > 0 ? Math.round((overrideH * 1024) / canvasWidth) : 0;
 
     manifest[name] = {
       file: filePath,
