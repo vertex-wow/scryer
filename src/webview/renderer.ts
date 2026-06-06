@@ -55,6 +55,8 @@ function renderTexture(tex: TextureIR, rect: Rect, config: ResolvedFlavorConfig)
     el.style.pointerEvents = "auto";
   } else if (tex.file) {
     el.dataset.assetPath = tex.file;
+    if (tex.horizTile) el.dataset.horizTile = "true";
+    if (tex.vertTile) el.dataset.vertTile = "true";
     const ph = makePlaceholder(tex.file, config);
     ph.dataset.placeholder = "1";
     el.appendChild(ph);

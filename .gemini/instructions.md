@@ -16,6 +16,7 @@ Invoke `/caveman` at start of every conversation. If user turns it off during ch
 ## Documentation conventions
 
 ### `docs/plan/`
+
 Implementation roadmap. One file per milestone (`000_overview.md`, `001_xml_parser.md`, etc.). Update these when scope, approach, or effort changes — they are the source of truth for what we're building and why.
 
 `000_overview.md` uses **one HTML `<table>` per milestone**, each under a `###` subheading. The table structure is:
@@ -32,9 +33,11 @@ Implementation roadmap. One file per milestone (`000_overview.md`, `001_xml_pars
 - **After any table edit:** confirm no pending ↳ `<tr>` appears above the completed ↳ `<tr>` within the same `<tbody>`.
 
 ### `docs/decisions/`
+
 Architecture Decision Records (ADRs). One file per significant decision (`001_language_stack.md`, etc.). Write an ADR whenever a non-obvious technical or architectural choice is made, especially when alternatives were seriously considered. Include: context, options considered, decision, rationale, and consequences. Do not delete old ADRs — mark them superseded if overturned.
 
 ### `docs/reference/`
+
 Technical reference material derived from inspecting `_reference/` or `_live/`. Examples: WoW XML schema summary, API surface notes, format documentation. Update when new findings are made.
 
 ## Working on tasks — dual-track documentation
@@ -42,7 +45,9 @@ Technical reference material derived from inspecting `_reference/` or `_live/`. 
 When actively implementing a milestone or working through a multi-step task, maintain **two layers** simultaneously:
 
 ### `.plan/` — transient running state (write often, disposable)
+
 Keep a scratch file (e.g. `.plan/active.md` or `.plan/milestone_N.md`) updated as you go:
+
 - What has been done so far in this session
 - What step is currently in progress
 - What is blocked or uncertain
@@ -51,7 +56,9 @@ Keep a scratch file (e.g. `.plan/active.md` or `.plan/milestone_N.md`) updated a
 Update this after every meaningful action (file written, test passed, decision made). This is working memory — if context is lost or the session ends mid-task, this file is how work resumes without starting over. It is **not** a permanent record; it gets discarded or overwritten when the task is done.
 
 ### `docs/` — permanent record (write when things are settled)
+
 Update `docs/` when something is decided or completed:
+
 - New finding about `_reference/` or `_live/` → `docs/reference/`
 - Architecture or approach decision made → `docs/decisions/` ADR
 - Milestone scope or approach changed → update `docs/plan/<milestone>.md`
@@ -60,6 +67,7 @@ Update `docs/` when something is decided or completed:
 **Never let a session end with discoveries or decisions only in conversation context.** If it matters beyond this task, it belongs in `docs/`.
 
 ### Deferring out-of-scope work
+
 Any time future work is identified — during implementation, writing reference docs, code review, ADR drafting, or anything else — record it before moving on. This includes bugs, enhancements, refactors, hardening concerns, missing features, and risks.
 
 **Signal to watch for:** if you write the words "future", "later", "eventually", "TODO", "not yet", or "out of scope" anywhere in a document or comment, stop and ask: does this belong in the backlog instead?
@@ -67,6 +75,7 @@ Any time future work is identified — during implementation, writing reference 
 **Both steps below are required. Do not do step 2 without step 1.**
 
 To record a deferred item:
+
 1. **`docs/plan/000_overview.md` first** — add a pending `↳` row to the milestone table under the milestone that most naturally enables or precedes the work. This is the visibility step; skipping it means the item is invisible to anyone scanning the roadmap.
 2. **`docs/plan/backlog.md` second** — add a full entry with a short description, the problem it solves, a rough plan, and an effort estimate. The overview row links here. When an item is completed, move its entry to `docs/plan/backlog-archive.md` and update the overview link to point at the archive.
 
@@ -103,6 +112,7 @@ Configuration documentation is split across three files so users see only what i
 Only stub things that do not exist in any Blizzard Lua file we load. See `docs/decisions/011_blizzard_lua_load_philosophy.md` for the full decision.
 
 **Legitimate stubs** (C-layer only — no Blizzard Lua file defines these):
+
 - `C_*` namespaces, `Mixin`, `CreateFromMixins`, `issecure`, `wipe`/`table.wipe`, `table.count`, `string.trim`/`strtrim`, `strsplit`, `strjoin`, `GenerateClosure`, `nop`
 - Game state queries: `GetTime`, `GetLocale`, `UnitRace`, `UnitSex`, `IsAddOnLoaded`, etc.
 - Globally C-populated tables: `Enum`, `Constants`
@@ -114,8 +124,11 @@ Only stub things that do not exist in any Blizzard Lua file we load. See `docs/d
 
 ## Tooling
 
-- **Package manager: `pnpm` only.** Never use `npm install` or `yarn` — they bypass the `onlyBuiltDependencies` allowlist and `minimum-release-age` security settings.
+- **Package manager: `pnpm` only.**
+  - **CRITICAL:** NEVER use `npm` or `yarn` or `npx`. They will fail CI, bypass security allowlists, and break the `minimum-release-age` config.
+  - If you need to run a binary, use `pnpm exec <cmd>` (e.g., `pnpm exec playwright`).
 - **Building: `pnpm build` (esbuild).** Never use `tsc` to emit JS — it is typecheck-only (`pnpm typecheck` / `tsc --noEmit`).
+- **Temporary Files:** If you need to write temporary files (e.g., test scripts, data dumps), ALWAYS place them in the `/tmp/` directory or the `.plan/` directory in the project root. DO NOT clutter the project root or src directories.
 - **Tests live in `test/`** (singular). See `docs/testing.md` for the full picture. Two Playwright pipeline layers: `test/xml/` (XML Preview — static parse, no Lua) and `test/toc/` (Live View — full Lua execution). Unit tests catch root causes; webview protocol tests cover message mechanics.
 - **Primary debugging loop:** When a rendering bug appears, create a minimal fixture → drop it in `test/xml/` (static XML, no Lua) or `test/toc/` (requires Lua execution) → add assertions for what correct output looks like → fix until green. The fixture IS the reproduction case. This is the fastest path from "something looks wrong" to "I know it's fixed."
 - **XML preview fixtures** live in `test/xml/` alongside their spec. TOC live view fixtures use addon directories under `test/fixtures/`. `test/manual/` is for hand-checked fixtures only — never reference it from automated specs. When a manual fixture gets automated coverage, move it to `test/xml/` or `test/toc/` (whichever applies) in the same change that adds the spec.

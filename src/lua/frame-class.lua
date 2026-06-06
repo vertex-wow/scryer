@@ -249,7 +249,11 @@ do
     return t=="FontString" or t=="Region" or t=="LayeredRegion" or t=="FontInstance"
   end
   -- Stubs: metrics not yet computed
-  function FontStringMT:GetStringWidth()         return 0 end
+  function FontStringMT:GetStringWidth()
+    local text = self:GetText()
+    if not text or text == "" then return 0 end
+    return string.len(text) * 7
+  end
   function FontStringMT:GetStringHeight()        return 0 end
   function FontStringMT:GetUnboundedStringWidth() return 0 end
   function FontStringMT:GetLineHeight()           return 0 end
@@ -261,7 +265,11 @@ do
   function FontStringMT:SetShadowOffset()         end
   function FontStringMT:SetFontObject()           end
   function FontStringMT:GetFontObject()   return nil end
-  function FontStringMT:GetWidth()        return 0   end
+  function FontStringMT:GetWidth()
+    local w = _frame_get_width(self.__id)
+    if w and w > 0 then return w end
+    return self:GetStringWidth()
+  end
   function FontStringMT:GetHeight()       return 0   end
 
   -- ── Frame metatable ─────────────────────────────────────────────────────────

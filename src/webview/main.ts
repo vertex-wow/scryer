@@ -324,6 +324,7 @@ function sampleTexture(
   let img = eyedropperImageCache.get(url);
   if (!img) {
     img = new Image();
+    img.crossOrigin = "anonymous";
     img.src = url;
     eyedropperImageCache.set(url, img);
   }
@@ -361,11 +362,11 @@ function sampleTexture(
   ctx.clearRect(0, 0, 1, 1);
   try {
     ctx.drawImage(img, imgX, imgY, 1, 1, 0, 0, 1, 1);
+    const data = ctx.getImageData(0, 0, 1, 1).data;
+    return [data[0], data[1], data[2], data[3]];
   } catch {
     return null;
   }
-  const data = ctx.getImageData(0, 0, 1, 1).data;
-  return [data[0], data[1], data[2], data[3]];
 }
 
 function parseRgba(color: string): [number, number, number, number] {
@@ -627,6 +628,7 @@ function loadImage(uri: string): Promise<HTMLImageElement> {
       uri,
       new Promise((resolve, reject) => {
         const img = new Image();
+        img.crossOrigin = "anonymous";
         img.onload = () => resolve(img);
         img.onerror = reject;
         img.src = uri;
@@ -720,31 +722,35 @@ function applyAsset(rawPath: string, uri: string): void {
       // When a tiling sprite doesn't fill its sheet width/height, CSS background-repeat
       // strides at the full sheet dimension rather than the sprite dimension, producing
       // gaps. Extract the sprite sub-region to a canvas and tile that instead.
-      const needsCanvasH = crop.tilesH && crop.sheetW > crop.width;
-      const needsCanvasV = crop.tilesV && crop.sheetH > crop.height;
+      const needsCanvasH = crop.tilesH && crop.tilesV && crop.sheetW > crop.width;
+      const needsCanvasV = crop.tilesH && crop.tilesV && crop.sheetH > crop.height;
       if (needsCanvasH || needsCanvasV) {
         const capturedEl = el;
         const capturedElemW = elemW;
         const capturedElemH = elemH;
-        void extractSpriteDataUrl(uri, crop).then((dataUrl) => {
-          capturedEl.style.backgroundImage = `url("${dataUrl}")`;
-          if (needsCanvasH && !needsCanvasV) {
-            capturedEl.style.backgroundSize = `${crop.width}px ${capturedElemH}px`;
-            capturedEl.style.backgroundPosition = `${seamBleed}px 0px`;
-            capturedEl.style.backgroundRepeat = "repeat-x no-repeat";
-          } else if (needsCanvasV && !needsCanvasH) {
-            capturedEl.style.backgroundSize = `${capturedElemW}px ${crop.height}px`;
-            capturedEl.style.backgroundPosition = `0px 0px`;
-            capturedEl.style.backgroundRepeat = "no-repeat repeat-y";
-          } else {
-            capturedEl.style.backgroundSize = `${crop.width}px ${crop.height}px`;
-            capturedEl.style.backgroundPosition = `0px 0px`;
-            capturedEl.style.backgroundRepeat = "repeat";
-          }
-          const ph = capturedEl.querySelector("[data-placeholder]");
-          if (ph) ph.remove();
-          capturedEl.style.pointerEvents = "none";
-        });
+        void extractSpriteDataUrl(uri, crop)
+          .then((dataUrl) => {
+            capturedEl.style.backgroundImage = `url("${dataUrl}")`;
+            if (needsCanvasH && !needsCanvasV) {
+              capturedEl.style.backgroundSize = `${crop.width}px ${capturedElemH}px`;
+              capturedEl.style.backgroundPosition = `${seamBleed}px 0px`;
+              capturedEl.style.backgroundRepeat = "repeat-x";
+            } else if (needsCanvasV && !needsCanvasH) {
+              capturedEl.style.backgroundSize = `${capturedElemW}px ${crop.height}px`;
+              capturedEl.style.backgroundPosition = `0px 0px`;
+              capturedEl.style.backgroundRepeat = "repeat-y";
+            } else {
+              capturedEl.style.backgroundSize = `${crop.width}px ${crop.height}px`;
+              capturedEl.style.backgroundPosition = `0px 0px`;
+              capturedEl.style.backgroundRepeat = "repeat";
+            }
+            const ph = capturedEl.querySelector("[data-placeholder]");
+            if (ph) ph.remove();
+            capturedEl.style.pointerEvents = "none";
+          })
+          .catch((err) => {
+            console.error("canvas extraction failed:", err);
+          });
         continue; // placeholder stays until async resolves; skip CSS path below
       }
 
@@ -763,7 +769,7 @@ function applyAsset(rawPath: string, uri: string): void {
       el.style.backgroundSize = `${bgW}px ${bgH}px`;
       el.style.backgroundPosition = `${Math.round(-crop.x * scaleX) + seamBleed}px ${Math.round(-crop.y * scaleY)}px`;
       // All pieces use no-repeat now that tiling is handled by stretching.
-      el.style.backgroundRepeat = "no-repeat no-repeat";
+      el.style.backgroundRepeat = "no-repeat";
     } else if (coordsRaw) {
       const { left, right, top, bottom } = JSON.parse(coordsRaw) as {
         left: number;
@@ -779,8 +785,22 @@ function applyAsset(rawPath: string, uri: string): void {
       el.style.backgroundSize = `${bgW}px ${bgH}px`;
       el.style.backgroundPosition = `${-left * bgW}px ${-top * bgH}px`;
     } else {
-      el.style.backgroundSize = "100% 100%";
-      el.style.backgroundPosition = "0% 0%";
+      const horizTile = el.dataset.horizTile === "true";
+      const vertTile = el.dataset.vertTile === "true";
+      if (horizTile && vertTile) {
+        el.style.backgroundRepeat = "repeat";
+        el.style.backgroundSize = "auto";
+      } else if (horizTile) {
+        el.style.backgroundRepeat = "repeat-x";
+        el.style.backgroundSize = "auto 100%";
+      } else if (vertTile) {
+        el.style.backgroundRepeat = "repeat-y";
+        el.style.backgroundSize = "100% auto";
+      } else {
+        el.style.backgroundRepeat = "no-repeat";
+        el.style.backgroundSize = "100% 100%";
+      }
+      el.style.backgroundPosition = "0px 0px";
     }
 
     const ph = el.querySelector("[data-placeholder]");
