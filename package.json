@@ -270,7 +270,7 @@
   },
   "scripts": {
     "clear-cache:workspace": "node -e \"require('fs').rmSync('.scryer-cache',{recursive:true,force:true});console.log('Workspace cache cleared.')\"",
-    "clear-cache:global": "node -e \"const os=require('os'),path=require('path'),fs=require('fs');const id='vertex-wow.wow-scryer';const dirs=[path.join(os.homedir(),'.vscode-server','data','User','globalStorage',id),path.join(os.homedir(),'.config','Code','User','globalStorage',id),path.join(os.homedir(),'Library','Application Support','Code','User','globalStorage',id)];const found=dirs.filter(d=>fs.existsSync(d));found.length?found.forEach(d=>{fs.rmSync(d,{recursive:true,force:true});console.log('Cleared: '+d);}):console.log('Global cache not found (already clean or non-standard path).')\"",
+    "clear-cache:global": "node dev/clear-cache-global.js",
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests",
