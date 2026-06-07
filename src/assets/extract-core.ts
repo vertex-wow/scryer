@@ -363,20 +363,26 @@ async function extractRetailPaths(
   // Use the full listfile: paths extracted here may be outside Interface/ (e.g. Fonts/).
   const listfilePath = await ensureListfile(opts.listfileDir, opts.log);
 
+  const exactPaths = paths.filter((p) => !p.includes("*"));
+  const globPaths = paths.filter((p) => p.includes("*"));
+
   const extractable = await filterToListfilePaths(
     listfilePath,
-    paths,
+    exactPaths,
     opts.grepPath || "grep",
     opts.log,
   );
-  if (extractable.length === 0) return { exported: 0, skippedExists: 0, errors: 0 };
+
+  const finalPaths = [...extractable, ...globPaths];
+
+  if (finalPaths.length === 0) return { exported: 0, skippedExists: 0, errors: 0 };
 
   await fs.promises.mkdir(opts.outDir, { recursive: true });
 
   const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
   opts.log?.(`assets-extraction: "${opts.flavor}/assets" → global cache "${shortOut}"`);
 
-  const pattern = extractable.length === 1 ? extractable[0] : `{${extractable.join(",")}}`;
+  const pattern = finalPaths.length === 1 ? finalPaths[0] : `{${finalPaths.join(",")}}`;
   return spawnRustydemon(
     cascTool,
     ["export", "-a", opts.wowDir, "-p", pattern, "-l", listfilePath, "-o", opts.outDir],
