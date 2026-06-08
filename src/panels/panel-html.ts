@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { resolveFlavorConfig } from "../flavors/config.js";
 import { FLAVOR_INFO, listInstalledFlavors } from "../assets/build-info.js";
-import { buildLocaleDropdownHtml } from "../webview/locale-dropdown.js";
+import { buildLocaleDropdownHtml } from "../webview/components/locale-dropdown.js";
 import {
   WORKAREA_BG_BLACK,
   WORKAREA_BG_CHECKERBOARD_DARK_COLOR1,

@@ -11,7 +11,7 @@
 // DPR: both canvases are sized at window.devicePixelRatio × the CSS logical size so
 // every tick and label renders at native physical-pixel resolution on retina screens.
 
-import type { ResolvedFlavorConfig } from "../protocol.js";
+import type { ResolvedFlavorConfig } from "../../protocol.js";
 
 let topCanvas: HTMLCanvasElement | null = null;
 let leftCanvas: HTMLCanvasElement | null = null;

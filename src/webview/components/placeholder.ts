@@ -1,4 +1,4 @@
-import type { ResolvedFlavorConfig } from "../protocol.js";
+import type { ResolvedFlavorConfig } from "../../protocol.js";
 
 /**
  * Deterministic placeholder color for a texture path.

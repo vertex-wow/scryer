@@ -1,6 +1,6 @@
 import type { HostMessage, ResolvedFlavorConfig, WebviewMessage } from "../protocol.js";
 import { renderFrames } from "./renderer.js";
-import { initRulers, setRulersVisible, updateRulers } from "./ruler.js";
+import { initRulers, setRulersVisible, updateRulers } from "./components/ruler.js";
 import type { CanvasMode } from "../constants.js";
 import {
   ZOOM_PRESETS,
@@ -296,8 +296,8 @@ document.getElementById("recenter-btn")?.addEventListener("click", () => {
   if (currentConfig) centerOnContent(currentConfig);
 });
 
-import { setupDropdown } from "./dropdown.js";
-import { setupLocaleDropdown, getLocaleLabel } from "./locale-dropdown.js";
+import { setupDropdown } from "./components/dropdown.js";
+import { setupLocaleDropdown, getLocaleLabel } from "./components/locale-dropdown.js";
 
 setupDropdown("zoom-dropdown", "zoom-dropdown-menu", (val) => {
   if (val === "fit") {
