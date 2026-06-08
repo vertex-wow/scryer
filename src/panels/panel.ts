@@ -262,6 +262,10 @@ export class ScryerPanel {
     this.syncStatus();
   }
 
+  toggleEyedropper(): void {
+    this.toolbar.toggleEyedropper();
+  }
+
   private handleWebviewMessage(message: unknown, uri: vscode.Uri): void {
     if (typeof message !== "object" || !message) return;
     const msg = message as WebviewMessage;

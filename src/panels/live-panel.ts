@@ -264,6 +264,10 @@ export class ScryerLivePanel {
     }
   }
 
+  toggleEyedropper(): void {
+    this.toolbar.toggleEyedropper();
+  }
+
   // ── Webview message handler ──────────────────────────────────────────────────
 
   private async handleWebviewMessage(message: unknown, uri: vscode.Uri): Promise<void> {
