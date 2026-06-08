@@ -1,6 +1,8 @@
 import type { HostMessage, ResolvedFlavorConfig, WebviewMessage } from "../protocol.js";
 import { renderFrames } from "./renderer.js";
 import { initRulers, setRulersVisible, updateRulers } from "./ruler.js";
+import type { CanvasMode } from "../constants.js";
+import { ZOOM_PRESETS, DEFAULT_CANVAS_MODE } from "../constants.js";
 
 declare function acquireVsCodeApi(): {
   postMessage(msg: WebviewMessage): void;
@@ -25,17 +27,14 @@ let panX = 0;
 let panY = 0;
 let panZoom = 1;
 
-type CanvasMode = "grab" | "interact";
-let canvasMode: CanvasMode = "grab";
+let canvasMode: CanvasMode = DEFAULT_CANVAS_MODE;
 
-const grabBtn = document.getElementById("grab-toggle");
 const interactBtn = document.getElementById("interact-toggle");
+const grabBtn = document.getElementById("grab-toggle");
 const zoomSelect = document.getElementById("zoom-select") as HTMLSelectElement | null;
 const flavorSelect = document.getElementById("flavor-select") as HTMLSelectElement | null;
 const resolutionSelect = document.getElementById("resolution-select") as HTMLSelectElement | null;
 const localeSelect = document.getElementById("locale-select") as HTMLSelectElement | null;
-
-const ZOOM_PRESETS = [25, 50, 75, 100, 150, 200, 400, 800];
 
 function applyTransform(): void {
   viewport!.style.transform = `translate(${panX}px,${panY}px) scale(${panZoom})`;
@@ -138,7 +137,8 @@ function setMode(mode: CanvasMode): void {
   interactBtn?.classList.toggle("active", mode === "interact");
 }
 
-setMode("grab");
+let initialModeSet = false;
+setMode(DEFAULT_CANVAS_MODE); // fallback initial mode
 applyTransform();
 updateZoomDisplay();
 
@@ -222,8 +222,8 @@ document.getElementById("ruler-toggle")?.addEventListener("click", () => {
   vscode.postMessage({ type: "toggleRuler" });
 });
 
-grabBtn?.addEventListener("click", () => setMode("grab"));
 interactBtn?.addEventListener("click", () => setMode("interact"));
+grabBtn?.addEventListener("click", () => setMode("grab"));
 
 document.getElementById("recenter-btn")?.addEventListener("click", () => {
   if (currentConfig) centerOnContent(currentConfig);
@@ -847,6 +847,10 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       if (flavorSelect) flavorSelect.value = msg.toolbarState.flavor;
       if (resolutionSelect) resolutionSelect.value = msg.toolbarState.screenResolution;
       if (localeSelect) localeSelect.value = msg.toolbarState.locale;
+      if (!initialModeSet && msg.toolbarState.defaultCanvasMode) {
+        initialModeSet = true;
+        setMode(msg.toolbarState.defaultCanvasMode);
+      }
       try {
         if (msg.defaultFontUri) applyDefaultFont(msg.defaultFontUri);
         viewport!.innerHTML = "";
