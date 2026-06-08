@@ -3,3 +3,4 @@ export PATH="$HOME/.local/share/fnm:$HOME/.local/share/pnpm:$PATH"
 eval "$(fnm env --shell bash)"
 fnm use --silent-if-unchanged
 pnpm lint-staged
+pnpm build
