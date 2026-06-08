@@ -1,4 +1,4 @@
-import { setupDropdown } from "../dropdown.js";
+import { setupDropdown } from "./dropdown.js";
 
 const LOCALES = [
   { value: "enUS", label: "English (US)" },

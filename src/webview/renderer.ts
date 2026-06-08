@@ -2,7 +2,7 @@ import type { Color, FontStringIR, FrameIR, TextureIR } from "../parser/ir.js";
 import type { ResolvedFlavorConfig, Viewport } from "../protocol.js";
 import type { Rect } from "./layout.js";
 import { layoutAll } from "./layout.js";
-import { makePlaceholder } from "./placeholder.js";
+import { makePlaceholder } from "./components/placeholder.js";
 import { frameZ, layerZ } from "./strata.js";
 
 // ---------------------------------------------------------------------------
