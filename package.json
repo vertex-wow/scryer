@@ -273,6 +273,34 @@
           "type": "boolean",
           "default": true,
           "description": "Show a pixel ruler overlay along the top and left edges of the Scryer preview panel. Coordinates are in WoW logical pixels. Toggle with Scryer: Toggle Pixel Ruler or the status bar button."
+        },
+        "scryer.workareaBackground": {
+          "type": "string",
+          "enum": [
+            "checkerBoard",
+            "checkerBoardLight",
+            "black",
+            "white",
+            "neutralGray",
+            "magenta",
+            "custom"
+          ],
+          "enumDescriptions": [
+            "Dark checkerboard pattern for transparency (default)",
+            "Light checkerboard pattern for transparency",
+            "Solid black",
+            "Solid white",
+            "Neutral gray (50%) for color-neutral assessment",
+            "Solid magenta for debugging bounds and transparency",
+            "Custom image (see scryer.workareaBackgroundPath)"
+          ],
+          "default": "checkerBoard",
+          "description": "Background color/pattern of the preview workarea behind the canvas."
+        },
+        "scryer.workareaBackgroundPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to a custom background image. If a directory is specified, Scryer will look for a <resolution>.png file within it matching the current screen resolution."
         }
       }
     }

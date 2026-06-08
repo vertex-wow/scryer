@@ -174,7 +174,14 @@ export class ScryerPanel {
         }
 
         let needsRender = false;
-        for (const key of ["flavor", "locale", "screenResolution", "defaultCanvasMode"]) {
+        for (const key of [
+          "flavor",
+          "locale",
+          "screenResolution",
+          "defaultCanvasMode",
+          "workareaBackground",
+          "workareaBackgroundPath",
+        ]) {
           if (e.affectsConfiguration(`scryer.${key}`) && !(key in this.ephemeralSettings)) {
             needsRender = true;
           }
@@ -404,6 +411,8 @@ export class ScryerPanel {
     const screenResolution = this.getSetting<string>("screenResolution") ?? "1920x1080";
     const defaultCanvasMode =
       this.getSetting<CanvasMode>("defaultCanvasMode") ?? DEFAULT_CANVAS_MODE;
+    const workareaBackground = this.getSetting<string>("workareaBackground") ?? "checkerBoard";
+    const workareaBackgroundPath = this.getSetting<string>("workareaBackgroundPath") ?? "";
     const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
     const flavorConfig = resolveFlavorConfig(flavor, userConfigPath);
     const [rw, rh] = screenResolution.split("x").map(Number);
@@ -533,6 +542,27 @@ export class ScryerPanel {
         }
       }
 
+      let customBackgroundUri: string | undefined;
+      if (workareaBackground === "custom" && workareaBackgroundPath) {
+        try {
+          const stat = await vscode.workspace.fs.stat(vscode.Uri.file(workareaBackgroundPath));
+          let targetPath = workareaBackgroundPath;
+          if (stat.type === vscode.FileType.Directory) {
+            targetPath = path.join(workareaBackgroundPath, `${screenResolution}.png`);
+          }
+          try {
+            await vscode.workspace.fs.stat(vscode.Uri.file(targetPath));
+            customBackgroundUri = this.panel.webview
+              .asWebviewUri(vscode.Uri.file(targetPath))
+              .toString();
+          } catch {
+            // target path does not exist
+          }
+        } catch {
+          // invalid path
+        }
+      }
+
       const msg: HostMessage = {
         type: "render",
         frames: renderFrames,
@@ -542,7 +572,15 @@ export class ScryerPanel {
         pendingFiles: isFirstExtraction ? texturePaths.length : 0,
         flavorConfig,
         defaultFontUri,
-        toolbarState: { flavor, locale, screenResolution, defaultCanvasMode },
+        customBackgroundUri,
+        toolbarState: {
+          flavor,
+          locale,
+          screenResolution,
+          defaultCanvasMode,
+          workareaBackground,
+          workareaBackgroundPath,
+        },
       };
 
       void this.panel.webview.postMessage(msg);
@@ -596,6 +634,8 @@ export class ScryerPanel {
     const flavor = this.getSetting<string>("flavor") ?? "retail";
     const locale = this.getSetting<string>("locale") ?? "enUS";
     const screenResolution = this.getSetting<string>("screenResolution") ?? "1920x1080";
+    const workareaBackground = this.getSetting<string>("workareaBackground") ?? "checkerBoard";
+    const workareaBackgroundPath = this.getSetting<string>("workareaBackgroundPath") ?? "";
     const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
     const c = resolveFlavorConfig(flavor, userConfigPath);
 
@@ -636,7 +676,7 @@ export class ScryerPanel {
   <title>Scryer Preview</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{background:${c.rulerBg};overflow:hidden;position:fixed;inset:0;user-select:none}
+    body{overflow:hidden;position:fixed;inset:0;user-select:none;background:var(--vscode-editor-background)}
     #viewport{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
     #status-bar{position:fixed;top:0;left:0;right:0;height:${sbH}px;background:${c.statusBarBg};display:flex;align-items:center;z-index:10001;border-bottom:1px solid ${c.rulerBorder};font:${c.toolbarFont};color:${c.statusBarColor};white-space:nowrap;overflow:hidden}
     .toolbar-btn{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;height:${sbH}px;padding:0 7px;display:flex;align-items:center;justify-content:center;font-size:14px;color:${c.statusBarColor};opacity:0.55}
@@ -644,13 +684,17 @@ export class ScryerPanel {
     .toolbar-btn.active{background:rgba(74,158,255,0.12);opacity:1;box-shadow:inset 0 -2px 0 #4a9eff}
     .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(0.85);display:inline-block}
     .toolbar-btn:hover .ruler-icon,.toolbar-btn.active .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(1.15)}
-    #zoom-select,#flavor-select,#resolution-select,#locale-select{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;height:${sbH}px;padding:0 4px;color:${c.statusBarColor};font:${c.toolbarFont};outline:none;opacity:0.7}
+    #zoom-select,#flavor-select,#resolution-select,#locale-select,#bg-select{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;height:${sbH}px;padding:0 4px;color:${c.statusBarColor};font:${c.toolbarFont};outline:none;opacity:0.7}
     #zoom-select{min-width:62px}
     #flavor-select{min-width:72px}
     #resolution-select{min-width:70px}
     #locale-select{min-width:44px}
-    #zoom-select:hover,#flavor-select:hover,#resolution-select:hover,#locale-select:hover{background:rgba(255,255,255,0.07);opacity:1}
-    #zoom-select option,#flavor-select option,#resolution-select option,#locale-select option{background:${c.statusBarBg};color:${c.statusBarColor}}
+    #bg-select{min-width:80px; max-width:200px; text-overflow: ellipsis; border-right: none;}
+    #zoom-select:hover,#flavor-select:hover,#resolution-select:hover,#locale-select:hover,#bg-select:hover{background:rgba(255,255,255,0.07);opacity:1}
+    #bg-wrapper{display:flex;align-items:center;border-right:1px solid ${c.rulerBorder};padding:0 4px;height:${sbH}px;cursor:pointer;opacity:0.7}
+    #bg-wrapper:hover{background:rgba(255,255,255,0.07);opacity:1}
+    #bg-preview{width:14px;height:14px;border:1px solid rgba(255,255,255,0.2);border-radius:2px;flex-shrink:0;pointer-events:none;}
+    #zoom-select option,#flavor-select option,#resolution-select option,#locale-select option,#bg-select option{background:${c.statusBarBg};color:${c.statusBarColor}}
     #flavor-select option:disabled,#resolution-select option:disabled{opacity:0.45;font-style:italic}
     #debug{padding:0 4px;white-space:pre-wrap;font:${c.statusTextFont}}
     #ruler-top{position:fixed;top:${sbH}px;left:0;right:0;height:${rsz}px;z-index:9999;display:none}
@@ -670,6 +714,18 @@ export class ScryerPanel {
     <button id="grab-toggle" class="toolbar-btn" title="Grab — pan and zoom (drag · middle-drag · space-drag · ctrl+scroll · ctrl+0 fit · ctrl+shift+0 reset)"><svg width="12" height="13" viewBox="0 0 12 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="2" width="2" height="6" rx="1"/><rect x="4" y="0" width="2" height="8" rx="1"/><rect x="7" y="0" width="2" height="8" rx="1"/><rect x="10" y="2" width="2" height="6" rx="1"/><rect x="0" y="7" width="12" height="6" rx="2"/></svg></button>
     <button id="recenter-btn" class="toolbar-btn" title="Re-center canvas"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="2.8"/><line x1="6.5" y1="0.5" x2="6.5" y2="3.7"/><line x1="6.5" y1="9.3" x2="6.5" y2="12.5"/><line x1="0.5" y1="6.5" x2="3.7" y2="6.5"/><line x1="9.3" y1="6.5" x2="12.5" y2="6.5"/></svg></button>
     <button id="eyedropper-toggle" class="toolbar-btn" title="Eyedropper &mdash; sample pixel color (Ctrl+C to copy)"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M13.354.646a1.207 1.207 0 0 0-1.708 0L8.5 3.793l-.646-.647a.5.5 0 1 0-.708.708L8.293 5l-7.147 7.146A.5.5 0 0 0 1 12.5v1.793l-.854.853a.5.5 0 1 0 .708.707L1.707 15H3.5a.5.5 0 0 0 .354-.146L11 7.707l1.146 1.147a.5.5 0 0 0 .708-.708l-.647-.646 3.147-3.146a1.207 1.207 0 0 0 0-1.708zM2 12.707l7-7L10.293 7l-7 7H2z"/></svg></button>
+    <div id="bg-wrapper" title="Workarea Background">
+      <div id="bg-preview"></div>
+      <select id="bg-select">
+        <option value="checkerBoard"${s(workareaBackground, "checkerBoard")}>🏁 Checkerboard (Dark)</option>
+        <option value="checkerBoardLight"${s(workareaBackground, "checkerBoardLight")}>🏁 Checkerboard (Light)</option>
+        <option value="black"${s(workareaBackground, "black")}>⬛ Black</option>
+        <option value="white"${s(workareaBackground, "white")}>⬜ White</option>
+        <option value="neutralGray"${s(workareaBackground, "neutralGray")}>🔲 Neutral Gray (50%)</option>
+        <option value="magenta"${s(workareaBackground, "magenta")}>🟪 Magenta (Debug)</option>
+        <option value="custom"${s(workareaBackground, "custom")}>🖼️ ${workareaBackgroundPath ? workareaBackgroundPath : "Custom..."}</option>
+      </select>
+    </div>
     <select id="flavor-select" title="WoW flavor (✓ = installed)">
       ${flavorOptions}
     </select>

@@ -14,6 +14,8 @@ export interface ToolbarState {
   locale: string;
   screenResolution: string;
   defaultCanvasMode: CanvasMode;
+  workareaBackground: string;
+  workareaBackgroundPath: string;
 }
 
 // Extension host → webview
@@ -28,6 +30,7 @@ export type HostMessage =
       flavorConfig: ResolvedFlavorConfig;
       /** Webview URI for the default font file, if it was resolved from the asset cache. */
       defaultFontUri?: string;
+      customBackgroundUri?: string;
       toolbarState: ToolbarState;
     }
   | {
@@ -39,6 +42,7 @@ export type HostMessage =
       pendingFiles: number;
       flavorConfig: ResolvedFlavorConfig;
       defaultFontUri?: string;
+      customBackgroundUri?: string;
       toolbarState: ToolbarState;
     }
   | { type: "assetResolved"; path: string; uri: string }
@@ -61,7 +65,7 @@ export type WebviewMessage =
     }
   | {
       type: "settingChange";
-      key: "flavor" | "locale" | "screenResolution" | "defaultCanvasMode";
+      key: "flavor" | "locale" | "screenResolution" | "defaultCanvasMode" | "workareaBackground";
       value: string;
     }
   | { type: "eyedropperOn" }

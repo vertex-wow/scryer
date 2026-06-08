@@ -2,7 +2,20 @@ import type { HostMessage, ResolvedFlavorConfig, WebviewMessage } from "../proto
 import { renderFrames } from "./renderer.js";
 import { initRulers, setRulersVisible, updateRulers } from "./ruler.js";
 import type { CanvasMode } from "../constants.js";
-import { ZOOM_PRESETS, DEFAULT_CANVAS_MODE } from "../constants.js";
+import {
+  ZOOM_PRESETS,
+  DEFAULT_CANVAS_MODE,
+  WORKAREA_BG_BLACK,
+  WORKAREA_BG_WHITE,
+  WORKAREA_BG_GRAY,
+  WORKAREA_BG_MAGENTA,
+  WORKAREA_BG_CHECKERBOARD_DARK_COLOR1,
+  WORKAREA_BG_CHECKERBOARD_DARK_COLOR2,
+  WORKAREA_BG_CHECKERBOARD_DARK_SIZE,
+  WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR1,
+  WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR2,
+  WORKAREA_BG_CHECKERBOARD_LIGHT_SIZE,
+} from "../constants.js";
 
 declare function acquireVsCodeApi(): {
   postMessage(msg: WebviewMessage): void;
@@ -35,6 +48,8 @@ const zoomSelect = document.getElementById("zoom-select") as HTMLSelectElement |
 const flavorSelect = document.getElementById("flavor-select") as HTMLSelectElement | null;
 const resolutionSelect = document.getElementById("resolution-select") as HTMLSelectElement | null;
 const localeSelect = document.getElementById("locale-select") as HTMLSelectElement | null;
+const bgSelect = document.getElementById("bg-select") as HTMLSelectElement | null;
+const bgPreview = document.getElementById("bg-preview") as HTMLElement | null;
 
 function applyTransform(): void {
   viewport!.style.transform = `translate(${panX}px,${panY}px) scale(${panZoom})`;
@@ -263,6 +278,10 @@ resolutionSelect?.addEventListener("change", () => {
 
 localeSelect?.addEventListener("change", () => {
   vscode.postMessage({ type: "settingChange", key: "locale", value: localeSelect.value });
+});
+
+bgSelect?.addEventListener("change", () => {
+  vscode.postMessage({ type: "settingChange", key: "workareaBackground", value: bgSelect.value });
 });
 
 // ---------------------------------------------------------------------------
@@ -853,6 +872,14 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       if (flavorSelect) flavorSelect.value = msg.toolbarState.flavor;
       if (resolutionSelect) resolutionSelect.value = msg.toolbarState.screenResolution;
       if (localeSelect) localeSelect.value = msg.toolbarState.locale;
+      if (bgSelect) {
+        bgSelect.value = msg.toolbarState.workareaBackground;
+        const customOpt = bgSelect.querySelector('option[value="custom"]');
+        if (customOpt) {
+          customOpt.textContent = "🖼️ " + (msg.toolbarState.workareaBackgroundPath || "Custom...");
+        }
+      }
+
       if (!initialModeSet && msg.toolbarState.defaultCanvasMode) {
         initialModeSet = true;
         setMode(msg.toolbarState.defaultCanvasMode);
@@ -876,6 +903,49 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         );
         viewport!.appendChild(root);
         currentWowViewport = document.getElementById("wow-viewport");
+        if (currentWowViewport) {
+          if (msg.toolbarState.workareaBackground === "black") {
+            currentWowViewport.style.background = WORKAREA_BG_BLACK;
+          } else if (msg.toolbarState.workareaBackground === "white") {
+            currentWowViewport.style.background = WORKAREA_BG_WHITE;
+          } else if (msg.toolbarState.workareaBackground === "neutralGray") {
+            currentWowViewport.style.background = WORKAREA_BG_GRAY;
+          } else if (msg.toolbarState.workareaBackground === "magenta") {
+            currentWowViewport.style.background = WORKAREA_BG_MAGENTA;
+          } else if (msg.toolbarState.workareaBackground === "custom" && msg.customBackgroundUri) {
+            currentWowViewport.style.background = `url("${msg.customBackgroundUri}") no-repeat center center`;
+            currentWowViewport.style.backgroundSize = "cover";
+          } else if (msg.toolbarState.workareaBackground === "checkerBoardLight") {
+            currentWowViewport.style.background = `repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR2} 0% 50%) 50% / ${WORKAREA_BG_CHECKERBOARD_LIGHT_SIZE} ${WORKAREA_BG_CHECKERBOARD_LIGHT_SIZE}`;
+          } else {
+            currentWowViewport.style.background = `repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_DARK_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_DARK_COLOR2} 0% 50%) 50% / ${WORKAREA_BG_CHECKERBOARD_DARK_SIZE} ${WORKAREA_BG_CHECKERBOARD_DARK_SIZE}`;
+          }
+        }
+        if (bgPreview) {
+          bgPreview.textContent = "";
+          bgPreview.style.border = "1px solid rgba(255,255,255,0.2)";
+          if (msg.toolbarState.workareaBackground === "black") {
+            bgPreview.style.background = WORKAREA_BG_BLACK;
+          } else if (msg.toolbarState.workareaBackground === "white") {
+            bgPreview.style.background = WORKAREA_BG_WHITE;
+          } else if (msg.toolbarState.workareaBackground === "neutralGray") {
+            bgPreview.style.background = WORKAREA_BG_GRAY;
+          } else if (msg.toolbarState.workareaBackground === "magenta") {
+            bgPreview.style.background = WORKAREA_BG_MAGENTA;
+          } else if (msg.toolbarState.workareaBackground === "custom") {
+            bgPreview.style.background = "transparent";
+            bgPreview.style.border = "none";
+            bgPreview.textContent = "🖼️";
+            bgPreview.style.fontSize = "12px";
+            bgPreview.style.display = "flex";
+            bgPreview.style.alignItems = "center";
+            bgPreview.style.justifyContent = "center";
+          } else if (msg.toolbarState.workareaBackground === "checkerBoardLight") {
+            bgPreview.style.background = `repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR2} 0% 50%) 50% / 10px 10px`;
+          } else {
+            bgPreview.style.background = `repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_DARK_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_DARK_COLOR2} 0% 50%) 50% / 10px 10px`;
+          }
+        }
         currentConfig = msg.flavorConfig;
         currentScale = currentConfig.frameScale;
         currentUiScale = currentConfig.screenHeight / currentConfig.uiParentHeight;
