@@ -9,7 +9,19 @@ export function setupDropdown(
 
   trigger.addEventListener("click", (e) => {
     e.stopPropagation();
-    menu.classList.toggle("hidden");
+    const isHidden = menu.classList.contains("hidden");
+
+    for (const otherMenu of document.querySelectorAll(".custom-dropdown-menu")) {
+      if (otherMenu !== menu) {
+        otherMenu.classList.add("hidden");
+      }
+    }
+
+    if (isHidden) {
+      menu.classList.remove("hidden");
+    } else {
+      menu.classList.add("hidden");
+    }
   });
 
   menu.addEventListener("click", (e) => {

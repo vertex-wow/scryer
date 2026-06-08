@@ -661,26 +661,51 @@ export class ScryerPanel {
     const installed = new Set(
       installDir ? listInstalledFlavors(installDir).map((f) => f.flavor) : [],
     );
-    const flavorOptions = Object.keys(FLAVOR_INFO)
+    const flavorOptionsHtml = Object.keys(FLAVOR_INFO)
       .map((key) => {
         const label = key
           .split("_")
           .map((w) => w[0].toUpperCase() + w.slice(1))
           .join(" ");
         const mark = installed.has(key) ? " ✓" : "";
-        return `<option value="${key}"${s(flavor, key)}>${label}${mark}</option>`;
+        return `<div class="dropdown-item${s(flavor, key)}" data-value="${key}">
+          <span class="dropdown-item-text">${label}${mark}</span>
+        </div>`;
       })
-      .join("\n      ");
+      .join("\n        ");
+
+    const currentFlavorLabelParts = flavor
+      .split("_")
+      .map((w) => w[0].toUpperCase() + w.slice(1))
+      .join(" ");
+    const currentFlavorMark = installed.has(flavor) ? " ✓" : "";
+    const flavorLabel = currentFlavorLabelParts + currentFlavorMark;
 
     const [rw, rh] = screenResolution.split("x").map(Number);
     const currentUiParentWidth = Math.round((768 * rw) / rh);
-    const resolutionTitle = `Native Screen Resolution&#10;${screenResolution} = ${currentUiParentWidth}x768 in-game`;
+
+    const getAspectRatio = (w: number, h: number) => {
+      const ratio = w / h;
+      if (Math.abs(ratio - 16 / 9) < 0.05) return "16:9";
+      if (Math.abs(ratio - 16 / 10) < 0.05) return "16:10";
+      if (Math.abs(ratio - 21 / 9) < 0.05) return "21:9";
+      if (Math.abs(ratio - 4 / 3) < 0.05) return "4:3";
+      const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+      const div = gcd(w, h);
+      return `${w / div}:${h / div}`;
+    };
+    const currentAspect = getAspectRatio(rw, rh);
+    const resolutionTitle = `Native Screen Resolution&#10;${currentAspect} ${screenResolution} = ${currentUiParentWidth}x768 in-game`;
 
     const resOpt = (res: string) => {
       const [w, h] = res.split("x").map(Number);
       const gw = Math.round((768 * w) / h);
-      return `<option value="${res}" title="${res} = ${gw}x768 in-game"${s(screenResolution, res)}>${res}</option>`;
+      return `<div class="dropdown-item${s(screenResolution, res)}" data-value="${res}" title="${res} = ${gw}x768 in-game">
+        <span class="dropdown-item-text">${res}</span>
+      </div>`;
     };
+    const resHeader = (text: string) =>
+      `<div class="dropdown-item disabled"><span class="dropdown-item-text">${text}</span></div>`;
 
     const bgLabelMap: Record<string, string> = {
       checkerBoardAuto: "Checkerboard (Auto)",
@@ -711,14 +736,10 @@ export class ScryerPanel {
     .toolbar-btn.active{background:rgba(74,158,255,0.12);opacity:1;box-shadow:inset 0 -2px 0 #4a9eff}
     .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(0.85);display:inline-block}
     .toolbar-btn:hover .ruler-icon,.toolbar-btn.active .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(1.15)}
-    #zoom-select,#flavor-select,#resolution-select,#bg-select{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;height:${sbH}px;padding:0 4px;color:${c.statusBarColor};font:${c.toolbarFont};outline:none;opacity:0.7}
-    #zoom-select{min-width:62px}
-    #flavor-select{min-width:72px}
-    #resolution-select{min-width:70px}
-    #locale-dropdown{min-width:28px;justify-content:center}
+    #locale-dropdown{justify-content:center;padding:0 8px}
     .locale-stack{display:flex;flex-direction:column;align-items:center;line-height:1;font-size:10px;margin-top:2px;font-family:monospace}
     .locale-single{font-family:monospace;font-size:12px}
-    .custom-dropdown{position:relative;display:flex;align-items:center;border-right:1px solid ${c.rulerBorder};padding:0 4px;height:${sbH}px;cursor:pointer;opacity:0.7}
+    .custom-dropdown{flex-shrink:0;background:none;border:none;color:${c.statusBarColor};font:${c.toolbarFont};outline:none;position:relative;display:flex;align-items:center;border-right:1px solid ${c.rulerBorder};padding:0 8px;height:${sbH}px;cursor:pointer;opacity:0.7}
     .custom-dropdown:hover{background:rgba(255,255,255,0.07);opacity:1}
     .custom-dropdown-trigger{display:flex;align-items:center;gap:4px}
     .dropdown-trigger-label{font:${c.toolbarFont};color:${c.statusBarColor}}
@@ -727,6 +748,7 @@ export class ScryerPanel {
     .dropdown-item{padding:4px 8px;display:flex;align-items:center;gap:6px;font:${c.toolbarFont};cursor:pointer}
     .dropdown-item:hover{background:var(--vscode-list-activeSelectionBackground);color:var(--vscode-list-activeSelectionForeground)}
     .dropdown-item.selected{background:var(--vscode-list-inactiveSelectionBackground)}
+    .dropdown-item.disabled{opacity:0.45;font-style:italic;cursor:default;pointer-events:none}
     .dropdown-item-preview{width:14px;height:14px;border:1px solid rgba(255,255,255,0.2);border-radius:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px}
     #bg-preview{width:14px;height:14px;border:1px solid rgba(255,255,255,0.2);border-radius:2px;flex-shrink:0;pointer-events:none}
     .bg-preview-auto{background:repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_DARK_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_DARK_COLOR2} 0% 50%) 50% / 10px 10px}
@@ -737,8 +759,6 @@ export class ScryerPanel {
     .bg-preview-white{background:${WORKAREA_BG_WHITE}}
     .bg-preview-gray{background:${WORKAREA_BG_GRAY}}
     .bg-preview-magenta{background:${WORKAREA_BG_MAGENTA}}
-    #zoom-select option,#flavor-select option,#resolution-select option,#locale-select option,#bg-select option{background:${c.statusBarBg};color:${c.statusBarColor}}
-    #flavor-select option:disabled,#resolution-select option:disabled{opacity:0.45;font-style:italic}
     #debug{padding:0 4px;white-space:pre-wrap;font:${c.statusTextFont}}
     #ruler-top{position:fixed;top:${sbH}px;left:0;right:0;height:${rsz}px;z-index:9999;display:none}
     #ruler-left{position:fixed;top:${sbH}px;left:0;bottom:0;width:${rsz}px;z-index:9999;display:none}
@@ -797,32 +817,53 @@ export class ScryerPanel {
         </div>
       </div>
     </div>
-    <select id="flavor-select" title="WoW flavor (✓ = installed)">
-      ${flavorOptions}
-    </select>
-    <select id="resolution-select" title="${resolutionTitle}">
-      <option disabled>=16:9=</option>
-      ${resOpt("1280x720")}
-      ${resOpt("1920x1080")}
-      ${resOpt("2560x1440")}
-      ${resOpt("3840x2160")}
-      <option disabled>=16:10=</option>
-      ${resOpt("1440x900")}
-      ${resOpt("1920x1200")}
-      ${resOpt("2560x1600")}
-      <option disabled>=21:9=</option>
-      ${resOpt("1720x720")}
-      ${resOpt("2580x1080")}
-      ${resOpt("3440x1440")}
-      <option disabled>=4:3=</option>
-      ${resOpt("800x600")}
-      ${resOpt("1024x768")}
-    </select>
+    <div id="flavor-dropdown" class="custom-dropdown" title="WoW flavor (✓ = installed)">
+      <div id="flavor-dropdown-trigger" class="custom-dropdown-trigger">
+        <span class="dropdown-trigger-label">${flavorLabel}</span>
+      </div>
+      <div id="flavor-dropdown-menu" class="custom-dropdown-menu hidden">
+        ${flavorOptionsHtml}
+      </div>
+    </div>
+    <div id="resolution-dropdown" class="custom-dropdown" title="${resolutionTitle}">
+      <div id="resolution-dropdown-trigger" class="custom-dropdown-trigger">
+        <span class="dropdown-trigger-label">${screenResolution}</span>
+      </div>
+      <div id="resolution-dropdown-menu" class="custom-dropdown-menu hidden">
+        ${resHeader("=16:9=")}
+        ${resOpt("1280x720")}
+        ${resOpt("1920x1080")}
+        ${resOpt("2560x1440")}
+        ${resOpt("3840x2160")}
+        ${resHeader("=16:10=")}
+        ${resOpt("1440x900")}
+        ${resOpt("1920x1200")}
+        ${resOpt("2560x1600")}
+        ${resHeader("=21:9=")}
+        ${resOpt("1720x720")}
+        ${resOpt("2580x1080")}
+        ${resOpt("3440x1440")}
+        ${resHeader("=4:3=")}
+        ${resOpt("800x600")}
+        ${resOpt("1024x768")}
+      </div>
+    </div>
     ${buildLocaleDropdownHtml(locale)}
-    <select id="zoom-select" title="Zoom level">
-      <option value="fit">Fit</option>
-${ZOOM_PRESETS.map((pct) => `      <option value="${pct}"${pct === 100 ? " selected" : ""}>${pct}%</option>`).join("\n")}
-    </select>
+    <div id="zoom-dropdown" class="custom-dropdown" title="Zoom level">
+      <div id="zoom-dropdown-trigger" class="custom-dropdown-trigger">
+        <span class="dropdown-trigger-label" id="zoom-dropdown-label">100%</span>
+      </div>
+      <div id="zoom-dropdown-menu" class="custom-dropdown-menu hidden">
+        <div class="dropdown-item" data-value="fit">
+          <span class="dropdown-item-text">Fit</span>
+        </div>
+${ZOOM_PRESETS.map(
+  (pct) => `        <div class="dropdown-item${pct === 100 ? " selected" : ""}" data-value="${pct}">
+          <span class="dropdown-item-text">${pct}%</span>
+        </div>`,
+).join("\n")}
+      </div>
+    </div>
     <span id="debug">script not yet loaded</span>
   </div>
   <div id="viewport"></div>

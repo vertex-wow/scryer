@@ -44,10 +44,6 @@ let canvasMode: CanvasMode = DEFAULT_CANVAS_MODE;
 
 const interactBtn = document.getElementById("interact-toggle");
 const grabBtn = document.getElementById("grab-toggle");
-const zoomSelect = document.getElementById("zoom-select") as HTMLSelectElement | null;
-const flavorSelect = document.getElementById("flavor-select") as HTMLSelectElement | null;
-const resolutionSelect = document.getElementById("resolution-select") as HTMLSelectElement | null;
-const localeSelect = document.getElementById("locale-select") as HTMLSelectElement | null;
 const bgDropdownMenu = document.getElementById("bg-dropdown-menu") as HTMLElement | null;
 const bgPreview = document.getElementById("bg-preview") as HTMLElement | null;
 
@@ -117,21 +113,10 @@ function applyTransform(): void {
 }
 
 function updateZoomDisplay(): void {
-  if (!zoomSelect) return;
+  const label = document.getElementById("zoom-dropdown-label");
+  if (!label) return;
   const pct = Math.round(panZoom * 100);
-  const match = ZOOM_PRESETS.find((p) => p === pct);
-  if (match !== undefined) {
-    zoomSelect.value = String(match);
-  } else {
-    let customOpt = zoomSelect.querySelector<HTMLOptionElement>('option[value="custom"]');
-    if (!customOpt) {
-      customOpt = document.createElement("option");
-      customOpt.value = "custom";
-      zoomSelect.insertBefore(customOpt, zoomSelect.firstChild);
-    }
-    customOpt.textContent = `${pct}%`;
-    zoomSelect.value = "custom";
-  }
+  label.textContent = `${pct}%`;
 }
 
 function zoomAt(newZoom: number, mx: number, my: number): void {
@@ -311,8 +296,10 @@ document.getElementById("recenter-btn")?.addEventListener("click", () => {
   if (currentConfig) centerOnContent(currentConfig);
 });
 
-zoomSelect?.addEventListener("change", () => {
-  const val = zoomSelect.value;
+import { setupDropdown } from "./dropdown.js";
+import { setupLocaleDropdown, getLocaleLabel } from "./locale-dropdown.js";
+
+setupDropdown("zoom-dropdown", "zoom-dropdown-menu", (val) => {
   if (val === "fit") {
     if (currentConfig) zoomToFit(currentConfig);
   } else if (val !== "custom") {
@@ -325,26 +312,15 @@ zoomSelect?.addEventListener("change", () => {
   }
 });
 
-flavorSelect?.addEventListener("change", () => {
-  vscode.postMessage({ type: "settingChange", key: "flavor", value: flavorSelect.value });
+setupDropdown("flavor-dropdown", "flavor-dropdown-menu", (value) => {
+  vscode.postMessage({ type: "settingChange", key: "flavor", value });
 });
 
-resolutionSelect?.addEventListener("change", () => {
-  vscode.postMessage({
-    type: "settingChange",
-    key: "screenResolution",
-    value: resolutionSelect.value,
-  });
+setupDropdown("resolution-dropdown", "resolution-dropdown-menu", (value) => {
+  vscode.postMessage({ type: "settingChange", key: "screenResolution", value });
 });
 
-localeSelect?.addEventListener("change", () => {
-  vscode.postMessage({ type: "settingChange", key: "locale", value: localeSelect.value });
-});
-
-import { setupDropdown } from "./dropdown.js";
-import { setupLocaleDropdown, getLocaleLabel } from "./locale-dropdown.js";
-
-setupDropdown("bg-dropdown-trigger", "bg-dropdown-menu", (value) => {
+setupDropdown("bg-dropdown", "bg-dropdown-menu", (value) => {
   vscode.postMessage({ type: "settingChange", key: "workareaBackground", value });
 });
 
@@ -939,9 +915,63 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
     case "render":
     case "reload": {
       dbg(`received ${msg.frames.length} frame${msg.frames.length === 1 ? "" : "s"}`);
-      if (flavorSelect) flavorSelect.value = msg.toolbarState.flavor;
-      if (resolutionSelect) resolutionSelect.value = msg.toolbarState.screenResolution;
-      if (localeSelect) localeSelect.value = msg.toolbarState.locale;
+      const updateDropdown = (
+        menuId: string,
+        value: string,
+        updateTrigger: (selectedLabel: string) => void,
+      ) => {
+        const menu = document.getElementById(menuId);
+        if (!menu) return;
+        let selectedLabel = value;
+        for (const item of menu.querySelectorAll(".dropdown-item")) {
+          if (item.getAttribute("data-value") === value) {
+            item.classList.add("selected");
+            const textEl = item.querySelector(".dropdown-item-text");
+            if (textEl) selectedLabel = textEl.textContent || value;
+          } else {
+            item.classList.remove("selected");
+          }
+        }
+        updateTrigger(selectedLabel);
+      };
+
+      updateDropdown("flavor-dropdown-menu", msg.toolbarState.flavor, (label) => {
+        const trigger = document.querySelector("#flavor-dropdown-trigger .dropdown-trigger-label");
+        if (trigger) trigger.textContent = label;
+      });
+
+      updateDropdown("resolution-dropdown-menu", msg.toolbarState.screenResolution, (label) => {
+        const trigger = document.querySelector(
+          "#resolution-dropdown-trigger .dropdown-trigger-label",
+        );
+        if (trigger) trigger.textContent = msg.toolbarState.screenResolution;
+      });
+
+      updateDropdown("locale-dropdown-menu", msg.toolbarState.locale, (label) => {
+        const trigger = document.getElementById("locale-dropdown-trigger");
+        if (trigger) {
+          const loc = msg.toolbarState.locale;
+          let displayTop = loc;
+          let displayBottom = "";
+          if (loc && loc.length === 4) {
+            displayTop = loc.substring(0, 2);
+            // It's a simplification, we could import the full logic but this suffices to render
+            if (
+              loc !== "enUS" &&
+              loc !== "deDE" &&
+              loc !== "frFR" &&
+              loc !== "ruRU" &&
+              loc !== "koKR" &&
+              loc !== "itIT"
+            ) {
+              displayBottom = loc.substring(2, 4);
+            }
+          }
+          trigger.innerHTML = displayBottom
+            ? `<div class="locale-stack"><span>${displayTop}</span><span>${displayBottom}</span></div>`
+            : `<span class="locale-single">${displayTop}</span>`;
+        }
+      });
       if (bgDropdownMenu && msg.toolbarState) {
         // Update selected class
         for (const item of bgDropdownMenu.querySelectorAll(".dropdown-item")) {

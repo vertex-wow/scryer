@@ -70,7 +70,7 @@ export function buildLocaleDropdownHtml(currentLocale: string): string {
 }
 
 export function setupLocaleDropdown() {
-  setupDropdown("locale-dropdown-trigger", "locale-dropdown-menu", (value) => {
+  setupDropdown("locale-dropdown", "locale-dropdown-menu", (value) => {
     // We expect vscode to be available in the global scope in main.ts
     // but to avoid undefined error, we dispatch an event
     const evt = new CustomEvent("localeChange", { detail: value });
