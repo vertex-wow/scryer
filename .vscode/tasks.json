@@ -4,8 +4,8 @@
     {
       "label": "build",
       "type": "shell",
-      "command": "pnpm",
-      "args": ["run", "build"],
+      "command": "node",
+      "args": ["esbuild.mjs"],
       "group": { "kind": "build", "isDefault": true },
       "presentation": { "reveal": "silent" },
       "problemMatcher": []
@@ -13,8 +13,8 @@
     {
       "label": "watch",
       "type": "shell",
-      "command": "pnpm",
-      "args": ["run", "watch"],
+      "command": "node",
+      "args": ["esbuild.mjs", "--watch"],
       "isBackground": true,
       "group": "build",
       "presentation": { "reveal": "never" },
@@ -26,7 +26,7 @@
         },
         "background": {
           "activeOnStart": true,
-          "beginsPattern": "^Watching",
+          "beginsPattern": "^> node esbuild\\.mjs",
           "endsPattern": "^Watching"
         }
       }
