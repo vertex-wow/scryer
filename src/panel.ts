@@ -8,6 +8,8 @@ import { collectTexturePaths } from "./parser/collect-textures.js";
 import { parseXmlFile } from "./parser/index.js";
 import { resolveInheritance } from "./parser/inherit.js";
 import type { HostMessage, Viewport, WebviewMessage } from "./protocol.js";
+import type { CanvasMode } from "./constants.js";
+import { ZOOM_PRESETS, DEFAULT_CANVAS_MODE } from "./constants.js";
 
 function getNonce(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -164,7 +166,8 @@ export class ScryerPanel {
         if (
           e.affectsConfiguration("scryer.flavor") ||
           e.affectsConfiguration("scryer.locale") ||
-          e.affectsConfiguration("scryer.screenResolution")
+          e.affectsConfiguration("scryer.screenResolution") ||
+          e.affectsConfiguration("scryer.defaultCanvasMode")
         ) {
           void this.renderFile(uri);
         }
@@ -383,6 +386,7 @@ export class ScryerPanel {
     const flavor = cfg.get<string>("flavor") ?? "retail";
     const locale = cfg.get<string>("locale") ?? "enUS";
     const screenResolution = cfg.get<string>("screenResolution") ?? "1920x1080";
+    const defaultCanvasMode = cfg.get<CanvasMode>("defaultCanvasMode") ?? DEFAULT_CANVAS_MODE;
     const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
     const flavorConfig = resolveFlavorConfig(flavor, userConfigPath);
     const [rw, rh] = screenResolution.split("x").map(Number);
@@ -521,7 +525,7 @@ export class ScryerPanel {
         pendingFiles: isFirstExtraction ? texturePaths.length : 0,
         flavorConfig,
         defaultFontUri,
-        toolbarState: { flavor, locale, screenResolution },
+        toolbarState: { flavor, locale, screenResolution, defaultCanvasMode },
       };
 
       void this.panel.webview.postMessage(msg);
@@ -635,8 +639,8 @@ export class ScryerPanel {
 <body>
   <div id="status-bar">
     <button id="ruler-toggle" class="toolbar-btn" title="Toggle pixel ruler"><span class="ruler-icon">📏</span></button>
-    <button id="grab-toggle" class="toolbar-btn" title="Grab — pan and zoom (drag · middle-drag · space-drag · ctrl+scroll · ctrl+0 fit · ctrl+shift+0 reset)"><svg width="12" height="13" viewBox="0 0 12 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="2" width="2" height="6" rx="1"/><rect x="4" y="0" width="2" height="8" rx="1"/><rect x="7" y="0" width="2" height="8" rx="1"/><rect x="10" y="2" width="2" height="6" rx="1"/><rect x="0" y="7" width="12" height="6" rx="2"/></svg></button>
     <button id="interact-toggle" class="toolbar-btn" title="Interact — normal mouse cursor"><svg width="10" height="13" viewBox="0 0 10 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><polygon points="0,0 0,10 2.5,7.5 4.5,12.5 6,12 4,7 7.5,7"/></svg></button>
+    <button id="grab-toggle" class="toolbar-btn" title="Grab — pan and zoom (drag · middle-drag · space-drag · ctrl+scroll · ctrl+0 fit · ctrl+shift+0 reset)"><svg width="12" height="13" viewBox="0 0 12 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="2" width="2" height="6" rx="1"/><rect x="4" y="0" width="2" height="8" rx="1"/><rect x="7" y="0" width="2" height="8" rx="1"/><rect x="10" y="2" width="2" height="6" rx="1"/><rect x="0" y="7" width="12" height="6" rx="2"/></svg></button>
     <button id="recenter-btn" class="toolbar-btn" title="Re-center canvas"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="2.8"/><line x1="6.5" y1="0.5" x2="6.5" y2="3.7"/><line x1="6.5" y1="9.3" x2="6.5" y2="12.5"/><line x1="0.5" y1="6.5" x2="3.7" y2="6.5"/><line x1="9.3" y1="6.5" x2="12.5" y2="6.5"/></svg></button>
     <button id="eyedropper-toggle" class="toolbar-btn" title="Eyedropper &mdash; sample pixel color (Ctrl+C to copy)"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M13.354.646a1.207 1.207 0 0 0-1.708 0L8.5 3.793l-.646-.647a.5.5 0 1 0-.708.708L8.293 5l-7.147 7.146A.5.5 0 0 0 1 12.5v1.793l-.854.853a.5.5 0 1 0 .708.707L1.707 15H3.5a.5.5 0 0 0 .354-.146L11 7.707l1.146 1.147a.5.5 0 0 0 .708-.708l-.647-.646 3.147-3.146a1.207 1.207 0 0 0 0-1.708zM2 12.707l7-7L10.293 7l-7 7H2z"/></svg></button>
     <select id="flavor-select" title="WoW flavor (✓ = installed)">
@@ -677,14 +681,7 @@ export class ScryerPanel {
     </select>
     <select id="zoom-select" title="Zoom level">
       <option value="fit">Fit</option>
-      <option value="25">25%</option>
-      <option value="50">50%</option>
-      <option value="75">75%</option>
-      <option value="100" selected>100%</option>
-      <option value="150">150%</option>
-      <option value="200">200%</option>
-      <option value="400">400%</option>
-      <option value="800">800%</option>
+${ZOOM_PRESETS.map((pct) => `      <option value="${pct}"${pct === 100 ? " selected" : ""}>${pct}%</option>`).join("\n")}
     </select>
     <span id="debug">script not yet loaded</span>
   </div>

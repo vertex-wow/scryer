@@ -1,5 +1,6 @@
 import type { FrameIR } from "./parser/ir.js";
 import type { ResolvedFlavorConfig } from "./flavors/config.js";
+import type { CanvasMode } from "./constants.js";
 
 export type { ResolvedFlavorConfig };
 
@@ -12,6 +13,7 @@ export interface ToolbarState {
   flavor: string;
   locale: string;
   screenResolution: string;
+  defaultCanvasMode: CanvasMode;
 }
 
 // Extension host → webview
@@ -57,7 +59,11 @@ export type WebviewMessage =
       event: "OnClick" | "OnEnter" | "OnLeave";
       extra?: unknown[];
     }
-  | { type: "settingChange"; key: "flavor" | "locale" | "screenResolution"; value: string }
+  | {
+      type: "settingChange";
+      key: "flavor" | "locale" | "screenResolution" | "defaultCanvasMode";
+      value: string;
+    }
   | { type: "eyedropperOn" }
   | { type: "eyedropperOff" }
   | { type: "eyedropperSample"; r: number; g: number; b: number; a: number; x: number; y: number }

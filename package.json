@@ -185,6 +185,15 @@
           "default": "enUS",
           "description": "WoW locale returned by GetLocale(). Affects addon code that branches on region."
         },
+        "scryer.defaultCanvasMode": {
+          "type": "string",
+          "enum": [
+            "interact",
+            "grab"
+          ],
+          "default": "interact",
+          "description": "Default interaction mode for the canvas. 'interact' passes clicks to elements, 'grab' allows panning by dragging anywhere."
+        },
         "scryer.screenResolution": {
           "type": "string",
           "enum": [

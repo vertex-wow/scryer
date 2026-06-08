@@ -11,5 +11,5 @@
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "scryer.showRuler": true,
-  "scryer.screenResolution": "3440x1440"
+  "scryer.screenResolution": "1920x1080"
 }
