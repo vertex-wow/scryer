@@ -346,14 +346,25 @@ export function renderFrames(
   const checkerSize = config.viewportCheckerSize;
   container.style.cssText = [
     "position:relative",
-    `width:${viewport.w}px`,
-    `height:${viewport.h}px`,
+    `width:${config.screenWidth}px`,
+    `height:${config.screenHeight}px`,
     "overflow:hidden",
     `background-color:${config.viewportBg}`,
     `background-image:repeating-conic-gradient(${config.viewportCheckerDark} 0% 25%,${config.viewportCheckerLight} 0% 50%)`,
     `background-size:${checkerSize}px ${checkerSize}px`,
     ...(scale !== 1 ? [`transform:scale(${scale})`, "transform-origin:top left"] : []),
   ].join(";");
+
+  const uiScale = config.screenHeight / viewport.h;
+  const logicalParent = document.createElement("div");
+  logicalParent.id = "wow-logical-parent";
+  logicalParent.style.cssText = [
+    "position:absolute",
+    "inset:0",
+    "transform-origin:top left",
+    `transform:scale(${uiScale})`,
+  ].join(";");
+  container.appendChild(logicalParent);
 
   const viewportRect: Rect = { left: 0, top: 0, width: viewport.w, height: viewport.h };
 
@@ -366,7 +377,7 @@ export function renderFrames(
 
   for (const frame of renderable) {
     const rect = rectMap.get(frame) ?? viewportRect;
-    container.appendChild(
+    logicalParent.appendChild(
       renderFrame(frame, rect, viewportRect, rectMap, viewportRect, config, onFrameEvent, true),
     );
   }

@@ -14,9 +14,9 @@ const viewport = document.getElementById("viewport");
 const debug = document.getElementById("debug");
 if (!viewport) throw new Error("Missing #viewport element");
 
-// Current WoW viewport element, scale, and config — retained so resize/zoom can redraw rulers.
 let currentWowViewport: HTMLElement | null = null;
 let currentScale = 1;
+let currentUiScale = 1;
 let currentConfig: ResolvedFlavorConfig | null = null;
 
 // ---------------------------------------------------------------------------
@@ -67,12 +67,12 @@ function zoomAt(newZoom: number, mx: number, my: number): void {
   applyTransform();
   updateZoomDisplay();
   if (currentWowViewport && currentConfig)
-    updateRulers(currentWowViewport, currentScale, currentConfig);
+    updateRulers(currentWowViewport, currentScale * currentUiScale * panZoom, currentConfig);
 }
 
 function zoomToFit(config: ResolvedFlavorConfig): void {
-  const wowW = config.uiParentWidth * config.frameScale;
-  const wowH = config.uiParentHeight * config.frameScale;
+  const wowW = config.screenWidth * config.frameScale;
+  const wowH = config.screenHeight * config.frameScale;
   const availW = window.innerWidth;
   const availH = window.innerHeight - config.statusBarHeight;
   panZoom = Math.min(availW / wowW, availH / wowH) * 0.92;
@@ -80,19 +80,23 @@ function zoomToFit(config: ResolvedFlavorConfig): void {
   panY = config.statusBarHeight + (availH - wowH * panZoom) / 2;
   applyTransform();
   updateZoomDisplay();
-  if (currentWowViewport) updateRulers(currentWowViewport, currentScale, config);
+  if (currentWowViewport)
+    updateRulers(currentWowViewport, currentScale * currentUiScale * panZoom, config);
 }
 
 function centerOnContent(config: ResolvedFlavorConfig): void {
   const wowVp = document.getElementById("wow-viewport");
+  const logicalParent = document.getElementById("wow-logical-parent");
   const scale = config.frameScale;
+  const uiScale = config.screenHeight / config.uiParentHeight;
 
   let minL = Infinity,
     minT = Infinity,
     maxR = -Infinity,
     maxB = -Infinity;
-  if (wowVp) {
-    for (const child of Array.from(wowVp.children)) {
+  const container = logicalParent || wowVp;
+  if (container) {
+    for (const child of Array.from(container.children)) {
       const el = child as HTMLElement;
       const w = el.offsetWidth,
         h = el.offsetHeight;
@@ -105,19 +109,21 @@ function centerOnContent(config: ResolvedFlavorConfig): void {
     }
   }
 
+  const effectiveScale = scale * uiScale;
   // Bbox center in #viewport-local CSS px (frameScale converts WoW logical → CSS px).
   const bboxCssX = isFinite(minL)
-    ? ((minL + maxR) / 2) * scale
-    : (config.uiParentWidth * scale) / 2;
+    ? ((minL + maxR) / 2) * effectiveScale
+    : (config.screenWidth * scale) / 2;
   const bboxCssY = isFinite(minT)
-    ? ((minT + maxB) / 2) * scale
-    : (config.uiParentHeight * scale) / 2;
+    ? ((minT + maxB) / 2) * effectiveScale
+    : (config.screenHeight * scale) / 2;
 
   const visH = window.innerHeight - config.statusBarHeight;
   panX = window.innerWidth / 2 - bboxCssX * panZoom;
   panY = config.statusBarHeight + visH / 2 - bboxCssY * panZoom;
   applyTransform();
-  if (currentWowViewport) updateRulers(currentWowViewport, currentScale, config);
+  if (currentWowViewport)
+    updateRulers(currentWowViewport, currentScale * currentUiScale * panZoom, config);
 }
 
 // ---------------------------------------------------------------------------
@@ -447,8 +453,8 @@ window.addEventListener("mousemove", (e: MouseEvent) => {
   if (!pixel) return;
   const [r, g, b, a] = pixel;
   // Convert viewport client coords → WoW logical pixel coords
-  const x = Math.round((e.clientX - panX) / panZoom / currentScale);
-  const y = Math.round((e.clientY - panY) / panZoom / currentScale);
+  const x = Math.round((e.clientX - panX) / panZoom / currentScale / currentUiScale);
+  const y = Math.round((e.clientY - panY) / panZoom / currentScale / currentUiScale);
   eyedropperText = formatEyedropperColor(r, g, b, a, x, y);
   if (debug) debug.textContent = eyedropperText;
   vscode.postMessage({ type: "eyedropperSample", r, g, b, a, x, y });
@@ -511,7 +517,7 @@ window.addEventListener("mousemove", (e: MouseEvent) => {
   panY = panStartY + (e.clientY - dragStartY);
   applyTransform();
   if (currentWowViewport && currentConfig)
-    updateRulers(currentWowViewport, currentScale, currentConfig);
+    updateRulers(currentWowViewport, currentScale * currentUiScale * panZoom, currentConfig);
 });
 
 window.addEventListener("mouseup", () => {
@@ -569,7 +575,7 @@ document.body.addEventListener(
       panY -= e.deltaY;
       applyTransform();
       if (currentWowViewport && currentConfig)
-        updateRulers(currentWowViewport, currentScale, currentConfig);
+        updateRulers(currentWowViewport, currentScale * currentUiScale * panZoom, currentConfig);
     }
   },
   { passive: false },
@@ -581,7 +587,7 @@ document.body.addEventListener(
 
 window.addEventListener("resize", () => {
   if (currentWowViewport && currentConfig)
-    updateRulers(currentWowViewport, currentScale, currentConfig);
+    updateRulers(currentWowViewport, currentScale * currentUiScale * panZoom, currentConfig);
 });
 
 // ---------------------------------------------------------------------------
@@ -872,7 +878,9 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         currentWowViewport = document.getElementById("wow-viewport");
         currentConfig = msg.flavorConfig;
         currentScale = currentConfig.frameScale;
-        if (currentWowViewport) updateRulers(currentWowViewport, currentScale, currentConfig);
+        currentUiScale = currentConfig.screenHeight / currentConfig.uiParentHeight;
+        if (currentWowViewport)
+          updateRulers(currentWowViewport, currentScale * currentUiScale * panZoom, currentConfig);
         // On first render (not hot-reload), center the frame content in view.
         if (msg.type === "render") centerOnContent(msg.flavorConfig);
         let suffix = " ✓";
@@ -906,7 +914,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
     case "setRuler": {
       setRulersVisible(msg.show);
       if (msg.show && currentWowViewport && currentConfig)
-        updateRulers(currentWowViewport, currentScale, currentConfig);
+        updateRulers(currentWowViewport, currentScale * currentUiScale * panZoom, currentConfig);
       break;
     }
 

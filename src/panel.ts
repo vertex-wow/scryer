@@ -617,6 +617,16 @@ export class ScryerPanel {
       })
       .join("\n      ");
 
+    const [rw, rh] = screenResolution.split("x").map(Number);
+    const currentUiParentWidth = Math.round((768 * rw) / rh);
+    const resolutionTitle = `Native Screen Resolution&#10;${screenResolution} = ${currentUiParentWidth}x768 in-game`;
+
+    const resOpt = (res: string) => {
+      const [w, h] = res.split("x").map(Number);
+      const gw = Math.round((768 * w) / h);
+      return `<option value="${res}" title="${res} = ${gw}x768 in-game"${s(screenResolution, res)}>${res}</option>`;
+    };
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -663,23 +673,23 @@ export class ScryerPanel {
     <select id="flavor-select" title="WoW flavor (✓ = installed)">
       ${flavorOptions}
     </select>
-    <select id="resolution-select" title="Screen resolution">
+    <select id="resolution-select" title="${resolutionTitle}">
       <option disabled>=16:9=</option>
-      <option value="1280x720"${s(screenResolution, "1280x720")}>1280x720</option>
-      <option value="1920x1080"${s(screenResolution, "1920x1080")}>1920x1080</option>
-      <option value="2560x1440"${s(screenResolution, "2560x1440")}>2560x1440</option>
-      <option value="3840x2160"${s(screenResolution, "3840x2160")}>3840x2160</option>
+      ${resOpt("1280x720")}
+      ${resOpt("1920x1080")}
+      ${resOpt("2560x1440")}
+      ${resOpt("3840x2160")}
       <option disabled>=16:10=</option>
-      <option value="1440x900"${s(screenResolution, "1440x900")}>1440x900</option>
-      <option value="1920x1200"${s(screenResolution, "1920x1200")}>1920x1200</option>
-      <option value="2560x1600"${s(screenResolution, "2560x1600")}>2560x1600</option>
+      ${resOpt("1440x900")}
+      ${resOpt("1920x1200")}
+      ${resOpt("2560x1600")}
       <option disabled>=21:9=</option>
-      <option value="1720x720"${s(screenResolution, "1720x720")}>1720x720</option>
-      <option value="2580x1080"${s(screenResolution, "2580x1080")}>2580x1080</option>
-      <option value="3440x1440"${s(screenResolution, "3440x1440")}>3440x1440</option>
+      ${resOpt("1720x720")}
+      ${resOpt("2580x1080")}
+      ${resOpt("3440x1440")}
       <option disabled>=4:3=</option>
-      <option value="800x600"${s(screenResolution, "800x600")}>800x600</option>
-      <option value="1024x768"${s(screenResolution, "1024x768")}>1024x768</option>
+      ${resOpt("800x600")}
+      ${resOpt("1024x768")}
     </select>
     <select id="locale-select" title="WoW locale (GetLocale)">
       <option value="enUS" title="English (US)"${s(locale, "enUS")}>enUS</option>
