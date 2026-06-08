@@ -2,6 +2,7 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Install-blue?logo=visualstudiocode)](MARKETPLACE_LINK_PLACEHOLDER)
+[![Open VSX Registry](https://img.shields.io/badge/Open%20VSX-Install-blue)](OPEN_VSX_LINK_PLACEHOLDER)
 
 > Preview WoW addon UI frames directly in your editor — no game client required.
 
@@ -25,9 +26,10 @@ Scryer is a VS Code extension that renders World of Warcraft addon XML frame def
 
 ## Installation
 
-**[Install from the VS Code Marketplace →](MARKETPLACE_LINK_PLACEHOLDER)**
+- **[Install from the VS Code Marketplace →](MARKETPLACE_LINK_PLACEHOLDER)** [VS Code]
+- **[Install from the Open VSX Registry →](OPEN_VSX_LINK_PLACEHOLDER)** [VSCodium, Cursor, Windsurf, Antigravity IDE]
 
-Or search for **"Scryer"** in the VS Code Extensions panel (`Ctrl+Shift+X` / `Cmd+Shift+X`).
+Or search for **"Scryer"** in the Extensions panel (`Ctrl+Shift+X` / `Cmd+Shift+X`).
 
 ### Recommended companion extension
 
