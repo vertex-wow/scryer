@@ -1145,6 +1145,16 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       }
       break;
     }
+
+    case "setCanvasMode": {
+      setMode(msg.mode);
+      break;
+    }
+
+    case "recenterCanvas": {
+      if (currentConfig) centerOnContent(currentConfig);
+      break;
+    }
   }
 });
 

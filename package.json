@@ -67,6 +67,21 @@
         "category": "Scryer"
       },
       {
+        "command": "scryer.toggleGameInput",
+        "title": "Toggle Game Input Mode",
+        "category": "Scryer"
+      },
+      {
+        "command": "scryer.toggleGrabPan",
+        "title": "Toggle Grab/Pan Mode",
+        "category": "Scryer"
+      },
+      {
+        "command": "scryer.recenterCanvas",
+        "title": "Recenter Canvas",
+        "category": "Scryer"
+      },
+      {
         "command": "scryer.openLiveFolder",
         "title": "Open WoW Live View",
         "category": "Scryer",
@@ -111,6 +126,32 @@
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "scryer.toggleGameInput",
+        "key": "i",
+        "mac": "i",
+        "when": "activeWebviewPanelId == 'scryer.live' || activeWebviewPanelId == 'scryer.preview'"
+      },
+      {
+        "command": "scryer.toggleGrabPan",
+        "key": "h",
+        "mac": "h",
+        "when": "activeWebviewPanelId == 'scryer.live' || activeWebviewPanelId == 'scryer.preview'"
+      },
+      {
+        "command": "scryer.toggleRuler",
+        "key": "r",
+        "mac": "r",
+        "when": "activeWebviewPanelId == 'scryer.live' || activeWebviewPanelId == 'scryer.preview'"
+      },
+      {
+        "command": "scryer.recenterCanvas",
+        "key": "c",
+        "mac": "c",
+        "when": "activeWebviewPanelId == 'scryer.live' || activeWebviewPanelId == 'scryer.preview'"
+      }
+    ],
     "configuration": {
       "title": "Scryer",
       "properties": {

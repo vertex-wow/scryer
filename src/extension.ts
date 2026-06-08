@@ -155,6 +155,21 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   context.subscriptions.push(eyedropperCmd);
 
+  const toggleGameInputCmd = vscode.commands.registerCommand("scryer.toggleGameInput", () => {
+    (ScryerPanel.activePanel ?? ScryerLivePanel.activePanel)?.setCanvasMode("interact");
+  });
+  context.subscriptions.push(toggleGameInputCmd);
+
+  const toggleGrabPanCmd = vscode.commands.registerCommand("scryer.toggleGrabPan", () => {
+    (ScryerPanel.activePanel ?? ScryerLivePanel.activePanel)?.setCanvasMode("grab");
+  });
+  context.subscriptions.push(toggleGrabPanCmd);
+
+  const recenterCanvasCmd = vscode.commands.registerCommand("scryer.recenterCanvas", () => {
+    (ScryerPanel.activePanel ?? ScryerLivePanel.activePanel)?.recenterCanvas();
+  });
+  context.subscriptions.push(recenterCanvasCmd);
+
   const cmd = vscode.commands.registerCommand("scryer.open", (uri?: vscode.Uri) => {
     const resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
     if (!resolved) {

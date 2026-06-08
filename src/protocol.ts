@@ -51,7 +51,9 @@ export type HostMessage =
   | { type: "fontResolved"; uri: string }
   | { type: "setRuler"; show: boolean }
   | { type: "setStatus"; state: "idle" | "extracting" | "buildingAtlas" }
-  | { type: "setEyedropper"; active: boolean };
+  | { type: "setEyedropper"; active: boolean }
+  | { type: "setCanvasMode"; mode: CanvasMode }
+  | { type: "recenterCanvas" };
 
 // Webview → extension host
 export type WebviewMessage =

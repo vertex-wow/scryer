@@ -268,6 +268,14 @@ export class ScryerLivePanel {
     this.toolbar.toggleEyedropper();
   }
 
+  setCanvasMode(mode: CanvasMode): void {
+    void this.panel.webview.postMessage({ type: "setCanvasMode", mode });
+  }
+
+  recenterCanvas(): void {
+    void this.panel.webview.postMessage({ type: "recenterCanvas" });
+  }
+
   // ── Webview message handler ──────────────────────────────────────────────────
 
   private async handleWebviewMessage(message: unknown, uri: vscode.Uri): Promise<void> {
