@@ -48,7 +48,6 @@ const zoomSelect = document.getElementById("zoom-select") as HTMLSelectElement |
 const flavorSelect = document.getElementById("flavor-select") as HTMLSelectElement | null;
 const resolutionSelect = document.getElementById("resolution-select") as HTMLSelectElement | null;
 const localeSelect = document.getElementById("locale-select") as HTMLSelectElement | null;
-const bgDropdownTrigger = document.getElementById("bg-dropdown-trigger") as HTMLElement | null;
 const bgDropdownMenu = document.getElementById("bg-dropdown-menu") as HTMLElement | null;
 const bgPreview = document.getElementById("bg-preview") as HTMLElement | null;
 
@@ -342,32 +341,18 @@ localeSelect?.addEventListener("change", () => {
   vscode.postMessage({ type: "settingChange", key: "locale", value: localeSelect.value });
 });
 
-if (bgDropdownTrigger && bgDropdownMenu) {
-  bgDropdownTrigger.addEventListener("click", (e) => {
-    e.stopPropagation();
-    bgDropdownMenu.classList.toggle("hidden");
-  });
+import { setupDropdown } from "./dropdown.js";
+import { setupLocaleDropdown, getLocaleLabel } from "./locale-dropdown.js";
 
-  bgDropdownMenu.addEventListener("click", (e) => {
-    const item = (e.target as HTMLElement).closest(".dropdown-item");
-    if (item) {
-      const value = item.getAttribute("data-value");
-      if (value) {
-        vscode.postMessage({ type: "settingChange", key: "workareaBackground", value });
-        bgDropdownMenu.classList.add("hidden");
-      }
-    }
-  });
+setupDropdown("bg-dropdown-trigger", "bg-dropdown-menu", (value) => {
+  vscode.postMessage({ type: "settingChange", key: "workareaBackground", value });
+});
 
-  document.addEventListener("click", (e) => {
-    if (
-      !bgDropdownMenu.contains(e.target as Node) &&
-      !bgDropdownTrigger.contains(e.target as Node)
-    ) {
-      bgDropdownMenu.classList.add("hidden");
-    }
-  });
-}
+setupLocaleDropdown();
+
+document.addEventListener("localeChange", (e) => {
+  vscode.postMessage({ type: "settingChange", key: "locale", value: (e as CustomEvent).detail });
+});
 
 // ---------------------------------------------------------------------------
 // Eyedropper
@@ -975,6 +960,70 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         const customPreview = bgDropdownMenu.querySelector("#custom-bg-preview");
         if (customPreview) {
           customPreview.textContent = msg.customBackgroundIsFolder ? "📁" : "🖼️";
+        }
+        const bgDropdown = document.getElementById("bg-dropdown");
+        if (bgDropdown) {
+          let currentBgText = msg.toolbarState.workareaBackground;
+          for (const item of bgDropdownMenu.querySelectorAll(".dropdown-item")) {
+            if (item.classList.contains("selected")) {
+              const textSpan = item.querySelector(".dropdown-item-text");
+              if (textSpan && textSpan.textContent) {
+                currentBgText = textSpan.textContent;
+              }
+              break;
+            }
+          }
+          bgDropdown.title = `Workarea Background\n${currentBgText}`;
+        }
+      }
+      const localeDropdownMenu = document.getElementById("locale-dropdown-menu");
+      if (localeDropdownMenu && msg.toolbarState) {
+        for (const item of localeDropdownMenu.querySelectorAll(".dropdown-item")) {
+          if (item.getAttribute("data-value") === msg.toolbarState.locale) {
+            item.classList.add("selected");
+          } else {
+            item.classList.remove("selected");
+          }
+        }
+
+        // Update top display
+        const trigger = document.getElementById("locale-dropdown-trigger");
+        if (trigger) {
+          const currentLocale = msg.toolbarState.locale;
+          let displayTop = currentLocale;
+          let displayBottom = "";
+
+          if (currentLocale && currentLocale.length === 4) {
+            const lang = currentLocale.substring(0, 2);
+            const region = currentLocale.substring(2, 4);
+
+            // To figure out if it's unique, we could duplicate the LOCALES logic,
+            // or we could just count items in the dropdown menu that start with lang.
+            let count = 0;
+            for (const item of localeDropdownMenu.querySelectorAll(".dropdown-item")) {
+              const val = item.getAttribute("data-value");
+              if (val && val.startsWith(lang)) {
+                count++;
+              }
+            }
+            if (count === 1) {
+              displayTop = lang;
+            } else {
+              displayTop = lang;
+              displayBottom = region;
+            }
+          }
+
+          const triggerLabel = displayBottom
+            ? `<div class="locale-stack"><span>${displayTop}</span><span>${displayBottom}</span></div>`
+            : `<span class="locale-single">${displayTop}</span>`;
+
+          trigger.innerHTML = triggerLabel;
+          const localeDropdown = document.getElementById("locale-dropdown");
+          if (localeDropdown) {
+            const fullLabel = getLocaleLabel(currentLocale);
+            localeDropdown.title = `WoW locale (GetLocale)\n${fullLabel}`;
+          }
         }
       }
 

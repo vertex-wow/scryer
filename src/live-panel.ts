@@ -1,4 +1,5 @@
 import * as path from "path";
+import { buildLocaleDropdownHtml } from "./webview/locale-dropdown.js";
 import * as vscode from "vscode";
 import type { LuaEngine } from "wasmoon";
 import { resolveAtlasNames } from "./assets/atlas-manifest.js";
@@ -772,6 +773,18 @@ TROUBLESHOOTING:
       return `<option value="${res}" title="${res} = ${gw}x768 in-game"${s(screenResolution, res)}>${res}</option>`;
     };
 
+    const bgLabelMap: Record<string, string> = {
+      checkerBoardAuto: "Checkerboard (Auto)",
+      checkerBoard: "Checkerboard (Dark)",
+      checkerBoardLight: "Checkerboard (Light)",
+      black: "Black",
+      white: "White",
+      neutralGray: "Neutral Gray (50%)",
+      magenta: "Magenta (Debug)",
+      custom: workareaBackgroundPath ? workareaBackgroundPath : "Custom...",
+    };
+    const bgLabel = bgLabelMap[workareaBackground] ?? workareaBackground;
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -789,17 +802,19 @@ TROUBLESHOOTING:
     .toolbar-btn.active{background:rgba(74,158,255,0.12);opacity:1;box-shadow:inset 0 -2px 0 #4a9eff}
     .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(0.85);display:inline-block}
     .toolbar-btn:hover .ruler-icon,.toolbar-btn.active .ruler-icon{filter:sepia(1) saturate(8) hue-rotate(-30deg) brightness(1.15)}
-    #zoom-select,#flavor-select,#resolution-select,#locale-select,#bg-select{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;height:${sbH}px;padding:0 4px;color:${c.statusBarColor};font:${c.toolbarFont};outline:none;opacity:0.7}
+    #zoom-select,#flavor-select,#resolution-select,#bg-select{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;height:${sbH}px;padding:0 4px;color:${c.statusBarColor};font:${c.toolbarFont};outline:none;opacity:0.7}
     #zoom-select{min-width:62px}
     #flavor-select{min-width:72px}
     #resolution-select{min-width:70px}
-    #locale-select{min-width:44px}
-    #bg-dropdown{position:relative;display:flex;align-items:center;border-right:1px solid ${c.rulerBorder};padding:0 4px;height:${sbH}px;cursor:pointer;opacity:0.7}
-    #bg-dropdown:hover{background:rgba(255,255,255,0.07);opacity:1}
-    #bg-dropdown-trigger{display:flex;align-items:center;gap:4px}
+    #locale-dropdown{min-width:28px;justify-content:center}
+    .locale-stack{display:flex;flex-direction:column;align-items:center;line-height:1;font-size:10px;margin-top:2px;font-family:monospace}
+    .locale-single{font-family:monospace;font-size:12px}
+    .custom-dropdown{position:relative;display:flex;align-items:center;border-right:1px solid ${c.rulerBorder};padding:0 4px;height:${sbH}px;cursor:pointer;opacity:0.7}
+    .custom-dropdown:hover{background:rgba(255,255,255,0.07);opacity:1}
+    .custom-dropdown-trigger{display:flex;align-items:center;gap:4px}
     .dropdown-trigger-label{font:${c.toolbarFont};color:${c.statusBarColor}}
-    #bg-dropdown-menu{position:absolute;top:${sbH}px;left:0;background:var(--vscode-dropdown-background);border:1px solid var(--vscode-dropdown-border);color:var(--vscode-dropdown-foreground);display:none;flex-direction:column;min-width:180px;z-index:10002;box-shadow:0 4px 6px rgba(0,0,0,0.3)}
-    #bg-dropdown-menu:not(.hidden){display:flex}
+    .custom-dropdown-menu{position:absolute;top:${sbH}px;left:0;background:var(--vscode-dropdown-background);border:1px solid var(--vscode-dropdown-border);color:var(--vscode-dropdown-foreground);display:none;flex-direction:column;min-width:180px;z-index:10002;box-shadow:0 4px 6px rgba(0,0,0,0.3)}
+    .custom-dropdown-menu:not(.hidden){display:flex}
     .dropdown-item{padding:4px 8px;display:flex;align-items:center;gap:6px;font:${c.toolbarFont};cursor:pointer}
     .dropdown-item:hover{background:var(--vscode-list-activeSelectionBackground);color:var(--vscode-list-activeSelectionForeground)}
     .dropdown-item.selected{background:var(--vscode-list-inactiveSelectionBackground)}
@@ -833,7 +848,7 @@ TROUBLESHOOTING:
     <button id="grab-toggle" class="toolbar-btn" title="Grab — pan and zoom (drag · middle-drag · space-drag · ctrl+scroll · ctrl+0 fit · ctrl+shift+0 reset)"><svg width="12" height="13" viewBox="0 0 12 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="2" width="2" height="6" rx="1"/><rect x="4" y="0" width="2" height="8" rx="1"/><rect x="7" y="0" width="2" height="8" rx="1"/><rect x="10" y="2" width="2" height="6" rx="1"/><rect x="0" y="7" width="12" height="6" rx="2"/></svg></button>
     <button id="recenter-btn" class="toolbar-btn" title="Re-center canvas"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="2.8"/><line x1="6.5" y1="0.5" x2="6.5" y2="3.7"/><line x1="6.5" y1="9.3" x2="6.5" y2="12.5"/><line x1="0.5" y1="6.5" x2="3.7" y2="6.5"/><line x1="9.3" y1="6.5" x2="12.5" y2="6.5"/></svg></button>
     <button id="eyedropper-toggle" class="toolbar-btn" title="Eyedropper &mdash; sample pixel color (Ctrl+C to copy)"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M13.354.646a1.207 1.207 0 0 0-1.708 0L8.5 3.793l-.646-.647a.5.5 0 1 0-.708.708L8.293 5l-7.147 7.146A.5.5 0 0 0 1 12.5v1.793l-.854.853a.5.5 0 1 0 .708.707L1.707 15H3.5a.5.5 0 0 0 .354-.146L11 7.707l1.146 1.147a.5.5 0 0 0 .708-.708l-.647-.646 3.147-3.146a1.207 1.207 0 0 0 0-1.708zM2 12.707l7-7L10.293 7l-7 7H2z"/></svg></button>
-    <div id="bg-dropdown" class="custom-dropdown" title="Workarea Background">
+    <div id="bg-dropdown" class="custom-dropdown" title="Workarea Background&#10;${bgLabel}">
       <div id="bg-dropdown-trigger" class="custom-dropdown-trigger">
         <div id="bg-preview"></div>
         <span class="dropdown-trigger-label">bg</span>
@@ -894,21 +909,7 @@ TROUBLESHOOTING:
       ${resOpt("800x600")}
       ${resOpt("1024x768")}
     </select>
-    <select id="locale-select" title="WoW locale (GetLocale)">
-      <option value="enUS" title="English (US)"${s(locale, "enUS")}>enUS</option>
-      <option value="enGB" title="English (GB)"${s(locale, "enGB")}>enGB</option>
-      <option value="deDE" title="German"${s(locale, "deDE")}>deDE</option>
-      <option value="frFR" title="French"${s(locale, "frFR")}>frFR</option>
-      <option value="esES" title="Spanish (Spain)"${s(locale, "esES")}>esES</option>
-      <option value="esMX" title="Spanish (Latin America)"${s(locale, "esMX")}>esMX</option>
-      <option value="ptBR" title="Portuguese (Brazil)"${s(locale, "ptBR")}>ptBR</option>
-      <option value="ptPT" title="Portuguese (Portugal)"${s(locale, "ptPT")}>ptPT</option>
-      <option value="ruRU" title="Russian"${s(locale, "ruRU")}>ruRU</option>
-      <option value="koKR" title="Korean"${s(locale, "koKR")}>koKR</option>
-      <option value="zhTW" title="Traditional Chinese"${s(locale, "zhTW")}>zhTW</option>
-      <option value="zhCN" title="Simplified Chinese"${s(locale, "zhCN")}>zhCN</option>
-      <option value="itIT" title="Italian"${s(locale, "itIT")}>itIT</option>
-    </select>
+    ${buildLocaleDropdownHtml(locale)}
     <select id="zoom-select" title="Zoom level">
       <option value="fit">Fit</option>
 ${ZOOM_PRESETS.map((pct) => `      <option value="${pct}"${pct === 100 ? " selected" : ""}>${pct}%</option>`).join("\n")}
