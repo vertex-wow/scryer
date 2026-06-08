@@ -425,7 +425,7 @@ export class ScryerLivePanel {
         locale: this.getSetting<string>("locale") ?? "enUS",
         screenResolution: this.getSetting<string>("screenResolution") ?? "1920x1080",
         defaultCanvasMode: this.getSetting<CanvasMode>("defaultCanvasMode") ?? DEFAULT_CANVAS_MODE,
-        workareaBackground: this.getSetting<string>("workareaBackground") ?? "checkerBoard",
+        workareaBackground: this.getSetting<string>("workareaBackground") ?? "checkerBoardAuto",
         workareaBackgroundPath: this.getSetting<string>("workareaBackgroundPath") ?? "",
       },
       customBackgroundUri: this.customBackgroundUri,
@@ -455,7 +455,7 @@ export class ScryerLivePanel {
     const screenResolution = this.getSetting<string>("screenResolution") ?? "1920x1080";
     const defaultCanvasMode =
       this.getSetting<CanvasMode>("defaultCanvasMode") ?? DEFAULT_CANVAS_MODE;
-    const workareaBackground = this.getSetting<string>("workareaBackground") ?? "checkerBoard";
+    const workareaBackground = this.getSetting<string>("workareaBackground") ?? "checkerBoardAuto";
     const workareaBackgroundPath = this.getSetting<string>("workareaBackgroundPath") ?? "";
     const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
     const flavorConfig = resolveFlavorConfig(flavor, userConfigPath);
@@ -723,7 +723,7 @@ TROUBLESHOOTING:
     const flavor = this.getSetting<string>("flavor") ?? "retail";
     const locale = this.getSetting<string>("locale") ?? "enUS";
     const screenResolution = this.getSetting<string>("screenResolution") ?? "1920x1080";
-    const workareaBackground = this.getSetting<string>("workareaBackground") ?? "checkerBoard";
+    const workareaBackground = this.getSetting<string>("workareaBackground") ?? "checkerBoardAuto";
     const workareaBackgroundPath = this.getSetting<string>("workareaBackgroundPath") ?? "";
     const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
     const c = resolveFlavorConfig(flavor, userConfigPath);
@@ -806,6 +806,7 @@ TROUBLESHOOTING:
     <div id="bg-wrapper" title="Workarea Background">
       <div id="bg-preview"></div>
       <select id="bg-select">
+        <option value="checkerBoardAuto"${s(workareaBackground, "checkerBoardAuto")}>🏁 Checkerboard (Auto)</option>
         <option value="checkerBoard"${s(workareaBackground, "checkerBoard")}>🏁 Checkerboard (Dark)</option>
         <option value="checkerBoardLight"${s(workareaBackground, "checkerBoardLight")}>🏁 Checkerboard (Light)</option>
         <option value="black"${s(workareaBackground, "black")}>⬛ Black</option>

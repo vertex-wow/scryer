@@ -277,6 +277,7 @@
         "scryer.workareaBackground": {
           "type": "string",
           "enum": [
+            "checkerBoardAuto",
             "checkerBoard",
             "checkerBoardLight",
             "black",
@@ -286,7 +287,8 @@
             "custom"
           ],
           "enumDescriptions": [
-            "Dark checkerboard pattern for transparency (default)",
+            "Auto checkerboard pattern based on VS Code theme (default)",
+            "Dark checkerboard pattern for transparency",
             "Light checkerboard pattern for transparency",
             "Solid black",
             "Solid white",
@@ -294,7 +296,7 @@
             "Solid magenta for debugging bounds and transparency",
             "Custom image (see scryer.workareaBackgroundPath)"
           ],
-          "default": "checkerBoard",
+          "default": "checkerBoardAuto",
           "description": "Background color/pattern of the preview workarea behind the canvas."
         },
         "scryer.workareaBackgroundPath": {

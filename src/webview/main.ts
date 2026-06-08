@@ -51,6 +51,67 @@ const localeSelect = document.getElementById("locale-select") as HTMLSelectEleme
 const bgSelect = document.getElementById("bg-select") as HTMLSelectElement | null;
 const bgPreview = document.getElementById("bg-preview") as HTMLElement | null;
 
+let lastWorkareaBackground = "checkerBoard";
+let lastCustomBackgroundUri: string | undefined = undefined;
+
+function applyWorkareaBackground(bgType: string, customUri?: string) {
+  let resolvedBg = bgType;
+  if (resolvedBg === "checkerBoardAuto") {
+    const isLight = document.body.classList.contains("vscode-light");
+    resolvedBg = isLight ? "checkerBoardLight" : "checkerBoard";
+  }
+
+  if (currentWowViewport) {
+    if (resolvedBg === "black") {
+      currentWowViewport.style.background = WORKAREA_BG_BLACK;
+    } else if (resolvedBg === "white") {
+      currentWowViewport.style.background = WORKAREA_BG_WHITE;
+    } else if (resolvedBg === "neutralGray") {
+      currentWowViewport.style.background = WORKAREA_BG_GRAY;
+    } else if (resolvedBg === "magenta") {
+      currentWowViewport.style.background = WORKAREA_BG_MAGENTA;
+    } else if (resolvedBg === "custom" && customUri) {
+      currentWowViewport.style.background = `url("${customUri}") no-repeat center center`;
+      currentWowViewport.style.backgroundSize = "cover";
+    } else if (resolvedBg === "checkerBoardLight") {
+      currentWowViewport.style.background = `repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR2} 0% 50%) 50% / ${WORKAREA_BG_CHECKERBOARD_LIGHT_SIZE} ${WORKAREA_BG_CHECKERBOARD_LIGHT_SIZE}`;
+    } else {
+      currentWowViewport.style.background = `repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_DARK_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_DARK_COLOR2} 0% 50%) 50% / ${WORKAREA_BG_CHECKERBOARD_DARK_SIZE} ${WORKAREA_BG_CHECKERBOARD_DARK_SIZE}`;
+    }
+  }
+
+  if (bgPreview) {
+    bgPreview.textContent = "";
+    bgPreview.style.border = "1px solid rgba(255,255,255,0.2)";
+    if (resolvedBg === "black") {
+      bgPreview.style.background = WORKAREA_BG_BLACK;
+    } else if (resolvedBg === "white") {
+      bgPreview.style.background = WORKAREA_BG_WHITE;
+    } else if (resolvedBg === "neutralGray") {
+      bgPreview.style.background = WORKAREA_BG_GRAY;
+    } else if (resolvedBg === "magenta") {
+      bgPreview.style.background = WORKAREA_BG_MAGENTA;
+    } else if (resolvedBg === "custom") {
+      bgPreview.style.background = "transparent";
+      bgPreview.style.border = "none";
+      bgPreview.textContent = "🖼️";
+      bgPreview.style.fontSize = "12px";
+      bgPreview.style.display = "flex";
+      bgPreview.style.alignItems = "center";
+      bgPreview.style.justifyContent = "center";
+    } else if (resolvedBg === "checkerBoardLight") {
+      bgPreview.style.background = `repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR2} 0% 50%) 50% / 10px 10px`;
+    } else {
+      bgPreview.style.background = `repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_DARK_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_DARK_COLOR2} 0% 50%) 50% / 10px 10px`;
+    }
+  }
+}
+
+const themeObserver = new MutationObserver(() => {
+  applyWorkareaBackground(lastWorkareaBackground, lastCustomBackgroundUri);
+});
+themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+
 function applyTransform(): void {
   viewport!.style.transform = `translate(${panX}px,${panY}px) scale(${panZoom})`;
 }
@@ -903,49 +964,10 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         );
         viewport!.appendChild(root);
         currentWowViewport = document.getElementById("wow-viewport");
-        if (currentWowViewport) {
-          if (msg.toolbarState.workareaBackground === "black") {
-            currentWowViewport.style.background = WORKAREA_BG_BLACK;
-          } else if (msg.toolbarState.workareaBackground === "white") {
-            currentWowViewport.style.background = WORKAREA_BG_WHITE;
-          } else if (msg.toolbarState.workareaBackground === "neutralGray") {
-            currentWowViewport.style.background = WORKAREA_BG_GRAY;
-          } else if (msg.toolbarState.workareaBackground === "magenta") {
-            currentWowViewport.style.background = WORKAREA_BG_MAGENTA;
-          } else if (msg.toolbarState.workareaBackground === "custom" && msg.customBackgroundUri) {
-            currentWowViewport.style.background = `url("${msg.customBackgroundUri}") no-repeat center center`;
-            currentWowViewport.style.backgroundSize = "cover";
-          } else if (msg.toolbarState.workareaBackground === "checkerBoardLight") {
-            currentWowViewport.style.background = `repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR2} 0% 50%) 50% / ${WORKAREA_BG_CHECKERBOARD_LIGHT_SIZE} ${WORKAREA_BG_CHECKERBOARD_LIGHT_SIZE}`;
-          } else {
-            currentWowViewport.style.background = `repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_DARK_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_DARK_COLOR2} 0% 50%) 50% / ${WORKAREA_BG_CHECKERBOARD_DARK_SIZE} ${WORKAREA_BG_CHECKERBOARD_DARK_SIZE}`;
-          }
-        }
-        if (bgPreview) {
-          bgPreview.textContent = "";
-          bgPreview.style.border = "1px solid rgba(255,255,255,0.2)";
-          if (msg.toolbarState.workareaBackground === "black") {
-            bgPreview.style.background = WORKAREA_BG_BLACK;
-          } else if (msg.toolbarState.workareaBackground === "white") {
-            bgPreview.style.background = WORKAREA_BG_WHITE;
-          } else if (msg.toolbarState.workareaBackground === "neutralGray") {
-            bgPreview.style.background = WORKAREA_BG_GRAY;
-          } else if (msg.toolbarState.workareaBackground === "magenta") {
-            bgPreview.style.background = WORKAREA_BG_MAGENTA;
-          } else if (msg.toolbarState.workareaBackground === "custom") {
-            bgPreview.style.background = "transparent";
-            bgPreview.style.border = "none";
-            bgPreview.textContent = "🖼️";
-            bgPreview.style.fontSize = "12px";
-            bgPreview.style.display = "flex";
-            bgPreview.style.alignItems = "center";
-            bgPreview.style.justifyContent = "center";
-          } else if (msg.toolbarState.workareaBackground === "checkerBoardLight") {
-            bgPreview.style.background = `repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR2} 0% 50%) 50% / 10px 10px`;
-          } else {
-            bgPreview.style.background = `repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_DARK_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_DARK_COLOR2} 0% 50%) 50% / 10px 10px`;
-          }
-        }
+        lastWorkareaBackground = msg.toolbarState.workareaBackground || "checkerBoard";
+        lastCustomBackgroundUri = msg.customBackgroundUri;
+        applyWorkareaBackground(lastWorkareaBackground, lastCustomBackgroundUri);
+
         currentConfig = msg.flavorConfig;
         currentScale = currentConfig.frameScale;
         currentUiScale = currentConfig.screenHeight / currentConfig.uiParentHeight;
