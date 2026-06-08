@@ -71,6 +71,15 @@ export class ScryerPanel {
   // when extraction produced no result (e.g. file not in CASC data store).
   private extractionTriedPaths = new Set<string>();
 
+  private ephemeralSettings: Record<string, unknown> = {};
+
+  private getSetting<T>(key: string): T {
+    if (key in this.ephemeralSettings) {
+      return this.ephemeralSettings[key] as T;
+    }
+    return vscode.workspace.getConfiguration("scryer").get<T>(key) as T;
+  }
+
   static create(
     context: vscode.ExtensionContext,
     uri: vscode.Uri,
@@ -163,15 +172,21 @@ export class ScryerPanel {
           this.atlasGenDone = false;
           this.extractionTriedPaths.clear();
         }
-        if (
-          e.affectsConfiguration("scryer.flavor") ||
-          e.affectsConfiguration("scryer.locale") ||
-          e.affectsConfiguration("scryer.screenResolution") ||
-          e.affectsConfiguration("scryer.defaultCanvasMode")
-        ) {
+
+        let needsRender = false;
+        for (const key of ["flavor", "locale", "screenResolution", "defaultCanvasMode"]) {
+          if (e.affectsConfiguration(`scryer.${key}`) && !(key in this.ephemeralSettings)) {
+            needsRender = true;
+          }
+        }
+        if (needsRender) {
           void this.renderFile(uri);
         }
-        if (e.affectsConfiguration("scryer.showRuler")) {
+
+        if (
+          e.affectsConfiguration("scryer.showRuler") &&
+          !("showRuler" in this.ephemeralSettings)
+        ) {
           this.updateStatusBar();
           void this.panel.webview.postMessage(this.rulerMessage());
         }
@@ -204,7 +219,7 @@ export class ScryerPanel {
   }
 
   private rulerMessage(): HostMessage {
-    const show = vscode.workspace.getConfiguration("scryer").get<boolean>("showRuler") ?? true;
+    const show = this.getSetting<boolean>("showRuler") ?? true;
     return { type: "setRuler", show };
   }
 
@@ -213,7 +228,7 @@ export class ScryerPanel {
       this.statusBar.text = `🔬 ${this.lastEyedropperText}`;
       this.statusBar.tooltip = "Eyedropper — Ctrl+C in preview to copy";
     } else {
-      const show = vscode.workspace.getConfiguration("scryer").get<boolean>("showRuler") ?? true;
+      const show = this.getSetting<boolean>("showRuler") ?? true;
       this.statusBar.text = `📏 ${show ? "ON" : "OFF"}`;
       this.statusBar.tooltip = "Toggle pixel ruler overlay";
     }
@@ -282,15 +297,16 @@ export class ScryerPanel {
         break;
 
       case "toggleRuler": {
-        const cfg = vscode.workspace.getConfiguration("scryer");
-        const current = cfg.get<boolean>("showRuler") ?? true;
-        void cfg.update("showRuler", !current, vscode.ConfigurationTarget.Workspace);
+        const current = this.getSetting<boolean>("showRuler") ?? true;
+        this.ephemeralSettings["showRuler"] = !current;
+        this.updateStatusBar();
+        void this.panel.webview.postMessage(this.rulerMessage());
         break;
       }
 
       case "settingChange": {
-        const cfg = vscode.workspace.getConfiguration("scryer");
-        void cfg.update(msg.key, msg.value, vscode.ConfigurationTarget.Workspace);
+        this.ephemeralSettings[msg.key] = msg.value;
+        void this.renderFile(uri);
         break;
       }
 
@@ -383,10 +399,11 @@ export class ScryerPanel {
 
     const cfg = vscode.workspace.getConfiguration("scryer");
     const preloadMode = cfg.get<string>("userAddonPreload") ?? "on-demand";
-    const flavor = cfg.get<string>("flavor") ?? "retail";
-    const locale = cfg.get<string>("locale") ?? "enUS";
-    const screenResolution = cfg.get<string>("screenResolution") ?? "1920x1080";
-    const defaultCanvasMode = cfg.get<CanvasMode>("defaultCanvasMode") ?? DEFAULT_CANVAS_MODE;
+    const flavor = this.getSetting<string>("flavor") ?? "retail";
+    const locale = this.getSetting<string>("locale") ?? "enUS";
+    const screenResolution = this.getSetting<string>("screenResolution") ?? "1920x1080";
+    const defaultCanvasMode =
+      this.getSetting<CanvasMode>("defaultCanvasMode") ?? DEFAULT_CANVAS_MODE;
     const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
     const flavorConfig = resolveFlavorConfig(flavor, userConfigPath);
     const [rw, rh] = screenResolution.split("x").map(Number);
@@ -576,9 +593,9 @@ export class ScryerPanel {
     ].join("; ");
 
     const cfg = vscode.workspace.getConfiguration("scryer");
-    const flavor = cfg.get<string>("flavor") ?? "retail";
-    const locale = cfg.get<string>("locale") ?? "enUS";
-    const screenResolution = cfg.get<string>("screenResolution") ?? "1920x1080";
+    const flavor = this.getSetting<string>("flavor") ?? "retail";
+    const locale = this.getSetting<string>("locale") ?? "enUS";
+    const screenResolution = this.getSetting<string>("screenResolution") ?? "1920x1080";
     const userConfigPath = cfg.get<string>("flavorConfigPath") || undefined;
     const c = resolveFlavorConfig(flavor, userConfigPath);
 
