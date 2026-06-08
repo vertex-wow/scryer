@@ -31,6 +31,7 @@ export type HostMessage =
       /** Webview URI for the default font file, if it was resolved from the asset cache. */
       defaultFontUri?: string;
       customBackgroundUri?: string;
+      customBackgroundIsFolder?: boolean;
       toolbarState: ToolbarState;
     }
   | {
@@ -43,6 +44,7 @@ export type HostMessage =
       flavorConfig: ResolvedFlavorConfig;
       defaultFontUri?: string;
       customBackgroundUri?: string;
+      customBackgroundIsFolder?: boolean;
       toolbarState: ToolbarState;
     }
   | { type: "assetResolved"; path: string; uri: string }

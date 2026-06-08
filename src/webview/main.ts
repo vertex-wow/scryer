@@ -48,7 +48,8 @@ const zoomSelect = document.getElementById("zoom-select") as HTMLSelectElement |
 const flavorSelect = document.getElementById("flavor-select") as HTMLSelectElement | null;
 const resolutionSelect = document.getElementById("resolution-select") as HTMLSelectElement | null;
 const localeSelect = document.getElementById("locale-select") as HTMLSelectElement | null;
-const bgSelect = document.getElementById("bg-select") as HTMLSelectElement | null;
+const bgDropdownTrigger = document.getElementById("bg-dropdown-trigger") as HTMLElement | null;
+const bgDropdownMenu = document.getElementById("bg-dropdown-menu") as HTMLElement | null;
 const bgPreview = document.getElementById("bg-preview") as HTMLElement | null;
 
 let lastWorkareaBackground = "checkerBoard";
@@ -341,9 +342,32 @@ localeSelect?.addEventListener("change", () => {
   vscode.postMessage({ type: "settingChange", key: "locale", value: localeSelect.value });
 });
 
-bgSelect?.addEventListener("change", () => {
-  vscode.postMessage({ type: "settingChange", key: "workareaBackground", value: bgSelect.value });
-});
+if (bgDropdownTrigger && bgDropdownMenu) {
+  bgDropdownTrigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    bgDropdownMenu.classList.toggle("hidden");
+  });
+
+  bgDropdownMenu.addEventListener("click", (e) => {
+    const item = (e.target as HTMLElement).closest(".dropdown-item");
+    if (item) {
+      const value = item.getAttribute("data-value");
+      if (value) {
+        vscode.postMessage({ type: "settingChange", key: "workareaBackground", value });
+        bgDropdownMenu.classList.add("hidden");
+      }
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (
+      !bgDropdownMenu.contains(e.target as Node) &&
+      !bgDropdownTrigger.contains(e.target as Node)
+    ) {
+      bgDropdownMenu.classList.add("hidden");
+    }
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Eyedropper
@@ -933,11 +957,24 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       if (flavorSelect) flavorSelect.value = msg.toolbarState.flavor;
       if (resolutionSelect) resolutionSelect.value = msg.toolbarState.screenResolution;
       if (localeSelect) localeSelect.value = msg.toolbarState.locale;
-      if (bgSelect) {
-        bgSelect.value = msg.toolbarState.workareaBackground;
-        const customOpt = bgSelect.querySelector('option[value="custom"]');
-        if (customOpt) {
-          customOpt.textContent = "🖼️ " + (msg.toolbarState.workareaBackgroundPath || "Custom...");
+      if (bgDropdownMenu && msg.toolbarState) {
+        // Update selected class
+        for (const item of bgDropdownMenu.querySelectorAll(".dropdown-item")) {
+          if (item.getAttribute("data-value") === msg.toolbarState.workareaBackground) {
+            item.classList.add("selected");
+          } else {
+            item.classList.remove("selected");
+          }
+        }
+        // Update custom label
+        const customLabel = bgDropdownMenu.querySelector("#custom-bg-label");
+        if (customLabel) {
+          customLabel.textContent = msg.toolbarState.workareaBackgroundPath || "Custom...";
+        }
+        // Update custom icon based on whether it is a folder
+        const customPreview = bgDropdownMenu.querySelector("#custom-bg-preview");
+        if (customPreview) {
+          customPreview.textContent = msg.customBackgroundIsFolder ? "📁" : "🖼️";
         }
       }
 

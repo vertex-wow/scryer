@@ -4,6 +4,19 @@ import type { LuaEngine } from "wasmoon";
 import { resolveAtlasNames } from "./assets/atlas-manifest.js";
 import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
 import { AssetService } from "./assets/index.js";
+import type { CanvasMode } from "./constants.js";
+import {
+  DEFAULT_CANVAS_MODE,
+  WORKAREA_BG_BLACK,
+  WORKAREA_BG_CHECKERBOARD_DARK_COLOR1,
+  WORKAREA_BG_CHECKERBOARD_DARK_COLOR2,
+  WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR1,
+  WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR2,
+  WORKAREA_BG_GRAY,
+  WORKAREA_BG_MAGENTA,
+  WORKAREA_BG_WHITE,
+  ZOOM_PRESETS,
+} from "./constants.js";
 import type { ResolvedFlavorConfig } from "./flavors/config.js";
 import { resolveFlavorConfig } from "./flavors/config.js";
 import { registerFrameModel } from "./lua/createframe.js";
@@ -16,8 +29,6 @@ import type { FrameIR, TextureIR } from "./parser/ir.js";
 import { parseToc } from "./parser/toc.js";
 import type { HostMessage, Viewport, WebviewMessage } from "./protocol.js";
 import { layoutAll } from "./webview/layout.js";
-import type { CanvasMode } from "./constants.js";
-import { ZOOM_PRESETS, DEFAULT_CANVAS_MODE } from "./constants.js";
 
 function getNonce(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -102,7 +113,9 @@ export class ScryerLivePanel {
   private extractDebounce: ReturnType<typeof setTimeout> | undefined;
   private renderDebounce: ReturnType<typeof setTimeout> | undefined;
   private extractionTriedPaths = new Set<string>();
+  private defaultFontUri: string | undefined;
   private customBackgroundUri: string | undefined;
+  private customBackgroundIsFolder: boolean | undefined;
 
   private ephemeralSettings: Record<string, unknown> = {};
 
@@ -429,6 +442,7 @@ export class ScryerLivePanel {
         workareaBackgroundPath: this.getSetting<string>("workareaBackgroundPath") ?? "",
       },
       customBackgroundUri: this.customBackgroundUri,
+      customBackgroundIsFolder: this.customBackgroundIsFolder,
     };
     void this.panel.webview.postMessage(msg);
 
@@ -468,11 +482,13 @@ export class ScryerLivePanel {
     const addonDir = path.dirname(uri.fsPath);
 
     this.customBackgroundUri = undefined;
+    this.customBackgroundIsFolder = undefined;
     if (workareaBackground === "custom" && workareaBackgroundPath) {
       try {
         const stat = await vscode.workspace.fs.stat(vscode.Uri.file(workareaBackgroundPath));
         let targetPath = workareaBackgroundPath;
         if (stat.type === vscode.FileType.Directory) {
+          this.customBackgroundIsFolder = true;
           targetPath = path.join(workareaBackgroundPath, `${screenResolution}.png`);
         }
         try {
@@ -767,7 +783,7 @@ TROUBLESHOOTING:
     *{box-sizing:border-box;margin:0;padding:0}
     body{overflow:hidden;position:fixed;inset:0;user-select:none;background:var(--vscode-editor-background)}
     #viewport{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
-    #status-bar{position:fixed;top:0;left:0;right:0;height:${sbH}px;background:${c.statusBarBg};display:flex;align-items:center;z-index:10001;border-bottom:1px solid ${c.rulerBorder};font:${c.toolbarFont};color:${c.statusBarColor};white-space:nowrap;overflow:hidden}
+    #status-bar{position:fixed;top:0;left:0;right:0;height:${sbH}px;background:${c.statusBarBg};display:flex;align-items:center;z-index:10001;border-bottom:1px solid ${c.rulerBorder};font:${c.toolbarFont};color:${c.statusBarColor};white-space:nowrap;overflow:visible}
     .toolbar-btn{flex-shrink:0;background:none;border:none;border-right:1px solid ${c.rulerBorder};cursor:pointer;height:${sbH}px;padding:0 7px;display:flex;align-items:center;justify-content:center;font-size:14px;color:${c.statusBarColor};opacity:0.55}
     .toolbar-btn:hover{background:rgba(255,255,255,0.07);opacity:0.85}
     .toolbar-btn.active{background:rgba(74,158,255,0.12);opacity:1;box-shadow:inset 0 -2px 0 #4a9eff}
@@ -778,11 +794,25 @@ TROUBLESHOOTING:
     #flavor-select{min-width:72px}
     #resolution-select{min-width:70px}
     #locale-select{min-width:44px}
-    #bg-select{min-width:80px; max-width:200px; text-overflow: ellipsis; border-right: none;}
-    #zoom-select:hover,#flavor-select:hover,#resolution-select:hover,#locale-select:hover,#bg-select:hover{background:rgba(255,255,255,0.07);opacity:1}
-    #bg-wrapper{display:flex;align-items:center;border-right:1px solid ${c.rulerBorder};padding:0 4px;height:${sbH}px;cursor:pointer;opacity:0.7}
-    #bg-wrapper:hover{background:rgba(255,255,255,0.07);opacity:1}
-    #bg-preview{width:14px;height:14px;border:1px solid rgba(255,255,255,0.2);border-radius:2px;flex-shrink:0;pointer-events:none;}
+    #bg-dropdown{position:relative;display:flex;align-items:center;border-right:1px solid ${c.rulerBorder};padding:0 4px;height:${sbH}px;cursor:pointer;opacity:0.7}
+    #bg-dropdown:hover{background:rgba(255,255,255,0.07);opacity:1}
+    #bg-dropdown-trigger{display:flex;align-items:center;gap:4px}
+    .dropdown-trigger-label{font:${c.toolbarFont};color:${c.statusBarColor}}
+    #bg-dropdown-menu{position:absolute;top:${sbH}px;left:0;background:var(--vscode-dropdown-background);border:1px solid var(--vscode-dropdown-border);color:var(--vscode-dropdown-foreground);display:none;flex-direction:column;min-width:180px;z-index:10002;box-shadow:0 4px 6px rgba(0,0,0,0.3)}
+    #bg-dropdown-menu:not(.hidden){display:flex}
+    .dropdown-item{padding:4px 8px;display:flex;align-items:center;gap:6px;font:${c.toolbarFont};cursor:pointer}
+    .dropdown-item:hover{background:var(--vscode-list-activeSelectionBackground);color:var(--vscode-list-activeSelectionForeground)}
+    .dropdown-item.selected{background:var(--vscode-list-inactiveSelectionBackground)}
+    .dropdown-item-preview{width:14px;height:14px;border:1px solid rgba(255,255,255,0.2);border-radius:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px}
+    #bg-preview{width:14px;height:14px;border:1px solid rgba(255,255,255,0.2);border-radius:2px;flex-shrink:0;pointer-events:none}
+    .bg-preview-auto{background:repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_DARK_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_DARK_COLOR2} 0% 50%) 50% / 10px 10px}
+    body.vscode-light .bg-preview-auto{background:repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR2} 0% 50%) 50% / 10px 10px}
+    .bg-preview-dark{background:repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_DARK_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_DARK_COLOR2} 0% 50%) 50% / 10px 10px}
+    .bg-preview-light{background:repeating-conic-gradient(${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR1} 0% 25%, ${WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR2} 0% 50%) 50% / 10px 10px}
+    .bg-preview-black{background:${WORKAREA_BG_BLACK}}
+    .bg-preview-white{background:${WORKAREA_BG_WHITE}}
+    .bg-preview-gray{background:${WORKAREA_BG_GRAY}}
+    .bg-preview-magenta{background:${WORKAREA_BG_MAGENTA}}
     #zoom-select option,#flavor-select option,#resolution-select option,#locale-select option,#bg-select option{background:${c.statusBarBg};color:${c.statusBarColor}}
     #flavor-select option:disabled,#resolution-select option:disabled{opacity:0.45;font-style:italic}
     #debug{padding:0 4px;white-space:pre-wrap;font:${c.statusTextFont}}
@@ -803,18 +833,45 @@ TROUBLESHOOTING:
     <button id="grab-toggle" class="toolbar-btn" title="Grab — pan and zoom (drag · middle-drag · space-drag · ctrl+scroll · ctrl+0 fit · ctrl+shift+0 reset)"><svg width="12" height="13" viewBox="0 0 12 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="2" width="2" height="6" rx="1"/><rect x="4" y="0" width="2" height="8" rx="1"/><rect x="7" y="0" width="2" height="8" rx="1"/><rect x="10" y="2" width="2" height="6" rx="1"/><rect x="0" y="7" width="12" height="6" rx="2"/></svg></button>
     <button id="recenter-btn" class="toolbar-btn" title="Re-center canvas"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="2.8"/><line x1="6.5" y1="0.5" x2="6.5" y2="3.7"/><line x1="6.5" y1="9.3" x2="6.5" y2="12.5"/><line x1="0.5" y1="6.5" x2="3.7" y2="6.5"/><line x1="9.3" y1="6.5" x2="12.5" y2="6.5"/></svg></button>
     <button id="eyedropper-toggle" class="toolbar-btn" title="Eyedropper &mdash; sample pixel color (Ctrl+C to copy)"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M13.354.646a1.207 1.207 0 0 0-1.708 0L8.5 3.793l-.646-.647a.5.5 0 1 0-.708.708L8.293 5l-7.147 7.146A.5.5 0 0 0 1 12.5v1.793l-.854.853a.5.5 0 1 0 .708.707L1.707 15H3.5a.5.5 0 0 0 .354-.146L11 7.707l1.146 1.147a.5.5 0 0 0 .708-.708l-.647-.646 3.147-3.146a1.207 1.207 0 0 0 0-1.708zM2 12.707l7-7L10.293 7l-7 7H2z"/></svg></button>
-    <div id="bg-wrapper" title="Workarea Background">
-      <div id="bg-preview"></div>
-      <select id="bg-select">
-        <option value="checkerBoardAuto"${s(workareaBackground, "checkerBoardAuto")}>🏁 Checkerboard (Auto)</option>
-        <option value="checkerBoard"${s(workareaBackground, "checkerBoard")}>🏁 Checkerboard (Dark)</option>
-        <option value="checkerBoardLight"${s(workareaBackground, "checkerBoardLight")}>🏁 Checkerboard (Light)</option>
-        <option value="black"${s(workareaBackground, "black")}>⬛ Black</option>
-        <option value="white"${s(workareaBackground, "white")}>⬜ White</option>
-        <option value="neutralGray"${s(workareaBackground, "neutralGray")}>🔲 Neutral Gray (50%)</option>
-        <option value="magenta"${s(workareaBackground, "magenta")}>🟪 Magenta (Debug)</option>
-        <option value="custom"${s(workareaBackground, "custom")}>🖼️ ${workareaBackgroundPath ? workareaBackgroundPath : "Custom..."}</option>
-      </select>
+    <div id="bg-dropdown" class="custom-dropdown" title="Workarea Background">
+      <div id="bg-dropdown-trigger" class="custom-dropdown-trigger">
+        <div id="bg-preview"></div>
+        <span class="dropdown-trigger-label">bg</span>
+      </div>
+      <div id="bg-dropdown-menu" class="custom-dropdown-menu hidden">
+        <div class="dropdown-item${s(workareaBackground, "checkerBoardAuto")}" data-value="checkerBoardAuto">
+          <div class="dropdown-item-preview bg-preview-auto"></div>
+          <span class="dropdown-item-text">Checkerboard (Auto)</span>
+        </div>
+        <div class="dropdown-item${s(workareaBackground, "checkerBoard")}" data-value="checkerBoard">
+          <div class="dropdown-item-preview bg-preview-dark"></div>
+          <span class="dropdown-item-text">Checkerboard (Dark)</span>
+        </div>
+        <div class="dropdown-item${s(workareaBackground, "checkerBoardLight")}" data-value="checkerBoardLight">
+          <div class="dropdown-item-preview bg-preview-light"></div>
+          <span class="dropdown-item-text">Checkerboard (Light)</span>
+        </div>
+        <div class="dropdown-item${s(workareaBackground, "black")}" data-value="black">
+          <div class="dropdown-item-preview bg-preview-black"></div>
+          <span class="dropdown-item-text">Black</span>
+        </div>
+        <div class="dropdown-item${s(workareaBackground, "white")}" data-value="white">
+          <div class="dropdown-item-preview bg-preview-white"></div>
+          <span class="dropdown-item-text">White</span>
+        </div>
+        <div class="dropdown-item${s(workareaBackground, "neutralGray")}" data-value="neutralGray">
+          <div class="dropdown-item-preview bg-preview-gray"></div>
+          <span class="dropdown-item-text">Neutral Gray (50%)</span>
+        </div>
+        <div class="dropdown-item${s(workareaBackground, "magenta")}" data-value="magenta">
+          <div class="dropdown-item-preview bg-preview-magenta"></div>
+          <span class="dropdown-item-text">Magenta (Debug)</span>
+        </div>
+        <div class="dropdown-item${s(workareaBackground, "custom")}" data-value="custom" title="Custom background image or folder&#10;Configure via 'scryer.workareaBackgroundPath' in settings">
+          <div class="dropdown-item-preview" id="custom-bg-preview">🖼️</div>
+          <span class="dropdown-item-text" id="custom-bg-label">${workareaBackgroundPath ? workareaBackgroundPath : "Custom..."}</span>
+        </div>
+      </div>
     </div>
     <select id="flavor-select" title="WoW flavor (✓ = installed)">
       ${flavorOptions}
