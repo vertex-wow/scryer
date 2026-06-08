@@ -3,10 +3,10 @@ import { buildPanelHtml } from "./panel-html.js";
 import { PanelToolbar } from "./panel-toolbar.js";
 import * as vscode from "vscode";
 import type { LuaEngine } from "wasmoon";
-import { resolveAtlasNames } from "./assets/atlas-manifest.js";
-import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
-import { AssetService } from "./assets/index.js";
-import type { CanvasMode } from "./constants.js";
+import { resolveAtlasNames } from "../assets/atlas-manifest.js";
+import { FLAVOR_INFO, listInstalledFlavors } from "../assets/build-info.js";
+import { AssetService } from "../assets/index.js";
+import type { CanvasMode } from "../constants.js";
 import {
   DEFAULT_CANVAS_MODE,
   WORKAREA_BG_BLACK,
@@ -18,19 +18,19 @@ import {
   WORKAREA_BG_MAGENTA,
   WORKAREA_BG_WHITE,
   ZOOM_PRESETS,
-} from "./constants.js";
-import type { ResolvedFlavorConfig } from "./flavors/config.js";
-import { resolveFlavorConfig } from "./flavors/config.js";
-import { registerFrameModel } from "./lua/createframe.js";
-import { EventEngine } from "./lua/event-engine.js";
-import { FrameRegistry } from "./lua/frame-registry.js";
-import { createSandbox } from "./lua/sandbox.js";
-import { runTocAddon } from "./lua/toc-runner.js";
-import { registerWowApi, VirtualClock } from "./lua/wow-api.js";
-import type { FrameIR, TextureIR } from "./parser/ir.js";
-import { parseToc } from "./parser/toc.js";
-import type { HostMessage, Viewport, WebviewMessage } from "./protocol.js";
-import { layoutAll } from "./webview/layout.js";
+} from "../constants.js";
+import type { ResolvedFlavorConfig } from "../flavors/config.js";
+import { resolveFlavorConfig } from "../flavors/config.js";
+import { registerFrameModel } from "../lua/createframe.js";
+import { EventEngine } from "../lua/event-engine.js";
+import { FrameRegistry } from "../lua/frame-registry.js";
+import { createSandbox } from "../lua/sandbox.js";
+import { runTocAddon } from "../lua/toc-runner.js";
+import { registerWowApi, VirtualClock } from "../lua/wow-api.js";
+import type { FrameIR, TextureIR } from "../parser/ir.js";
+import { parseToc } from "../parser/toc.js";
+import type { HostMessage, Viewport, WebviewMessage } from "../protocol.js";
+import { layoutAll } from "../webview/layout.js";
 
 /** Strip WoW color codes like |cAARRGGBBtext|r from a string. */
 function stripWowColorCodes(s: string): string {

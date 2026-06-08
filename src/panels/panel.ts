@@ -2,10 +2,10 @@ import * as path from "path";
 import { buildPanelHtml } from "./panel-html.js";
 import { PanelToolbar } from "./panel-toolbar.js";
 import * as vscode from "vscode";
-import { resolveAtlasNames } from "./assets/atlas-manifest.js";
-import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
-import { AssetService } from "./assets/index.js";
-import type { CanvasMode } from "./constants.js";
+import { resolveAtlasNames } from "../assets/atlas-manifest.js";
+import { FLAVOR_INFO, listInstalledFlavors } from "../assets/build-info.js";
+import { AssetService } from "../assets/index.js";
+import type { CanvasMode } from "../constants.js";
 import {
   DEFAULT_CANVAS_MODE,
   WORKAREA_BG_BLACK,
@@ -17,12 +17,12 @@ import {
   WORKAREA_BG_MAGENTA,
   WORKAREA_BG_WHITE,
   ZOOM_PRESETS,
-} from "./constants.js";
-import { resolveFlavorConfig } from "./flavors/config.js";
-import { collectTexturePaths } from "./parser/collect-textures.js";
-import { parseXmlFile } from "./parser/index.js";
-import { resolveInheritance } from "./parser/inherit.js";
-import type { HostMessage, Viewport, WebviewMessage } from "./protocol.js";
+} from "../constants.js";
+import { resolveFlavorConfig } from "../flavors/config.js";
+import { collectTexturePaths } from "../parser/collect-textures.js";
+import { parseXmlFile } from "../parser/index.js";
+import { resolveInheritance } from "../parser/inherit.js";
+import type { HostMessage, Viewport, WebviewMessage } from "../protocol.js";
 
 // How long after the last document change to wait before re-rendering in current-file mode.
 // How long after the last unresolved-asset report to wait before triggering extraction.

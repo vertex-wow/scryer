@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { HostMessage, WebviewMessage } from "./protocol.js";
+import type { HostMessage, WebviewMessage } from "../protocol.js";
 
 export class PanelToolbar {
   public ephemeralSettings: Record<string, unknown> = {};

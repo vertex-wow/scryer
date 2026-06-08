@@ -4,8 +4,8 @@ import * as vscode from "vscode";
 import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
 import { AssetService } from "./assets/index.js";
 import { isSvgConverterAvailable, pngToTga, resolveFlipTool, svgToPng } from "./assets/svg.js";
-import { ScryerLivePanel } from "./live-panel.js";
-import { ScryerPanel } from "./panel.js";
+import { ScryerLivePanel } from "./panels/live-panel.js";
+import { ScryerPanel } from "./panels/panel.js";
 import { ADDON_NAMES, SHARED_ADDON_NAMES } from "./parser/blizzard-registry.js";
 import { collectTexturePaths, parseXmlFile, resolveInheritance } from "./parser/index.js";
 
