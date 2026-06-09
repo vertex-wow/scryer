@@ -180,11 +180,11 @@ Three tests added in `test/webview/layout.test.ts`: sibling resolution via `$par
 
 **Status: Done** (2026-05-26, commit `8667c2f`)
 
-**What was built:** `dev/extract.sh` reads `WOW_DIR` + `WOW_ACCOUNT` from `dev/config.local.sh`, accepts a flavor arg (`retail`/`classic`/`classic_era`), and extracts a minimal Interface texture slice into `.wow-assets/` (gitignored).
+**What was built:** `dev/extract.sh` reads `WOW_DIR` + `WOW_ACCOUNT` from `dev/config.local.sh`, accepts a flavor arg (`retail`/`classic`/`classic_era`), and extracts a minimal Interface texture slice into `.wow-cache/` (gitignored).
 
 - **Retail:** uses `rustydemon-cli` (Rust-based CASC extractor, auto-detected from `PATH` or `CASC_TOOL` override in config). Downloads the Marlamin community listfile automatically. Outputs **BLP files** — these go through the normal BLP→PNG decode path in `AssetService`.
 - **Classic/Classic Era:** `rsync` from `$WOW_DIR/_classic_/Interface/` loose files.
-- `.wow-assets/` added to `.gitignore`; `dev/config.sh.example` documents `CASC_TOOL` override and the post-extract `scryer.cacheDir` / `scryer.cacheLocation` settings.
+- `.wow-cache/` added to `.gitignore`; `dev/config.sh.example` documents `CASC_TOOL` override and the post-extract `scryer.cacheDir` / `scryer.cacheLocation` settings.
 
 **Note:** The original plan described WoW.export (GUI/CLI, outputs PNG). The actual implementation used `rustydemon-cli` instead — a headless CLI better suited for scripted extraction. Because it outputs BLP rather than PNG, it exercises the BLP decode path rather than the PNG direct-serve path, which is fine.
 
@@ -258,10 +258,10 @@ Config additions: `scryer.flavor` (`retail`/`classic`/`classic_era`, default `re
 
 - **Retail (CASC):** `--type interface` passes `Interface/AddOns/Blizzard_SharedXML/**` and `Interface/AddOns/Blizzard_FrameXML/**` to `rustydemon-cli`. `.lua`/`.xml`/`.toc` files extract identically to textures.
 - **Classic / Classic Era (loose files):** The rsync call gains `--include=*.lua`, `--include=*.xml`, `--include=*.toc` filter when `--type interface` or `--type all` is active.
-- Output: `.wow-assets/Interface/AddOns/<AddonName>/` — matching the WoW install layout, same output root as textures.
+- Output: `.wow-cache/Interface/AddOns/<AddonName>/` — matching the WoW install layout, same output root as textures.
 - `--paths-file` is unaffected (targeted mode ignores `--type`).
 
-**Note:** This unblocked the `Blizzard FrameXML template corpus loading` item — the XML files are now available at `.wow-assets/Interface/AddOns/`. Long-term, once the in-process CASC reader lands, this extraction can happen on demand automatically.
+**Note:** This unblocked the `Blizzard FrameXML template corpus loading` item — the XML files are now available at `.wow-cache/Interface/AddOns/`. Long-term, once the in-process CASC reader lands, this extraction can happen on demand automatically.
 
 ---
 
@@ -481,11 +481,11 @@ pnpm collect-textures > /tmp/textures.txt
 ./dev/extract.sh retail --paths-file /tmp/textures.txt
 
 # Named addons only
-node dist/collect-textures.js .wow-assets/interface/addons Blizzard_SharedXML Blizzard_FrameXML
+node dist/collect-textures.js .wow-cache/interface/addons Blizzard_SharedXML Blizzard_FrameXML
 
 # Derive unique parent dirs and build brace glob
 DIRS=$(sed 's|/[^/]*$||' /tmp/textures.txt | sort -u | tr '\n' ',' | sed 's/,$//')
-rustydemon-cli export -a "$WOW_DIR" -l <cacheRoot>/downloads/listfile.csv -o .wow-assets -p "{$DIRS}/**" -j 8
+rustydemon-cli export -a "$WOW_DIR" -l <cacheRoot>/downloads/listfile.csv -o .wow-cache -p "{$DIRS}/**" -j 8
 ```
 
 **Design note:** Inheritance resolution is not needed for manifest/preload purposes. Template definitions include their `file=` attributes directly in the XML, so raw parsing already captures all texture references. Concrete frames that only inherit textures from Blizzard templates are covered when those template addons are also scanned. This keeps the function fast and dependency-free (no registry pass required).

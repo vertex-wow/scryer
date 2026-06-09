@@ -1,4 +1,7 @@
 {
   "_schema": "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/schemas/settings.schema.json",
-  "general.defaultApprovalMod": "auto_edit"
+  "general.defaultApprovalMod": "auto_edit",
+  "telemetry": {
+    "enabled": false
+  }
 }

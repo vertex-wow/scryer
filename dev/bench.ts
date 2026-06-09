@@ -2,14 +2,14 @@
  * Scryer extraction pipeline benchmark.
  *
  * Run:  pnpm bench
- * Requires .wow-assets/ to be populated (run dev/extract.sh first).
+ * Requires .wow-cache/ to be populated (run dev/extract.sh first).
  *
  * Scenarios:
  *   texture       — BLP read + decode + PNG encode + cache write (end-to-end)
  *   texture-split — same but reports t_read / t_decode / t_encode / t_write per file
  *   addon         — XML/Lua/TOC file read (text I/O, confirms no bottleneck here)
  *   combined      — mix of texture + addon in parallel
- *   cache-hit     — serve pre-decoded PNGs from .scryer-cache (steady-state hot path)
+ *   cache-hit     — serve pre-decoded PNGs from .wow-cache (steady-state hot path)
  *   resolution    — resolveTexturePath cold (memo cleared) vs warm (memoized)
  *
  * N is clamped to available fixtures (no cycling). Run dev/extract.sh retail --type all
@@ -33,7 +33,7 @@ import { blpToPng } from "../src/assets/blp.js";
 import { clearResolutionMemo, resolveTexturePath } from "../src/assets/resolver.js";
 
 const REPO_ROOT = path.join(__dirname, "..");
-const WOW_ASSETS = path.join(REPO_ROOT, ".wow-assets");
+const WOW_ASSETS = path.join(REPO_ROOT, ".wow-cache");
 const BENCH_CACHE = path.join(os.tmpdir(), "scryer-bench-cache");
 const RESULTS_FILE = path.join(REPO_ROOT, "dev", "bench-results.json");
 
@@ -365,7 +365,7 @@ async function runScenario(
   runs = RUNS,
 ): Promise<Stats[]> {
   if (available === 0) {
-    console.log(`  (skipped — no ${label} fixtures in .wow-assets/)`);
+    console.log(`  (skipped — no ${label} fixtures in .wow-cache/)`);
     return [];
   }
 
@@ -404,7 +404,7 @@ async function runScenario(
 async function main(): Promise<void> {
   if (blpFiles.length === 0 && addonFiles.length === 0) {
     console.error(
-      "No fixtures found in .wow-assets/ — run dev/extract.sh first.\n" +
+      "No fixtures found in .wow-cache/ — run dev/extract.sh first.\n" +
         "Example: ./dev/extract.sh retail --type all",
     );
     process.exit(1);

@@ -124,6 +124,8 @@ Only stub things that do not exist in any Blizzard Lua file we load. See `docs/d
 
 ## Tooling
 
+# Project Instructions
+
 - **Package manager: `pnpm` only.**
   - **CRITICAL:** NEVER use `npm` or `yarn` or `npx`. They will fail CI, bypass security allowlists, and break the `minimum-release-age` config.
   - If you need to run a binary, use `pnpm exec <cmd>` (e.g., `pnpm exec playwright`).

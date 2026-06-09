@@ -32,7 +32,7 @@ Benchmarks in this project exist to answer **concrete architectural decisions**,
 **Optimization levers:**
 
 - In the decode pipeline, which step dominates: BLP DXT decompression, PNG zlib compression, or disk write?
-- Is the cache-hit path (serving already-decoded PNG from `.scryer-cache/`) effectively free?
+- Is the cache-hit path (serving already-decoded PNG from `.wow-cache/`) effectively free?
 - Does path resolution overhead matter at scale (e.g. walking a workspace with hundreds of XML files)?
 - Is there write contention in the cache dir under high concurrency?
 
@@ -94,7 +94,7 @@ These numbers come from the first run of `pnpm bench`. They are the **starting b
 | --- | ------ | -------------------------------------- |
 | 100 | 18 ms  | 228 files available — not a bottleneck |
 
-**Cache-hit (serve pre-decoded PNG from `.scryer-cache`):**
+**Cache-hit (serve pre-decoded PNG from `.wow-cache`):**
 
 | N (all capped at 11) | Median | Note                                                  |
 | -------------------- | ------ | ----------------------------------------------------- |
@@ -171,14 +171,14 @@ PNG output is **smaller** than the BLP input (DXT is an efficient compression): 
 
 **Resolution breakdown:**
 
-| Category           | Count   | Source                                          | Notes                                                     |
-| ------------------ | ------- | ----------------------------------------------- | --------------------------------------------------------- |
-| Blizzard UI BLPs   | 88      | `.wow-assets/` (previously extracted from CASC) | `Interface/Buttons/`, `Interface/AchievementFrame/`, etc. |
-| Addon-bundled BLPs | 13      | Loose files in `_live/Addons/`                  | Small addon-specific graphics                             |
-| Addon-bundled TGAs | 37      | Loose files in `_live/Addons/`                  | Unimplemented — would need TGA decoder                    |
-| Addon-bundled PNGs | 15      | Loose files in `_live/Addons/`                  | Already web-ready; serve directly                         |
-| Unavailable        | 29      | —                                               | Locale-specific files, addons not on this machine         |
-| **Total resolved** | **153** |                                                 |                                                           |
+| Category           | Count   | Source                                         | Notes                                                     |
+| ------------------ | ------- | ---------------------------------------------- | --------------------------------------------------------- |
+| Blizzard UI BLPs   | 88      | `.wow-cache/` (previously extracted from CASC) | `Interface/Buttons/`, `Interface/AchievementFrame/`, etc. |
+| Addon-bundled BLPs | 13      | Loose files in `_live/Addons/`                 | Small addon-specific graphics                             |
+| Addon-bundled TGAs | 37      | Loose files in `_live/Addons/`                 | Unimplemented — would need TGA decoder                    |
+| Addon-bundled PNGs | 15      | Loose files in `_live/Addons/`                 | Already web-ready; serve directly                         |
+| Unavailable        | 29      | —                                              | Locale-specific files, addons not on this machine         |
+| **Total resolved** | **153** |                                                |                                                           |
 
 **Size distribution — Blizzard UI BLPs (88 files, from CASC):**
 
@@ -403,12 +403,12 @@ Per Q5, the bottleneck is BLP DXT decode in `js-blp`. The cliff is stark:
 
 **Proposed preload tiers (derived from benchmark):**
 
-| Tier      | Condition                                | Strategy                                                |
-| --------- | ---------------------------------------- | ------------------------------------------------------- |
-| Instant   | File in `.scryer-cache/` already decoded | Serve immediately (< 2 ms, Q4 confirmed)                |
-| Eager     | BLP file < 50 KB                         | Decode at activation in background thread               |
-| Deferred  | BLP file 50–200 KB                       | Decode when first referenced in an open XML file        |
-| On-demand | BLP file > 200 KB                        | Decode only when the webview requests it, show progress |
+| Tier      | Condition                             | Strategy                                                |
+| --------- | ------------------------------------- | ------------------------------------------------------- |
+| Instant   | File in `.wow-cache/` already decoded | Serve immediately (< 2 ms, Q4 confirmed)                |
+| Eager     | BLP file < 50 KB                      | Decode at activation in background thread               |
+| Deferred  | BLP file 50–200 KB                    | Decode when first referenced in an open XML file        |
+| On-demand | BLP file > 200 KB                     | Decode only when the webview requests it, show progress |
 
 **Note:** These thresholds are based on the current `js-blp` decode performance. If the decoder is replaced with a faster WASM implementation (see Q5 optimization options), all tiers would shift toward "eager" as cost drops.
 
@@ -420,7 +420,7 @@ Per Q5, the bottleneck is BLP DXT decode in `js-blp`. The cliff is stark:
 
 Cache-hit cost: ~2 ms for all 11 available BLP files simultaneously (stat + file read). Single-file cache-hit is sub-millisecond. Preloading is definitively "pay once at first open, then instant on every subsequent render."
 
-**Implication:** The workspace startup preload (see [Backlog: Preload Workspace Textures](plan/backlog.md#preload-workspace-textures-at-startup)) is the right call. Pay the BLP decode cost once at activation, cache to `.scryer-cache/`, and every subsequent preview renders instantly. The only question remaining is whether to decode on-demand (lazy) or in-background (eager). The benchmark confirms that once in cache, there is no reason to re-decode.
+**Implication:** The workspace startup preload (see [Backlog: Preload Workspace Textures](plan/backlog.md#preload-workspace-textures-at-startup)) is the right call. Pay the BLP decode cost once at activation, cache to `.wow-cache/`, and every subsequent preview renders instantly. The only question remaining is whether to decode on-demand (lazy) or in-background (eager). The benchmark confirms that once in cache, there is no reason to re-decode.
 
 ---
 
@@ -445,7 +445,7 @@ For the rock background, `getPixels` is 44× more expensive than `PNG.sync.write
 
 1. **Inspect the BLP type byte:** if rock is raw RGBA (not DXT), the `js-blp` codepath for that type may be particularly unoptimized. A direct `Buffer.copy` from the raw data would be far faster.
 2. **WebAssembly BLP decoder:** port the DXT decompression to a WASM module (or find one) — WASM SIMD can decompress DXT blocks ~10–100× faster than JavaScript.
-3. **Skip PNG entirely for the cache:** write raw RGBA to `.scryer-cache/` and have the webview accept a `data:image/raw` or `image/webp` (encode RGBA→WebP in Node, which has native bindings). This removes both the `PNG.sync.write` step and the cost scales only with the BLP decode.
+3. **Skip PNG entirely for the cache:** write raw RGBA to `.wow-cache/` and have the webview accept a `data:image/raw` or `image/webp` (encode RGBA→WebP in Node, which has native bindings). This removes both the `PNG.sync.write` step and the cost scales only with the BLP decode.
 4. **Use Node Worker Threads for BLP decode:** the current `Promise.all` over `blpToPng` serializes all decodes (JS is single-threaded). A Worker thread pool would parallelize across cores, letting N=11 files (including rock) run simultaneously rather than sequentially.
 
 ---
@@ -570,7 +570,7 @@ Run through this before capturing a baseline or running a pre/post-commit compar
 
 2. **Close VS Code extension host, browsers, Docker, and any file watchers.** In particular, stop `pnpm watch` (esbuild --watch) if running. These generate background I/O and scheduler load.
 
-3. **Do not extract while benchmarking.** Running `dev/extract.sh` concurrently pollutes `.wow-assets/` and contaminates all I/O measurements.
+3. **Do not extract while benchmarking.** Running `dev/extract.sh` concurrently pollutes `.wow-cache/` and contaminates all I/O measurements.
 
 4. **Warm-up is built in.** `dev/bench.ts` discards one warm-up iteration before timing. For `hyperfine`, `--warmup 2` is sufficient.
 
@@ -684,7 +684,7 @@ The script exits non-zero if any scenario shows `REGRESSION`, making it triviall
 
 ### Why not Jest for benchmarks?
 
-Jest tests run in CI. Benchmark runs depend on `.wow-assets/` (gitignored corpus) and take up to several minutes. Mixing them would either break CI (missing corpus) or make CI unacceptably slow. Keeping benchmarks as standalone `dev/` scripts keeps the test suite fast and CI-clean.
+Jest tests run in CI. Benchmark runs depend on `.wow-cache/` (gitignored corpus) and take up to several minutes. Mixing them would either break CI (missing corpus) or make CI unacceptably slow. Keeping benchmarks as standalone `dev/` scripts keeps the test suite fast and CI-clean.
 
 ---
 

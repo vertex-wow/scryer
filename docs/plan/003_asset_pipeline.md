@@ -23,7 +23,7 @@ Resolve and load real WoW textures (file path references and atlas names) into t
 - `src/webview/renderer.ts` — texture divs with `tex.file` tagged with `data-asset-path`; atlas textures tagged with `data-atlas-name` (labeled placeholder).
 - `src/webview/main.ts` — after render, collects unique `data-asset-path` values, posts `requestAsset`; handles `assetResolved` by applying `background-image` + removing placeholder child.
 - `package.json` — `scryer.cacheLocation`, `scryer.cacheDir`, and `scryer.blp2pngPath` settings added.
-- `.gitignore` — `.scryer-cache/` added.
+- `.gitignore` — `.wow-cache/` added.
 
 ### Async asset flow
 
@@ -108,7 +108,7 @@ The resolved `cacheRoot` is partitioned by flavor so retail and classic caches a
 
 On extension startup, `AssetService.checkBuildVersion()` reads `<installDir>/.build.info`, parses the `Version` field for the active flavor's product key (`wow`, `wow_classic`, `wow_classic_era`), and compares it against `.build-stamp`. If they differ, the entire `<cacheRoot>/<flavor>/` subtree is deleted silently and a message is written to the Scryer output channel. After each successful extraction, the current `BuildText` is written back to `.build-stamp`.
 
-Default cacheRoot (`"global"`) is `context.globalStorageUri.fsPath`, shared across workspaces so the GB-scale asset tree is not duplicated per project. `"workspace"` uses `.scryer-cache/` inside the workspace folder (gitignored).
+Default cacheRoot (`"global"`) is `context.globalStorageUri.fsPath`, shared across workspaces so the GB-scale asset tree is not duplicated per project. `"workspace"` uses `.wow-cache/` inside the workspace folder (gitignored).
 
 ## Atlas Textures
 
@@ -126,7 +126,7 @@ Atlas textures currently render as labeled colored placeholders (`[atlas] <name>
 We do not bundle WoW assets (copyright). `dev/extract.sh` is the primary contributor workflow:
 
 - **`dev/extract.sh`** — accepts `retail`/`classic`/`classic_era` flavor arg plus:
-  - `--out-dir <path>` — output root (default: `.wow-assets/`; the extension passes `<cacheRoot>/<flavor>/source` automatically)
+  - `--out-dir <path>` — output root (default: `.wow-cache/`; the extension passes `<cacheRoot>/<flavor>/source` automatically)
   - `--wow-dir <path>` — WoW root, overrides `WOW_DIR` from `config.local.sh`; not required when called from the extension
   - `--casc-tool <path>` — CASC binary path, overrides `CASC_TOOL` from config; not required when called from the extension
   - `--type textures|interface|all` — what to extract
@@ -144,7 +144,7 @@ We do not bundle WoW assets (copyright). `dev/extract.sh` is the primary contrib
 - File: `<sha1>.png` (decoded/converted texture).
 - PNG/TGA/BLP files in `source/` are served directly; only BLP→PNG conversions are written to `derived/textures/`.
 - `.build-stamp` under `<cacheRoot>/<flavor>/` records the `BuildText` from `.build.info` at last extraction; used by `checkBuildVersion()` to detect WoW patches and auto-wipe the stale flavor subtree.
-- `.scryer-cache/` in the workspace is gitignored (used when `cacheLocation = "workspace"`).
+- `.wow-cache/` in the workspace is gitignored (used when `cacheLocation = "workspace"`).
 
 ## Fallback
 
