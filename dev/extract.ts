@@ -134,7 +134,7 @@ const coreOpts = {
   assetServerPath,
   assetServerIdleTimeout,
   listfileDir,
-  log: console.log,
+  log: (_level, msg) => console.log(msg),
 };
 
 async function run(): Promise<void> {

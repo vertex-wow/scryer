@@ -15,7 +15,7 @@ import * as fs from "fs";
 import * as http from "http";
 import * as https from "https";
 import * as path from "path";
-import { AssetClient } from "./asset-client.js";
+import { AssetClient, type LogLevel } from "./asset-client.js";
 
 export type Flavor = "retail" | "classic" | "classic_era";
 export type ExtractType = "textures" | "interface" | "all";
@@ -41,7 +41,7 @@ export interface ExtractCoreOptions {
   /** Directory where listfile.csv is cached (and downloaded if absent). */
   listfileDir: string;
   /** Log callback for progress lines. Defaults to console.log. */
-  log?: (line: string) => void;
+  log?: (level: LogLevel, msg: string) => void;
   /** Path to write scryer-asset-server logs to. */
   logFile?: string;
 }
@@ -83,7 +83,11 @@ const LISTFILE_URL_FALLBACK =
   "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile-withcapitalization.csv";
 
 /** Stream a URL (following redirects) to a local file. */
-function streamToFile(url: string, outPath: string, log?: (line: string) => void): Promise<void> {
+function streamToFile(
+  url: string,
+  outPath: string,
+  log?: (level: LogLevel, msg: string) => void,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const proto = url.startsWith("https://") ? https : http;
     proto
@@ -121,17 +125,17 @@ function streamToFile(url: string, outPath: string, log?: (line: string) => void
  */
 export async function ensureListfile(
   listfileDir: string,
-  log?: (line: string) => void,
+  log?: (level: LogLevel, msg: string) => void,
 ): Promise<string> {
   const listfilePath = path.join(listfileDir, "listfile.csv");
   if (fs.existsSync(listfilePath)) return listfilePath;
   await fs.promises.mkdir(listfileDir, { recursive: true });
-  log?.(`Downloading community listfile to ${listfilePath}...`);
+  log?.("info", `Downloading community listfile to ${listfilePath}...`);
   try {
     await streamToFile(LISTFILE_URL, listfilePath, log);
   } catch (err) {
     if ((err as Error).message?.includes("HTTP 404")) {
-      log?.(`  (plain listfile not available, falling back to withcapitalization)`);
+      log?.("debug", `  (plain listfile not available, falling back to withcapitalization)`);
       await streamToFile(LISTFILE_URL_FALLBACK, listfilePath, log);
     } else {
       throw err;
@@ -145,10 +149,10 @@ function filterListfile(
   fullPath: string,
   filteredPath: string,
   grepCmd: string,
-  log?: (line: string) => void,
+  log?: (level: LogLevel, msg: string) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    log?.(`Filtering listfile to Interface/ and Fonts/ entries...`);
+    log?.("info", `Filtering listfile to Interface/ and Fonts/ entries...`);
     const proc = cp.spawn(grepCmd, ["-F", "-i", "-e", ";Interface/", "-e", ";Fonts/", fullPath]);
     const ws = fs.createWriteStream(filteredPath);
     proc.stdout.pipe(ws);
@@ -176,7 +180,7 @@ function filterListfile(
  */
 export async function ensureFilteredListfile(
   listfileDir: string,
-  log?: (line: string) => void,
+  log?: (level: LogLevel, msg: string) => void,
   buildText?: string,
   grepPath?: string,
 ): Promise<string> {
@@ -279,7 +283,7 @@ async function extractRetailBulk(
   ];
 
   const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
-  opts.log?.(`assets-extraction: "${opts.flavor}/${type}" → global cache "${shortOut}"`);
+  opts.log?.("info", `assets-extraction: "${opts.flavor}/${type}" → global cache "${shortOut}"`);
 
   const client = getAssetClient(opts);
   const res = await client.extractFiles(globs);
@@ -338,7 +342,7 @@ async function extractLoosePaths(
   await fs.promises.mkdir(opts.outDir, { recursive: true });
 
   const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
-  opts.log?.(`assets-extraction: "${opts.flavor}/assets" → global cache "${shortOut}"`);
+  opts.log?.("info", `assets-extraction: "${opts.flavor}/assets" → global cache "${shortOut}"`);
 
   let exported = 0;
   let errors = 0;
@@ -347,14 +351,14 @@ async function extractLoosePaths(
     const rel = p.replace(/^[Ii]nterface[/\\]/i, "");
     const found = findCaseInsensitive(interfaceDir, rel.split(/[/\\]/));
     if (!found) {
-      opts.log?.(`  Not found: ${p} (skipping)`);
+      opts.log?.("debug", `  Not found: ${p} (skipping)`);
       errors++;
       continue;
     }
     const dest = path.join(opts.outDir, rel);
     await fs.promises.mkdir(path.dirname(dest), { recursive: true });
     await fs.promises.copyFile(found, dest);
-    opts.log?.(`  Copied ${p}`);
+    opts.log?.("debug", `  Copied ${p}`);
     exported++;
   }
   await normalizeSubtreeToLowercase(opts.outDir);
@@ -399,7 +403,7 @@ async function extractLooseBulk(
   if (type === "interface" || type === "all") LOOSE_INTERFACE_EXTS.forEach((e) => exts.add(e));
 
   const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
-  opts.log?.(`assets-extraction: "${opts.flavor}/${type}" → global cache "${shortOut}"`);
+  opts.log?.("info", `assets-extraction: "${opts.flavor}/${type}" → global cache "${shortOut}"`);
 
   const exported = await copyFilesRecursive(interfaceDir, opts.outDir, exts);
   await normalizeSubtreeToLowercase(opts.outDir);

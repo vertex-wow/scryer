@@ -85,7 +85,7 @@ function makeCoreOpts(opts: ExtractorOptions): ExtractCoreOptions {
     grepPath: opts.grepPath,
     listfileDir: opts.listfileDir || "",
     logFile: opts.logFile,
-    log: (msg) => safeLog(opts.output, "info", msg),
+    log: (level, msg) => safeLog(opts.output, level, msg),
   };
 }
 
@@ -150,7 +150,7 @@ export async function extractBlizzardShared(opts: ExtractorOptions): Promise<voi
     safeLog(
       opts.output,
       "error",
-      `assets-extraction failed: "${opts.flavor}/shared" → ${String(err)} — individual file errors logged above at trace level`,
+      `assets-extraction failed: "${opts.flavor}/shared" → ${String(err)}`,
     );
     return;
   }

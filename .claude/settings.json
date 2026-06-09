@@ -68,7 +68,8 @@
       "Bash(pnpm test:xml *)",
       "Bash(pnpm test:toc-casc *)",
       "Bash(npx playwright *)",
-      "Bash(pnpm exec *)"
+      "Bash(pnpm exec *)",
+      "Bash(cargo build *)"
     ],
     "additionalDirectories": [
       "/tmp"

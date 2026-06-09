@@ -1,6 +1,22 @@
 import * as cp from "child_process";
 import * as readline from "readline";
 
+export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
+
+const RUST_LEVEL_MAP: Record<string, LogLevel> = {
+  TRACE: "trace",
+  DEBUG: "debug",
+  INFO: "info",
+  WARN: "warn",
+  ERROR: "error",
+};
+
+function parseServerLogLine(raw: string): { level: LogLevel; msg: string } {
+  const m = raw.match(/^\S+Z\s+(TRACE|DEBUG|INFO|WARN|ERROR)\s+(.+)$/);
+  if (!m) return { level: "info", msg: raw };
+  return { level: RUST_LEVEL_MAP[m[1]], msg: m[2] };
+}
+
 export interface ExtractionResult {
   ok: boolean;
   extracted: number;
@@ -21,7 +37,7 @@ export interface AssetClientOptions {
   wowDir: string;
   outDir: string;
   idleTimeout: number;
-  log?: (msg: string) => void;
+  log?: (level: LogLevel, msg: string) => void;
   logFile?: string;
 }
 
@@ -44,7 +60,7 @@ export class AssetClient {
       return;
     }
 
-    this.options.log?.(`[AssetClient] Starting server: ${this.options.binaryPath}`);
+    this.options.log?.("info", `client: Starting server: ${this.options.binaryPath}`);
 
     const args = [
       "server",
@@ -66,11 +82,16 @@ export class AssetClient {
     }
 
     this.serverProcess.stderr.on("data", (data: Buffer) => {
-      this.options.log?.(`[AssetServer log] ${data.toString().trim()}`);
+      for (const line of data.toString().split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        const { level, msg } = parseServerLogLine(trimmed);
+        this.options.log?.(level, `server: ${msg}`);
+      }
     });
 
     this.serverProcess.on("exit", (code, signal) => {
-      this.options.log?.(`[AssetClient] Server exited with code ${code} signal ${signal}`);
+      this.options.log?.("info", `client: Server exited with code ${code} signal ${signal}`);
       this.serverProcess = null;
       this.rl?.close();
       this.rl = null;
@@ -84,7 +105,7 @@ export class AssetClient {
     });
 
     this.serverProcess.on("error", (err) => {
-      this.options.log?.(`[AssetClient] Failed to start server: ${err.message}`);
+      this.options.log?.("error", `client: Failed to start server: ${err.message}`);
       this.serverProcess = null;
       const rejectErr = new Error(`Failed to start server: ${err.message}`);
       for (const req of this.pendingRequests.values()) {
@@ -110,7 +131,7 @@ export class AssetClient {
           }
         }
       } catch (e) {
-        this.options.log?.(`[AssetClient] Failed to parse response: ${e}\nLine: ${line}`);
+        this.options.log?.("warn", `client: Failed to parse response: ${e}\nLine: ${line}`);
       }
     });
 
@@ -148,6 +169,7 @@ export class AssetClient {
     if (paths.length === 0) {
       return { ok: true, extracted: 0, skipped: 0, errors: 0 };
     }
+    this.options.log?.("info", `client: Sending extract request: ${paths.length} path(s)/glob(s)`);
     const res = await this.request<ExtractionResult>("extract", { paths });
     if (!res.ok) {
       throw new Error(res.error || "Unknown extraction error");
