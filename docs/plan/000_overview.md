@@ -53,14 +53,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>↳</td>
   <td colspan="5">✅ <a href="backlog-archive.md#relativekey-anchor-targets-deferred-from-m2">relativeKey anchor resolution</a>, <a href="backlog-archive.md#css-inset--relativekey-renderer-fixes-deferred-from-m2">CSS inset + relativeKey renderer fixes</a>, <a href="backlog-archive.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2">TexCoords sprite-sheet slicing</a>, <a href="backlog-archive.md#fontstring-rendering-fidelity">FontString rendering fidelity</a>, <a href="backlog-archive.md#pixel-ruler-overlay-in-the-preview-panel">Pixel ruler overlay</a>, <a href="backlog-archive.md#texture-placeholder-hover-tooltip">Texture placeholder hover tooltip</a>, <a href="backlog-archive.md#all-preview-chrome-values-configurable-via-defaultsjson">All preview chrome values in defaults.json</a>, <a href="backlog-archive.md#canvas-scroll-in-all-directions-and-always-show-scrollbars">Canvas scroll in all directions + always-show scrollbars</a>, <a href="backlog-archive.md#center-frame-content-on-open">Center frame content on open</a>, <a href="backlog-archive.md#grab-pan-and-zoom-on-the-preview-canvas">Grab pan and zoom on the preview canvas</a>, <a href="backlog-archive.md#webview-snapshot--golden-image-regression">Webview snapshot / golden-image regression</a>, <a href="backlog-archive.md#eyedropper-color-picker-in-preview">Eyedropper color picker in preview</a>, <a href="backlog-archive.md#nineslice-border-rendering-fidelity-diamondmetal">NineSlice border rendering fidelity (DiamondMetal)</a></td>
 </tr>
-<tr>
-  <td>↳</td>
-  <td><a href="backlog.md#preview-background-philosophy">Preview background philosophy</a></td>
-  <td>📋 Pending</td>
-  <td>Codify "no game graphics" scope; principled placeholder design; write ADR</td>
-  <td>XS</td>
-  <td>—</td>
-</tr>
+
 </tbody>
 </table>
 
@@ -392,6 +385,30 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tr>
   <td>↳</td>
   <td colspan="5">✅ <a href="backlog-archive.md#typed-scalar-returns-in-generated-stubs">Typed scalar returns</a>, <a href="backlog-archive.md#wow-type-system-generation">WoW type system generation</a>, <a href="backlog-archive.md#event-name-constants-generation">Event name constants</a>, <a href="backlog-archive.md#enum-stub-generation">Enum stub generation</a></td>
+</tr>
+</tbody>
+</table>
+
+### M14 — Placeholder 3D Graphics (stretch)
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>14</td>
+  <td><strong>Placeholder 3D Graphics</strong> <em>(stretch)</em></td>
+  <td>⬜ Pending</td>
+  <td>Render rudimentary 3D models directly from CASC to provide context for UI frames.</td>
+  <td>XL</td>
+  <td>3</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#placeholder-3d-graphics-from-casc">Placeholder 3D Graphics from CASC</a></td>
+  <td>📋 Pending</td>
+  <td>Investigate extracting and rendering minimal 3D assets to verify frame positioning, without making Scryer a game emulator.</td>
+  <td>XL</td>
+  <td>—</td>
 </tr>
 </tbody>
 </table>

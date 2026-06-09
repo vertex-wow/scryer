@@ -191,22 +191,26 @@ However, there are a few integration questions worth answering before M8 (TOC Ex
 
 ---
 
-## Preview background philosophy
+## Placeholder 3D Graphics from CASC
 
-**Status:** 📋 Pending
+**Status:** 📋 Pending (Stretch Goal)
 
-Scryer is an addon development tool — not a game emulator, not an alternative WoW client. The preview viewport intentionally omits game world graphics (terrain, character models, sky, particles). Only addon UI frames are rendered.
+**Background & Philosophy:**
+Scryer is an addon development tool focusing on pure UI interactivity. It is **not** a game emulator, not an alternative WoW client, and we should never "ship" game graphics or make it appear that we are a game using WoW graphics.
 
-This matters because it is easy to drift: as fidelity improves, requests will come in for "why doesn't the world show behind the frames?" The answer is that rendering game geometry is out of scope by design, and there is real value in the current approach — a clean, distraction-free canvas makes frame layout and texture debugging much easier than it would be against a real game background.
+Previously, we resolved the need for "game static backgrounds" by allowing developers to set a custom workspace background picture for the webview. This provides the context some UI authors want without Scryer needing to render game terrain.
+
+However, some addons (e.g., character model viewers, transmog frames) would genuinely benefit from really basic placeholder 3D graphics extracted directly from the user's CASC installation.
+
+**Goal:** Provide rudimentary support for 3D graphics using local CASC assets strictly for UI context (e.g., `<PlayerModel>` or `<DressUpModel>` elements).
 
 **What this item covers:**
 
-1. **Write ADR** — document the decision with context, the out-of-scope boundary ("no game world graphics"), and why that boundary is correct. Record what Scryer _is_: a UI frame preview and execution sandbox, not a visual WoW emulator.
-2. **Improve placeholder fidelity** — the colored placeholder tiles are currently functional but not beautiful. Evaluate: should missing textures use a subtle checkerboard or the current hue-based solid color? Should textures that _have_ a resolved file but failed to decode show differently from ones that were never extracted?
-3. **Viewport background** — the dark checker pattern is configurable (already in `defaults.json`). Confirm the defaults are a good "neutral canvas" for addon work, not something that implies a game world.
-4. **No out-of-scope creep** — explicitly note in the ADR that requests for terrain, sky, or character rendering should be closed as out-of-scope.
+1. **Investigate 3D extraction:** Explore reading `.m2` or related 3D models locally from the user's CASC directory.
+2. **Minimal Renderer:** Render a basic placeholder model in the canvas without textures, or with very low fidelity, enough to prove the addon's model frame sizing and positioning works.
+3. **Maintain boundaries:** Strictly ensure this does not cross into "game emulation." The environment remains a blank UI canvas; 3D models are isolated entirely to explicitly requested Model frames.
 
-**Effort:** XS (ADR + minor placeholder polish).
+**Effort:** XL
 
 ---
 
