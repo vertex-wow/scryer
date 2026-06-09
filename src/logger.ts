@@ -62,7 +62,7 @@ export class TeeLogOutputChannel implements vscode.LogOutputChannel {
     }
 
     // Strip ANSI escape codes
-     
+
     formatted = formatted.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "");
 
     const shortLevel = level.charAt(0).toLowerCase();
