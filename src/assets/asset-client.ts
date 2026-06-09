@@ -9,14 +9,14 @@ export interface ExtractionResult {
   error?: string;
 }
 
-export interface CascStatus {
+export interface AssetStatus {
   ok: boolean;
   ready: boolean;
   buildHash?: string;
   idleTimeoutMs?: number;
 }
 
-export interface CascClientOptions {
+export interface AssetClientOptions {
   binaryPath: string;
   wowDir: string;
   outDir: string;
@@ -24,7 +24,7 @@ export interface CascClientOptions {
   log?: (msg: string) => void;
 }
 
-export class CascClient {
+export class AssetClient {
   private serverProcess: cp.ChildProcess | null = null;
   private requestIdCounter = 0;
   private pendingRequests: Map<
@@ -32,9 +32,9 @@ export class CascClient {
     { resolve: (val: unknown) => void; reject: (err: unknown) => void }
   > = new Map();
   private rl: readline.Interface | null = null;
-  private options: CascClientOptions;
+  private options: AssetClientOptions;
 
-  constructor(options: CascClientOptions) {
+  constructor(options: AssetClientOptions) {
     this.options = options;
   }
 
@@ -43,7 +43,7 @@ export class CascClient {
       return;
     }
 
-    this.options.log?.(`[CascClient] Starting server: ${this.options.binaryPath}`);
+    this.options.log?.(`[AssetClient] Starting server: ${this.options.binaryPath}`);
 
     this.serverProcess = cp.spawn(this.options.binaryPath, [
       "server",
@@ -60,11 +60,11 @@ export class CascClient {
     }
 
     this.serverProcess.stderr.on("data", (data: Buffer) => {
-      this.options.log?.(`[CascServer log] ${data.toString().trim()}`);
+      this.options.log?.(`[AssetServer log] ${data.toString().trim()}`);
     });
 
     this.serverProcess.on("exit", (code, signal) => {
-      this.options.log?.(`[CascClient] Server exited with code ${code} signal ${signal}`);
+      this.options.log?.(`[AssetClient] Server exited with code ${code} signal ${signal}`);
       this.serverProcess = null;
       this.rl?.close();
       this.rl = null;
@@ -78,7 +78,7 @@ export class CascClient {
     });
 
     this.serverProcess.on("error", (err) => {
-      this.options.log?.(`[CascClient] Failed to start server: ${err.message}`);
+      this.options.log?.(`[AssetClient] Failed to start server: ${err.message}`);
     });
 
     this.rl = readline.createInterface({
@@ -98,7 +98,7 @@ export class CascClient {
           }
         }
       } catch (e) {
-        this.options.log?.(`[CascClient] Failed to parse response: ${e}\nLine: ${line}`);
+        this.options.log?.(`[AssetClient] Failed to parse response: ${e}\nLine: ${line}`);
       }
     });
 
@@ -148,8 +148,8 @@ export class CascClient {
     };
   }
 
-  public async status(): Promise<CascStatus> {
-    const res = await this.request<CascStatus>("status");
+  public async status(): Promise<AssetStatus> {
+    const res = await this.request<AssetStatus>("status");
     return {
       ok: res.ok,
       ready: res.ready,

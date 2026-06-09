@@ -15,7 +15,7 @@ import * as fs from "fs";
 import * as http from "http";
 import * as https from "https";
 import * as path from "path";
-import { CascClient } from "./asset-client.js";
+import { AssetClient } from "./asset-client.js";
 
 export type Flavor = "retail" | "classic" | "classic_era";
 export type ExtractType = "textures" | "interface" | "all";
@@ -211,14 +211,14 @@ export async function ensureFilteredListfile(
 }
 
 // ---------------------------------------------------------------------------
-// CascClient instance management
+// AssetClient instance management
 // ---------------------------------------------------------------------------
 
-let sharedCascClient: CascClient | null = null;
+let sharedAssetClient: AssetClient | null = null;
 
-function getCascClient(opts: ExtractCoreOptions): CascClient {
-  if (!sharedCascClient) {
-    sharedCascClient = new CascClient({
+function getAssetClient(opts: ExtractCoreOptions): AssetClient {
+  if (!sharedAssetClient) {
+    sharedAssetClient = new AssetClient({
       binaryPath: opts.assetServerPath,
       wowDir: opts.wowDir,
       outDir: opts.outDir,
@@ -226,7 +226,7 @@ function getCascClient(opts: ExtractCoreOptions): CascClient {
       log: opts.log,
     });
   }
-  return sharedCascClient;
+  return sharedAssetClient;
 }
 
 // ---------------------------------------------------------------------------
@@ -260,7 +260,7 @@ async function extractRetailPaths(
   paths: string[],
   opts: ExtractCoreOptions,
 ): Promise<ExtractionResult> {
-  const client = getCascClient(opts);
+  const client = getAssetClient(opts);
   const res = await client.extractFiles(paths);
   await normalizeSubtreeToLowercase(opts.outDir);
   return { exported: res.extracted, skippedExists: res.skipped, errors: res.errors };
@@ -278,7 +278,7 @@ async function extractRetailBulk(
   const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
   opts.log?.(`assets-extraction: "${opts.flavor}/${type}" → global cache "${shortOut}"`);
 
-  const client = getCascClient(opts);
+  const client = getAssetClient(opts);
   const res = await client.extractFiles(globs);
   await normalizeSubtreeToLowercase(opts.outDir);
   return { exported: res.extracted, skippedExists: res.skipped, errors: res.errors };
