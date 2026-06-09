@@ -304,11 +304,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#featuresmd--rendering-features-table-per-flavor">features.md — rendering features per flavor</a></td>
-  <td>📋 Pending</td>
-  <td>Write docs/features.md: table of supported frame types, attributes, and rendering behaviors per WoW flavor</td>
-  <td>XS</td>
-  <td>—</td>
+  <td colspan="5">✅ <a href="backlog-archive.md#featuresmd--rendering-features-table-per-flavor">features.md — rendering features per flavor</a></td>
 </tr>
 </tbody>
 </table>

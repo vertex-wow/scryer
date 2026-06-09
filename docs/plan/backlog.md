@@ -354,20 +354,3 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 **Depends on:** M7 (done).
 
 ---
-
-## features.md — rendering features table per flavor
-
-**Status:** 📋 Pending
-
-**Problem:** There is no single place that tells an addon developer (or contributor) which frame types, XML attributes, and rendering behaviors Scryer actually supports — and which are stubs, placeholders, or not yet implemented. As coverage grows and flavors diverge, this gap becomes harder to fill from source inspection alone.
-
-**Plan:** Write `docs/features.md` containing:
-
-1. **Frame type support table** — rows for each WoW widget type (`Frame`, `Button`, `Texture`, `FontString`, `StatusBar`, `NineSlice`, `ScrollFrame`, etc.). Columns: Retail / Classic / Classic Era support status (✅ rendered, 🟡 partial, ❌ not implemented, N/A if the type doesn't exist in that flavor).
-2. **Attribute coverage notes** — for each frame type, a brief note on which XML attributes are rendered vs silently ignored (e.g. `hidden`, `setAllPoints`, `inherits`).
-3. **Rendering behavior table** — cross-cutting behaviors: anchor resolution, strata/layer z-order, NineSlice, atlas textures, TexCoords, tiling, FontString font/size/color, template inheritance. Same per-flavor columns.
-4. **Known gaps** — short list of features that parse correctly but produce placeholder output (e.g. `StatusBar` fill, TGA textures).
-
-Update this file alongside any future rendering work that adds or changes feature coverage.
-
-**Effort:** XS — the information already exists in code, tests, and backlog entries; this is purely documentation assembly.

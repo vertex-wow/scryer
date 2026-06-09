@@ -4,6 +4,18 @@ Completed items moved from [backlog.md](backlog.md). Historical record of what w
 
 ---
 
+## features.md — rendering features table per flavor
+
+**Status:** ✅ Done (2026-06-09)
+
+**Problem:** There is no single place that tells an addon developer (or contributor) which frame types, XML attributes, and rendering behaviors Scryer actually supports — and which are stubs, placeholders, or not yet implemented. As coverage grows and flavors diverge, this gap becomes harder to fill from source inspection alone.
+
+**What was built:**
+
+Created `docs/features.md` to map out general tooling features (Static vs Live modes), widget rendering spec-compliance per WoW flavor, attribute coverage, and known gaps (like StatusBar fill and TGA decoding). This document will serve as a single point of reference.
+
+---
+
 ## API stub autogeneration (`gen-api-stubs.ts`)
 
 **Status:** ✅ Done (2026-06-08)
