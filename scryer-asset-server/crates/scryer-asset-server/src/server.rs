@@ -1,5 +1,6 @@
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -66,11 +67,19 @@ pub fn run_server(
 
     let idle_timeout_dur = Duration::from_secs(idle_timeout);
     let last_request = Arc::new(Mutex::new(Instant::now()));
+    // Prevents idle exit while a request is actively being processed (e.g. during CASC init).
+    let in_flight = Arc::new(AtomicBool::new(false));
 
     // Background thread to watch for idle timeout
     let timeout_last_req = Arc::clone(&last_request);
+    let timeout_in_flight = Arc::clone(&in_flight);
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_secs(1));
+        if timeout_in_flight.load(Ordering::Relaxed) {
+            // Request in progress — reset idle timer so timeout counts from completion.
+            *timeout_last_req.lock().unwrap() = Instant::now();
+            continue;
+        }
         let elapsed = timeout_last_req.lock().unwrap().elapsed();
         if elapsed > idle_timeout_dur {
             tracing::info!("Idle timeout reached ({}s). Exiting.", idle_timeout);
@@ -108,14 +117,15 @@ pub fn run_server(
             continue;
         }
 
-        // Reset idle timer
+        // Reset idle timer and mark request in flight.
         *last_request.lock().unwrap() = Instant::now();
+        in_flight.store(true, Ordering::Relaxed);
 
         let req: ServerRequest = match serde_json::from_str(line) {
             Ok(r) => r,
             Err(e) => {
                 tracing::error!("Failed to parse request: {}", e);
-                // Can't send error response if we don't have an id
+                in_flight.store(false, Ordering::Relaxed);
                 continue;
             }
         };
@@ -144,19 +154,36 @@ pub fn run_server(
                 serde_json::to_writer(&mut stdout, &res).unwrap();
                 stdout.write_all(b"\n").unwrap();
                 stdout.flush().unwrap();
+                in_flight.store(false, Ordering::Relaxed);
             }
             RequestPayload::Extract { paths } => {
+                tracing::info!("Extract request: {} path(s)/glob(s)", paths.len());
+                if tracing::enabled!(tracing::Level::DEBUG) {
+                    for p in paths.iter().take(5) {
+                        tracing::debug!("  {}", p);
+                    }
+                    if paths.len() > 5 {
+                        tracing::debug!("  ... ({} more)", paths.len() - 5);
+                    }
+                }
+
                 // Initialize storage if not ready
                 if storage.is_none() {
                     tracing::info!("Initializing CASC storage for the first time...");
                     match CascStorage::open(&open_config) {
                         Ok(s) => {
                             let info = s.info();
+                            tracing::info!(
+                                "CASC storage initialized. build={} product={} root_entries={}",
+                                info.version,
+                                info.product,
+                                info.root_entries
+                            );
                             build_hash = info.version.clone();
                             storage = Some(s);
-                            tracing::info!("CASC storage initialized.");
                         }
                         Err(e) => {
+                            tracing::error!("Failed to initialize CASC storage: {}", e);
                             let res = ServerResponse::Error {
                                 id: req.id,
                                 ok: false,
@@ -165,6 +192,7 @@ pub fn run_server(
                             serde_json::to_writer(&mut stdout, &res).unwrap();
                             stdout.write_all(b"\n").unwrap();
                             stdout.flush().unwrap();
+                            in_flight.store(false, Ordering::Relaxed);
                             continue;
                         }
                     }
@@ -194,9 +222,16 @@ pub fn run_server(
                     }
                     Err(e) => {
                         tracing::error!("Error extracting paths: {}", e);
-                        errors_count += 1; // Or handle better if whole extraction fails
+                        errors_count += 1;
                     }
                 }
+
+                tracing::info!(
+                    "Extract complete: extracted={} skipped={} errors={}",
+                    extracted_count,
+                    skipped_count,
+                    errors_count
+                );
 
                 let res = ServerResponse::Extract {
                     id: req.id,
@@ -208,6 +243,7 @@ pub fn run_server(
                 serde_json::to_writer(&mut stdout, &res).unwrap();
                 stdout.write_all(b"\n").unwrap();
                 stdout.flush().unwrap();
+                in_flight.store(false, Ordering::Relaxed);
             }
         }
     }

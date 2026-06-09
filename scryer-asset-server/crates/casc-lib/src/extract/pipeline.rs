@@ -411,6 +411,8 @@ pub fn extract_all(
                 glob_patterns.push(f.clone());
             } else if let Some(fdid) = storage.listfile.fdid(f) {
                 exact_fdids.insert(fdid);
+            } else {
+                tracing::debug!("filter: exact path not in listfile — {:?}", f);
             }
         }
 
@@ -425,6 +427,15 @@ pub fn extract_all(
             }
             false
         });
+
+        if tracing::enabled!(tracing::Level::DEBUG) {
+            tracing::debug!(
+                "filter: {} entries matched ({} exact + {} globs)",
+                entries.len(),
+                exact_fdids.len(),
+                glob_patterns.len()
+            );
+        }
     }
 
     let total = entries.len() as u64;
@@ -466,12 +477,36 @@ pub fn extract_all(
         .build()
         .map_err(|e| CascError::InvalidFormat(format!("failed to create thread pool: {}", e)))?;
 
-    // 8. Parallel extraction
+    // 8. Parallel extraction — track stats regardless of metadata mode.
     let completed = AtomicU64::new(0);
+    let stat_success = AtomicU64::new(0);
+    let stat_errors = AtomicU64::new(0);
+    let stat_skipped = AtomicU64::new(0);
+    let stat_bytes = AtomicU64::new(0);
 
     pool.install(|| {
         sortable.par_iter().for_each(|(fdid, root_entry, _, _)| {
             let result = extract_one(storage, config, *fdid, root_entry);
+
+            match &result {
+                Ok(bytes) => {
+                    stat_success.fetch_add(1, Ordering::Relaxed);
+                    stat_bytes.fetch_add(*bytes, Ordering::Relaxed);
+                }
+                Err(e) if e.starts_with("skipped:") => {
+                    stat_skipped.fetch_add(1, Ordering::Relaxed);
+                }
+                Err(e) => {
+                    stat_errors.fetch_add(1, Ordering::Relaxed);
+                    let path = storage.listfile.path(*fdid).unwrap_or("unknown");
+                    tracing::warn!(
+                        "    extract error: {} (fdid={}) — {}",
+                        path,
+                        fdid,
+                        e.trim_start_matches("error:")
+                    );
+                }
+            }
 
             if let Some(ref meta) = metadata {
                 let entry = make_metadata_entry(*fdid, root_entry, &result, &storage.listfile);
@@ -485,11 +520,19 @@ pub fn extract_all(
         });
     });
 
+    let inline_stats = ExtractionStats {
+        total,
+        success: stat_success.load(Ordering::Relaxed),
+        errors: stat_errors.load(Ordering::Relaxed),
+        skipped: stat_skipped.load(Ordering::Relaxed),
+        bytes_written: stat_bytes.load(Ordering::Relaxed),
+    };
+
     // 9. Finish metadata
     if let Some(meta) = metadata {
         meta.finish()
     } else {
-        Ok(ExtractionStats::default())
+        Ok(inline_stats)
     }
 }
 
@@ -569,10 +612,16 @@ fn extract_one(
         return Err("skipped:encrypted".into());
     }
 
-    // Read the file data
-    let data = storage
-        .read_by_ckey(&root_entry.ckey)
-        .map_err(|e| format!("error:{}", e))?;
+    // Read the file data. If the archive slot exists but doesn't contain valid BLTE data, the
+    // Battle.net client hasn't downloaded this file — it's a CDN-only stub. Report it as
+    // skipped rather than an error so it doesn't pollute the error count.
+    let data = match storage.read_by_ckey(&root_entry.ckey) {
+        Ok(d) => d,
+        Err(CascError::InvalidMagic { ref expected, .. }) if expected == "BLTE" => {
+            return Err("skipped:cdn-only".into());
+        }
+        Err(e) => return Err(format!("error:{}", e)),
+    };
 
     // Optional: verify MD5
     if config.verify {
