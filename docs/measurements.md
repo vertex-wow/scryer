@@ -246,7 +246,7 @@ The listfile CSV has **2,172,924 entries** (cached at `<cacheRoot>/downloads/lis
 
 **The fix:** Use `rustydemon-cli -p "{dir1,dir2,...}/**"` brace-glob syntax to extract multiple directories in a single CASC open. The tool supports brace expansion in the `-p` argument (confirmed); it does not support multiple `-p` flags or a `--paths-file` option.
 
-**Implication for architecture:** Any extraction feature (on-demand or batch) must batch all its paths into a single `rustydemon-cli` call. An in-process CASC reader (see [backlog](plan/backlog.md#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli)) would eliminate this listfile-parse overhead entirely.
+**Implication for architecture:** Any extraction feature (on-demand or batch) must batch all its paths into a single `rustydemon-cli` call. The CASC Asset Service (see [M15](plan/015_casc_asset_service.md)) would eliminate this listfile-parse overhead entirely.
 
 ---
 
@@ -692,7 +692,7 @@ Jest tests run in CI. Benchmark runs depend on `.wow-assets/` (gitignored corpus
 
 ### In-process JS CASC reader vs external binaries
 
-When the in-process CASC reader is built (see [backlog: In-process JavaScript CASC reader](plan/backlog.md#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli)), the comparison benchmark is:
+When the CASC Asset Service is built (see [M15 — CASC Asset Service](plan/015_casc_asset_service.md)), the comparison benchmark is:
 
 ```bash
 # Compare JS reader against both external binaries:
@@ -737,4 +737,4 @@ Trigger condition: when the team grows beyond a single developer, or when a perf
 - [ADR 002: Asset Pipeline](decisions/002_asset_pipeline.md) — architecture context for BLP decode and cache
 - [Backlog: Extraction Benchmarks](plan/backlog.md#extraction-benchmarks) — original task, initial findings, implementation notes
 - [Backlog: Preload Workspace Textures](plan/backlog.md#preload-workspace-textures-at-startup) — preload decision this benchmark informs
-- [Backlog: In-process CASC Reader](plan/backlog.md#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli) — long-term head-to-head target
+- [M15: CASC Asset Service](plan/015_casc_asset_service.md) — long-term head-to-head target

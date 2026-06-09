@@ -343,7 +343,7 @@ The official community listfile from [wowdev/wow-listfile](https://github.com/wo
 
 Switched to `community-listfile-withcapitalization.csv` from the same `wowdev/wow-listfile` `releases/latest` URL. Path strings in the listfile now use WoW canonical capitalisation (`Interface/Buttons/UI-CheckBox-Check.blp`). The `filterListfile` grep patterns updated to `";Interface/"` / `";Fonts/"` to match.
 
-`resolveCI` is unchanged — rustydemon-cli still lowercases output filenames on Linux regardless of the listfile content. `resolveCI` removal is deferred to [In-process CASC reader](backlog.md#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli) when we own the output path.
+`resolveCI` is unchanged — rustydemon-cli still lowercases output filenames on Linux regardless of the listfile content. `resolveCI` removal is deferred to [M15 — CASC Asset Service](015_casc_asset_service.md) when we own the output path.
 
 ---
 

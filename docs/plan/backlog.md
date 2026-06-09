@@ -22,42 +22,13 @@ Completed items are in [backlog-archive.md](backlog-archive.md).
 
 ---
 
-## In-process JavaScript CASC reader (replace extract.sh + rustydemon-cli)
+## CASC Asset Service (replace extract.sh + rustydemon-cli)
 
-**Problem:** The on-demand extraction flow (see above) depends on `rustydemon-cli` being installed and `dev/config.local.sh` being configured. This is a friction point for end users of the extension — they are addon developers, not tool installers. The extension should be able to read textures directly from the WoW install without any external binary.
+**Status: Promoted to [Milestone 15 — CASC Asset Service](015_casc_asset_service.md).**
 
-**Goal:** Replace the `extractMissing(paths)` internals with a pure-JS CASC reader that reads directly from `scryer.installDir`. The function signature stays identical — only its implementation changes (this is exactly why the function boundary was designed the way it was). End result: install the extension, point `scryer.installDir` at your WoW folder, open an XML file, textures load. No shell script, no rustydemon-cli, no listfile download.
+Previously titled "In-process JavaScript CASC reader." Scope evolved from an in-process JS library to a standalone long-lived Rust server after analysis showed that process isolation, clean memory lifecycle, and the availability of `casc-extractor` (MIT Rust implementation) make a separate-process architecture superior. See the milestone document for full design, MVP scope, and deferred sub-items.
 
-**What changes:**
-
-- `AssetService.extractMissing(paths)` is reimplemented without spawning a subprocess. Given a list of WoW-relative texture paths, it opens the CASC storage at `scryer.installDir`, reads the requested files, writes them into `<cacheRoot>/source/`, and returns.
-- `scryer.extractScriptPath` and `scryer.flavor` configs become unnecessary (flavor can be auto-detected from the install's `.build.info`).
-- `dev/extract.sh` and `dev/config.local.sh` remain as developer/contributor tooling but the extension no longer requires them.
-- The community listfile is no longer needed — CASC file lookup by virtual path is handled internally via the TVFS manifest and encoding tables.
-
-**Reference implementations (all MIT, listed in NOTICE):**
-
-Full source for all of the following is checked into `_reference/` (read-only):
-
-- **wow.export** (Kruithne) — JavaScript GUI that reads WoW CASC archives directly in Node/Electron. Primary reference: same author as `js-blp` (which we already use), so the JS idioms will be familiar. Start here. The MIT license covers direct code integration; the developer has also given their personal blessing, which is a welcome bonus (see [`docs/reference/wow.extract_code_permission_kruithne_discord_2026-05-25.png`](../reference/wow.extract_code_permission_kruithne_discord_2026-05-25.png)).
-- **CascLib** (Ladislav Zezula) — C reference implementation; useful for cross-checking edge cases in encoding/index parsing.
-- **SereniaBLPLib** (Xalcon) — C# BLP texture parser; useful reference for DXT decompression edge cases (though js-blp already handles BLP).
-- **TACTLib** (Overtools) — C# implementation with good TVFS and static-container coverage.
-- **casc-extractor** (Xerrion) — Rust CLI and library; additional reference for archive index and BLTE handling.
-- **wowdev.wiki/CASC** — format documentation for CASC, TACT, BLTE, encoding, and TVFS manifest structures.
-
-**Key CASC concepts to implement (in rough dependency order):**
-
-1. Parse `.build.info` / `.product.db` to locate the active build config.
-2. Read the build config and CDN config to find the encoding manifest and archive indices.
-3. Parse the encoding table (content hash → encoded hash lookup).
-4. Parse the root file (TVFS or legacy flat root) to map virtual paths (e.g. `Interface/Buttons/UI-CheckBox-Check.blp`) → content hash.
-5. Given a content hash, locate the data in local archive indices and read the BLTE-encoded block.
-6. Decompress BLTE (zlib or none) to recover the raw file bytes (BLP in this case).
-
-Retail uses TVFS (introduced in 8.2); Classic uses the older flat-root format. Both must be supported if we want to cover all three flavor targets.
-
-**Effort:** L — CASC is a multi-layer format (build info → encoding → root → index → BLTE). wow.export is a strong prior art reference that de-risks most of the format work, but this is still the largest single item on the backlog.
+**Effort:** M–L (MVP); additional L in aggregate for post-MVP optimizations.
 
 ---
 
@@ -65,7 +36,7 @@ Retail uses TVFS (introduced in 8.2); Classic uses the older flat-root format. B
 
 **Status: 📋 Pending**
 
-**Prerequisite:** [In-process CASC reader](#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli) (or at minimum, a Node.js-native extraction path that doesn't call `rustydemon-cli`).
+**Prerequisite:** [M15 — CASC Asset Service](015_casc_asset_service.md) (or at minimum, a Node.js-native extraction path that doesn't call `rustydemon-cli`).
 
 **Problem:** Once `rustydemon-cli` is gone, the community listfile is only needed by `atlas-gen.ts` (FileDataID → `Interface/` path join for the atlas manifest). That consumer reads the entire CSV as a full linear scan — currently ~837 ms in-process for 169 K pre-filtered rows, or several seconds for the full 2.17 M row file. This is acceptable today (atlas gen runs rarely), but becomes a regression if the manifest needs regenerating after every game patch.
 

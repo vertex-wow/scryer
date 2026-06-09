@@ -84,10 +84,10 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#in-process-javascript-casc-reader-replace-extractsh--rustydemon-cli">In-process CASC reader</a></td>
-  <td>📋 Pending</td>
-  <td>Read WoW CASC archives in-process, no external binary</td>
-  <td>L</td>
+  <td><a href="015_casc_asset_service.md">CASC Asset Service</a></td>
+  <td>⬜ Pending (M15)</td>
+  <td>Standalone long-lived CASC extraction server; replaces rustydemon-cli</td>
+  <td>M–L</td>
   <td>—</td>
 </tr>
 <tr>
@@ -110,9 +110,9 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>↳</td>
   <td><a href="backlog.md#listfile-fast-index-in-process--post-rustydemon-era">Listfile fast index</a></td>
   <td>📋 Pending</td>
-  <td>SQLite/binary index for atlas-gen FileDataID lookups; prereq: in-process CASC reader</td>
+  <td>SQLite/binary index for atlas-gen FileDataID lookups; prereq: M15 CASC Asset Service</td>
   <td>S–M</td>
-  <td>—</td>
+  <td>15</td>
 </tr>
 </tbody>
 </table>
@@ -393,6 +393,70 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tbody>
 </table>
 
+### M15 — CASC Asset Service
+
+<table>
+<thead><tr><th>#</th><th>Name</th><th>Status</th><th>Description</th><th>Effort</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr>
+  <td>15</td>
+  <td><strong><a href="015_casc_asset_service.md">CASC Asset Service</a></strong></td>
+  <td>⬜ Pending</td>
+  <td>Standalone long-lived Rust server for CASC extraction; replaces <code>rustydemon-cli</code></td>
+  <td>M–L</td>
+  <td>3</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td>Eliminate listfile dependency (TVFS/root direct)</td>
+  <td>📋 Pending</td>
+  <td>Parse TVFS manifest and encoding tables directly; cold start 25 s → ~200 ms</td>
+  <td>L</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td>Disk-cached lookup tables</td>
+  <td>📋 Pending</td>
+  <td>Serialize parsed tables to binary cache; cold start ~200 ms → ~50 ms</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td>Direct byte streaming over stdio</td>
+  <td>📋 Pending</td>
+  <td>Return raw file bytes over the protocol instead of writing to disk</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td>DB2 file reading support</td>
+  <td>📋 Pending</td>
+  <td>Expose <code>readFile</code> method for arbitrary CASC paths; unblocks Atlas from DB2</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td>Multi-platform CI build pipeline</td>
+  <td>📋 Pending</td>
+  <td>Cross-compile for linux-x64, darwin-x64, darwin-arm64, win32-x64</td>
+  <td>S–M</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td>Performance benchmarking (server vs rustydemon-cli)</td>
+  <td>📋 Pending</td>
+  <td>Head-to-head comparison; ADR evidence for the migration</td>
+  <td>XS</td>
+  <td>—</td>
+</tr>
+</tbody>
+</table>
+
 ### Miscellaneous
 
 <table>
@@ -434,12 +498,18 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   |   - script events (M9)                |
   |                                        |                      |
   |  Asset Pipeline (M3)                   |          +-----------------------------+
-  |   - BLP->PNG, atlas, cache             | -------> |  cacheRoot/derived/ (PNG)   |
-  +----------------------------------------+          +-----------------------------+
-              |                  ^
-    reads (read-only)          file save -> Hot Reload (M11)
-              v                  |
-    WOW_DIR install / _live/Addons    Headless runner (M12, no webview)
+  |   - BLP->PNG, atlas, cache             | ------> |  cacheRoot/derived/ (PNG)   |
+  |   - CascClient (M15) ----+            |          +-----------------------------+
+  +----------------------------------------+
+              |                ^ stdio/JSON |
+    reads (read-only)          |            v
+              v                |   +------------------------+
+    WOW_DIR install            |   | scryer-asset-server    |
+                               |   |  long-lived server     |
+    file save -> Hot Reload    |   |  idle timeout → exit   |
+    (M11)                      |   +------------------------+
+                               |
+    Headless runner (M12)
 ```
 
 ## Cross-Cutting Concerns
