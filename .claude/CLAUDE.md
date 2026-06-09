@@ -98,6 +98,16 @@ Configuration documentation is split across three files so users see only what i
 - Before running any `sed` or `awk` command that modifies a file, use `AskUserQuestion` to show the exact command and get approval first.
 - `sed` and `awk` are fine for read-only operations (grepping, inspecting) without asking.
 
+## scryer-asset-server philosophy
+
+The Rust asset server (`scryer-asset-server/`) extracts game files from the user's **local CASC archives only**. There is no CDN fallback, no outbound HTTP for game content, and no automatic download of files the user has not installed.
+
+- **Local files only.** If a CASC entry exists in the local `.idx` index but the data at the archive offset is not valid BLTE (a "CDN-only stub" — present in metadata but not downloaded by Battle.net), the file must be reported as `skipped:cdn-only`, not silently fetched from Blizzard's CDN.
+- **No outbound asset fetching.** `casc-lib` is a local CASC reader. Do not add HTTP client logic for fetching game content. `reqwest` is present only for the community listfile download (metadata, not game content).
+- **Graceful degradation.** Missing files produce placeholder textures and a user-visible log entry. The correct user fix is to run the Battle.net launcher and complete the WoW download — not for Scryer to download it silently on their behalf.
+
+See `docs/decisions/012_no_cdn_fallback.md` for the full rationale.
+
 ## WoW API stub philosophy
 
 Only stub things that do not exist in any Blizzard Lua file we load. See `docs/decisions/011_blizzard_lua_load_philosophy.md` for the full decision.
