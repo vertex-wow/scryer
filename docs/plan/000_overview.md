@@ -456,15 +456,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#rust-server-tier-1-protocol-serde-tests">Rust server: Tier 1 — protocol serde tests</a></td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td><a href="backlog.md#rust-server-tier-2-extraction-stats-mock-tests">Rust server: Tier 2 — extraction stats mock tests</a></td>
-  <td>📋 Pending</td>
-  <td>Extract an <code>ExtractionStore</code> trait; inject synthetic results to verify stats counting and error-string mapping</td>
-  <td>S</td>
-  <td>15</td>
+  <td colspan="5">✅ <a href="backlog-archive.md#rust-server-tier-1-protocol-serde-tests">Rust server: Tier 1 — protocol serde tests</a>, <a href="backlog-archive.md#rust-server-tier-2-extraction-stats-mock-tests">Rust server: Tier 2 — extraction stats mock tests</a></td>
 </tr>
 <tr>
   <td>↳</td>

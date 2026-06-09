@@ -326,37 +326,6 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ---
 
-## Rust server: Tier 2 — extraction stats mock tests
-
-**Status:** 📋 Pending
-
-**Problem:** The stats counting fix (independent `AtomicU64` counters in `extract_all`) can only be verified today by running against a real WoW installation. A mock `CascStorage` would let us inject synthetic `(fdid, result)` pairs and assert that `success`, `errors`, and `skipped` counts are computed correctly — catching regressions like the "stats always 0 with `no_metadata: true`" bug before it reaches users.
-
-**Why it's blocked:** `CascStorage` is a concrete struct with no trait boundary. Testing with synthetic data requires either a trait abstraction or a test-only constructor.
-
-**Plan:**
-
-1. **Extract `ExtractionStore` trait** in `pipeline.rs` — the minimal surface needed by `extract_all` and `extract_one`:
-   ```rust
-   pub trait ExtractionStore {
-       fn read_by_ckey(&self, ckey: &[u8; 16]) -> Result<Vec<u8>>;
-       fn listfile_path(&self, fdid: u32) -> Option<&str>;
-       fn root_iter_all(&self) -> impl Iterator<Item = (u32, &RootEntry)>;
-       fn encoding_find_ekey(&self, ckey: &[u8; 16]) -> Option<&EncodingEntry>;
-       fn index_find(&self, ekey: &[u8]) -> Option<&IndexEntry>;
-   }
-   ```
-   Make `CascStorage` implement `ExtractionStore`; change `extract_all` signature to `&impl ExtractionStore`.
-2. **`MockStore` in `#[cfg(test)]`** — a struct holding a `HashMap<[u8;16], Result<Vec<u8>>>` that returns pre-configured results for each CKey.
-3. **Stats tests** — construct a `MockStore` with a mix of success/error/skip results; call `extract_all`; assert the returned `ExtractionStats` matches the configured mix exactly.
-4. **Error-string mapping tests** — verify that a BLTE-magic failure maps to `"error:..."`, that an encrypted file with `skip_encrypted=true` maps to `"skipped:encrypted"`, and that neither panics.
-
-**Effort:** S — trait extraction ~2 hours; mock + tests ~2 hours; total ~4 hours.
-
-**Depends on:** Tier 1 tests in place; M15 in-progress.
-
----
-
 ## Rust server: Tier 3 — synthetic CASC fixtures
 
 **Status:** 📋 Pending

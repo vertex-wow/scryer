@@ -4,6 +4,26 @@ Completed items moved from [backlog.md](backlog.md). Historical record of what w
 
 ---
 
+## Rust server: Tier 2 — extraction stats mock tests
+
+**Status:** ✅ Done (2026-06-09)
+
+**Problem:** The stats counting logic in `extract_all` (independent `AtomicU64` counters for `success`/`errors`/`skipped`) and the error-string mapping in `extract_one` (`skipped:cdn-only`, `skipped:encrypted`, `error:...`) had no test coverage without a real WoW installation.
+
+**What was built:**
+
+- `ExtractionStore` trait in `pipeline.rs` — minimal surface (`read_by_ckey`, `listfile_path`, `listfile_fdid`, `root_iter_all`, `encoding_find_ekey`, `index_find`, `build_name`, `product`) needed by `extract_all` and `extract_one`.
+- `impl ExtractionStore for CascStorage` — wires existing `CascStorage` fields to the trait; existing callers unchanged.
+- `extract_all` and `extract_one` made generic over `S: ExtractionStore + Sync` (resp. `S: ExtractionStore`). `output_path` public API unchanged.
+- `make_metadata_entry` signature changed from `listfile: &Listfile` to `path: &str`; call sites compute the path string before the parallel closure.
+- `MockStore` in `#[cfg(test)] mod mock_tests` — `HashMap<[u8;16], MockOutcome>` with `Success`/`CdnOnly`/`Error` variants; implements `ExtractionStore`.
+- 7 tests in `mock_tests`: `stats_all_success`, `stats_mixed_outcomes`, `cdn_only_maps_to_skipped_not_error`, `encrypted_with_skip_maps_to_skipped`, `general_error_maps_to_error_count`, `stats_empty_store`, `progress_callback_receives_correct_counts`.
+- Fixed two pre-existing compile errors: `filter` (undefined) in `extraction_config_defaults` test; `filter:` field name in `tests/integration.rs`.
+
+All 179 `casc-lib` tests pass with `cargo test -p casc-lib`.
+
+---
+
 ## Rust server: Tier 1 — protocol serde tests
 
 **Status:** ✅ Done (2026-06-09)

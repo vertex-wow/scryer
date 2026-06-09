@@ -372,7 +372,7 @@ fn extract_batch_small_subset() {
         threads: 4,
         verify: false,
         skip_encrypted: true,
-        filter: Some("*.wdt".into()), // Small subset - just WDT map files
+        filters: vec!["*.wdt".into()], // Small subset - just WDT map files
         no_metadata: false,
     };
 

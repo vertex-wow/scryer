@@ -15,14 +15,14 @@ use crate::blte::decoder::decode_blte_with_keys;
 use crate::blte::encryption::TactKeyStore;
 use crate::config::build_config::{BuildConfig, config_path, parse_build_config};
 use crate::config::build_info::{BuildInfo, list_products, parse_build_info};
-use crate::encoding::parser::EncodingFile;
+use crate::encoding::parser::{EncodingEntry, EncodingFile};
 use crate::error::{CascError, Result};
 use crate::listfile::downloader::load_or_download;
 use crate::listfile::parser::Listfile;
 use crate::root::flags::LocaleFlags;
 use crate::root::parser::{RootEntry, RootFile, RootFormat};
 use crate::storage::data::DataStore;
-use crate::storage::index::CascIndex;
+use crate::storage::index::{CascIndex, IndexEntry};
 
 use super::metadata::{ExtractionStats, MetadataEntry, MetadataWriter};
 
@@ -80,6 +80,35 @@ pub struct StorageInfo {
     pub index_entries: usize,
     /// Number of entries in the loaded listfile.
     pub listfile_entries: usize,
+}
+
+// ---------------------------------------------------------------------------
+// Extraction store abstraction
+// ---------------------------------------------------------------------------
+
+/// Minimal trait surface required by [`extract_all`] and the private
+/// `extract_one` helper.
+///
+/// [`CascStorage`] implements this for production use. In `#[cfg(test)]` a
+/// `MockStore` in the test module implements it with pre-configured outcomes so
+/// stats counting and error-string mapping can be verified without a WoW install.
+pub trait ExtractionStore {
+    /// Read decoded file bytes by content key (CKey).
+    fn read_by_ckey(&self, ckey: &[u8; 16]) -> Result<Vec<u8>>;
+    /// Look up a file path by FileDataID (original case preserved).
+    fn listfile_path(&self, fdid: u32) -> Option<&str>;
+    /// Look up a FileDataID by file path (case-insensitive).
+    fn listfile_fdid(&self, path: &str) -> Option<u32>;
+    /// Iterate all (FileDataID, RootEntry) pairs.
+    fn root_iter_all(&self) -> impl Iterator<Item = (u32, &RootEntry)> + '_;
+    /// Find encoding entry by CKey — used for archive-offset sort; may return `None`.
+    fn encoding_find_ekey(&self, ckey: &[u8; 16]) -> Option<&EncodingEntry>;
+    /// Find index entry by EKey prefix — used for archive-offset sort; may return `None`.
+    fn index_find(&self, ekey: &[u8]) -> Option<&IndexEntry>;
+    /// Build name from the build config (used for the metadata writer).
+    fn build_name(&self) -> &str;
+    /// Product identifier (used for the metadata writer).
+    fn product(&self) -> &str;
 }
 
 // ---------------------------------------------------------------------------
@@ -213,6 +242,33 @@ impl CascStorage {
             index_entries: self.index.len(),
             listfile_entries: self.listfile.len(),
         }
+    }
+}
+
+impl ExtractionStore for CascStorage {
+    fn read_by_ckey(&self, ckey: &[u8; 16]) -> Result<Vec<u8>> {
+        self.read_by_ckey(ckey)
+    }
+    fn listfile_path(&self, fdid: u32) -> Option<&str> {
+        self.listfile.path(fdid)
+    }
+    fn listfile_fdid(&self, path: &str) -> Option<u32> {
+        self.listfile.fdid(path)
+    }
+    fn root_iter_all(&self) -> impl Iterator<Item = (u32, &RootEntry)> + '_ {
+        self.root.iter_all()
+    }
+    fn encoding_find_ekey(&self, ckey: &[u8; 16]) -> Option<&EncodingEntry> {
+        self.encoding.find_ekey(ckey)
+    }
+    fn index_find(&self, ekey: &[u8]) -> Option<&IndexEntry> {
+        self.index.find(ekey)
+    }
+    fn build_name(&self) -> &str {
+        &self.build_config.build_name
+    }
+    fn product(&self) -> &str {
+        &self.build_info.product
     }
 }
 
@@ -385,16 +441,15 @@ pub fn output_path(output_dir: &Path, fdid: u32, listfile: &Listfile) -> PathBuf
 /// Files are filtered by locale and an optional glob pattern, deduplicated by
 /// FDID, sorted by archive/offset for sequential I/O, then extracted in
 /// parallel via a rayon thread pool.
-pub fn extract_all(
-    storage: &CascStorage,
+pub fn extract_all<S: ExtractionStore + Sync>(
+    storage: &S,
     config: &ExtractionConfig,
     progress_cb: Option<&(dyn Fn(u64, u64) + Sync)>,
 ) -> Result<ExtractionStats> {
     // 1. Collect entries: iterate root, filter by locale
     let locale_filter = LocaleFlags(config.locale);
     let mut entries: Vec<(u32, &RootEntry)> = storage
-        .root
-        .iter_all()
+        .root_iter_all()
         .filter(|(_, entry)| entry.locale_flags.matches(locale_filter))
         .collect();
 
@@ -409,7 +464,7 @@ pub fn extract_all(
         for f in &config.filters {
             if f.contains('*') {
                 glob_patterns.push(f.clone());
-            } else if let Some(fdid) = storage.listfile.fdid(f) {
+            } else if let Some(fdid) = storage.listfile_fdid(f) {
                 exact_fdids.insert(fdid);
             } else {
                 tracing::debug!("filter: exact path not in listfile — {:?}", f);
@@ -421,7 +476,7 @@ pub fn extract_all(
                 return true;
             }
             if !glob_patterns.is_empty() {
-                if let Some(path) = storage.listfile.path(*fdid) {
+                if let Some(path) = storage.listfile_path(*fdid) {
                     return glob_patterns.iter().any(|pattern| glob_matches(pattern, path));
                 }
             }
@@ -445,9 +500,8 @@ pub fn extract_all(
         .iter()
         .map(|(fdid, re)| {
             let (archive, offset) = storage
-                .encoding
-                .find_ekey(&re.ckey)
-                .and_then(|ee| storage.index.find(&ee.ekeys[0]))
+                .encoding_find_ekey(&re.ckey)
+                .and_then(|ee| storage.index_find(&ee.ekeys[0]))
                 .map(|ie| (ie.archive_number, ie.archive_offset))
                 .unwrap_or((u32::MAX, u64::MAX));
             (*fdid, *re, archive, offset)
@@ -460,12 +514,10 @@ pub fn extract_all(
 
     // 6. Create metadata writer (unless disabled)
     let metadata = if !config.no_metadata {
-        let build_name = &storage.build_config.build_name;
-        let product = &storage.build_info.product;
         Some(MetadataWriter::new(
             &config.output_dir,
-            build_name,
-            product,
+            storage.build_name(),
+            storage.product(),
         )?)
     } else {
         None
@@ -498,7 +550,7 @@ pub fn extract_all(
                 }
                 Err(e) => {
                     stat_errors.fetch_add(1, Ordering::Relaxed);
-                    let path = storage.listfile.path(*fdid).unwrap_or("unknown");
+                    let path = storage.listfile_path(*fdid).unwrap_or("unknown");
                     tracing::warn!(
                         "    extract error: {} (fdid={}) — {}",
                         path,
@@ -509,7 +561,11 @@ pub fn extract_all(
             }
 
             if let Some(ref meta) = metadata {
-                let entry = make_metadata_entry(*fdid, root_entry, &result, &storage.listfile);
+                let meta_path = storage
+                    .listfile_path(*fdid)
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| format!("unknown/{}.dat", fdid));
+                let entry = make_metadata_entry(*fdid, root_entry, &result, &meta_path);
                 let _ = meta.record(&entry);
             }
 
@@ -601,8 +657,8 @@ pub fn extract_single_file(
 
 /// Extract a single file from storage, returning the bytes written or an
 /// error string for metadata recording.
-fn extract_one(
-    storage: &CascStorage,
+fn extract_one<S: ExtractionStore>(
+    storage: &S,
     config: &ExtractionConfig,
     fdid: u32,
     root_entry: &RootEntry,
@@ -634,8 +690,15 @@ fn extract_one(
         }
     }
 
-    // Determine output path and write
-    let out_path = output_path(&config.output_dir, fdid, &storage.listfile);
+    // Determine output path and write — mirrors output_path() but uses the trait
+    let out_path = match storage.listfile_path(fdid) {
+        Some(path) => {
+            let normalized = path.replace('\\', "/");
+            let safe = normalized.trim_start_matches('/').trim_start_matches("../");
+            config.output_dir.join(safe)
+        }
+        None => config.output_dir.join("unknown").join(format!("{}.dat", fdid)),
+    };
 
     if let Some(parent) = out_path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("error:mkdir: {}", e))?;
@@ -651,18 +714,14 @@ fn make_metadata_entry(
     fdid: u32,
     root_entry: &RootEntry,
     result: &std::result::Result<u64, String>,
-    listfile: &Listfile,
+    path: &str,
 ) -> MetadataEntry {
-    let path = listfile
-        .path(fdid)
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| format!("unknown/{}.dat", fdid));
     let ckey_hex = hex::encode(root_entry.ckey);
 
     match result {
         Ok(size) => MetadataEntry {
             fdid,
-            path,
+            path: path.to_string(),
             size: *size,
             ckey: ckey_hex,
             locale_flags: root_entry.locale_flags.0,
@@ -671,7 +730,7 @@ fn make_metadata_entry(
         },
         Err(status) => MetadataEntry {
             fdid,
-            path,
+            path: path.to_string(),
             size: 0,
             ckey: ckey_hex,
             locale_flags: root_entry.locale_flags.0,
@@ -773,7 +832,7 @@ mod tests {
             threads: 4,
             verify: false,
             skip_encrypted: true,
-            filters: filter.map(String::from).into_iter().collect(),
+            filters: vec![],
             no_metadata: false,
         };
         assert_eq!(config.locale, 0x2);
@@ -1094,7 +1153,6 @@ mod tests {
 
     #[test]
     fn make_metadata_entry_ok() {
-        let listfile = Listfile::parse("42;World/Test.adt");
         let root_entry = RootEntry {
             ckey: [0xAA; 16],
             content_flags: crate::root::flags::ContentFlags(0),
@@ -1102,7 +1160,7 @@ mod tests {
             name_hash: None,
         };
         let result: std::result::Result<u64, String> = Ok(1024);
-        let meta = make_metadata_entry(42, &root_entry, &result, &listfile);
+        let meta = make_metadata_entry(42, &root_entry, &result, "World/Test.adt");
         assert_eq!(meta.fdid, 42);
         assert_eq!(meta.path, "World/Test.adt");
         assert_eq!(meta.size, 1024);
@@ -1112,7 +1170,6 @@ mod tests {
 
     #[test]
     fn make_metadata_entry_error() {
-        let listfile = Listfile::parse("");
         let root_entry = RootEntry {
             ckey: [0xBB; 16],
             content_flags: crate::root::flags::ContentFlags(0x8000000),
@@ -1120,7 +1177,7 @@ mod tests {
             name_hash: None,
         };
         let result: std::result::Result<u64, String> = Err("skipped:encrypted".into());
-        let meta = make_metadata_entry(99, &root_entry, &result, &listfile);
+        let meta = make_metadata_entry(99, &root_entry, &result, "unknown/99.dat");
         assert_eq!(meta.fdid, 99);
         assert_eq!(meta.path, "unknown/99.dat");
         assert_eq!(meta.size, 0);
@@ -1159,5 +1216,250 @@ mod tests {
             stats.success, stats.errors, stats.skipped
         );
         assert!(stats.total > 0);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tier-2 mock tests — stats counting and error-string mapping
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod mock_tests {
+    use super::*;
+    use crate::root::flags::{ContentFlags, LocaleFlags};
+    use std::collections::HashMap;
+
+    /// Pre-configured outcome for a single CKey in [`MockStore`].
+    enum MockOutcome {
+        /// `read_by_ckey` returns `Ok(bytes)`.
+        Success(Vec<u8>),
+        /// `read_by_ckey` returns `InvalidMagic { expected: "BLTE" }` — maps to `skipped:cdn-only`.
+        CdnOnly,
+        /// `read_by_ckey` returns a generic `InvalidFormat` error — maps to `error:...`.
+        Error(String),
+    }
+
+    /// Minimal [`ExtractionStore`] backed by pre-configured outcomes.
+    struct MockStore {
+        entries: Vec<(u32, RootEntry)>,
+        outcomes: HashMap<[u8; 16], MockOutcome>,
+    }
+
+    impl ExtractionStore for MockStore {
+        fn read_by_ckey(&self, ckey: &[u8; 16]) -> crate::error::Result<Vec<u8>> {
+            match self.outcomes.get(ckey) {
+                Some(MockOutcome::Success(data)) => Ok(data.clone()),
+                Some(MockOutcome::CdnOnly) => Err(CascError::InvalidMagic {
+                    expected: "BLTE".into(),
+                    found: "0000".into(),
+                }),
+                Some(MockOutcome::Error(msg)) => Err(CascError::InvalidFormat(msg.clone())),
+                None => Err(CascError::KeyNotFound {
+                    key_type: "CKey".into(),
+                    hash: hex::encode(ckey),
+                }),
+            }
+        }
+        fn listfile_path(&self, _fdid: u32) -> Option<&str> {
+            None
+        }
+        fn listfile_fdid(&self, _path: &str) -> Option<u32> {
+            None
+        }
+        fn root_iter_all(&self) -> impl Iterator<Item = (u32, &RootEntry)> + '_ {
+            self.entries.iter().map(|(fdid, e)| (*fdid, e))
+        }
+        fn encoding_find_ekey(&self, _ckey: &[u8; 16]) -> Option<&EncodingEntry> {
+            None
+        }
+        fn index_find(&self, _ekey: &[u8]) -> Option<&IndexEntry> {
+            None
+        }
+        fn build_name(&self) -> &str {
+            "mock-build"
+        }
+        fn product(&self) -> &str {
+            "mock"
+        }
+    }
+
+    fn any_locale(ckey: [u8; 16]) -> RootEntry {
+        RootEntry {
+            ckey,
+            content_flags: ContentFlags(0),
+            locale_flags: LocaleFlags(0xFFFF_FFFF),
+            name_hash: None,
+        }
+    }
+
+    fn encrypted_entry(ckey: [u8; 16]) -> RootEntry {
+        RootEntry {
+            ckey,
+            content_flags: ContentFlags(0x800_0000), // ENCRYPTED flag
+            locale_flags: LocaleFlags(0xFFFF_FFFF),
+            name_hash: None,
+        }
+    }
+
+    fn base_config(output_dir: PathBuf) -> ExtractionConfig {
+        ExtractionConfig {
+            output_dir,
+            locale: 0xFFFF_FFFF,
+            threads: 1,
+            verify: false,
+            skip_encrypted: true,
+            filters: vec![],
+            no_metadata: true,
+        }
+    }
+
+    fn temp_out(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("casc_mock_{}", name));
+        let _ = std::fs::remove_dir_all(&dir);
+        dir
+    }
+
+    #[test]
+    fn stats_all_success() {
+        let ck1 = [0x01u8; 16];
+        let ck2 = [0x02u8; 16];
+        let store = MockStore {
+            entries: vec![(1, any_locale(ck1)), (2, any_locale(ck2))],
+            outcomes: HashMap::from([
+                (ck1, MockOutcome::Success(vec![0xAA; 10])),
+                (ck2, MockOutcome::Success(vec![0xBB; 20])),
+            ]),
+        };
+        let outdir = temp_out("all_success");
+        let stats = extract_all(&store, &base_config(outdir.clone()), None).unwrap();
+        assert_eq!(stats.total, 2);
+        assert_eq!(stats.success, 2);
+        assert_eq!(stats.errors, 0);
+        assert_eq!(stats.skipped, 0);
+        assert_eq!(stats.bytes_written, 30);
+        let _ = std::fs::remove_dir_all(&outdir);
+    }
+
+    #[test]
+    fn stats_mixed_outcomes() {
+        let ck_ok = [0x10u8; 16];
+        let ck_err = [0x11u8; 16];
+        let ck_cdn = [0x12u8; 16];
+        let ck_enc = [0x13u8; 16];
+        let store = MockStore {
+            entries: vec![
+                (1, any_locale(ck_ok)),
+                (2, any_locale(ck_err)),
+                (3, any_locale(ck_cdn)),
+                (4, encrypted_entry(ck_enc)),
+            ],
+            outcomes: HashMap::from([
+                (ck_ok, MockOutcome::Success(vec![0; 5])),
+                (ck_err, MockOutcome::Error("bad BLTE chunk".into())),
+                (ck_cdn, MockOutcome::CdnOnly),
+                // ck_enc is skipped before read_by_ckey is ever called
+            ]),
+        };
+        let outdir = temp_out("mixed");
+        let stats = extract_all(&store, &base_config(outdir.clone()), None).unwrap();
+        assert_eq!(stats.total, 4);
+        assert_eq!(stats.success, 1);
+        assert_eq!(stats.errors, 1);
+        assert_eq!(stats.skipped, 2); // cdn-only + encrypted
+        assert_eq!(stats.bytes_written, 5);
+        let _ = std::fs::remove_dir_all(&outdir);
+    }
+
+    #[test]
+    fn cdn_only_maps_to_skipped_not_error() {
+        let ck = [0x20u8; 16];
+        let store = MockStore {
+            entries: vec![(10, any_locale(ck))],
+            outcomes: HashMap::from([(ck, MockOutcome::CdnOnly)]),
+        };
+        let outdir = temp_out("cdn_only");
+        let stats = extract_all(&store, &base_config(outdir.clone()), None).unwrap();
+        assert_eq!(stats.skipped, 1);
+        assert_eq!(stats.errors, 0);
+        assert_eq!(stats.success, 0);
+        let _ = std::fs::remove_dir_all(&outdir);
+    }
+
+    #[test]
+    fn encrypted_with_skip_maps_to_skipped() {
+        let ck = [0x30u8; 16];
+        let store = MockStore {
+            entries: vec![(20, encrypted_entry(ck))],
+            outcomes: HashMap::new(), // read_by_ckey never called
+        };
+        let outdir = temp_out("encrypted_skip");
+        let mut config = base_config(outdir.clone());
+        config.skip_encrypted = true;
+        let stats = extract_all(&store, &config, None).unwrap();
+        assert_eq!(stats.skipped, 1);
+        assert_eq!(stats.success, 0);
+        assert_eq!(stats.errors, 0);
+        let _ = std::fs::remove_dir_all(&outdir);
+    }
+
+    #[test]
+    fn general_error_maps_to_error_count() {
+        let ck = [0x40u8; 16];
+        let store = MockStore {
+            entries: vec![(30, any_locale(ck))],
+            outcomes: HashMap::from([(ck, MockOutcome::Error("corrupted data".into()))]),
+        };
+        let outdir = temp_out("gen_error");
+        let stats = extract_all(&store, &base_config(outdir.clone()), None).unwrap();
+        assert_eq!(stats.errors, 1);
+        assert_eq!(stats.success, 0);
+        assert_eq!(stats.skipped, 0);
+        let _ = std::fs::remove_dir_all(&outdir);
+    }
+
+    #[test]
+    fn stats_empty_store() {
+        let store = MockStore {
+            entries: vec![],
+            outcomes: HashMap::new(),
+        };
+        let outdir = temp_out("empty");
+        let stats = extract_all(&store, &base_config(outdir.clone()), None).unwrap();
+        assert_eq!(stats.total, 0);
+        assert_eq!(stats.success, 0);
+        assert_eq!(stats.errors, 0);
+        assert_eq!(stats.skipped, 0);
+        assert_eq!(stats.bytes_written, 0);
+        let _ = std::fs::remove_dir_all(&outdir);
+    }
+
+    #[test]
+    fn progress_callback_receives_correct_counts() {
+        let ck1 = [0x50u8; 16];
+        let ck2 = [0x51u8; 16];
+        let ck3 = [0x52u8; 16];
+        let store = MockStore {
+            entries: vec![
+                (1, any_locale(ck1)),
+                (2, any_locale(ck2)),
+                (3, any_locale(ck3)),
+            ],
+            outcomes: HashMap::from([
+                (ck1, MockOutcome::Success(vec![0; 1])),
+                (ck2, MockOutcome::Success(vec![0; 1])),
+                (ck3, MockOutcome::Success(vec![0; 1])),
+            ]),
+        };
+        let outdir = temp_out("progress_cb");
+        let calls = std::sync::atomic::AtomicU64::new(0);
+        let cb = |done: u64, total: u64| {
+            assert!(done <= total);
+            assert_eq!(total, 3);
+            calls.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        };
+        let stats = extract_all(&store, &base_config(outdir.clone()), Some(&cb)).unwrap();
+        assert_eq!(stats.total, 3);
+        assert_eq!(calls.load(std::sync::atomic::Ordering::Relaxed), 3);
+        let _ = std::fs::remove_dir_all(&outdir);
     }
 }
