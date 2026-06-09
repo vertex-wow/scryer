@@ -4,6 +4,17 @@ Completed items moved from [backlog.md](backlog.md). Historical record of what w
 
 ---
 
+## Customizable keyboard shortcuts for toolbar actions
+
+**Status: ✅ Done (2026-06-08)**
+
+**Problem:** Toolbar buttons (eyedropper, Game Input mode, ruler toggle, etc.) are only reachable by clicking. Power users expect to trigger them from the keyboard, and VS Code's built-in keybinding system (`keybindings.json`) is the right mechanism — it gives users full control without Scryer needing to invent its own binding UI.
+
+**What was built:**
+
+1. **Commands registered** in `package.json` under `contributes.commands` (`scryer.toggleRuler`, `scryer.eyedropper`, `scryer.toggleGameInput`, `scryer.toggleGrabPan`, `scryer.recenterCanvas`).
+2. **Default keybindings** added in `package.json` under `contributes.keybindings`, scoped to `activeWebviewPanelId == 'scryer.live' || activeWebviewPanelId == 'scryer.preview'`.
+
 ## Standardize on lowercase extraction paths
 
 **Status: ✅ Done (2026-06-08)**
