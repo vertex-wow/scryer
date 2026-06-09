@@ -46,7 +46,7 @@ export interface AtlasGenWrapperOptions {
  */
 function normalizeForExtraction(rawPath: string): string {
   const slashed = rawPath.replace(/\\/g, "/");
-  return /\.\w+$/i.test(slashed) ? slashed : slashed + ".blp";
+  return (/\.\w+$/i.test(slashed) ? slashed : slashed + ".blp").toLowerCase();
 }
 
 /** Lines with 4+ leading spaces are trace-level tool internals; shallower lines are debug. */

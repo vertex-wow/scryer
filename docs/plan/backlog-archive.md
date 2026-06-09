@@ -4,6 +4,21 @@ Completed items moved from [backlog.md](backlog.md). Historical record of what w
 
 ---
 
+## Standardize on lowercase extraction paths
+
+**Status: ✅ Done (2026-06-08)**
+
+**Problem:** `community-listfile-withcapitalization.csv` is preferred but some releases don't ship it, forcing a fallback to the lowercase `community-listfile.csv`. When the fallback is used, rustydemon-cli extracts files to lowercase paths (e.g. `interface/addons/...`). Any code that constructs or compares paths using the mixed-case form (`Interface/AddOns/...`) then fails to find the files on a case-sensitive filesystem (Linux, WSL `/tmp`). Today we work around this in `gen-api-stubs.ts` with a `findDirCaseInsensitive` helper, but every extraction consumer has the same latent bug.
+
+**What was built:**
+
+1. **Flipped listfile priority** in `extract-core.ts`: `community-listfile.csv` (plain, always lowercase) is now the default; `-withcapitalization` is the fallback.
+2. **Post-extraction normalization** in `extractRetailPaths` / `extractLoosePaths` (and their Bulk variants): after rustydemon or loose-file copy completes, the output subtree is walked and any directory or file whose name is not already lowercase is renamed.
+3. **Updated path constants** (`TEXTURE_GLOBS`, `INTERFACE_GLOBS`, `API_DOC_GLOB`, cache lookup keys) to use lowercase. All internal path construction (`cacheKey` mapping, atlas-gen) uses `.toLowerCase()` at the boundary where paths enter the system.
+4. **Removed `findDirCaseInsensitive`** from `gen-api-stubs.ts` and simplified path joining.
+
+---
+
 ## Webview snapshot / golden-image regression
 
 **Problem:** The Playwright renderer harness (`test/webview/render.spec.ts`) verifies DOM structure and debug text but cannot catch visual regressions — a layout or color change that produces correct-looking metadata would go undetected.

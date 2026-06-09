@@ -122,7 +122,10 @@ function loadListfile(listfilePath: string, log?: (msg: string) => void): Map<nu
     const semi = line.indexOf(";");
     if (semi === -1) continue;
     const id = parseInt(line.slice(0, semi), 10);
-    const p = line.slice(semi + 1).trim();
+    const p = line
+      .slice(semi + 1)
+      .trim()
+      .toLowerCase();
     if (!isNaN(id) && p) map.set(id, p);
   }
   log?.(`  ${map.size.toLocaleString()} entries`);

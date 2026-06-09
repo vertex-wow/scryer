@@ -79,8 +79,8 @@ interface DocModule {
 
 const PROJECT_ROOT = path.join(__dirname, "..");
 const WASM_PATH = path.join(PROJECT_ROOT, "node_modules/wasmoon/dist/glue.wasm");
-const API_DOC_GLOB = "Interface/AddOns/Blizzard_APIDocumentationGenerated/**";
-const API_DOC_SUBPATH = path.join("Interface", "AddOns", "Blizzard_APIDocumentationGenerated");
+const API_DOC_GLOB = "interface/addons/blizzard_apidocumentationgenerated/**";
+const API_DOC_SUBPATH = path.join("interface", "addons", "blizzard_apidocumentationgenerated");
 
 const FLAVOR_SUBDIR: Record<string, string> = {
   classic: "_classic_",
@@ -229,48 +229,10 @@ const tempDir = tempDirArg ?? path.join(os.tmpdir(), `wow-api-stubs-${flavor}`);
 // Extraction
 // ---------------------------------------------------------------------------
 
-/**
- * Walk path components case-insensitively from base.
- * Needed because the plain listfile has lowercase paths, so rustydemon extracts
- * to e.g. interface/addons/... rather than Interface/AddOns/...
- */
-async function findDirCaseInsensitive(base: string, subpath: string): Promise<string | null> {
-  const parts = subpath.split(path.sep).filter(Boolean);
-
-  async function resolve(current: string, remaining: string[]): Promise<string | null> {
-    if (remaining.length === 0) return current;
-    const [part, ...rest] = remaining;
-    let entries: string[];
-    try {
-      entries = await fs.promises.readdir(current);
-    } catch {
-      return null;
-    }
-    const matches = entries.filter((e) => e.toLowerCase() === part.toLowerCase());
-    if (matches.length === 0) return null;
-    // Try each match; when at the final component prefer the non-empty directory.
-    const candidates: string[] = [];
-    for (const m of matches) {
-      const resolved = await resolve(path.join(current, m), rest);
-      if (resolved) candidates.push(resolved);
-    }
-    if (candidates.length === 0) return null;
-    if (candidates.length === 1) return candidates[0];
-    // Multiple candidates — pick the one with content.
-    for (const c of candidates) {
-      const sub = await fs.promises.readdir(c).catch(() => [] as string[]);
-      if (sub.length > 0) return c;
-    }
-    return candidates[0];
-  }
-
-  return resolve(base, parts);
-}
-
 async function extractApiDocs(): Promise<string> {
   if (skipExtract) {
-    const found = await findDirCaseInsensitive(tempDir, API_DOC_SUBPATH);
-    if (!found) {
+    const found = path.join(tempDir, API_DOC_SUBPATH);
+    if (!fs.existsSync(found)) {
       console.error(`--skip-extract: directory not found under: ${tempDir}`);
       process.exit(1);
     }
@@ -324,9 +286,9 @@ async function extractApiDocs(): Promise<string> {
     }
   }
 
-  // Locate the actual extracted dir regardless of path case (listfile may be lowercase)
-  const found = await findDirCaseInsensitive(tempDir, API_DOC_SUBPATH);
-  if (!found) {
+  // Locate the actual extracted dir
+  const found = path.join(tempDir, API_DOC_SUBPATH);
+  if (!fs.existsSync(found)) {
     console.error(`Extraction appeared to succeed but directory not found under: ${tempDir}`);
     process.exit(1);
   }

@@ -84,27 +84,6 @@ See [measurements.md Q1b](../measurements.md#q1b-how-fast-can-we-pre-filter-list
 
 ---
 
-## Standardize on lowercase extraction paths
-
-**Status:** 📋 Pending
-
-**Problem:** `community-listfile-withcapitalization.csv` is preferred but some releases don't ship it, forcing a fallback to the lowercase `community-listfile.csv`. When the fallback is used, rustydemon-cli extracts files to lowercase paths (e.g. `interface/addons/...`). Any code that constructs or compares paths using the mixed-case form (`Interface/AddOns/...`) then fails to find the files on a case-sensitive filesystem (Linux, WSL `/tmp`). Today we work around this in `gen-api-stubs.ts` with a `findDirCaseInsensitive` helper, but every extraction consumer has the same latent bug.
-
-**Why:** WoW's virtual filesystem is case-insensitive. All paths in CASC are stored lowercase internally. The capitalized listfile is a community convenience artifact, not authoritative. Standardizing on lowercase removes the dependency on that artifact and eliminates a whole class of case-mismatch bugs.
-
-**Plan:**
-
-1. **Flip listfile priority** in `extract-core.ts`: try `community-listfile.csv` (plain, always lowercase) first; try `-withcapitalization` as the opt-in if explicitly requested or if the user somehow needs mixed-case paths for non-WoW tooling.
-2. **Post-extraction normalize** in `extractRetailPaths` / `extractLoosePaths`: after rustydemon or loose-file copy completes, walk the output subtree and rename any directory or file whose name is not already lowercase. One-time pass, idempotent on repeat runs.
-3. **Update all path constants** (`TEXTURE_GLOBS`, `INTERFACE_GLOBS`, `API_DOC_GLOB`, cache lookup keys) to use lowercase. All internal path construction uses `.toLowerCase()` at the boundary where paths enter the system (user input, CASC output).
-4. **Remove `findDirCaseInsensitive`** from `gen-api-stubs.ts` once the normalization step above is in place.
-
-**Why:** Fixes fallback-listfile extraction silently landing files at wrong case paths. Immune to Blizzard renaming folders between patches. One fewer exception to reason about across the whole pipeline.
-
-**Effort:** S
-
----
-
 ## Direct proprietary texture serving in the webview (BLP/TGA decode bypass)
 
 **Status: Pending exploration**

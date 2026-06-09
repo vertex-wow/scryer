@@ -47,19 +47,19 @@ export interface ExtractCoreOptions {
 // ---------------------------------------------------------------------------
 
 const TEXTURE_GLOBS = [
-  "Interface/Buttons/**",
-  "Interface/Common/**",
-  "Interface/DialogFrame/**",
-  "Interface/FrameGeneral/**",
-  "Interface/Icons/**",
-  "Interface/Tooltips/**",
+  "interface/buttons/**",
+  "interface/common/**",
+  "interface/dialogframe/**",
+  "interface/framegeneral/**",
+  "interface/icons/**",
+  "interface/tooltips/**",
 ];
 
 const INTERFACE_GLOBS = [
-  "Interface/AddOns/Blizzard_SharedXMLBase/**",
-  "Interface/AddOns/Blizzard_SharedXML/**",
-  "Interface/AddOns/Blizzard_FrameXML/**",
-  "Fonts/**",
+  "interface/addons/blizzard_sharedxmlbase/**",
+  "interface/addons/blizzard_sharedxml/**",
+  "interface/addons/blizzard_framexml/**",
+  "fonts/**",
 ];
 
 // ---------------------------------------------------------------------------
@@ -74,9 +74,9 @@ const LOOSE_INTERFACE_EXTS = new Set([".lua", ".xml", ".toc"]);
 // ---------------------------------------------------------------------------
 
 const LISTFILE_URL =
-  "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile-withcapitalization.csv";
-const LISTFILE_URL_FALLBACK =
   "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv";
+const LISTFILE_URL_FALLBACK =
+  "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile-withcapitalization.csv";
 
 /** Stream a URL (following redirects) to a local file. */
 function streamToFile(url: string, outPath: string, log?: (line: string) => void): Promise<void> {
@@ -127,7 +127,7 @@ export async function ensureListfile(
     await streamToFile(LISTFILE_URL, listfilePath, log);
   } catch (err) {
     if ((err as Error).message?.includes("HTTP 404")) {
-      log?.(`  (withcapitalization not available, falling back to plain listfile)`);
+      log?.(`  (plain listfile not available, falling back to withcapitalization)`);
       await streamToFile(LISTFILE_URL_FALLBACK, listfilePath, log);
     } else {
       throw err;
@@ -303,6 +303,28 @@ function spawnRustydemon(
 // Retail extraction
 // ---------------------------------------------------------------------------
 
+async function normalizeSubtreeToLowercase(dir: string): Promise<void> {
+  let entries: fs.Dirent[];
+  try {
+    entries = await fs.promises.readdir(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const oldPath = path.join(dir, entry.name);
+    let currentPath = oldPath;
+    const newName = entry.name.toLowerCase();
+    if (entry.name !== newName) {
+      const newPath = path.join(dir, newName);
+      await fs.promises.rename(oldPath, newPath);
+      currentPath = newPath;
+    }
+    if (entry.isDirectory()) {
+      await normalizeSubtreeToLowercase(currentPath);
+    }
+  }
+}
+
 /**
  * Filter `paths` to only those that appear in the CASC listfile, preventing
  * wasted rustydemon invocations for addon-local files that were never archived.
@@ -383,11 +405,13 @@ async function extractRetailPaths(
   opts.log?.(`assets-extraction: "${opts.flavor}/assets" → global cache "${shortOut}"`);
 
   const pattern = finalPaths.length === 1 ? finalPaths[0] : `{${finalPaths.join(",")}}`;
-  return spawnRustydemon(
+  const res = await spawnRustydemon(
     cascTool,
     ["export", "-a", opts.wowDir, "-p", pattern, "-l", listfilePath, "-o", opts.outDir],
     opts.log,
   );
+  await normalizeSubtreeToLowercase(opts.outDir);
+  return res;
 }
 
 async function extractRetailBulk(
@@ -413,11 +437,13 @@ async function extractRetailBulk(
   opts.log?.(`assets-extraction: "${opts.flavor}/${type}" → global cache "${shortOut}"`);
 
   const pattern = globs.length === 1 ? globs[0] : `{${globs.join(",")}}`;
-  return spawnRustydemon(
+  const res = await spawnRustydemon(
     cascTool,
     ["export", "-a", opts.wowDir, "-p", pattern, "-l", listfilePath, "-o", opts.outDir],
     opts.log,
   );
+  await normalizeSubtreeToLowercase(opts.outDir);
+  return res;
 }
 
 // ---------------------------------------------------------------------------
@@ -490,6 +516,7 @@ async function extractLoosePaths(
     opts.log?.(`  Copied ${p}`);
     exported++;
   }
+  await normalizeSubtreeToLowercase(opts.outDir);
   return { exported, skippedExists: 0, errors };
 }
 
@@ -534,6 +561,7 @@ async function extractLooseBulk(
   opts.log?.(`assets-extraction: "${opts.flavor}/${type}" → global cache "${shortOut}"`);
 
   const exported = await copyFilesRecursive(interfaceDir, opts.outDir, exts);
+  await normalizeSubtreeToLowercase(opts.outDir);
   return { exported, skippedExists: 0, errors: 0 };
 }
 
