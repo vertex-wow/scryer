@@ -10,12 +10,12 @@
  *   node dist/extract.js [retail|classic|classic_era] [options]
  *
  * Options:
- *   --out-dir <dir>       Output root (default: .wow-assets/ at project root).
+ *   --out-dir <dir>       Output root (default: .wow-cache/ at project root).
  *   --type textures|interface|all  Category to extract (default: textures). Ignored with --paths-file.
  *   --paths-file <file>   Newline-delimited list of specific paths to extract.
  *   --wow-dir <path>      WoW root directory. Falls back to dev/settings.local.json → wowDir.
  *   --casc-tool <path>    CASC binary path. Falls back to dev/settings.local.json → cascTool.
- *   --listfile-dir <dir>  Directory for listfile.csv cache (default: .wow-assets/).
+ *   --listfile-dir <dir>  Directory for listfile.csv cache (default: .wow-cache/).
  *
  * Config: dev/settings.local.json (gitignored) may supply wowDir and cascTool as defaults.
  * Copy dev/settings.json.example to dev/settings.local.json and fill in your local paths.
@@ -62,8 +62,8 @@ const FLAVORS = new Set(["retail", "classic", "classic_era"]);
 const TYPES = new Set(["textures", "interface", "all"]);
 
 let flavor: Flavor = "retail";
-let outDir = path.join(PROJECT_ROOT, ".wow-assets");
-let listfileDir = path.join(PROJECT_ROOT, ".wow-assets");
+let outDir = path.join(PROJECT_ROOT, ".wow-cache");
+let listfileDir = path.join(PROJECT_ROOT, ".wow-cache");
 let type: ExtractType = "textures";
 let pathsFile: string | undefined;
 let wowDirArg: string | undefined;
@@ -112,7 +112,7 @@ for (; i < args.length; i++) {
 
 const devConfig = loadDevConfig();
 const wowDir = wowDirArg ?? devConfig["scryer.installDir"];
-const assetServerPath = cascToolArg ?? devConfig["scryer.assetServerPath"] ?? "scryer-asset-server";
+const assetServerPath = cascToolArg || devConfig["scryer.assetServerPath"] || "scryer-asset-server";
 const assetServerIdleTimeout = devConfig["scryer.assetServerIdleTimeout"] ?? 20;
 
 if (!wowDir) {

@@ -164,7 +164,7 @@
           ],
           "enumDescriptions": [
             "Store cache in VSCode global storage, shared across all workspaces (recommended)",
-            "Store cache under <workspaceFolder>/.scryer-cache (per-project — add to .gitignore)",
+            "Store cache under <workspaceFolder>/.wow-cache (per-project — add to .gitignore)",
             "Store cache at the path given by scryer.cacheDir"
           ],
           "default": "global",

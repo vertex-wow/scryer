@@ -7,7 +7,7 @@
  *
  * Arguments:
  *   addons-dir   Path to extracted Interface/AddOns/ directory.
- *                Default: .wow-assets/interface/addons
+ *                Default: .wow-cache/interface/addons
  *   addon-name   One or more addon folder names to scan.
  *                Default: every subdirectory found in addons-dir.
  *
@@ -19,7 +19,7 @@
  *   ./dev/extract.sh retail --paths-file /tmp/textures.txt
  *
  * Example — just the Blizzard UI addons:
- *   node dist/collect-textures.js .wow-assets/interface/addons \
+ *   node dist/collect-textures.js .wow-cache/interface/addons \
  *     Blizzard_SharedXML Blizzard_FrameXML
  */
 
@@ -33,7 +33,7 @@ const [, , rawAddonsDir, ...argAddonNames] = process.argv;
 
 const addonsDir = rawAddonsDir
   ? path.resolve(rawAddonsDir)
-  : path.join(REPO_ROOT, ".wow-assets", "interface", "addons");
+  : path.join(REPO_ROOT, ".wow-cache", "interface", "addons");
 
 if (!fs.existsSync(addonsDir)) {
   process.stderr.write(

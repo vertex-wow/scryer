@@ -10,7 +10,7 @@
  *   --asset-server <path>    assetServer binary path (or assetServerPath in dev/settings.local.json)
  *   --temp-dir <dir>      Temp extraction dir (default: os.tmpdir()/wow-api-stubs-<flavor>)
  *   --out-dir <dir>       Stub output root (default: src/lua/api-stubs)
- *   --listfile-dir <dir>  Listfile cache dir (default: .wow-assets)
+ *   --listfile-dir <dir>  Listfile cache dir (default: .wow-cache)
  *   --skip-extract        Skip extraction, use files already in --temp-dir
  *
  * Generated stubs are Lua code strings (not TS functions) so that return values are
@@ -182,7 +182,7 @@ let wowDirArg: string | undefined;
 let cascToolArg: string | undefined;
 let tempDirArg: string | undefined;
 let outDir = path.join(PROJECT_ROOT, "src", "lua", "api-stubs");
-let listfileDir = path.join(PROJECT_ROOT, ".wow-assets");
+let listfileDir = path.join(PROJECT_ROOT, ".wow-cache");
 let skipExtract = false;
 
 let i = 0;
@@ -223,7 +223,7 @@ for (; i < args.length; i++) {
 
 const devConfig = loadDevConfig();
 const wowDir = wowDirArg ?? devConfig["scryer.installDir"];
-const assetServerPath = cascToolArg ?? devConfig["scryer.assetServerPath"] ?? "scryer-asset-server";
+const assetServerPath = cascToolArg || devConfig["scryer.assetServerPath"] || "scryer-asset-server";
 const assetServerIdleTimeout = devConfig["scryer.assetServerIdleTimeout"] ?? 20;
 const tempDir = tempDirArg ?? path.join(os.tmpdir(), `wow-api-stubs-${flavor}`);
 

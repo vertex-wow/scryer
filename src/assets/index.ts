@@ -361,6 +361,7 @@ export class AssetService {
         assetServerIdleTimeout: this.opts.assetServerIdleTimeout,
         grepPath: this.opts.grepPath,
         listfileDir: this.downloadsDir,
+        logFile: path.join(this.opts.cacheRoot, "logs", "asset-server.log"),
         output: this.opts.output,
       });
       this.writeBuildStampIfConfigured();
@@ -509,14 +510,27 @@ export class AssetService {
     const cacheLocation = cfg.get<string>("cacheLocation") ?? "global";
     const cacheRoot =
       cacheLocation === "workspace"
-        ? path.join(wsFolder, ".scryer-cache")
+        ? path.join(wsFolder, ".wow-cache")
         : cacheLocation === "custom"
-          ? cfg.get<string>("cacheDir") || path.join(wsFolder, ".scryer-cache")
+          ? cfg.get<string>("cacheDir") || path.join(wsFolder, ".wow-cache")
           : context.globalStorageUri.fsPath;
 
     const installDir = cfg.get<string>("installDir") ?? "";
     const flavor = cfg.get<string>("flavor") || "retail";
-    const assetServerPath = cfg.get<string>("assetServerPath") ?? "";
+    let assetServerPath = cfg.get<string>("assetServerPath") ?? "";
+    if (!assetServerPath) {
+      const ext = process.platform === "win32" ? ".exe" : "";
+      assetServerPath = path.join(context.extensionUri.fsPath, "bin", `scryer-asset-server${ext}`);
+      if (!fs.existsSync(assetServerPath)) {
+        assetServerPath = path.join(
+          context.extensionUri.fsPath,
+          "scryer-asset-server",
+          "target",
+          "release",
+          `scryer-asset-server${ext}`,
+        );
+      }
+    }
     const assetServerIdleTimeout = cfg.get<number>("assetServerIdleTimeout") ?? 20;
     const grepPath = cfg.get<string>("grepPath") ?? "";
 

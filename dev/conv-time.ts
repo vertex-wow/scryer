@@ -3,7 +3,7 @@
  * Samples SAMPLE_SIZE random BLPs, reports per-file timing, extrapolates to full corpus.
  *
  * Run: pnpm exec node dist/conv-time.js [blp-root]
- * Default blp-root: .wow-assets/interface
+ * Default blp-root: .wow-cache/interface
  */
 
 import * as fs from "fs";
@@ -12,7 +12,7 @@ import BLPFile from "js-blp";
 import { PNG } from "pngjs";
 
 const SAMPLE_SIZE = 200;
-const arg = process.argv[2] ?? path.join(__dirname, "..", ".wow-assets", "interface");
+const arg = process.argv[2] ?? path.join(__dirname, "..", ".wow-cache", "interface");
 
 function walk(dir: string): string[] {
   let results: string[] = [];
