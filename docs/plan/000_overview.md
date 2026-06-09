@@ -456,11 +456,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#rust-server-tier-1-protocol-serde-tests">Rust server: Tier 1 — protocol serde tests</a></td>
-  <td>📋 Pending</td>
-  <td>Unit-test <code>ServerRequest</code>/<code>ServerResponse</code> JSON round-trips; malformed input; <code>in_flight</code> AtomicBool transitions; no WoW install required</td>
-  <td>XS</td>
-  <td>15</td>
+  <td colspan="5">✅ <a href="backlog-archive.md#rust-server-tier-1-protocol-serde-tests">Rust server: Tier 1 — protocol serde tests</a></td>
 </tr>
 <tr>
   <td>↳</td>

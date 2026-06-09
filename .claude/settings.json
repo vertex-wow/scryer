@@ -73,7 +73,8 @@
       "Bash(find * | grep * | head *)",
       "Read(//mnt/c/Users/**)",
       "Bash(find /home/*/_live/Addons/ * | xargs * | head *)",
-      "Read(//mnt/*//World of Warcraft/_retail_/Interface/AddOns/**)"
+      "Read(//mnt/*//World of Warcraft/_retail_/Interface/AddOns/**)",
+      "Bash(cargo test *)"
     ],
     "additionalDirectories": [
       "/tmp"

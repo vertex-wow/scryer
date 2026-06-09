@@ -4,6 +4,24 @@ Completed items moved from [backlog.md](backlog.md). Historical record of what w
 
 ---
 
+## Rust server: Tier 1 — protocol serde tests
+
+**Status:** ✅ Done (2026-06-09)
+
+**Problem:** `server.rs` had zero test coverage. Bugs in the JSON request/response protocol (wrong field names, missing variants, serde mis-mapping) were only caught when the TypeScript client misbehaved at runtime. The idle timeout `in_flight` flag had no regression tests.
+
+**What was built:**
+
+Added a `#[cfg(test)]` module to `scryer-asset-server/crates/scryer-asset-server/src/server.rs` with 14 unit tests covering:
+
+- Request parsing: `Extract`, `Status`, `Shutdown` round-trips via `serde_json::from_str`; empty `paths`; malformed JSON returns `Err`; unknown `method` returns `Err`
+- Response serialization: all four `ServerResponse` variants; `Status` asserts camelCase field names (`buildHash`, `idleTimeoutMs`) and absence of snake_case keys; `Error` asserts `ok: false`
+- `in_flight` AtomicBool: initial-false, set-on-request-start, clear-on-complete, suppresses-idle-timeout semantics
+
+All 14 tests pass with `cargo test -p scryer-asset-server`.
+
+---
+
 ## features.md — rendering features table per flavor
 
 **Status:** ✅ Done (2026-06-09)

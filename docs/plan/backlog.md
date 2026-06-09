@@ -326,32 +326,6 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ---
 
-## Rust server: Tier 1 — protocol serde tests
-
-**Status:** 📋 Pending
-
-**Problem:** `server.rs` has zero test coverage. Bugs in the JSON request/response protocol (wrong field names, missing variants, serde mis-mapping) are only caught when the TypeScript client misbehaves at runtime. The idle timeout `in_flight` flag and the stats accumulation logic have no regression tests.
-
-**Plan:**
-
-1. Add a `#[cfg(test)]` module to `scryer-asset-server/crates/scryer-asset-server/src/server.rs`.
-2. **Request parsing tests** — round-trip each `RequestPayload` variant through `serde_json::from_str`:
-   - `{"id":1,"method":"extract","paths":["fonts/*.ttf"]}` → `Extract { paths: [...] }`
-   - `{"id":2,"method":"status"}` → `Status`
-   - `{"id":3,"method":"shutdown"}` → `Shutdown`
-   - Malformed JSON → `serde_json::from_str` returns `Err`; server must not panic
-3. **Response serialization tests** — serialize each `ServerResponse` variant and assert the JSON shape:
-   - `Extract { id, ok, extracted, skipped, errors }` — verify all five fields present
-   - `Status { id, ok, ready, buildHash, idleTimeoutMs }` — camelCase field names
-   - `Error { id, ok: false, error }` — `ok` is `false`
-4. **`in_flight` AtomicBool tests** — unit-test the store/load/reset logic in isolation (extract the guard into a small helper if needed).
-
-**Effort:** XS — 2–3 hours; pure unit tests, no real WoW install or process spawning required.
-
-**Depends on:** M15 (CASC Asset Service) in-progress.
-
----
-
 ## Rust server: Tier 2 — extraction stats mock tests
 
 **Status:** 📋 Pending

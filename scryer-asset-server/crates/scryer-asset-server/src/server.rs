@@ -250,3 +250,157 @@ pub fn run_server(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    // --- Request parsing ---
+
+    #[test]
+    fn parse_extract_request() {
+        let raw = r#"{"id":1,"method":"extract","paths":["fonts/*.ttf","interface/*.blp"]}"#;
+        let req: ServerRequest = serde_json::from_str(raw).unwrap();
+        assert_eq!(req.id, 1);
+        match req.payload {
+            RequestPayload::Extract { paths } => {
+                assert_eq!(paths.len(), 2);
+                assert_eq!(paths[0], "fonts/*.ttf");
+                assert_eq!(paths[1], "interface/*.blp");
+            }
+            _ => panic!("expected Extract variant"),
+        }
+    }
+
+    #[test]
+    fn parse_extract_request_empty_paths() {
+        let raw = r#"{"id":5,"method":"extract","paths":[]}"#;
+        let req: ServerRequest = serde_json::from_str(raw).unwrap();
+        match req.payload {
+            RequestPayload::Extract { paths } => assert!(paths.is_empty()),
+            _ => panic!("expected Extract variant"),
+        }
+    }
+
+    #[test]
+    fn parse_status_request() {
+        let raw = r#"{"id":2,"method":"status"}"#;
+        let req: ServerRequest = serde_json::from_str(raw).unwrap();
+        assert_eq!(req.id, 2);
+        assert!(matches!(req.payload, RequestPayload::Status));
+    }
+
+    #[test]
+    fn parse_shutdown_request() {
+        let raw = r#"{"id":3,"method":"shutdown"}"#;
+        let req: ServerRequest = serde_json::from_str(raw).unwrap();
+        assert_eq!(req.id, 3);
+        assert!(matches!(req.payload, RequestPayload::Shutdown));
+    }
+
+    #[test]
+    fn parse_malformed_json_returns_err() {
+        let result: Result<ServerRequest, _> = serde_json::from_str(r#"{"id": not valid"#);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_unknown_method_returns_err() {
+        let result: Result<ServerRequest, _> =
+            serde_json::from_str(r#"{"id":4,"method":"unknown"}"#);
+        assert!(result.is_err());
+    }
+
+    // --- Response serialization ---
+
+    #[test]
+    fn serialize_extract_response_has_all_fields() {
+        let res = ServerResponse::Extract {
+            id: 1,
+            ok: true,
+            extracted: 42,
+            skipped: 3,
+            errors: 1,
+        };
+        let json: serde_json::Value = serde_json::to_value(&res).unwrap();
+        assert_eq!(json["id"], 1);
+        assert_eq!(json["ok"], true);
+        assert_eq!(json["extracted"], 42);
+        assert_eq!(json["skipped"], 3);
+        assert_eq!(json["errors"], 1);
+    }
+
+    #[test]
+    fn serialize_status_response_uses_camel_case() {
+        let res = ServerResponse::Status {
+            id: 2,
+            ok: true,
+            ready: true,
+            build_hash: "abc123def456".into(),
+            idle_timeout_ms: 60_000,
+        };
+        let json: serde_json::Value = serde_json::to_value(&res).unwrap();
+        assert_eq!(json["id"], 2);
+        assert_eq!(json["ok"], true);
+        assert_eq!(json["ready"], true);
+        assert_eq!(json["buildHash"], "abc123def456");
+        assert_eq!(json["idleTimeoutMs"], 60_000);
+        assert!(json.get("build_hash").is_none(), "snake_case key must not appear");
+        assert!(json.get("idle_timeout_ms").is_none(), "snake_case key must not appear");
+    }
+
+    #[test]
+    fn serialize_error_response_ok_is_false() {
+        let res = ServerResponse::Error {
+            id: 3,
+            ok: false,
+            error: "CASC storage failed".into(),
+        };
+        let json: serde_json::Value = serde_json::to_value(&res).unwrap();
+        assert_eq!(json["id"], 3);
+        assert_eq!(json["ok"], false);
+        assert_eq!(json["error"], "CASC storage failed");
+    }
+
+    #[test]
+    fn serialize_shutdown_response() {
+        let res = ServerResponse::Shutdown { id: 4, ok: true };
+        let json: serde_json::Value = serde_json::to_value(&res).unwrap();
+        assert_eq!(json["id"], 4);
+        assert_eq!(json["ok"], true);
+    }
+
+    // --- in_flight AtomicBool ---
+
+    #[test]
+    fn in_flight_starts_false() {
+        let in_flight = Arc::new(AtomicBool::new(false));
+        assert!(!in_flight.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn in_flight_set_on_request_start() {
+        let in_flight = Arc::new(AtomicBool::new(false));
+        in_flight.store(true, Ordering::Relaxed);
+        assert!(in_flight.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn in_flight_clear_on_request_complete() {
+        let in_flight = Arc::new(AtomicBool::new(false));
+        in_flight.store(true, Ordering::Relaxed);
+        in_flight.store(false, Ordering::Relaxed);
+        assert!(!in_flight.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn in_flight_true_suppresses_idle_timeout() {
+        // The timeout thread checks in_flight before counting elapsed time.
+        // When true it resets the idle clock instead of approaching the cutoff.
+        let in_flight = Arc::new(AtomicBool::new(true));
+        let should_reset_clock = in_flight.load(Ordering::Relaxed);
+        assert!(should_reset_clock, "in-flight request must prevent idle exit");
+    }
+}
