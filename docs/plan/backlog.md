@@ -325,27 +325,3 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 **Depends on:** M7 (done).
 
 ---
-
-## Rust server: Tier 3 — synthetic CASC fixtures
-
-**Status:** 📋 Pending
-
-**Problem:** Even with a mock store (Tier 2), the full read path — `.idx` parsing → archive lookup → BLTE decode — has no test coverage without a real WoW installation. The "CDN-only stub" class of bugs (EKey present in index, but data at the archive offset is not valid BLTE) can only be reproduced today by running against the user's partial WoW download. A synthetic CASC fixture would let `CascStorage::open → extract_all` run end-to-end in CI.
-
-**Plan:**
-
-1. **Synthetic index builder** (`test_helpers/casc_fixture.rs`) — programmatically write a valid `.idx` file (header + entries for a handful of EKeys) and a matching `data.000` archive containing BLTE-encoded test payloads.
-2. **Synthetic encoding table** — write a minimal BLTE-encoded encoding file that maps two or three CKeys → EKeys; use the synthetic index entries from step 1.
-3. **Synthetic root file** — a minimal BLTE-encoded root file mapping FDIDs to the CKeys above; one FDID per test case.
-4. **Minimal `.build.info` / build config** — enough fields for `CascStorage::open` to succeed; point `Data/data/` at the in-memory temp directory.
-5. **Test cases:**
-   - Happy path: valid BLTE payload → extracted file matches input bytes.
-   - CDN-only stub: index entry present, but `data.000` bytes at that offset are not "BLTE" → `extract_all` produces `errors=1`, not a panic.
-   - Encrypted skip: content flags with `ENCRYPTED` bit set → `skipped=1` with `skip_encrypted=true`.
-6. Write the temp files to `std::env::temp_dir()` during the test and clean up in `Drop` (or use `tempfile` crate if already a dependency).
-
-**Effort:** M — building a conformant-enough CASC binary fixture from scratch is fiddly (BLTE chunk tables, encoding file format, root file format); estimate 8–16 hours depending on how many edge cases the fixture needs to cover. The payoff is CI-green extraction tests that run without any real WoW data.
-
-**Depends on:** Tier 2 trait abstraction in place; deep familiarity with the CASC binary formats (documented in `docs/reference/` or derivable from the existing parser code).
-
----

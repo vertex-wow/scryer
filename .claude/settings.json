@@ -21,6 +21,7 @@
       "Bash(gh run view *)",
       "Bash(git branch *)",
       "Bash(git diff *)",
+      "Bash(git -C * diff *)",
       "Bash(git fetch *)",
       "Bash(git log *)",
       "Bash(git pull *)",

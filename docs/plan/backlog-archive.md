@@ -4,6 +4,25 @@ Completed items moved from [backlog.md](backlog.md). Historical record of what w
 
 ---
 
+## Rust server: Tier 3 — synthetic CASC fixtures
+
+**Status:** ✅ Done (2026-06-09)
+
+**Problem:** The full read path — `.idx` parsing → archive lookup → BLTE decode — had no CI test coverage without a real WoW installation. The CDN-only stub class of bugs (EKey present in index but data at offset is not valid BLTE) could only be reproduced against a partial WoW download.
+
+**What was built:**
+
+- `crates/casc-lib/tests/synthetic_casc.rs` — new integration test file with a `build_fixture()` helper that writes a complete minimal CASC directory tree to `std::env::temp_dir()`.
+- Binary format helpers: `make_blte` (single-block raw BLTE), `make_data_header` (30-byte data.NNN entry header), `make_encoding_raw` (EN v1 format, 1 KiB CE pages), `make_root_raw` (Legacy format root file), `make_idx` (0x28 header + 18-byte entries).
+- `data.000` layout: bootstrap entries (encoding, root) stored as `[30-byte header][BLTE]` so `read_entry` (skips header) works; content entries stored as `[BLTE]` directly at their idx offset so `read_raw` returns BLTE bytes.
+- CDN-only stub uses 8 zero bytes at its archive offset (minimum to reach the BLTE magic check without truncation error).
+- EKEY3 (encrypted FDID) intentionally absent from the index to prove `extract_one` skips it before any read attempt.
+- 3 tests: `synthetic_happy_path` (success=1, skipped=2, extracted file = `b"hello casc"`), `synthetic_cdn_only_maps_to_skipped` (errors=0, skipped≥1), `synthetic_encrypted_skip` (errors=0, skipped≥1).
+
+All 3 new tests pass without `#[ignore]`. All 182 `casc-lib` tests pass.
+
+---
+
 ## Rust server: Tier 2 — extraction stats mock tests
 
 **Status:** ✅ Done (2026-06-09)
