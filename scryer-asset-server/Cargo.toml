@@ -1,0 +1,7 @@
+[workspace]
+resolver = "3"
+members = ["crates/casc-lib", "crates/scryer-asset-server"]
+
+[profile.release]
+opt-level = 3
+lto = true

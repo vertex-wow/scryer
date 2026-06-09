@@ -71,22 +71,15 @@ export function activate(context: vscode.ExtensionContext): void {
         "scryer.installDir is not set — texture extraction disabled. Set it to your WoW root directory (the folder containing _retail_/, _classic_/, .build.info).",
       );
     }
-    if (!a.isCascToolAvailable()) {
-      output.warn(
-        "rustydemon-cli not found — texture extraction disabled. Install it or set scryer.cascToolPath.",
-      );
-    }
   }
 
   async function maybeShowSetupNotice(a: AssetService): Promise<void> {
     if (context.workspaceState.get<boolean>("scryer.assetSetupNoticeSeen")) return;
-    if (a.installDir && a.isCascToolAvailable()) return; // extraction runs automatically when a panel opens
+    if (a.installDir) return; // extraction runs automatically when a panel opens
     if (await a.hasExtractedAssets()) return; // assets already on disk from a prior extraction
     await context.workspaceState.update("scryer.assetSetupNoticeSeen", true);
-    const missingTool = !a.isCascToolAvailable();
-    const msg = missingTool
-      ? "Scryer: No extracted assets found. Set scryer.installDir and scryer.cascToolPath to enable automatic texture extraction."
-      : "Scryer: No extracted assets found. Set scryer.installDir to your WoW installation to enable automatic texture extraction.";
+    const msg =
+      "Scryer: No extracted assets found. Set scryer.installDir to your WoW installation to enable automatic texture extraction.";
     const pick = await vscode.window.showInformationMessage(msg, "Open Settings", "Learn More");
     if (pick === "Open Settings") {
       await vscode.commands.executeCommand("workbench.action.openSettings", "@ext:scryer");
@@ -112,7 +105,8 @@ export function activate(context: vscode.ExtensionContext): void {
         e.affectsConfiguration("scryer.installDir") ||
         e.affectsConfiguration("scryer.cacheLocation") ||
         e.affectsConfiguration("scryer.cacheDir") ||
-        e.affectsConfiguration("scryer.cascToolPath")
+        e.affectsConfiguration("scryer.assetServerPath") ||
+        e.affectsConfiguration("scryer.assetServerIdleTimeout")
       ) {
         assets = AssetService.fromConfig(context, output);
         assets.checkBuildVersion();
@@ -271,9 +265,7 @@ export function activate(context: vscode.ExtensionContext): void {
           );
           const hint = !assets.installDir
             ? "Set scryer.installDir to enable extraction."
-            : !assets.isCascToolAvailable()
-              ? "Set scryer.cascToolPath to enable extraction."
-              : "Extraction was attempted — check Scryer output for errors.";
+            : "Extraction was attempted — check Scryer output for errors.";
           output.warn(
             `cache-warmup: startupContent="${startupContent}" requests textures but no extracted assets found — skipping texture pre-warm. ${hint}`,
           );

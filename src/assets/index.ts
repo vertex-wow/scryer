@@ -24,10 +24,9 @@ import {
   writeBuildStamp,
 } from "./build-info.js";
 import { clearResolutionMemo, resolveTexturePath } from "./resolver.js";
-import { isCascToolAvailable } from "./extract-core.js";
+
 import { collectTexturePaths } from "../parser/collect-textures.js";
 import { loadAtlasManifest, resolveAtlasNames, type AtlasManifest } from "./atlas-manifest.js";
-import type { FrameIR } from "../parser/ir.js";
 
 /** Resolve the Interface/AddOns path case-insensitively (extraction tools may lowercase it). */
 function resolveAddonsDir(sourceDir: string): string {
@@ -61,8 +60,9 @@ export interface AssetServiceOptions {
   /** Root of the unified cache tree; parent of all flavor subdirectories. */
   cacheRoot: string;
   flavor: string;
-  /** Path to the CASC extraction tool binary (e.g. rustydemon-cli). Empty = auto-detect from PATH. */
-  cascToolPath: string;
+  /** Path to the CASC extraction server binary. Empty = use bundled. */
+  assetServerPath: string;
+  assetServerIdleTimeout: number;
   /** Path to the grep binary. Empty = auto-detect from PATH. */
   grepPath: string;
   output: vscode.LogOutputChannel;
@@ -92,13 +92,8 @@ export class AssetService {
   get installDir(): string {
     return this.opts.installDir;
   }
-  get cascToolPath(): string {
-    return this.opts.cascToolPath;
-  }
-
-  /** True if rustydemon-cli is usable: explicit cascToolPath exists, or tool is on PATH. */
-  isCascToolAvailable(): boolean {
-    return isCascToolAvailable(this.opts.cascToolPath || undefined);
+  get assetServerPath(): string {
+    return this.opts.assetServerPath;
   }
   get cacheRoot(): string {
     return this.opts.cacheRoot;
@@ -362,7 +357,8 @@ export class AssetService {
         flavor: this.opts.flavor,
         outDir: this.opts.sourceDir,
         wowDir: this.opts.installDir,
-        cascToolPath: this.opts.cascToolPath,
+        assetServerPath: this.opts.assetServerPath,
+        assetServerIdleTimeout: this.opts.assetServerIdleTimeout,
         grepPath: this.opts.grepPath,
         listfileDir: this.downloadsDir,
         output: this.opts.output,
@@ -480,7 +476,8 @@ export class AssetService {
       flavor: this.opts.flavor,
       outDir: this.opts.sourceDir,
       wowDir: this.opts.installDir,
-      cascToolPath: this.opts.cascToolPath,
+      assetServerPath: this.opts.assetServerPath,
+      assetServerIdleTimeout: this.opts.assetServerIdleTimeout,
       grepPath: this.opts.grepPath,
       listfileDir: this.downloadsDir,
       output: this.opts.output,
@@ -519,7 +516,8 @@ export class AssetService {
 
     const installDir = cfg.get<string>("installDir") ?? "";
     const flavor = cfg.get<string>("flavor") || "retail";
-    const cascToolPath = cfg.get<string>("cascToolPath") ?? "";
+    const assetServerPath = cfg.get<string>("assetServerPath") ?? "";
+    const assetServerIdleTimeout = cfg.get<number>("assetServerIdleTimeout") ?? 20;
     const grepPath = cfg.get<string>("grepPath") ?? "";
 
     const flavorRoot = path.join(cacheRoot, flavor);
@@ -533,7 +531,8 @@ export class AssetService {
       installFlavorDir,
       cacheRoot,
       flavor,
-      cascToolPath,
+      assetServerPath,
+      assetServerIdleTimeout,
       grepPath,
       output,
     });

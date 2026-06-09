@@ -25,7 +25,7 @@ const PROJECT_ROOT = path.join(__dirname, "..");
 interface DevConfig {
   "scryer.installDir"?: string;
   wowAccount?: string;
-  "scryer.cascToolPath"?: string;
+  "scryer.assetServerPath"?: string;
 }
 
 function loadDevConfig(): DevConfig {

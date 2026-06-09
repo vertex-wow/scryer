@@ -15,7 +15,7 @@ import * as fs from "fs";
 import * as http from "http";
 import * as https from "https";
 import * as path from "path";
-import { readBuildText } from "./build-info.js";
+import { CascClient } from "./asset-client.js";
 
 export type Flavor = "retail" | "classic" | "classic_era";
 export type ExtractType = "textures" | "interface" | "all";
@@ -32,8 +32,10 @@ export interface ExtractCoreOptions {
   outDir: string;
   /** WoW root directory containing _retail_/, _classic_/, .build.info. */
   wowDir: string;
-  /** Explicit path to rustydemon-cli binary. Auto-detected from PATH if absent. */
-  cascToolPath?: string;
+  /** Explicit path to scryer-asset-server binary. */
+  assetServerPath: string;
+  /** Idle timeout for the server in seconds. */
+  assetServerIdleTimeout: number;
   /** Explicit path to the grep binary. Auto-detected from PATH if absent. */
   grepPath?: string;
   /** Directory where listfile.csv is cached (and downloaded if absent). */
@@ -209,96 +211,25 @@ export async function ensureFilteredListfile(
 }
 
 // ---------------------------------------------------------------------------
-// CASC tool detection
+// CascClient instance management
 // ---------------------------------------------------------------------------
 
-/** Returns true if the CASC tool is usable: either the explicit path exists or rustydemon-cli is on PATH. */
-export function isCascToolAvailable(cascToolPath?: string): boolean {
-  if (cascToolPath) return fs.existsSync(cascToolPath);
-  const isWin = process.platform === "win32";
-  const lookup = cp.spawnSync(isWin ? "where" : "which", ["rustydemon-cli"], {
-    stdio: "pipe",
-    shell: isWin,
-  });
-  return lookup.status === 0 && !!lookup.stdout?.toString().trim();
-}
+let sharedCascClient: CascClient | null = null;
 
-function findCascTool(explicit?: string): string {
-  if (explicit) {
-    if (!fs.existsSync(explicit)) throw new Error(`CASC tool not found: ${explicit}`);
-    return explicit;
-  }
-  const isWin = process.platform === "win32";
-  const lookup = cp.spawnSync(isWin ? "where" : "which", ["rustydemon-cli"], {
-    stdio: "pipe",
-    shell: isWin,
-  });
-  if (lookup.status === 0 && lookup.stdout) {
-    const found = lookup.stdout.toString().trim().split(/\r?\n/)[0].trim();
-    if (found) return found;
-  }
-  throw new Error(
-    "No CASC extraction tool found on PATH.\n" +
-      "Either install rustydemon-cli:\n" +
-      "  cargo install --git https://github.com/HoldMyBeer-gg/rustydemon rustydemon-cli\n" +
-      "Or set scryer.cascToolPath to the path of an existing rustydemon-cli binary.",
-  );
-}
-
-// ---------------------------------------------------------------------------
-// rustydemon-cli subprocess
-// ---------------------------------------------------------------------------
-
-function spawnRustydemon(
-  cascTool: string,
-  args: string[],
-  log?: (line: string) => void,
-): Promise<ExtractionResult> {
-  return new Promise((resolve, reject) => {
-    const proc = cp.spawn(cascTool, args, { stdio: ["ignore", "pipe", "pipe"] });
-    let buf = "";
-    let exported = 0;
-    let skippedExists = 0;
-    let errors = 0;
-
-    function parseSummary(line: string): void {
-      const m = line.match(/exported=(\d+).*?skipped\(exists\)=(\d+).*?errors=(\d+)/);
-      if (m) {
-        exported += parseInt(m[1], 10);
-        skippedExists += parseInt(m[2], 10);
-        errors += parseInt(m[3], 10);
-      }
-    }
-
-    function onData(d: Buffer): void {
-      buf += d.toString();
-      const lines = buf.split("\n");
-      buf = lines.pop() ?? "";
-      for (const line of lines) {
-        parseSummary(line);
-        log?.(`    ${line}`);
-      }
-    }
-
-    function flush(): void {
-      if (buf) {
-        parseSummary(buf);
-        log?.(`    ${buf}`);
-        buf = "";
-      }
-    }
-
-    proc.stdout?.on("data", onData);
-    proc.stderr?.on("data", onData);
-    proc.on("error", reject);
-    proc.on("close", (code) => {
-      flush();
-      if (code === 0 || exported + skippedExists > 0) resolve({ exported, skippedExists, errors });
-      else reject(new Error(`rustydemon-cli exited with code ${code}`));
+function getCascClient(opts: ExtractCoreOptions): CascClient {
+  if (!sharedCascClient) {
+    sharedCascClient = new CascClient({
+      binaryPath: opts.assetServerPath,
+      wowDir: opts.wowDir,
+      outDir: opts.outDir,
+      idleTimeout: opts.assetServerIdleTimeout,
+      log: opts.log,
     });
-  });
+  }
+  return sharedCascClient;
 }
 
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // Retail extraction
 // ---------------------------------------------------------------------------
@@ -325,109 +256,20 @@ async function normalizeSubtreeToLowercase(dir: string): Promise<void> {
   }
 }
 
-/**
- * Filter `paths` to only those that appear in the CASC listfile, preventing
- * wasted rustydemon invocations for addon-local files that were never archived.
- *
- * Uses a single grep pass (case-insensitive, fixed-string) over the listfile.
- * On any error (grep absent, listfile unreadable) returns all paths unchanged.
- */
-async function filterToListfilePaths(
-  listfilePath: string,
-  paths: string[],
-  grepCmd: string,
-  log?: (line: string) => void,
-): Promise<string[]> {
-  if (paths.length === 0) return [];
-  return new Promise((resolve) => {
-    // Each listfile row is "<FileDataID>;<Path>" — anchor with ";" to avoid partial matches.
-    const args = ["-F", "-i"];
-    for (const p of paths) args.push("-e", `;${p}`);
-    args.push(listfilePath);
-
-    const proc = cp.spawn(grepCmd, args);
-    let out = "";
-    proc.stdout.on("data", (d: Buffer) => (out += d.toString()));
-    proc.stderr.resume();
-    proc.on("error", () => resolve(paths)); // grep not available — skip check
-
-    proc.on("close", () => {
-      const matchedPaths = new Set<string>();
-      for (const line of out.split("\n")) {
-        const semi = line.indexOf(";");
-        if (semi >= 0)
-          matchedPaths.add(
-            line
-              .slice(semi + 1)
-              .trim()
-              .toLowerCase(),
-          );
-      }
-
-      const kept: string[] = [];
-      for (const p of paths) {
-        if (matchedPaths.has(p.toLowerCase())) {
-          kept.push(p);
-        } else {
-          log?.(`    listfile: "${p}" not in CASC archive — skipping extraction`);
-        }
-      }
-      resolve(kept);
-    });
-  });
-}
-
 async function extractRetailPaths(
   paths: string[],
   opts: ExtractCoreOptions,
 ): Promise<ExtractionResult> {
-  const cascTool = findCascTool(opts.cascToolPath);
-  // Use the full listfile: paths extracted here may be outside Interface/ (e.g. Fonts/).
-  const listfilePath = await ensureListfile(opts.listfileDir, opts.log);
-
-  const exactPaths = paths.filter((p) => !p.includes("*"));
-  const globPaths = paths.filter((p) => p.includes("*"));
-
-  const extractable = await filterToListfilePaths(
-    listfilePath,
-    exactPaths,
-    opts.grepPath || "grep",
-    opts.log,
-  );
-
-  const finalPaths = [...extractable, ...globPaths];
-
-  if (finalPaths.length === 0) return { exported: 0, skippedExists: 0, errors: 0 };
-
-  await fs.promises.mkdir(opts.outDir, { recursive: true });
-
-  const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
-  opts.log?.(`assets-extraction: "${opts.flavor}/assets" → global cache "${shortOut}"`);
-
-  const pattern = finalPaths.length === 1 ? finalPaths[0] : `{${finalPaths.join(",")}}`;
-  const res = await spawnRustydemon(
-    cascTool,
-    ["export", "-a", opts.wowDir, "-p", pattern, "-l", listfilePath, "-o", opts.outDir],
-    opts.log,
-  );
+  const client = getCascClient(opts);
+  const res = await client.extractFiles(paths);
   await normalizeSubtreeToLowercase(opts.outDir);
-  return res;
+  return { exported: res.extracted, skippedExists: res.skipped, errors: res.errors };
 }
 
 async function extractRetailBulk(
   type: ExtractType,
   opts: ExtractCoreOptions,
 ): Promise<ExtractionResult> {
-  const cascTool = findCascTool(opts.cascToolPath);
-  const buildText = readBuildText(opts.wowDir, opts.flavor) ?? undefined;
-  const listfilePath = await ensureFilteredListfile(
-    opts.listfileDir,
-    opts.log,
-    buildText,
-    opts.grepPath,
-  );
-  await fs.promises.mkdir(opts.outDir, { recursive: true });
-
   const globs = [
     ...(type === "textures" || type === "all" ? TEXTURE_GLOBS : []),
     ...(type === "interface" || type === "all" ? INTERFACE_GLOBS : []),
@@ -436,14 +278,10 @@ async function extractRetailBulk(
   const shortOut = `${path.basename(path.dirname(opts.outDir))}/${path.basename(opts.outDir)}`;
   opts.log?.(`assets-extraction: "${opts.flavor}/${type}" → global cache "${shortOut}"`);
 
-  const pattern = globs.length === 1 ? globs[0] : `{${globs.join(",")}}`;
-  const res = await spawnRustydemon(
-    cascTool,
-    ["export", "-a", opts.wowDir, "-p", pattern, "-l", listfilePath, "-o", opts.outDir],
-    opts.log,
-  );
+  const client = getCascClient(opts);
+  const res = await client.extractFiles(globs);
   await normalizeSubtreeToLowercase(opts.outDir);
-  return res;
+  return { exported: res.extracted, skippedExists: res.skipped, errors: res.errors };
 }
 
 // ---------------------------------------------------------------------------

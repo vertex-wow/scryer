@@ -1,7 +1,7 @@
 import { type LuaEngine } from "wasmoon";
 import frameClassLua from "./frame-class.lua";
 import { FrameRegistry } from "./frame-registry.js";
-import type { FrameNode, TextureNode, FontStringNode, AnchorDef } from "./frame-model.js";
+import type { TextureNode, FontStringNode, AnchorDef } from "./frame-model.js";
 import { resolveInheritance } from "../parser/inherit.js";
 import type { FrameIR, ScriptIR, TextureIR, FontStringIR, UiDocument } from "../parser/ir.js";
 

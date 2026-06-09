@@ -7,7 +7,7 @@
  *
  * Options:
  *   --wow-dir <path>      WoW root directory (or installDir in dev/settings.local.json)
- *   --casc-tool <path>    cascTool binary path (or cascToolPath in dev/settings.local.json)
+ *   --asset-server <path>    assetServer binary path (or assetServerPath in dev/settings.local.json)
  *   --temp-dir <dir>      Temp extraction dir (default: os.tmpdir()/wow-api-stubs-<flavor>)
  *   --out-dir <dir>       Stub output root (default: src/lua/api-stubs)
  *   --listfile-dir <dir>  Listfile cache dir (default: .wow-assets)
@@ -160,7 +160,8 @@ EXTRA_PET_STABLE_SLOT = 0
 
 interface DevConfig {
   "scryer.installDir"?: string;
-  "scryer.cascToolPath"?: string;
+  "scryer.assetServerPath"?: string;
+  "scryer.assetServerIdleTimeout"?: number;
 }
 
 function loadDevConfig(): DevConfig {
@@ -222,7 +223,8 @@ for (; i < args.length; i++) {
 
 const devConfig = loadDevConfig();
 const wowDir = wowDirArg ?? devConfig["scryer.installDir"];
-const cascToolPath = cascToolArg ?? devConfig["scryer.cascToolPath"];
+const assetServerPath = cascToolArg ?? devConfig["scryer.assetServerPath"] ?? "scryer-asset-server";
+const assetServerIdleTimeout = devConfig["scryer.assetServerIdleTimeout"] ?? 20;
 const tempDir = tempDirArg ?? path.join(os.tmpdir(), `wow-api-stubs-${flavor}`);
 
 // ---------------------------------------------------------------------------
@@ -253,7 +255,8 @@ async function extractApiDocs(): Promise<string> {
       flavor,
       outDir: tempDir,
       wowDir,
-      cascToolPath,
+      assetServerPath,
+      assetServerIdleTimeout,
       listfileDir,
       log: console.log,
     };

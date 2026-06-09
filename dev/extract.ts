@@ -38,7 +38,8 @@ const PROJECT_ROOT = path.join(__dirname, "..");
 
 interface DevConfig {
   "scryer.installDir"?: string;
-  "scryer.cascToolPath"?: string;
+  "scryer.assetServerPath"?: string;
+  "scryer.assetServerIdleTimeout"?: number;
 }
 
 function loadDevConfig(): DevConfig {
@@ -111,7 +112,8 @@ for (; i < args.length; i++) {
 
 const devConfig = loadDevConfig();
 const wowDir = wowDirArg ?? devConfig["scryer.installDir"];
-const cascToolPath = cascToolArg ?? devConfig["scryer.cascToolPath"];
+const assetServerPath = cascToolArg ?? devConfig["scryer.assetServerPath"] ?? "scryer-asset-server";
+const assetServerIdleTimeout = devConfig["scryer.assetServerIdleTimeout"] ?? 20;
 
 if (!wowDir) {
   console.error(
@@ -125,7 +127,15 @@ if (!wowDir) {
 // Run extraction
 // ---------------------------------------------------------------------------
 
-const coreOpts = { flavor, outDir, wowDir: wowDir!, cascToolPath, listfileDir, log: console.log };
+const coreOpts = {
+  flavor,
+  outDir,
+  wowDir: wowDir!,
+  assetServerPath,
+  assetServerIdleTimeout,
+  listfileDir,
+  log: console.log,
+};
 
 async function run(): Promise<void> {
   if (pathsFile) {

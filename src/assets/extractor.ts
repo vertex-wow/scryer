@@ -23,7 +23,8 @@ export interface ExtractorOptions {
   outDir: string;
   /** WoW root directory. Empty string means extraction is unavailable. */
   wowDir?: string;
-  cascToolPath?: string;
+  assetServerPath?: string;
+  assetServerIdleTimeout?: number;
   grepPath?: string;
   listfileDir?: string;
   output: vscode.LogOutputChannel;
@@ -78,7 +79,8 @@ function makeCoreOpts(opts: ExtractorOptions): ExtractCoreOptions {
     flavor: (opts.flavor || "retail") as Flavor,
     outDir: opts.outDir,
     wowDir: opts.wowDir!,
-    cascToolPath: opts.cascToolPath,
+    assetServerPath: opts.assetServerPath ?? "",
+    assetServerIdleTimeout: opts.assetServerIdleTimeout ?? 20,
     grepPath: opts.grepPath,
     listfileDir: opts.listfileDir ?? "",
     log: (line: string) => writeLogLine(opts.output, line),
