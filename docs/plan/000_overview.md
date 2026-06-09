@@ -8,7 +8,7 @@ End state: open any addon folder, pick a version target (Mainline/MoP Classic/Cl
 
 ## Milestone Table
 
-Each milestone has its own section. Completed `↳` rows appear before pending `↳` rows within each section. Pending `↳` rows are placed under the milestone that enables or most naturally precedes the work. See [backlog.md](backlog.md) for full detail on each item.
+Each milestone has its own section. Completed `↳` rows appear before pending `↳` rows within each section. Pending `↳` rows are placed under the milestone that enables or most naturally precedes the work. See [todo.md](todo.md) for full detail on each item.
 
 **Table conventions:**
 
@@ -31,7 +31,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#ci-safe-committed-fixtures-deferred-from-m1">CI-safe committed fixtures</a>, <a href="backlog-archive.md#xml-texture-template-inheritance">XML texture template inheritance</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#ci-safe-committed-fixtures-deferred-from-m1">CI-safe committed fixtures</a>, <a href="todo-archive.md#xml-texture-template-inheritance">XML texture template inheritance</a></td>
 </tr>
 </tbody>
 </table>
@@ -51,7 +51,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#relativekey-anchor-targets-deferred-from-m2">relativeKey anchor resolution</a>, <a href="backlog-archive.md#css-inset--relativekey-renderer-fixes-deferred-from-m2">CSS inset + relativeKey renderer fixes</a>, <a href="backlog-archive.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2">TexCoords sprite-sheet slicing</a>, <a href="backlog-archive.md#fontstring-rendering-fidelity">FontString rendering fidelity</a>, <a href="backlog-archive.md#pixel-ruler-overlay-in-the-preview-panel">Pixel ruler overlay</a>, <a href="backlog-archive.md#texture-placeholder-hover-tooltip">Texture placeholder hover tooltip</a>, <a href="backlog-archive.md#all-preview-chrome-values-configurable-via-defaultsjson">All preview chrome values in defaults.json</a>, <a href="backlog-archive.md#canvas-scroll-in-all-directions-and-always-show-scrollbars">Canvas scroll in all directions + always-show scrollbars</a>, <a href="backlog-archive.md#center-frame-content-on-open">Center frame content on open</a>, <a href="backlog-archive.md#grab-pan-and-zoom-on-the-preview-canvas">Grab pan and zoom on the preview canvas</a>, <a href="backlog-archive.md#webview-snapshot--golden-image-regression">Webview snapshot / golden-image regression</a>, <a href="backlog-archive.md#eyedropper-color-picker-in-preview">Eyedropper color picker in preview</a>, <a href="backlog-archive.md#nineslice-border-rendering-fidelity-diamondmetal">NineSlice border rendering fidelity (DiamondMetal)</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#relativekey-anchor-targets-deferred-from-m2">relativeKey anchor resolution</a>, <a href="todo-archive.md#css-inset--relativekey-renderer-fixes-deferred-from-m2">CSS inset + relativeKey renderer fixes</a>, <a href="todo-archive.md#texcoords-sprite-sheet-slicing-in-the-dom-renderer-deferred-from-m2">TexCoords sprite-sheet slicing</a>, <a href="todo-archive.md#fontstring-rendering-fidelity">FontString rendering fidelity</a>, <a href="todo-archive.md#pixel-ruler-overlay-in-the-preview-panel">Pixel ruler overlay</a>, <a href="todo-archive.md#texture-placeholder-hover-tooltip">Texture placeholder hover tooltip</a>, <a href="todo-archive.md#all-preview-chrome-values-configurable-via-defaultsjson">All preview chrome values in defaults.json</a>, <a href="todo-archive.md#canvas-scroll-in-all-directions-and-always-show-scrollbars">Canvas scroll in all directions + always-show scrollbars</a>, <a href="todo-archive.md#center-frame-content-on-open">Center frame content on open</a>, <a href="todo-archive.md#grab-pan-and-zoom-on-the-preview-canvas">Grab pan and zoom on the preview canvas</a>, <a href="todo-archive.md#webview-snapshot--golden-image-regression">Webview snapshot / golden-image regression</a>, <a href="todo-archive.md#eyedropper-color-picker-in-preview">Eyedropper color picker in preview</a>, <a href="todo-archive.md#nineslice-border-rendering-fidelity-diamondmetal">NineSlice border rendering fidelity (DiamondMetal)</a></td>
 </tr>
 
 </tbody>
@@ -72,11 +72,11 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#devextractsh--wow-asset-extraction-for-contributors-deferred-from-m3">dev/extract.sh contributor script</a>, <a href="backlog-archive.md#on-demand-texture-extraction-from-the-preview-deferred-from-m3">On-demand texture extraction</a>, <a href="backlog-archive.md#extract-blizzard-interface-addon-files-from-users-wow-installation">Extract Blizzard addon files</a>, <a href="backlog-archive.md#blizzard-framexml-template-corpus-loading-pre-m4">Blizzard FrameXML corpus loading</a>, <a href="backlog-archive.md#output-channel-logging-and-scryer.loglevel-setting">Output channel logging</a>, <a href="backlog-archive.md#tsconfig-solution-style-refactor-ide-tooling-debt">tsconfig solution-style refactor</a>, <a href="backlog-archive.md#extraction-benchmarks">Extraction benchmarks</a>, <a href="backlog-archive.md#addon-texture-manifest-builder">Addon texture manifest builder</a>, <a href="backlog-archive.md#progressive-tier-execution-for-scryer.startupcontent">Progressive startupContent tier execution</a>, <a href="backlog-archive.md#wow-build-version-tracking-and-cache-invalidation">WoW build version tracking</a>, <a href="backlog-archive.md#dynamic-flavor-detection-from-buildinfo">Dynamic flavor detection</a>, <a href="backlog-archive.md#flavor-configuration-file--per-flavor-display-defaults">Flavor configuration file</a>, <a href="backlog-archive.md#atlas-texture-resolution">Atlas texture resolution</a>, <a href="backlog-archive.md#js-entry-point-runners-replace-dev-shell-scripts">JS entry-point runners</a>, <a href="backlog-archive.md#listfile-pre-filter-rustydemon-era">Listfile pre-filter</a>, <a href="backlog-archive.md#wow-font-loading-frizqtttf-from-casc">WoW font loading</a>, <a href="backlog-archive.md#in-app-asset-setup-guidance-for-end-users-deferred-from-m3">In-app asset setup guidance</a>, <a href="backlog-archive.md#preload-settings--scryer.startupcontent--scryer.useraddonpreload">Preload settings</a>, <a href="backlog-archive.md#preload-workspace-textures-at-startup">Preload workspace textures</a>, <a href="backlog-archive.md#user-visible-loading-notifications">User-visible loading notifications</a>, <a href="backlog-archive.md#listfile-source-and-capitalization-strategy">Listfile source + capitalization strategy</a>, <a href="backlog-archive.md#filtered-listfile-build-version-stamping">Filtered listfile build-version stamping</a>, <a href="backlog-archive.md#standardize-on-lowercase-extraction-paths">Lowercase extraction paths</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#devextractsh--wow-asset-extraction-for-contributors-deferred-from-m3">dev/extract.sh contributor script</a>, <a href="todo-archive.md#on-demand-texture-extraction-from-the-preview-deferred-from-m3">On-demand texture extraction</a>, <a href="todo-archive.md#extract-blizzard-interface-addon-files-from-users-wow-installation">Extract Blizzard addon files</a>, <a href="todo-archive.md#blizzard-framexml-template-corpus-loading-pre-m4">Blizzard FrameXML corpus loading</a>, <a href="todo-archive.md#output-channel-logging-and-scryer.loglevel-setting">Output channel logging</a>, <a href="todo-archive.md#tsconfig-solution-style-refactor-ide-tooling-debt">tsconfig solution-style refactor</a>, <a href="todo-archive.md#extraction-benchmarks">Extraction benchmarks</a>, <a href="todo-archive.md#addon-texture-manifest-builder">Addon texture manifest builder</a>, <a href="todo-archive.md#progressive-tier-execution-for-scryer.startupcontent">Progressive startupContent tier execution</a>, <a href="todo-archive.md#wow-build-version-tracking-and-cache-invalidation">WoW build version tracking</a>, <a href="todo-archive.md#dynamic-flavor-detection-from-buildinfo">Dynamic flavor detection</a>, <a href="todo-archive.md#flavor-configuration-file--per-flavor-display-defaults">Flavor configuration file</a>, <a href="todo-archive.md#atlas-texture-resolution">Atlas texture resolution</a>, <a href="todo-archive.md#js-entry-point-runners-replace-dev-shell-scripts">JS entry-point runners</a>, <a href="todo-archive.md#listfile-pre-filter-rustydemon-era">Listfile pre-filter</a>, <a href="todo-archive.md#wow-font-loading-frizqtttf-from-casc">WoW font loading</a>, <a href="todo-archive.md#in-app-asset-setup-guidance-for-end-users-deferred-from-m3">In-app asset setup guidance</a>, <a href="todo-archive.md#preload-settings--scryer.startupcontent--scryer.useraddonpreload">Preload settings</a>, <a href="todo-archive.md#preload-workspace-textures-at-startup">Preload workspace textures</a>, <a href="todo-archive.md#user-visible-loading-notifications">User-visible loading notifications</a>, <a href="todo-archive.md#listfile-source-and-capitalization-strategy">Listfile source + capitalization strategy</a>, <a href="todo-archive.md#filtered-listfile-build-version-stamping">Filtered listfile build-version stamping</a>, <a href="todo-archive.md#standardize-on-lowercase-extraction-paths">Lowercase extraction paths</a></td>
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#tga-texture-decode-deferred-from-m3">TGA texture decode</a></td>
+  <td><a href="todo.md#tga-texture-decode-deferred-from-m3">TGA texture decode</a></td>
   <td>📋 Pending</td>
   <td>Decode <code>.tga</code> textures via pure-JS decoder</td>
   <td>S</td>
@@ -92,7 +92,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#direct-proprietary-texture-serving-in-the-webview-blptga-decode-bypass">Direct BLP/TGA serving in webview</a></td>
+  <td><a href="todo.md#direct-proprietary-texture-serving-in-the-webview-blptga-decode-bypass">Direct BLP/TGA serving in webview</a></td>
   <td>📋 Pending (research)</td>
   <td>Feasibility: skip PNG compression by serving raw RGBA</td>
   <td>XS</td>
@@ -100,7 +100,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#atlas-manifest-from-db2-replace-wagotools">Atlas manifest from DB2</a></td>
+  <td><a href="todo.md#atlas-manifest-from-db2-replace-wagotools">Atlas manifest from DB2</a></td>
   <td>📋 Pending</td>
   <td>Parse UiTextureAtlas DB2 files directly; no outbound HTTP</td>
   <td>M</td>
@@ -108,7 +108,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#listfile-fast-index-in-process--post-rustydemon-era">Listfile fast index</a></td>
+  <td><a href="todo.md#listfile-fast-index-in-process--post-rustydemon-era">Listfile fast index</a></td>
   <td>📋 Pending</td>
   <td>SQLite/binary index for atlas-gen FileDataID lookups; prereq: M15 CASC Asset Service</td>
   <td>S–M</td>
@@ -148,11 +148,11 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#globalstrings-population-deferred-from-m5">GlobalStrings population</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#globalstrings-population-deferred-from-m5">GlobalStrings population</a></td>
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#typescripttolua-integration-investigation">TypeScriptToLua integration investigation</a></td>
+  <td><a href="todo.md#typescripttolua-integration-investigation">TypeScriptToLua integration investigation</a></td>
   <td>📋 Pending</td>
   <td>Research: does TSTL lualib conflict with 5.1 shim? source map support? addon detection?</td>
   <td>XS–S</td>
@@ -176,7 +176,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#c_texturegetatlasinfo-full-field-set"><code>C_Texture.GetAtlasInfo</code> full field set</a>, <a href="backlog-archive.md#atlas-manifest-prefix-aware-lookup-in-resolveatlasintexture">Atlas manifest prefix-aware lookup</a>, <a href="backlog-archive.md#useatlassize-render-time-dimension-override-in-applyasset"><code>useAtlasSize</code> render-time override fix</a>, <a href="backlog-archive.md#colorgeneratehexcolor-stub--unblocks-sharedcolorconstantslua"><code>Color:GenerateHexColor</code> stub</a>, <a href="backlog-archive.md#flagsutil-stub--unblocks-scrollutillua"><code>FlagsUtil</code> stub</a>, <a href="backlog-archive.md#mathutilEpsilon-constant--unblocks-scrollboxlua"><code>MathUtil.Epsilon</code> constant</a>, <a href="backlog-archive.md#eventregistry-stub--unblocks-gamerulesutillua"><code>EventRegistry</code> stub</a>, <a href="backlog-archive.md#unitsex-stub--unblocks-modelframemixinlua"><code>UnitSex</code> stub</a>, <a href="backlog-archive.md#c_scriptedanimationsgetallscriptedanimationeffects-stub--unblocks-scriptedanimationeffectslua"><code>C_ScriptedAnimations.GetAllScriptedAnimationEffects</code> stub</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#c_texturegetatlasinfo-full-field-set"><code>C_Texture.GetAtlasInfo</code> full field set</a>, <a href="todo-archive.md#atlas-manifest-prefix-aware-lookup-in-resolveatlasintexture">Atlas manifest prefix-aware lookup</a>, <a href="todo-archive.md#useatlassize-render-time-dimension-override-in-applyasset"><code>useAtlasSize</code> render-time override fix</a>, <a href="todo-archive.md#colorgeneratehexcolor-stub--unblocks-sharedcolorconstantslua"><code>Color:GenerateHexColor</code> stub</a>, <a href="todo-archive.md#flagsutil-stub--unblocks-scrollutillua"><code>FlagsUtil</code> stub</a>, <a href="todo-archive.md#mathutilEpsilon-constant--unblocks-scrollboxlua"><code>MathUtil.Epsilon</code> constant</a>, <a href="todo-archive.md#eventregistry-stub--unblocks-gamerulesutillua"><code>EventRegistry</code> stub</a>, <a href="todo-archive.md#unitsex-stub--unblocks-modelframemixinlua"><code>UnitSex</code> stub</a>, <a href="todo-archive.md#c_scriptedanimationsgetallscriptedanimationeffects-stub--unblocks-scriptedanimationeffectslua"><code>C_ScriptedAnimations.GetAllScriptedAnimationEffects</code> stub</a></td>
 </tr>
 </tbody>
 </table>
@@ -196,11 +196,11 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#parentkey--parentarray-wiring-for-runtime-frames-deferred-from-m7">parentKey / parentArray wiring</a>, <a href="backlog-archive.md#template-application-in-runtime-createframe-deferred-from-m7">Template application in runtime CreateFrame</a>, <a href="backlog-archive.md#texture-tiling-on-dynamically-created-textures-nineslice-stub-follow-up">Texture tiling on dynamic textures</a>, <a href="backlog-archive.md#setdrawlayer-on-dynamically-created-textures-nineslice-stub-follow-up">SetDrawLayer on dynamic textures</a>, <a href="backlog-archive.md#texture-to-texture-setpoint-anchor-resolution">Texture-to-texture SetPoint anchors</a>, <a href="backlog-archive.md#cross-layer-nineslice-layout">Cross-layer NineSlice layout</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#parentkey--parentarray-wiring-for-runtime-frames-deferred-from-m7">parentKey / parentArray wiring</a>, <a href="todo-archive.md#template-application-in-runtime-createframe-deferred-from-m7">Template application in runtime CreateFrame</a>, <a href="todo-archive.md#texture-tiling-on-dynamically-created-textures-nineslice-stub-follow-up">Texture tiling on dynamic textures</a>, <a href="todo-archive.md#setdrawlayer-on-dynamically-created-textures-nineslice-stub-follow-up">SetDrawLayer on dynamic textures</a>, <a href="todo-archive.md#texture-to-texture-setpoint-anchor-resolution">Texture-to-texture SetPoint anchors</a>, <a href="todo-archive.md#cross-layer-nineslice-layout">Cross-layer NineSlice layout</a></td>
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#live-panel-frame-diffing-deferred-from-m4">Live panel frame diffing</a></td>
+  <td><a href="todo.md#live-panel-frame-diffing-deferred-from-m4">Live panel frame diffing</a></td>
   <td>📋 Pending</td>
   <td>Incremental frame-tree diffs to webview; full re-render used in M7</td>
   <td>S–M</td>
@@ -208,7 +208,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#statusbar-fill-texture-rendering-deferred-from-m7">StatusBar fill texture rendering</a></td>
+  <td><a href="todo.md#statusbar-fill-texture-rendering-deferred-from-m7">StatusBar fill texture rendering</a></td>
   <td>📋 Pending</td>
   <td>Synthesise fill bar from value/min/max at serialization; apply color/texture</td>
   <td>S</td>
@@ -216,7 +216,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#wysiwyg-widget-placement">WYSIWYG widget placement</a></td>
+  <td><a href="todo.md#wysiwyg-widget-placement">WYSIWYG widget placement</a></td>
   <td>📋 Pending</td>
   <td>Drag frames in preview; emit anchor deltas as XML/Lua <code>SetPoint</code> calls</td>
   <td>L</td>
@@ -240,11 +240,11 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#lua-sandbox-execution-timeout-deferred-from-m6">Lua sandbox execution timeout</a>, <a href="backlog-archive.md#full-blizzard_sharedxml-lua-corpus-loading">Full Blizzard_SharedXML Lua corpus loading</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#lua-sandbox-execution-timeout-deferred-from-m6">Lua sandbox execution timeout</a>, <a href="todo-archive.md#full-blizzard_sharedxml-lua-corpus-loading">Full Blizzard_SharedXML Lua corpus loading</a></td>
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#xml--lua-coupling-in-static-preview">XML + Lua coupling in static preview</a></td>
+  <td><a href="todo.md#xml--lua-coupling-in-static-preview">XML + Lua coupling in static preview</a></td>
   <td>📋 Pending</td>
   <td>How much Lua to run for static XML preview; design boundary between static/live modes</td>
   <td>S</td>
@@ -252,7 +252,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#f5-run-mode">F5 run mode — full environment VM</a></td>
+  <td><a href="todo.md#f5-run-mode">F5 run mode — full environment VM</a></td>
   <td>📋 Pending</td>
   <td><code>scryer.run</code> command + F5 keybinding to launch full TOC execution pipeline</td>
   <td>S</td>
@@ -276,11 +276,11 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#preview-settings-toolbar">Preview settings toolbar</a>, <a href="backlog-archive.md#customizable-keyboard-shortcuts-for-toolbar-actions">Customizable keyboard shortcuts for toolbar actions</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#preview-settings-toolbar">Preview settings toolbar</a>, <a href="todo-archive.md#customizable-keyboard-shortcuts-for-toolbar-actions">Customizable keyboard shortcuts for toolbar actions</a></td>
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#keyboard-input-handling-in-preview">Keyboard input handling in preview</a></td>
+  <td><a href="todo.md#keyboard-input-handling-in-preview">Keyboard input handling in preview</a></td>
   <td>📋 Pending</td>
   <td>Toolbar "Game Input" mode (controller icon): captures keystrokes into Lua event bridge; ESC always exits</td>
   <td>S–M</td>
@@ -304,7 +304,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#featuresmd--rendering-features-table-per-flavor">features.md — rendering features per flavor</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#featuresmd--rendering-features-table-per-flavor">features.md — rendering features per flavor</a></td>
 </tr>
 </tbody>
 </table>
@@ -340,7 +340,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#addon-state-emulation">Addon state emulation (addons testing addons)</a></td>
+  <td><a href="todo.md#addon-state-emulation">Addon state emulation (addons testing addons)</a></td>
   <td>📋 Pending</td>
   <td>Secondary Lua API to drive simulated game state; test one addon's reaction through another</td>
   <td>M–L</td>
@@ -364,7 +364,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#typed-scalar-returns-in-generated-stubs">Typed scalar returns</a>, <a href="backlog-archive.md#wow-type-system-generation">WoW type system generation</a>, <a href="backlog-archive.md#event-name-constants-generation">Event name constants</a>, <a href="backlog-archive.md#enum-stub-generation">Enum stub generation</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#typed-scalar-returns-in-generated-stubs">Typed scalar returns</a>, <a href="todo-archive.md#wow-type-system-generation">WoW type system generation</a>, <a href="todo-archive.md#event-name-constants-generation">Event name constants</a>, <a href="todo-archive.md#enum-stub-generation">Enum stub generation</a></td>
 </tr>
 </tbody>
 </table>
@@ -384,7 +384,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td><a href="backlog.md#placeholder-3d-graphics-from-casc">Placeholder 3D Graphics from CASC</a></td>
+  <td><a href="todo.md#placeholder-3d-graphics-from-casc">Placeholder 3D Graphics from CASC</a></td>
   <td>📋 Pending</td>
   <td>Investigate extracting and rendering minimal 3D assets to verify frame positioning, without making Scryer a game emulator.</td>
   <td>XL</td>
@@ -456,7 +456,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="backlog-archive.md#rust-server-tier-1-protocol-serde-tests">Rust server: Tier 1 — protocol serde tests</a>, <a href="backlog-archive.md#rust-server-tier-2-extraction-stats-mock-tests">Rust server: Tier 2 — extraction stats mock tests</a>, <a href="backlog-archive.md#rust-server-tier-3-synthetic-casc-fixtures">Rust server: Tier 3 — synthetic CASC fixtures</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#rust-server-tier-1-protocol-serde-tests">Rust server: Tier 1 — protocol serde tests</a>, <a href="todo-archive.md#rust-server-tier-2-extraction-stats-mock-tests">Rust server: Tier 2 — extraction stats mock tests</a>, <a href="todo-archive.md#rust-server-tier-3-synthetic-casc-fixtures">Rust server: Tier 3 — synthetic CASC fixtures</a></td>
 </tr>
 </tbody>
 </table>
@@ -545,4 +545,4 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 
 - ~~Custom editor provider vs side WebviewPanel — which gives better UX first?~~ Resolved (M2): `WebviewPanel` beside the active editor. Upgrade to `CustomTextEditorProvider` deferred until the UX is proven.
 
-**Known tooling debt:** see [backlog.md](backlog.md).
+**Known tooling debt:** see [todo.md](todo.md).

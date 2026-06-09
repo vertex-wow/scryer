@@ -37,7 +37,7 @@ TypeScriptToLua compiles TypeScript to Lua, targeting a configurable Lua version
 
 This is the existing community answer to "I want modern ergonomics → WoW Lua." It solves a real problem (TypeScript DX for a dynamically typed language) rather than a theoretical one (Lua 5.4 syntax on a Lua 5.1 runtime).
 
-**Verdict:** Out of scope for Scryer itself to ship or wrap — TSTL is a pre-compilation step the addon author performs before their Lua/XML land in the workspace. Scryer consumes the Lua output, which is standard Lua 5.1. However, TSTL integration has implications worth investigating: see [backlog entry](../plan/backlog.md#typescripttolua-integration-investigation).
+**Verdict:** Out of scope for Scryer itself to ship or wrap — TSTL is a pre-compilation step the addon author performs before their Lua/XML land in the workspace. Scryer consumes the Lua output, which is standard Lua 5.1. However, TSTL integration has implications worth investigating: see [todo entry](../plan/todo.md#typescripttolua-integration-investigation).
 
 ## Decision
 
@@ -49,10 +49,10 @@ This is the existing community answer to "I want modern ergonomics → WoW Lua."
 
 - The shim surface in M5 is bounded and known (see [ADR 008](008_lua_interpreter.md)). No new categories of compat work arise from newer Lua versions.
 - Scryer's documentation should not suggest or describe a Lua transpilation workflow.
-- If TSTL investigation (backlog) surfaces integration work, it goes into M5 or M8 scope as a separate item.
+- If TSTL investigation (todo) surfaces integration work, it goes into M5 or M8 scope as a separate item.
 
 ## References
 
 - [ADR 008 — Lua Interpreter Choice](008_lua_interpreter.md)
 - [ADR 001 — Language Stack](001_language_stack.md)
-- [Backlog: TypeScriptToLua integration investigation](../plan/backlog.md#typescripttolua-integration-investigation)
+- [Todo: TypeScriptToLua integration investigation](../plan/todo.md#typescripttolua-integration-investigation)

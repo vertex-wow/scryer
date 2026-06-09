@@ -1,6 +1,6 @@
-# Backlog Archive — Completed Items
+# Todo Archive — Completed Items
 
-Completed items moved from [backlog.md](backlog.md). Historical record of what was built and when.
+Completed items moved from [todo.md](todo.md). Historical record of what was built and when.
 
 ---
 

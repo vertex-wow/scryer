@@ -119,7 +119,7 @@ Not a bottleneck at any realistic scale.
 - Templates loaded: **355**
 - Unique texture paths: **102** (spanning 23 distinct parent directories)
 - Registry scan: 124 ms (warm cache)
-- Scope: this covers _only_ the template corpus. A full-addon manifest (all 315 Blizzard addons) would require a proper parser-backed manifest generator — see [backlog: Blizzard texture manifest builder](plan/backlog.md).
+- Scope: this covers _only_ the template corpus. A full-addon manifest (all 315 Blizzard addons) would require a proper parser-backed manifest generator — see [todo: Blizzard texture manifest builder](plan/todo.md).
 
 **Texture extraction — batch approach (single CASC open, brace-glob, j=8):**
 
@@ -361,7 +361,7 @@ The current `extractRetailBulk` in `src/assets/extract-core.ts` batches all glob
 - The **1BRC-style stream + byte scan** (raw `Buffer.indexOf`, no `readline`/`String.split`) is the fastest pure-Node in-process approach — see `dev/bench-listfile-filter.mjs` for the preserved reference implementation. Worker threads do not help — the bottleneck is I/O, not CPU; 12-core parallelism is eaten by spawn and concatenation overhead.
 - **SQLite CSV virtual table extensions** (`sqlite-xsv` npm package, `sqlean vsv` at `external/sqlean-linux-x64/vsv.so`): both allow SQLite to read the CSV directly with no intermediate INSERT step. Neither significantly outperforms the Node-reads+INSERT pattern — the bottleneck is vtable row-crossing overhead regardless. LIKE wins over `substr()` because SQLite has a prefix short-circuit that exits early on non-matches. The `sqlite-xsv` `xsv_reader` table-valued function panics in v0.2.1-alpha.13; only the virtual table module is usable.
 - **CSV-aware CLI tools:** `xan search`, `xsv search`, and `qsv search` normalize output to comma-delimited regardless of input delimiter — not directly usable for our `;`-delimited format without post-processing. `xan grep` and `grep` are row-level scanners that preserve the original delimiter and are directly usable. `xsv` (BurntSushi) is the original; its maintainer now recommends `qsv` (dathere) and `xan` (medialab). `cargo install qsv` fails on Rust 1.95.0; installed from prebuilt binary.
-- **SQLite adds overhead for the one-shot filter use case** because every approach pays both a read/parse cost and an INSERT cost. SQLite becomes the right choice for the [Listfile fast index](plan/backlog.md#listfile-fast-index-in-process--post-rustydemon-era) use case: store the 169K rows once, then do sub-millisecond point lookups by FileDataID. That is a completely different access pattern.
+- **SQLite adds overhead for the one-shot filter use case** because every approach pays both a read/parse cost and an INSERT cost. SQLite becomes the right choice for the [Listfile fast index](plan/todo.md#listfile-fast-index-in-process--post-rustydemon-era) use case: store the 169K rows once, then do sub-millisecond point lookups by FileDataID. That is a completely different access pattern.
 - **`@libsql/client` (Turso)** is designed for the cloud product; its async batch API has significant overhead for local in-memory bulk operations. Not competitive for this workload.
 - **Decision:** for the short-term `rustydemon-cli` era, use `grep -F` spawned from `ensureListfile()`. When the in-process CASC reader lands and only `atlas-gen.ts` consumes the listfile, 1BRC-style stream+bytes is the in-process alternative with no subprocess dependency.
 
@@ -420,7 +420,7 @@ Per Q5, the bottleneck is BLP DXT decode in `js-blp`. The cliff is stark:
 
 Cache-hit cost: ~2 ms for all 11 available BLP files simultaneously (stat + file read). Single-file cache-hit is sub-millisecond. Preloading is definitively "pay once at first open, then instant on every subsequent render."
 
-**Implication:** The workspace startup preload (see [Backlog: Preload Workspace Textures](plan/backlog.md#preload-workspace-textures-at-startup)) is the right call. Pay the BLP decode cost once at activation, cache to `.wow-cache/`, and every subsequent preview renders instantly. The only question remaining is whether to decode on-demand (lazy) or in-background (eager). The benchmark confirms that once in cache, there is no reason to re-decode.
+**Implication:** The workspace startup preload (see [Todo: Preload Workspace Textures](plan/todo.md#preload-workspace-textures-at-startup)) is the right call. Pay the BLP decode cost once at activation, cache to `.wow-cache/`, and every subsequent preview renders instantly. The only question remaining is whether to decode on-demand (lazy) or in-background (eager). The benchmark confirms that once in cache, there is no reason to re-decode.
 
 ---
 
@@ -509,7 +509,7 @@ node dev/bench-listfile-filter.mjs \
 
 **Approaches covered:** `grep -F`, `grep`, `node stream+bytes (1BRC-style)`, `node readFileSync+split`, `node readline`.
 
-The `nodeStreamBytes` function in this script is also the reference implementation for the future in-process filter path (see [Listfile pre-filter backlog entry](plan/backlog.md#listfile-pre-filter-rustydemon-era)).
+The `nodeStreamBytes` function in this script is also the reference implementation for the future in-process filter path (see [Listfile pre-filter todo entry](plan/todo.md#listfile-pre-filter-rustydemon-era)).
 
 **One-off explorations (not committed as permanent fixtures):**
 
@@ -735,6 +735,6 @@ Trigger condition: when the team grows beyond a single developer, or when a perf
 
 - FOSDEM 2026: [Measuring Software Performance](https://kakkoyun.me/posts/fosdem-2026-measuring-software-performance/) — statistical methods, tooling, environment controls
 - [ADR 002: Asset Pipeline](decisions/002_asset_pipeline.md) — architecture context for BLP decode and cache
-- [Backlog: Extraction Benchmarks](plan/backlog.md#extraction-benchmarks) — original task, initial findings, implementation notes
-- [Backlog: Preload Workspace Textures](plan/backlog.md#preload-workspace-textures-at-startup) — preload decision this benchmark informs
+- [Todo: Extraction Benchmarks](plan/todo.md#extraction-benchmarks) — original task, initial findings, implementation notes
+- [Todo: Preload Workspace Textures](plan/todo.md#preload-workspace-textures-at-startup) — preload decision this benchmark informs
 - [M15: CASC Asset Service](plan/015_casc_asset_service.md) — long-term head-to-head target

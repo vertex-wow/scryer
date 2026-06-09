@@ -6,7 +6,7 @@
 
 Embed wasmoon in the extension host, disable all stock Lua standard libraries, and load a WoW-compatible Lua 5.1 environment: `setfenv`/`getfenv` shim, compat aliases, `bit` library, and GlobalStrings. No frames, no WoW API yet — just a correct, sandboxed Lua 5.1-like execution environment.
 
-GlobalStrings deferred to M7 — see [backlog.md](backlog.md#globalstrings-population-deferred-from-m5).
+GlobalStrings deferred to M7 — see [todo.md](todo.md#globalstrings-population-deferred-from-m5).
 
 This is the **highest-risk step in the Lua runtime series** and must be validated before anything else is built on top.
 

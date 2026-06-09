@@ -59,7 +59,7 @@ WoW's proprietary BLP format is not natively decodable by browsers or Node. Thre
 WoW uses two texture file formats — **both must be handled:**
 
 - **BLP** — the primary proprietary format for all Interface textures. Requires BLP decode (see above). **Implemented.**
-- **TGA** (Targa) — used by some older textures and many addon-bundled images. **Deferred** — logs a warning, advises pre-converting to PNG. See backlog.
+- **TGA** (Targa) — used by some older textures and many addon-bundled images. **Deferred** — logs a warning, advises pre-converting to PNG. See todo.
 
 WoW texture paths use backslash separators and typically omit the file extension. Normalize on input:
 
@@ -164,7 +164,7 @@ When an asset cannot be resolved or decoded:
 
 | Item                              | Notes                                                                          |
 | --------------------------------- | ------------------------------------------------------------------------------ |
-| TGA decode                        | Logs warning + placeholder. See backlog for implementation plan.               |
+| TGA decode                        | Logs warning + placeholder. See todo for implementation plan.                  |
 | Atlas manifest lookup             | Placeholder. Requires JSON manifest (M5 dependency).                           |
 | `scryer.blp2pngPath` CLI fallback | Setting exists, not wired. Needed for exotic BLP variants js-blp can't handle. |
 

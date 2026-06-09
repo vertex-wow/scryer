@@ -10,7 +10,7 @@ The server is a separate Rust binary (forked from [`casc-extractor`](https://git
 
 **Language decision:** Rust (primary), with Go as a fallback if the AI-assisted Rust development proves too difficult to troubleshoot. The architecture (standalone binary + stdio JSON protocol + TypeScript client) is language-agnostic — a Go rewrite of the server would be a drop-in replacement with no extension-side changes.
 
-**Relationship to prior backlog item:** This milestone supersedes the backlog entry "[In-process JavaScript CASC reader (replace extract.sh + rustydemon-cli)](backlog.md#casc-asset-service-replace-extractsh--rustydemon-cli)." The scope evolved from an in-process JS library to a standalone server after analysis showed that process isolation, clean memory lifecycle, and the availability of `casc-extractor` (MIT Rust implementation) make a separate-process architecture superior. See [`docs/reference/casc_asset_service_analysis.md`] for the full decision record.
+**Relationship to prior todo item:** This milestone supersedes the todo entry "[In-process JavaScript CASC reader (replace extract.sh + rustydemon-cli)](todo.md#casc-asset-service-replace-extractsh--rustydemon-cli)." The scope evolved from an in-process JS library to a standalone server after analysis showed that process isolation, clean memory lifecycle, and the availability of `casc-extractor` (MIT Rust implementation) make a separate-process architecture superior. See [`docs/reference/casc_asset_service_analysis.md`] for the full decision record.
 
 ## Architecture
 
@@ -200,7 +200,7 @@ Useful for on-demand single-file extraction (e.g., a texture referenced in XML t
 
 **Status:** 📋 Pending
 
-Expose a `readFile` method that returns raw bytes from CASC by virtual path (not just extracts to disk). This unblocks the [Atlas manifest from DB2](backlog.md#atlas-manifest-from-db2-replace-wagotools) backlog item — `casc.readFile("dbfilesclient/uitextureatlas.db2")` returns a `Buffer` that the TypeScript DB2 parser consumes.
+Expose a `readFile` method that returns raw bytes from CASC by virtual path (not just extracts to disk). This unblocks the [Atlas manifest from DB2](todo.md#atlas-manifest-from-db2-replace-wagotools) todo item — `casc.readFile("dbfilesclient/uitextureatlas.db2")` returns a `Buffer` that the TypeScript DB2 parser consumes.
 
 **Prerequisite:** Eliminate listfile dependency (TVFS gives path→hash for any file, not just Interface/ paths).
 
@@ -232,8 +232,8 @@ Extend `dev/bench-casc-comparison.mjs` to benchmark `scryer-asset-server` alongs
 
 No dependency on other pending milestones. This milestone unblocks:
 
-- [Atlas manifest from DB2](backlog.md#atlas-manifest-from-db2-replace-wagotools) (via the `readFile` sub-item)
-- [Listfile fast index](backlog.md#listfile-fast-index-in-process--post-rustydemon-era) (becomes less relevant once TVFS eliminates the listfile)
+- [Atlas manifest from DB2](todo.md#atlas-manifest-from-db2-replace-wagotools) (via the `readFile` sub-item)
+- [Listfile fast index](todo.md#listfile-fast-index-in-process--post-rustydemon-era) (becomes less relevant once TVFS eliminates the listfile)
 
 ## Verification Plan
 

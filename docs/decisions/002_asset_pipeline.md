@@ -42,7 +42,7 @@ The Go subprocess option (ADR 001) was not adopted, eliminating that path.
 ## Architecture Adopted
 
 - **BLP:** `js-blp` 1.0.5 (Kruithne, MIT) — pure-JS, handles BLP1 uncompressed + BLP2 DXT1/3/5. Returns RGBA via a Bufo buffer (`bufo.raw`), encoded to PNG via `pngjs` 7.0.0. Optional `scryer.blp2pngPath` setting allows a user to point at a `blp2png` binary for exotic variants (not yet wired — setting exists for future use).
-- **TGA:** deferred in M3. Logs a warning and shows a labeled placeholder, advising the user to pre-convert to PNG. The orientation/flip concern (TGA image-origin descriptor byte) must be handled when implemented. See backlog.
+- **TGA:** deferred in M3. Logs a warning and shows a labeled placeholder, advising the user to pre-convert to PNG. The orientation/flip concern (TGA image-origin descriptor byte) must be handled when implemented. See todo.
 - **Caching:** lazy decode on first reference → PNG written to `<cacheRoot>/derived/textures/` (keyed by SHA1 of source path + mtime + size) → served via `webview.asWebviewUri`. Raw PNG/TGA files in `<cacheRoot>/source/` are served directly without copying.
 - **Cache root:** a unified `cacheRoot` (settable via `scryer.cacheLocation`: `global` / `workspace` / `custom`) holds both raw extracted assets (`source/`) and derived outputs (`derived/`). Default is `globalStorageUri` so the GB-scale asset tree is shared across workspaces.
 - **Scope:** decode only textures the previewed addon actually references, not the entire WoW asset library.

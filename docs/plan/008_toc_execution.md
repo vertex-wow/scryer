@@ -109,5 +109,5 @@ Integration tests in `test/lua/toc-runner.test.ts`:
 ## Known Issues / Follow-up
 
 - `HookScript` in `_scripts` table currently stores only the last hook (not a chain); full chaining deferred to M9.
-- Template application in `CreateFrame`'s 4th arg remains pending (backlog item).
+- Template application in `CreateFrame`'s 4th arg remains pending (todo item).
 - Inline XML scripts with `method` attribute (Mixin method calls) not yet supported.

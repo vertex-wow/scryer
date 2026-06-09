@@ -37,7 +37,7 @@ Real Lua tables (not userdata proxies) for all frame types:
 
 ### registerFrameModel (`src/lua/createframe.ts`)
 
-Injects ~60 JS helper globals then calls `lua.doString(frameClassLua)`. Accepts an optional `blizzardTemplates` map; when provided, a `__scryer_apply_template` TS callback resolves template names via `resolveInheritance` and generates Lua code to apply the template's layers, size, anchors, and scripts to the newly created frame (see [template application backlog entry](backlog.md#template-application-in-runtime-createframe-deferred-from-m7)). Helpers cover:
+Injects ~60 JS helper globals then calls `lua.doString(frameClassLua)`. Accepts an optional `blizzardTemplates` map; when provided, a `__scryer_apply_template` TS callback resolves template names via `resolveInheritance` and generates Lua code to apply the template's layers, size, anchors, and scripts to the newly created frame (see [template application todo entry](todo.md#template-application-in-runtime-createframe-deferred-from-m7)). Helpers cover:
 
 - Frame: `SetPoint`, `ClearAllPoints`, `SetAllPoints`, `SetSize`, `Show/Hide`, `SetAlpha/Scale`, `SetFrameStrata/Level`, `SetScript/GetScript/HookScript`, `RegisterEvent`, `SetAttribute`, `GetChildren`, `CreateTexture`, `CreateFontString`.
 - Button: `SetText/GetText`, `Enable/Disable`, `SetNormalTexture`.
@@ -69,7 +69,7 @@ Frames, textures, and font strings share a sequential counter. The Lua-side `_re
 
 ### Full re-render on mutation
 
-Each `runAndRender()` serializes the entire frame tree. No diffing — see [backlog](backlog.md#live-panel-frame-diffing-deferred-from-m4).
+Each `runAndRender()` serializes the entire frame tree. No diffing — see [todo](todo.md#live-panel-frame-diffing-deferred-from-m4).
 
 ### Fresh sandbox per render
 
@@ -99,8 +99,8 @@ Expands to TOPLEFT/TOPLEFT + BOTTOMRIGHT/BOTTOMRIGHT anchor pairs (same as the X
 - TOC load sequence → M8
 - ~~parentKey / parentArray wiring~~ → ✅ done (2026-05-29)
 - ~~Template application in CreateFrame~~ → ✅ done (2026-05-29)
-- Incremental frame tree diffing → [backlog](backlog.md#live-panel-frame-diffing-deferred-from-m4)
-- StatusBar fill texture rendering → [backlog](backlog.md#statusbar-fill-texture-rendering-deferred-from-m7)
+- Incremental frame tree diffing → [todo](todo.md#live-panel-frame-diffing-deferred-from-m4)
+- StatusBar fill texture rendering → [todo](todo.md#statusbar-fill-texture-rendering-deferred-from-m7)
 - GlobalStrings population → ✅ done (2026-05-29)
 
 ## Dependencies

@@ -1,8 +1,8 @@
-# Backlog — Outstanding Tasks Without a Milestone
+# Todo — Outstanding Tasks Without a Milestone
 
 Cross-cutting items deferred from completed milestones, or tooling debt that doesn't fit a feature milestone. Review this file at the start of each milestone to see if anything should be scheduled.
 
-Completed items are in [backlog-archive.md](backlog-archive.md).
+Completed items are in [todo-archive.md](todo-archive.md).
 
 ---
 
@@ -73,7 +73,7 @@ See [measurements.md Q1b](../measurements.md#q1b-how-fast-can-we-pre-filter-list
 
 **Recommendation:** Approach (1) is the lowest-risk change and directly attacks the measured bottleneck (PNG compression). Approach (3) is the most architecturally clean but needs a quick CSP feasibility check before any code is written. Approaches (2) and (4) are refinements or longer-term ideas.
 
-**Scope of this item:** Research and feasibility only. Prove out whether VSCode's webview CSP permits the required capabilities for each approach, estimate the layout changes needed for canvas-based rendering, and decide whether any approach clears the bar to justify a follow-up implementation task. Do not implement without a separate backlog item.
+**Scope of this item:** Research and feasibility only. Prove out whether VSCode's webview CSP permits the required capabilities for each approach, estimate the layout changes needed for canvas-based rendering, and decide whether any approach clears the bar to justify a follow-up implementation task. Do not implement without a separate todo item.
 
 **Effort:** XS (research/feasibility); S–M for any approach taken to implementation.
 

@@ -240,7 +240,7 @@ Performed post-resolution in a separate `resolveFrameName` pass. Regex is case-i
 - **`parentKey`/`parentArray` resolution** — recorded in IR but not wired into a frame object model. M4 uses them to populate `self.parentKey` on Lua frame objects.
 - **Blizzard template registry** — unknown templates (e.g. `DefaultPanelTemplate`) emit a `console.warn` and are skipped. Lazy loading from `_reference/wow-ui-source` is an M2 task.
 - **`TextureSliceMargins`/`TextureSliceMode`/`Gradient`** — parsed but attrs not mapped; no IR fields yet. M3 asset work will add them when needed.
-- **CI-safe committed fixtures** — the live-fixture tests in `toc.test.ts` and `xml.test.ts` currently skip in CI (`describeIfLive`). See [backlog.md](backlog.md) for the fixture generator plan.
+- **CI-safe committed fixtures** — the live-fixture tests in `toc.test.ts` and `xml.test.ts` currently skip in CI (`describeIfLive`). See [todo.md](todo.md) for the fixture generator plan.
 
 ## Foreseen Hurdles (status)
 
@@ -261,7 +261,7 @@ Performed post-resolution in a separate `resolveFrameName` pass. Regex is case-i
 
 ### CI limitation: live-fixture tests skip without `_live/`
 
-The "real fixture" tests in `toc.test.ts` and `xml.test.ts` use `describeIfLive` — they skip automatically when `_live/Addons/` is not present (i.e. in CI). The inline string tests still run everywhere. See [backlog.md](backlog.md) for the planned fixture generator that will remove this skip.
+The "real fixture" tests in `toc.test.ts` and `xml.test.ts` use `describeIfLive` — they skip automatically when `_live/Addons/` is not present (i.e. in CI). The inline string tests still run everywhere. See [todo.md](todo.md) for the planned fixture generator that will remove this skip.
 
 ## Dependencies
 
