@@ -355,30 +355,6 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 
 ---
 
-## API stub autogeneration (`gen-api-stubs.ts`)
-
-**Status:** ⬜ Pending (M13)
-
-**Problem:** Hand-maintaining WoW API stubs in `wow-api.ts` doesn't scale. There are 329 `Blizzard_APIDocumentationGenerated` files covering 5000+ functions. Currently only two functions are hand-patched to return non-nil (the ones that crash Lua on nil). All other C\_\* calls return nil via a metatable fallback — correct for now, but as more Blizzard Lua loads, more functions will need correct return shapes.
-
-**Plan:** `dev/gen-api-stubs.ts` script:
-
-1. Extracts `Interface/AddOns/Blizzard_APIDocumentationGenerated/*.lua` from the game via cascTool (same pattern as `dev/extract.ts`, reusing `extractPaths` from `src/assets/extract-core.ts`)
-2. Parses each file by executing it in a wasmoon sandbox with a stub `APIDocumentation:AddDocumentationTable` collector (no regex)
-3. Generates `src/lua/api-stubs/base/<Namespace>.ts` from retail (one file per namespace, named by namespace not section name)
-4. Generates `src/lua/api-stubs/<flavor>/<Namespace>.ts` delta files for classic/classic_era — only when a namespace is absent from base or has a different return shape
-5. Return-shape-aware zero values: `IsArray` return → `[]`, non-nilable Structure return → `{}`, else → `undefined`
-6. File-level change detection via `// @gen-hash: sha256:<lua-bytes>` header — skip write if unchanged; stubs accumulate and are never deleted
-7. Per-flavor manifests (`manifest.<flavor>.ts`) list exactly which functions exist in that flavor — drive registration, act as the filter at runtime
-8. Generates `src/lua/api-stubs/index.ts` with `registerStubs(lua, flavor)`
-9. Manual overrides live in `src/lua/api/base/` and `src/lua/api/<flavor>/` — imported after stubs, last writer wins; override files use `import type` from stub for compile-time orphan detection
-
-See `docs/plan/013_api_stub_autogen.md` for full architecture.
-
-**Effort:** M
-
----
-
 ## features.md — rendering features table per flavor
 
 **Status:** 📋 Pending

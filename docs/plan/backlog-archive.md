@@ -4,6 +4,26 @@ Completed items moved from [backlog.md](backlog.md). Historical record of what w
 
 ---
 
+## API stub autogeneration (`gen-api-stubs.ts`)
+
+**Status:** ✅ Done (2026-06-08)
+
+**Problem:** Hand-maintaining WoW API stubs in `wow-api.ts` doesn't scale. There are 329 `Blizzard_APIDocumentationGenerated` files covering 5000+ functions. Currently only two functions are hand-patched to return non-nil (the ones that crash Lua on nil). All other C\_\* calls return nil via a metatable fallback — correct for now, but as more Blizzard Lua loads, more functions will need correct return shapes.
+
+**What was built:**
+
+- `dev/gen-api-stubs.ts` script that extracts `Blizzard_APIDocumentationGenerated/*.lua` from the game via cascTool.
+- Parses API definitions by executing them in a wasmoon sandbox.
+- Generates `src/lua/api-stubs/retail/<Namespace>.ts` for the full retail API set.
+- Generates delta files for `classic`/`classic_era`.
+- Handles return-shape-aware zero values correctly.
+- Generates `src/lua/api-stubs/types.ts` for structure and enum definitions.
+- Generates per-flavor manifests.
+
+See `docs/plan/013_api_stub_autogen.md` for full architecture.
+
+---
+
 ## Customizable keyboard shortcuts for toolbar actions
 
 **Status: ✅ Done (2026-06-08)**

@@ -361,7 +361,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tr>
   <td>13</td>
   <td><strong><a href="013_api_stub_autogen.md">API Stub Autogeneration</a></strong></td>
-  <td>⬜ Pending</td>
+  <td>✅ Complete (2026-06-08)</td>
   <td>dev/gen-api-stubs.ts extracts Blizzard_APIDocumentationGenerated, parses it, auto-generates src/lua/api-stubs/ per flavor</td>
   <td>M</td>
   <td>6</td>
