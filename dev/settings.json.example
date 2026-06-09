@@ -13,9 +13,6 @@
   "_comment: scryer.cacheDir": "Mandatory for tests and scripts. Cache root when cacheLocation is 'custom'. Also used by CASC test layers (pnpm test:xml-casc, pnpm test:toc-casc) to locate <cacheDir>/<flavor>/source — set this to enable those tests.",
   "scryer.cacheDir": "",
 
-  "_comment: scryer.cascToolPath": "Path to rustydemon-cli. Omit to auto-detect from PATH.",
-  "scryer.cascToolPath": "",
-
   "_comment: scryer.grepPath": "Path to grep for listfile filtering. Omit to auto-detect from PATH. On Windows, install via Git for Windows or MSYS2.",
   "scryer.grepPath": "",
 

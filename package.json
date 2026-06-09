@@ -354,8 +354,7 @@
     }
   },
   "scripts": {
-    "clear-cache:workspace": "node -e \"require('fs').rmSync('.scryer-cache',{recursive:true,force:true});console.log('Workspace cache cleared.')\"",
-    "clear-cache:global": "node dev/clear-cache-global.js",
+    "clear-cache": "tsx dev/clear-cache.ts",
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests",
