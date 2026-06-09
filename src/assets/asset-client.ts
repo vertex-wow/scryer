@@ -22,6 +22,7 @@ export interface AssetClientOptions {
   outDir: string;
   idleTimeout: number;
   log?: (msg: string) => void;
+  logFile?: string;
 }
 
 export class AssetClient {
@@ -45,7 +46,7 @@ export class AssetClient {
 
     this.options.log?.(`[AssetClient] Starting server: ${this.options.binaryPath}`);
 
-    this.serverProcess = cp.spawn(this.options.binaryPath, [
+    const args = [
       "server",
       "--wow-dir",
       this.options.wowDir,
@@ -53,7 +54,12 @@ export class AssetClient {
       this.options.outDir,
       "--idle-timeout",
       this.options.idleTimeout.toString(),
-    ]);
+    ];
+    if (this.options.logFile) {
+      args.unshift("--log-file", this.options.logFile);
+    }
+
+    this.serverProcess = cp.spawn(this.options.binaryPath, args);
 
     if (!this.serverProcess.stdout || !this.serverProcess.stdin || !this.serverProcess.stderr) {
       throw new Error("Failed to start casc-server: missing stdio");
@@ -79,6 +85,12 @@ export class AssetClient {
 
     this.serverProcess.on("error", (err) => {
       this.options.log?.(`[AssetClient] Failed to start server: ${err.message}`);
+      this.serverProcess = null;
+      const rejectErr = new Error(`Failed to start server: ${err.message}`);
+      for (const req of this.pendingRequests.values()) {
+        req.reject(rejectErr);
+      }
+      this.pendingRequests.clear();
     });
 
     this.rl = readline.createInterface({

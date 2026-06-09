@@ -2,5 +2,8 @@
 export PATH="$HOME/.local/share/fnm:$HOME/.local/share/pnpm:$PATH"
 eval "$(fnm env --shell bash)"
 fnm use --silent-if-unchanged
+echo "Ensuring asset server compiles..."
+(cd scryer-asset-server && cargo build --release) || exit 1
+
 pnpm lint-staged
 pnpm build

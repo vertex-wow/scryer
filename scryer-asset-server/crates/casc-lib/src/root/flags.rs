@@ -56,7 +56,7 @@ impl LocaleFlags {
     /// A zero/NONE filter means "no filter" and matches everything.
     /// ALL (0xFFFFFFFF) also matches everything.
     pub fn matches(self, filter: Self) -> bool {
-        filter.0 == 0 || (self.0 & filter.0) != 0
+        filter.0 == 0 || self.0 == 0 || (self.0 & filter.0) != 0
     }
 }
 

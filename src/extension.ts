@@ -8,6 +8,7 @@ import { ScryerLivePanel } from "./panels/live-panel.js";
 import { ScryerPanel } from "./panels/panel.js";
 import { ADDON_NAMES, SHARED_ADDON_NAMES } from "./parser/blizzard-registry.js";
 import { collectTexturePaths, parseXmlFile, resolveInheritance } from "./parser/index.js";
+import { TeeLogOutputChannel } from "./logger.js";
 
 interface GitRepo {
   checkIgnore(paths: string[]): Promise<Set<string>>;
@@ -60,7 +61,8 @@ export function activate(context: vscode.ExtensionContext): void {
   // Single shared output channel and asset service for the entire extension session.
   // Sharing AssetService preserves blizzardFilesEnsured across panel opens so extraction
   // only runs once per session rather than on every new panel.
-  const output = vscode.window.createOutputChannel("Scryer", { log: true });
+  const rawOutput = vscode.window.createOutputChannel("Scryer", { log: true });
+  const output = new TeeLogOutputChannel(rawOutput);
   context.subscriptions.push(output);
   output.info("activated — set log level via the Output panel filter to control verbosity");
   function logAssetParams(a: AssetService): void {
@@ -92,6 +94,7 @@ export function activate(context: vscode.ExtensionContext): void {
   }
 
   let assets = AssetService.fromConfig(context, output);
+  output.setLogFile(path.join(assets.cacheRoot, "logs", "extension.log"));
   assets.checkBuildVersion();
   assets.detectAndLogFlavors();
   logAssetParams(assets);
@@ -109,6 +112,7 @@ export function activate(context: vscode.ExtensionContext): void {
         e.affectsConfiguration("scryer.assetServerIdleTimeout")
       ) {
         assets = AssetService.fromConfig(context, output);
+        output.setLogFile(path.join(assets.cacheRoot, "logs", "extension.log"));
         assets.checkBuildVersion();
         assets.detectAndLogFlavors();
         logAssetParams(assets);

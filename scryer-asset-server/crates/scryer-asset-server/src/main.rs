@@ -2,12 +2,58 @@ mod server;
 
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 use casc_lib::config::build_info::{list_products, parse_build_info};
 use casc_lib::extract::{
     CascStorage, ExtractionConfig, OpenConfig, extract_all, extract_single_file, list_files,
 };
 use indicatif::{ProgressBar, ProgressStyle};
+
+struct CustomFormatter {
+    last_date: std::sync::Mutex<String>,
+}
+
+impl<S, N> tracing_subscriber::fmt::FormatEvent<S, N> for CustomFormatter
+where
+    S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
+    N: for<'a> tracing_subscriber::fmt::FormatFields<'a> + 'static,
+{
+    fn format_event(
+        &self,
+        ctx: &tracing_subscriber::fmt::FmtContext<'_, S, N>,
+        mut writer: tracing_subscriber::fmt::format::Writer<'_>,
+        event: &tracing::Event<'_>,
+    ) -> std::fmt::Result {
+        let now = chrono::Local::now();
+        let current_date = now.format("%Y-%m-%d").to_string();
+        
+        let mut last_date = self.last_date.lock().unwrap();
+        if *last_date != current_date {
+            if last_date.is_empty() {
+                writeln!(writer, "{}:", current_date)?;
+            } else {
+                writeln!(writer, "\n{}:", current_date)?;
+            }
+            *last_date = current_date;
+        }
+        drop(last_date);
+
+        let time = now.format("%H:%M:%S");
+        let level = match *event.metadata().level() {
+            tracing::Level::TRACE => "t",
+            tracing::Level::DEBUG => "d",
+            tracing::Level::INFO => "i",
+            tracing::Level::WARN => "w",
+            tracing::Level::ERROR => "e",
+        };
+
+        write!(writer, "{} [{}]: ", time, level)?;
+        ctx.field_format().format_fields(writer.by_ref(), event)?;
+        writeln!(writer)
+    }
+}
 
 #[derive(Parser)]
 #[command(name = "casc-extractor")]
@@ -17,6 +63,10 @@ pub struct Cli {
     /// Increase log verbosity
     #[arg(short = 'v', long, action = clap::ArgAction::Count, global = true)]
     pub verbose: u8,
+
+    /// Write logs to a file in addition to stderr
+    #[arg(long, global = true)]
+    pub log_file: Option<PathBuf>,
 
     #[command(subcommand)]
     pub command: Commands,
@@ -147,16 +197,52 @@ pub enum Commands {
 fn main() {
     let cli = Cli::parse();
 
-    // Set up tracing based on verbosity
-    let filter = match cli.verbose {
+    let filter_str = match cli.verbose {
         0 => "info",
         1 => "debug",
         _ => "trace",
     };
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_writer(std::io::stderr)
-        .init();
+
+    let env_filter = tracing_subscriber::EnvFilter::builder()
+        .with_default_directive(filter_str.parse().unwrap())
+        .from_env_lossy();
+
+    let stderr_layer = tracing_subscriber::fmt::layer()
+        .with_writer(std::io::stderr);
+
+    if let Some(log_path) = &cli.log_file {
+        if let Some(parent) = log_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        match std::fs::OpenOptions::new().create(true).write(true).truncate(true).open(log_path) {
+            Ok(file) => {
+                let file_layer = tracing_subscriber::fmt::layer()
+                    .with_writer(file)
+                    .with_ansi(false)
+                    .event_format(CustomFormatter {
+                        last_date: std::sync::Mutex::new(String::new()),
+                    });
+                
+                tracing_subscriber::registry()
+                    .with(env_filter)
+                    .with(stderr_layer)
+                    .with(file_layer)
+                    .init();
+            }
+            Err(e) => {
+                tracing_subscriber::registry()
+                    .with(env_filter)
+                    .with(stderr_layer)
+                    .init();
+                tracing::warn!("Failed to open log file {:?}: {}", log_path, e);
+            }
+        }
+    } else {
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(stderr_layer)
+            .init();
+    }
 
     if let Err(e) = run(cli) {
         tracing::error!("{}", e);

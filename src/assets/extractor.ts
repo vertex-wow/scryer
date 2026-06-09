@@ -27,6 +27,7 @@ export interface ExtractorOptions {
   assetServerIdleTimeout?: number;
   grepPath?: string;
   listfileDir?: string;
+  logFile?: string;
   output: vscode.LogOutputChannel;
 }
 
@@ -69,21 +70,22 @@ function safeLog(
   }
 }
 
-function writeLogLine(output: vscode.LogOutputChannel, line: string): void {
+function _writeLogLine(output: vscode.LogOutputChannel, line: string): void {
   const level = classifyLine(line);
   safeLog(output, level, line);
 }
 
 function makeCoreOpts(opts: ExtractorOptions): ExtractCoreOptions {
   return {
-    flavor: (opts.flavor || "retail") as Flavor,
+    flavor: opts.flavor as Flavor,
     outDir: opts.outDir,
-    wowDir: opts.wowDir!,
-    assetServerPath: opts.assetServerPath ?? "",
+    wowDir: opts.wowDir || "",
+    assetServerPath: opts.assetServerPath || "",
     assetServerIdleTimeout: opts.assetServerIdleTimeout ?? 20,
     grepPath: opts.grepPath,
-    listfileDir: opts.listfileDir ?? "",
-    log: (line: string) => writeLogLine(opts.output, line),
+    listfileDir: opts.listfileDir || "",
+    logFile: opts.logFile,
+    log: (msg) => safeLog(opts.output, "info", msg),
   };
 }
 

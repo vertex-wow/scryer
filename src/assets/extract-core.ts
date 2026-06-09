@@ -42,6 +42,8 @@ export interface ExtractCoreOptions {
   listfileDir: string;
   /** Log callback for progress lines. Defaults to console.log. */
   log?: (line: string) => void;
+  /** Path to write scryer-asset-server logs to. */
+  logFile?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -224,6 +226,7 @@ function getAssetClient(opts: ExtractCoreOptions): AssetClient {
       outDir: opts.outDir,
       idleTimeout: opts.assetServerIdleTimeout,
       log: opts.log,
+      logFile: opts.logFile,
     });
   }
   return sharedAssetClient;
