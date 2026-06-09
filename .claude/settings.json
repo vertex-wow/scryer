@@ -69,7 +69,11 @@
       "Bash(pnpm test:toc-casc *)",
       "Bash(npx playwright *)",
       "Bash(pnpm exec *)",
-      "Bash(cargo build *)"
+      "Bash(cargo build *)",
+      "Bash(find * | grep * | head *)",
+      "Read(//mnt/c/Users/**)",
+      "Bash(find /home/*/_live/Addons/ * | xargs * | head *)",
+      "Read(//mnt/*//World of Warcraft/_retail_/Interface/AddOns/**)"
     ],
     "additionalDirectories": [
       "/tmp"

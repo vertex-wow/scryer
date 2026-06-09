@@ -325,3 +325,84 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 **Depends on:** M7 (done).
 
 ---
+
+## Rust server: Tier 1 — protocol serde tests
+
+**Status:** 📋 Pending
+
+**Problem:** `server.rs` has zero test coverage. Bugs in the JSON request/response protocol (wrong field names, missing variants, serde mis-mapping) are only caught when the TypeScript client misbehaves at runtime. The idle timeout `in_flight` flag and the stats accumulation logic have no regression tests.
+
+**Plan:**
+
+1. Add a `#[cfg(test)]` module to `scryer-asset-server/crates/scryer-asset-server/src/server.rs`.
+2. **Request parsing tests** — round-trip each `RequestPayload` variant through `serde_json::from_str`:
+   - `{"id":1,"method":"extract","paths":["fonts/*.ttf"]}` → `Extract { paths: [...] }`
+   - `{"id":2,"method":"status"}` → `Status`
+   - `{"id":3,"method":"shutdown"}` → `Shutdown`
+   - Malformed JSON → `serde_json::from_str` returns `Err`; server must not panic
+3. **Response serialization tests** — serialize each `ServerResponse` variant and assert the JSON shape:
+   - `Extract { id, ok, extracted, skipped, errors }` — verify all five fields present
+   - `Status { id, ok, ready, buildHash, idleTimeoutMs }` — camelCase field names
+   - `Error { id, ok: false, error }` — `ok` is `false`
+4. **`in_flight` AtomicBool tests** — unit-test the store/load/reset logic in isolation (extract the guard into a small helper if needed).
+
+**Effort:** XS — 2–3 hours; pure unit tests, no real WoW install or process spawning required.
+
+**Depends on:** M15 (CASC Asset Service) in-progress.
+
+---
+
+## Rust server: Tier 2 — extraction stats mock tests
+
+**Status:** 📋 Pending
+
+**Problem:** The stats counting fix (independent `AtomicU64` counters in `extract_all`) can only be verified today by running against a real WoW installation. A mock `CascStorage` would let us inject synthetic `(fdid, result)` pairs and assert that `success`, `errors`, and `skipped` counts are computed correctly — catching regressions like the "stats always 0 with `no_metadata: true`" bug before it reaches users.
+
+**Why it's blocked:** `CascStorage` is a concrete struct with no trait boundary. Testing with synthetic data requires either a trait abstraction or a test-only constructor.
+
+**Plan:**
+
+1. **Extract `ExtractionStore` trait** in `pipeline.rs` — the minimal surface needed by `extract_all` and `extract_one`:
+   ```rust
+   pub trait ExtractionStore {
+       fn read_by_ckey(&self, ckey: &[u8; 16]) -> Result<Vec<u8>>;
+       fn listfile_path(&self, fdid: u32) -> Option<&str>;
+       fn root_iter_all(&self) -> impl Iterator<Item = (u32, &RootEntry)>;
+       fn encoding_find_ekey(&self, ckey: &[u8; 16]) -> Option<&EncodingEntry>;
+       fn index_find(&self, ekey: &[u8]) -> Option<&IndexEntry>;
+   }
+   ```
+   Make `CascStorage` implement `ExtractionStore`; change `extract_all` signature to `&impl ExtractionStore`.
+2. **`MockStore` in `#[cfg(test)]`** — a struct holding a `HashMap<[u8;16], Result<Vec<u8>>>` that returns pre-configured results for each CKey.
+3. **Stats tests** — construct a `MockStore` with a mix of success/error/skip results; call `extract_all`; assert the returned `ExtractionStats` matches the configured mix exactly.
+4. **Error-string mapping tests** — verify that a BLTE-magic failure maps to `"error:..."`, that an encrypted file with `skip_encrypted=true` maps to `"skipped:encrypted"`, and that neither panics.
+
+**Effort:** S — trait extraction ~2 hours; mock + tests ~2 hours; total ~4 hours.
+
+**Depends on:** Tier 1 tests in place; M15 in-progress.
+
+---
+
+## Rust server: Tier 3 — synthetic CASC fixtures
+
+**Status:** 📋 Pending
+
+**Problem:** Even with a mock store (Tier 2), the full read path — `.idx` parsing → archive lookup → BLTE decode — has no test coverage without a real WoW installation. The "CDN-only stub" class of bugs (EKey present in index, but data at the archive offset is not valid BLTE) can only be reproduced today by running against the user's partial WoW download. A synthetic CASC fixture would let `CascStorage::open → extract_all` run end-to-end in CI.
+
+**Plan:**
+
+1. **Synthetic index builder** (`test_helpers/casc_fixture.rs`) — programmatically write a valid `.idx` file (header + entries for a handful of EKeys) and a matching `data.000` archive containing BLTE-encoded test payloads.
+2. **Synthetic encoding table** — write a minimal BLTE-encoded encoding file that maps two or three CKeys → EKeys; use the synthetic index entries from step 1.
+3. **Synthetic root file** — a minimal BLTE-encoded root file mapping FDIDs to the CKeys above; one FDID per test case.
+4. **Minimal `.build.info` / build config** — enough fields for `CascStorage::open` to succeed; point `Data/data/` at the in-memory temp directory.
+5. **Test cases:**
+   - Happy path: valid BLTE payload → extracted file matches input bytes.
+   - CDN-only stub: index entry present, but `data.000` bytes at that offset are not "BLTE" → `extract_all` produces `errors=1`, not a panic.
+   - Encrypted skip: content flags with `ENCRYPTED` bit set → `skipped=1` with `skip_encrypted=true`.
+6. Write the temp files to `std::env::temp_dir()` during the test and clean up in `Drop` (or use `tempfile` crate if already a dependency).
+
+**Effort:** M — building a conformant-enough CASC binary fixture from scratch is fiddly (BLTE chunk tables, encoding file format, root file format); estimate 8–16 hours depending on how many edge cases the fixture needs to cover. The payoff is CI-green extraction tests that run without any real WoW data.
+
+**Depends on:** Tier 2 trait abstraction in place; deep familiarity with the CASC binary formats (documented in `docs/reference/` or derivable from the existing parser code).
+
+---

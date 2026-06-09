@@ -290,6 +290,7 @@ export class ScryerPanel {
 
       case "requestAsset":
         if (msg.path) {
+          this.output.trace(`    requestAsset: ${msg.path}`);
           void this.resolveAndSendAsset(msg.path, path.dirname(uri.fsPath));
         }
         break;

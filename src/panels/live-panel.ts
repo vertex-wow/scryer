@@ -294,6 +294,7 @@ export class ScryerLivePanel {
 
       case "requestAsset":
         if (msg.path) {
+          this.output.trace(`    requestAsset: ${msg.path}`);
           void this.resolveAndSendAsset(msg.path, path.dirname(uri.fsPath));
         }
         break;
@@ -310,8 +311,11 @@ export class ScryerLivePanel {
     const absPath = await this.assets.resolveToAbsPath(rawPath, addonDir);
     if (!absPath) {
       if (!this.retryInProgress && !this.extractionTriedPaths.has(rawPath)) {
+        this.output.trace(`    asset miss — queuing extraction: ${rawPath}`);
         this.missingPaths.set(rawPath, addonDir);
         this.scheduleMissingExtract();
+      } else if (this.extractionTriedPaths.has(rawPath)) {
+        this.output.trace(`    asset miss — already tried: ${rawPath}`);
       }
       return;
     }
@@ -576,12 +580,16 @@ TROUBLESHOOTING:
       registry.clearDirty();
       const frames = registry.serialize();
 
-      // Resolve default font
+      // Resolve default font — queue for extraction if missing.
       let defaultFontUri: string | undefined;
       if (flavorConfig.defaultFont) {
         const fontAbsPath = await this.assets.resolveToAbsPath(flavorConfig.defaultFont, "");
         if (fontAbsPath) {
           defaultFontUri = this.panel.webview.asWebviewUri(vscode.Uri.file(fontAbsPath)).toString();
+        } else if (!this.extractionTriedPaths.has(flavorConfig.defaultFont)) {
+          this.output.trace(`    font miss — queuing extraction: ${flavorConfig.defaultFont}`);
+          this.missingPaths.set(flavorConfig.defaultFont, "");
+          this.scheduleMissingExtract();
         }
       }
 

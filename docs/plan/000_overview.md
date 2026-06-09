@@ -454,6 +454,30 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>XS</td>
   <td>—</td>
 </tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#rust-server-tier-1-protocol-serde-tests">Rust server: Tier 1 — protocol serde tests</a></td>
+  <td>📋 Pending</td>
+  <td>Unit-test <code>ServerRequest</code>/<code>ServerResponse</code> JSON round-trips; malformed input; <code>in_flight</code> AtomicBool transitions; no WoW install required</td>
+  <td>XS</td>
+  <td>15</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#rust-server-tier-2-extraction-stats-mock-tests">Rust server: Tier 2 — extraction stats mock tests</a></td>
+  <td>📋 Pending</td>
+  <td>Extract an <code>ExtractionStore</code> trait; inject synthetic results to verify stats counting and error-string mapping</td>
+  <td>S</td>
+  <td>15</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="backlog.md#rust-server-tier-3-synthetic-casc-fixtures">Rust server: Tier 3 — synthetic CASC fixtures</a></td>
+  <td>📋 Pending</td>
+  <td>Build minimal in-code CASC archives (idx + data.000 + encoding) so <code>CascStorage::open → extract_all</code> runs without a real WoW install; catches CDN-only stub regressions</td>
+  <td>M</td>
+  <td>15</td>
+</tr>
 </tbody>
 </table>
 
