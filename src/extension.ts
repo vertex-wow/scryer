@@ -258,46 +258,53 @@ export function activate(context: vscode.ExtensionContext): void {
       "all-templates-textures": "all Blizzard templates cached, all textures queued for pre-warm",
     };
     void Promise.resolve().then(async () => {
-      await assets.ensureBlizzardFiles();
-      await assets.ensureAtlasManifest();
-      assets.loadBlizzardTemplates();
-      if (cancelled) return;
-      if (tierIdx >= TIER_ORDER.indexOf("all-templates-shared-textures")) {
-        if (!(await assets.hasExtractedAssets())) {
+      // Hold keepalive for the prewarm duration so the server stays warm for
+      // the first panel that opens — release once the prewarm settles.
+      assets.acquireKeepalive();
+      try {
+        await assets.ensureBlizzardFiles();
+        await assets.ensureAtlasManifest();
+        assets.loadBlizzardTemplates();
+        if (cancelled) return;
+        if (tierIdx >= TIER_ORDER.indexOf("all-templates-shared-textures")) {
+          if (!(await assets.hasExtractedAssets())) {
+            output.info(
+              `cache-warmup: ${TIER_LABEL[startupContent] ?? startupContent} (startupContent=${startupContent})`,
+            );
+            const hint = !assets.installDir
+              ? "Set scryer.installDir to enable extraction."
+              : "Extraction was attempted — check Scryer output for errors.";
+            output.warn(
+              `cache-warmup: startupContent="${startupContent}" requests textures but no extracted assets found — skipping texture pre-warm. ${hint}`,
+            );
+          } else {
+            await vscode.window.withProgress(
+              { location: vscode.ProgressLocation.Window, title: "Scryer: prewarming textures…" },
+              () => assets.prewarmBlizzardTextures(SHARED_ADDON_NAMES),
+            );
+            if (cancelled) return;
+            if (tierIdx >= TIER_ORDER.indexOf("all-templates-textures")) {
+              await vscode.window.withProgress(
+                {
+                  location: vscode.ProgressLocation.Window,
+                  title: "Scryer: prewarming all textures…",
+                },
+                () => assets.prewarmBlizzardTextures(ADDON_NAMES),
+              );
+            }
+            const textureScope =
+              tierIdx >= TIER_ORDER.indexOf("all-templates-textures") ? "" : " shared";
+            output.info(
+              `cache-warmup: all Blizzard templates and${textureScope} textures cached (startupContent=${startupContent})`,
+            );
+          }
+        } else {
           output.info(
             `cache-warmup: ${TIER_LABEL[startupContent] ?? startupContent} (startupContent=${startupContent})`,
           );
-          const hint = !assets.installDir
-            ? "Set scryer.installDir to enable extraction."
-            : "Extraction was attempted — check Scryer output for errors.";
-          output.warn(
-            `cache-warmup: startupContent="${startupContent}" requests textures but no extracted assets found — skipping texture pre-warm. ${hint}`,
-          );
-        } else {
-          await vscode.window.withProgress(
-            { location: vscode.ProgressLocation.Window, title: "Scryer: prewarming textures…" },
-            () => assets.prewarmBlizzardTextures(SHARED_ADDON_NAMES),
-          );
-          if (cancelled) return;
-          if (tierIdx >= TIER_ORDER.indexOf("all-templates-textures")) {
-            await vscode.window.withProgress(
-              {
-                location: vscode.ProgressLocation.Window,
-                title: "Scryer: prewarming all textures…",
-              },
-              () => assets.prewarmBlizzardTextures(ADDON_NAMES),
-            );
-          }
-          const textureScope =
-            tierIdx >= TIER_ORDER.indexOf("all-templates-textures") ? "" : " shared";
-          output.info(
-            `cache-warmup: all Blizzard templates and${textureScope} textures cached (startupContent=${startupContent})`,
-          );
         }
-      } else {
-        output.info(
-          `cache-warmup: ${TIER_LABEL[startupContent] ?? startupContent} (startupContent=${startupContent})`,
-        );
+      } finally {
+        assets.releaseKeepalive();
       }
     });
   }

@@ -15,7 +15,7 @@ import * as fs from "fs";
 import * as http from "http";
 import * as https from "https";
 import * as path from "path";
-import { AssetClient, type LogLevel } from "./asset-client.js";
+import { AssetClient, type LogLevel, type Priority } from "./asset-client.js";
 
 export type Flavor = "retail" | "classic" | "classic_era";
 export type ExtractType = "textures" | "interface" | "all";
@@ -62,12 +62,17 @@ const TEXTURE_GLOBS = [
   "interface/tooltips/**",
 ];
 
-const INTERFACE_GLOBS = [
+/** Lua-critical addon trees: must be present before the live sandbox runs. */
+export const BLIZZARD_LUA_CRITICAL_GLOBS = [
   "interface/addons/blizzard_sharedxmlbase/**",
+  "interface/addons/blizzard_colors/**",
   "interface/addons/blizzard_sharedxml/**",
-  "interface/addons/blizzard_framexml/**",
-  "fonts/**",
 ];
+
+/** Non-critical bulk globs: FrameXML templates + fonts. Pop-in candidates. */
+export const BLIZZARD_BULK_GLOBS = ["interface/addons/blizzard_framexml/**", "fonts/**"];
+
+const INTERFACE_GLOBS = [...BLIZZARD_LUA_CRITICAL_GLOBS, ...BLIZZARD_BULK_GLOBS];
 
 // ---------------------------------------------------------------------------
 // Classic extension sets
@@ -239,6 +244,22 @@ function getAssetClient(opts: ExtractCoreOptions): AssetClient {
   return sharedAssetClient;
 }
 
+/**
+ * Increment the shared asset client's keepalive ref-count.
+ * Creates the client instance if needed (does NOT start the server process).
+ */
+export function acquireClientKeepalive(opts: ExtractCoreOptions): void {
+  getAssetClient(opts).acquireKeepalive();
+}
+
+/**
+ * Decrement the shared asset client's keepalive ref-count.
+ * Safe to call when no client exists yet (no-op).
+ */
+export function releaseClientKeepalive(): void {
+  sharedAssetClient?.releaseKeepalive();
+}
+
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // Retail extraction
@@ -269,9 +290,10 @@ async function normalizeSubtreeToLowercase(dir: string): Promise<void> {
 async function extractRetailPaths(
   paths: string[],
   opts: ExtractCoreOptions,
+  priority: Priority = "prewarm",
 ): Promise<ExtractionResult> {
   const client = getAssetClient(opts);
-  const res = await client.extractFiles(paths, opts.cdnEnabled ?? false);
+  const res = await client.extractFiles(paths, opts.cdnEnabled ?? false, priority);
   await normalizeSubtreeToLowercase(opts.outDir);
   return { exported: res.extracted, unavailable: res.unavailable, errors: res.errors };
 }
@@ -424,10 +446,11 @@ async function extractLooseBulk(
 export async function extractPaths(
   paths: string[],
   opts: ExtractCoreOptions,
+  priority: Priority = "prewarm",
 ): Promise<ExtractionResult> {
   if (paths.length === 0) return { exported: 0, unavailable: 0, errors: 0 };
   if (opts.flavor === "retail") {
-    return extractRetailPaths(paths, opts);
+    return extractRetailPaths(paths, opts, priority);
   } else {
     return extractLoosePaths(paths, opts);
   }

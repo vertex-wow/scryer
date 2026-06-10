@@ -166,6 +166,7 @@ export class ScryerLivePanel {
       this.disposables,
     );
 
+    this.assets.acquireKeepalive();
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 
     this.panel.onDidChangeViewState(
@@ -458,15 +459,6 @@ export class ScryerLivePanel {
       } catch {}
     }
 
-    // Ensure atlas manifest exists; generate from wago.tools if absent.
-    // Non-blocking: if a manifest is newly created, restart the session so
-    // registerWowApi and sendFrames both get the populated manifest.
-    if (!this.assets.hasAtlasManifestRun()) {
-      void this.assets.ensureAtlasManifest().then((generated) => {
-        if (generated) void this.runAndRender(uri);
-      });
-    }
-
     try {
       // Read the TOC file
       const tocContent = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf-8");
@@ -477,6 +469,14 @@ export class ScryerLivePanel {
       const registry = new FrameRegistry(flavorConfig.uiParentWidth, flavorConfig.uiParentHeight);
       const clock = new VirtualClock();
       const sandbox = await createSandbox(wasmPath, { timeout: flavorConfig.sandboxTimeout });
+
+      // Extract the three Lua-critical Blizzard addon trees at user priority so this
+      // render doesn't block on the full prewarm glob. FrameXML + fonts come from the
+      // background prewarm and appear via pop-in on subsequent renders.
+      await this.assets.ensureBlizzardLuaCritical();
+
+      // Generate atlas manifest if needed — listfile is guaranteed present after extraction.
+      await this.assets.ensureAtlasManifest();
       const atlasManifest = this.assets.loadAtlasManifest();
 
       await registerWowApi(sandbox, {
@@ -496,11 +496,6 @@ export class ScryerLivePanel {
         },
         atlasManifest,
       });
-
-      // Ensure Blizzard source files are present before attempting to load Lua from them.
-      // Fire-and-forget extraction like the static panel does; if files are already there
-      // this returns immediately. We await so the Lua load below sees the files on disk.
-      await this.assets.ensureBlizzardFiles();
 
       const { frames: blizzardTemplates, textures: blizzardTextureTemplates } =
         this.assets.loadBlizzardTemplates();
@@ -704,6 +699,7 @@ TROUBLESHOOTING:
     if (ScryerLivePanel.activePanel === this) ScryerLivePanel.activePanel = undefined;
     if (this.extractDebounce !== undefined) clearTimeout(this.extractDebounce);
     if (this.renderDebounce !== undefined) clearTimeout(this.renderDebounce);
+    this.assets.releaseKeepalive();
     this.stopSession();
     this.panel.dispose();
     for (const d of this.disposables) d.dispose();

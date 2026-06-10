@@ -3,7 +3,13 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { blpToPng } from "./blp.js";
 import { cacheKey, getCachedPath, writeCached } from "./cache.js";
-import { extractBlizzardShared, extractMissing, genAtlas } from "./extractor.js";
+import {
+  extractBlizzardShared,
+  extractCriticalBlizzardFiles,
+  extractMissing,
+  genAtlas,
+} from "./extractor.js";
+import { acquireClientKeepalive, releaseClientKeepalive } from "./extract-core.js";
 import {
   ADDON_NAMES,
   SHARED_ADDON_NAMES,
@@ -285,20 +291,31 @@ export class AssetService {
    */
   async ensureAtlasManifest(): Promise<boolean> {
     if (this.atlasManifestEnsured) return false;
-    this.atlasManifestEnsured = true;
 
     // If the manifest already exists there is nothing to do.
-    if (fs.existsSync(this.atlasManifestPath)) return false;
+    if (fs.existsSync(this.atlasManifestPath)) {
+      this.atlasManifestEnsured = true;
+      return false;
+    }
 
-    fs.mkdirSync(path.dirname(this.atlasManifestPath), { recursive: true });
-
-    const listfileReady = fs.existsSync(path.join(this.cascMetaDir, "listfile.csv"));
-    if (listfileReady) {
+    // Listfile not yet available — don't lock; allow retry once it arrives.
+    if (!fs.existsSync(path.join(this.cascMetaDir, "listfile.csv"))) {
       try {
-        this.opts.output.info("Atlas manifest absent — generating…");
+        this.opts.output.debug("Atlas manifest: listfile.csv not available yet — skipping.");
       } catch {
         /* channel disposed */
       }
+      return false;
+    }
+
+    // Lock before async work to prevent concurrent generation.
+    this.atlasManifestEnsured = true;
+    fs.mkdirSync(path.dirname(this.atlasManifestPath), { recursive: true });
+
+    try {
+      this.opts.output.info("Atlas manifest absent — generating…");
+    } catch {
+      /* channel disposed */
     }
 
     await genAtlas({
@@ -308,6 +325,97 @@ export class AssetService {
     });
 
     return fs.existsSync(this.atlasManifestPath);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Server keepalive
+  // ---------------------------------------------------------------------------
+
+  private makeExtractorOpts(cdnEnabled = false) {
+    return {
+      flavor: this.opts.flavor,
+      outDir: this.opts.sourceDir,
+      wowDir: this.opts.installDir,
+      assetServerPath: this.opts.assetServerPath,
+      assetServerIdleTimeout: this.opts.assetServerIdleTimeout,
+      grepPath: this.opts.grepPath,
+      listfileDir: this.cascMetaDir,
+      logFile: path.join(this.opts.cacheRoot, "logs", "asset-server.log"),
+      output: this.opts.output,
+      cdnEnabled,
+    };
+  }
+
+  private makeCoreOpts(cdnEnabled = false) {
+    const e = this.makeExtractorOpts(cdnEnabled);
+    return {
+      flavor: e.flavor as import("./extract-core.js").Flavor,
+      outDir: e.outDir,
+      wowDir: e.wowDir,
+      assetServerPath: e.assetServerPath,
+      assetServerIdleTimeout: e.assetServerIdleTimeout,
+      listfileDir: e.listfileDir,
+      logFile: e.logFile,
+      cdnEnabled: e.cdnEnabled,
+      log: (level: import("./asset-client.js").LogLevel, msg: string, serverTime?: string) => {
+        if (serverTime) {
+          const ch = this.opts.output as { logServer?: (l: string, m: string, t: string) => void };
+          if (ch.logServer) {
+            ch.logServer(level, msg, serverTime);
+            return;
+          }
+        }
+        try {
+          this.opts.output[level](msg);
+        } catch {
+          /* disposed */
+        }
+      },
+    };
+  }
+
+  /**
+   * Increment the asset server keepalive ref-count for this session.
+   * Call on panel open; paired with releaseKeepalive on panel dispose.
+   * Idempotent: safe to call even when no WoW install is configured.
+   */
+  acquireKeepalive(): void {
+    if (!this.opts.installDir) return;
+    acquireClientKeepalive(this.makeCoreOpts());
+  }
+
+  /** Decrement the keepalive ref-count. Safe to call after any dispose path. */
+  releaseKeepalive(): void {
+    releaseClientKeepalive();
+  }
+
+  /**
+   * Ensure the three Lua-critical Blizzard addon trees (SharedXMLBase, Colors,
+   * SharedXML) are extracted at user priority, jumping ahead of any pending
+   * prewarm jobs. Returns true if new files landed on disk.
+   *
+   * Unlike ensureBlizzardFiles() this is NOT memoized — each call re-checks
+   * the disk and exits fast if the addons are already present.
+   */
+  async ensureBlizzardLuaCritical(): Promise<boolean> {
+    if (!this.opts.sourceDir || !this.opts.installDir) return false;
+
+    const addonsDir = resolveAddonsDir(this.opts.sourceDir);
+    const criticalNames = ["blizzard_sharedxmlbase", "blizzard_colors", "blizzard_sharedxml"];
+    const allPresent = criticalNames.every((name) => {
+      try {
+        fs.statSync(path.join(addonsDir, name));
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    if (allPresent) return false;
+
+    const cfg = vscode.workspace.getConfiguration("scryer");
+    const cdnEnabled = (cfg.get<string>("cdnFallback") ?? "ask") === "cdn";
+    const result = await extractCriticalBlizzardFiles(this.makeExtractorOpts(cdnEnabled));
+    return (result?.exported ?? 0) > 0;
   }
 
   /**
@@ -357,22 +465,7 @@ export class AssetService {
       const cfg = vscode.workspace.getConfiguration("scryer");
       let cdnFallback = cfg.get<string>("cdnFallback") ?? "ask";
 
-      const extractOpts = {
-        flavor: this.opts.flavor,
-        outDir: this.opts.sourceDir,
-        wowDir: this.opts.installDir,
-        assetServerPath: this.opts.assetServerPath,
-        assetServerIdleTimeout: this.opts.assetServerIdleTimeout,
-        grepPath: this.opts.grepPath,
-        listfileDir: this.cascMetaDir,
-        logFile: path.join(this.opts.cacheRoot, "logs", "asset-server.log"),
-        output: this.opts.output,
-      };
-
-      let result = await extractBlizzardShared({
-        ...extractOpts,
-        cdnEnabled: cdnFallback === "cdn",
-      });
+      let result = await extractBlizzardShared(this.makeExtractorOpts(cdnFallback === "cdn"));
 
       // CDN consent dialog — shown once when unavailable files are found and the
       // setting is still "ask". The user's answer is stored permanently.
@@ -386,7 +479,7 @@ export class AssetService {
         if (choice === "Yes, do that from now on") {
           await vscode.workspace.getConfiguration("scryer").update("cdnFallback", "cdn", true);
           cdnFallback = "cdn";
-          result = await extractBlizzardShared({ ...extractOpts, cdnEnabled: true });
+          result = await extractBlizzardShared(this.makeExtractorOpts(true));
         } else {
           await vscode.workspace.getConfiguration("scryer").update("cdnFallback", "none", true);
         }
@@ -526,17 +619,7 @@ export class AssetService {
     } catch {
       /* channel disposed */
     }
-    await extractMissing(paths, {
-      flavor: this.opts.flavor,
-      outDir: this.opts.sourceDir,
-      wowDir: this.opts.installDir,
-      assetServerPath: this.opts.assetServerPath,
-      assetServerIdleTimeout: this.opts.assetServerIdleTimeout,
-      grepPath: this.opts.grepPath,
-      listfileDir: this.cascMetaDir,
-      cdnEnabled: cdnFallback === "cdn",
-      output: this.opts.output,
-    });
+    await extractMissing(paths, this.makeExtractorOpts(cdnFallback === "cdn"));
     this.writeBuildStampIfConfigured();
   }
 

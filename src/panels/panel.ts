@@ -149,6 +149,7 @@ export class ScryerPanel {
       this.disposables,
     );
 
+    this.assets.acquireKeepalive();
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 
     this.panel.onDidChangeViewState(
@@ -604,6 +605,7 @@ export class ScryerPanel {
     if (this.renderDebounce !== undefined) {
       clearTimeout(this.renderDebounce);
     }
+    this.assets.releaseKeepalive();
     this.panel.dispose();
     for (const d of this.disposables) d.dispose();
     this.disposables = [];

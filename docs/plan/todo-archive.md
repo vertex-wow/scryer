@@ -4,6 +4,25 @@ Completed items moved from [todo.md](todo.md). Historical record of what was bui
 
 ---
 
+## Asset loading priority queue
+
+**Status:** ✅ Done (2026-06-10)
+
+**Problem:** During pre-warming the `AssetClient` sent large batches to the Rust server. User-triggered requests queued behind potentially hundreds of pre-warm items, causing visible latency.
+
+**What was built:**
+
+- `Priority = 'user' | 'prewarm'` type exported from `asset-client.ts`.
+- `QueuedJob` — internal interface holding `paths`, `cdnEnabled`, `priority`, and resolve/reject callbacks.
+- `enqueue()` — user jobs insert at the first prewarm position (or back if no prewarm jobs exist); prewarm jobs append to back.
+- `promoteFromPrewarm()` — when a user job arrives with explicit paths (no globs), scans pending prewarm jobs and removes matching paths; empties prewarm jobs are resolved immediately with an empty result.
+- `drainQueue()` — processes jobs one at a time (a `while` loop gated by `this.extracting`). Uses try/finally so `extracting` is always reset even if the server crashes mid-job.
+- Server exit/error handlers reject all queued jobs before clearing the queue, so callers don't wait indefinitely.
+- `extract-core.ts`: `extractPaths()` and `extractRetailPaths()` accept `priority: Priority = 'prewarm'`.
+- `extractor.ts`: `extractMissing()` (user-triggered path) calls `extractPaths(..., 'user')`.
+
+---
+
 ## Rust server: Tier 3 — synthetic CASC fixtures
 
 **Status:** ✅ Done (2026-06-09)

@@ -12,6 +12,8 @@ import * as vscode from "vscode";
 import {
   extractPaths,
   extractBulk,
+  BLIZZARD_LUA_CRITICAL_GLOBS,
+  BLIZZARD_BULK_GLOBS,
   type ExtractCoreOptions,
   type ExtractionResult,
   type Flavor,
@@ -125,7 +127,7 @@ export async function extractMissing(paths: string[], opts: ExtractorOptions): P
         title: notif,
         cancellable: false,
       },
-      () => extractPaths(normalized, makeCoreOpts(opts)),
+      () => extractPaths(normalized, makeCoreOpts(opts), "user"),
     );
   } catch (err) {
     safeLog(opts.output, "warn", `Extraction failed: ${String(err)}`);
@@ -133,10 +135,12 @@ export async function extractMissing(paths: string[], opts: ExtractorOptions): P
 }
 
 /**
- * Extract all Blizzard addon interface files via a bulk --type interface pass.
- * Returns the ExtractionResult so the caller can detect unavailable files and
- * show the CDN consent dialog if needed.
- * Errors when wowDir is not configured — it is required for extraction to work.
+ * Extract all Blizzard addon interface files for the prewarm path.
+ * Enqueues two jobs at prewarm priority: (A) the Lua-critical addon trees
+ * (SharedXMLBase, Colors, SharedXML) first, then (B) FrameXML + fonts.
+ * Splitting lets a user-priority critical job slip between A and B when a
+ * panel opens mid-prewarm. Returns the combined ExtractionResult so the
+ * caller can detect unavailable files and show the CDN consent dialog.
  */
 export async function extractBlizzardShared(
   opts: ExtractorOptions,
@@ -153,13 +157,25 @@ export async function extractBlizzardShared(
   safeLog(opts.output, "trace", `notif: ${notif}`);
   let result: ExtractionResult | undefined;
   try {
+    const coreOpts = makeCoreOpts(opts);
     result = await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: notif,
-        cancellable: false,
+      { location: vscode.ProgressLocation.Notification, title: notif, cancellable: false },
+      async () => {
+        if (opts.flavor === "retail") {
+          // Two prewarm jobs so a user-priority panel open can slip between them.
+          // Job A: Lua-critical addons (SharedXMLBase, Colors, SharedXML).
+          const criticalRes = await extractPaths(BLIZZARD_LUA_CRITICAL_GLOBS, coreOpts, "prewarm");
+          // Job B: FrameXML templates + fonts (pop-in candidates, not Lua-blocking).
+          const bulkRes = await extractPaths(BLIZZARD_BULK_GLOBS, coreOpts, "prewarm");
+          return {
+            exported: criticalRes.exported + bulkRes.exported,
+            unavailable: criticalRes.unavailable + bulkRes.unavailable,
+            errors: criticalRes.errors + bulkRes.errors,
+          };
+        }
+        // Classic: single loose-file extraction (no priority queue, globs unsupported).
+        return extractBulk("interface", coreOpts);
       },
-      () => extractBulk("interface", makeCoreOpts(opts)),
     );
   } catch (err) {
     safeLog(
@@ -175,6 +191,40 @@ export async function extractBlizzardShared(
     `assets-extraction: Blizzard shared extracted (${result.exported} exported, ${result.unavailable} unavailable, ${result.errors} errors)`,
   );
   return result;
+}
+
+/**
+ * Extract only the Lua-critical Blizzard addon trees at user priority.
+ * Called from live/static panels when a user opens a preview while the
+ * prewarm is still running. Jumps ahead of pending prewarm jobs in the queue.
+ */
+/**
+ * Extract only the Lua-critical Blizzard addon trees at user priority (retail only).
+ * Called from live/static panels when a user opens a preview while the prewarm is
+ * still running — jumps ahead of pending prewarm jobs in the queue.
+ * Classic/ClassicEra: falls back to a full extractBulk("interface") pass (no queue).
+ */
+export async function extractCriticalBlizzardFiles(
+  opts: ExtractorOptions,
+): Promise<ExtractionResult | undefined> {
+  if (!opts.wowDir) return undefined;
+  try {
+    const coreOpts = makeCoreOpts(opts);
+    return await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Loading Blizzard templates…",
+        cancellable: false,
+      },
+      () =>
+        opts.flavor === "retail"
+          ? extractPaths(BLIZZARD_LUA_CRITICAL_GLOBS, coreOpts, "user")
+          : extractBulk("interface", coreOpts),
+    );
+  } catch (err) {
+    safeLog(opts.output, "warn", `Critical Blizzard file extraction failed: ${String(err)}`);
+    return undefined;
+  }
 }
 
 /**

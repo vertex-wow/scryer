@@ -2,6 +2,7 @@ import * as cp from "child_process";
 import * as readline from "readline";
 
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
+export type Priority = "user" | "prewarm";
 
 const RUST_LEVEL_MAP: Record<string, LogLevel> = {
   TRACE: "trace",
@@ -20,6 +21,10 @@ function parseServerLogLine(raw: string): { level: LogLevel; msg: string; timeSt
   );
   if (!m) return { level: "info", msg: clean };
   return { level: RUST_LEVEL_MAP[m[2]], msg: m[3], timeStr: m[1] };
+}
+
+function isGlob(p: string): boolean {
+  return /[*?[]/.test(p);
 }
 
 export interface ExtractionResult {
@@ -47,6 +52,14 @@ export interface AssetClientOptions {
   logFile?: string;
 }
 
+interface QueuedJob {
+  paths: string[];
+  cdnEnabled: boolean;
+  priority: Priority;
+  resolve: (result: ExtractionResult) => void;
+  reject: (err: unknown) => void;
+}
+
 export class AssetClient {
   private serverProcess: cp.ChildProcess | null = null;
   private requestIdCounter = 0;
@@ -57,8 +70,42 @@ export class AssetClient {
   private rl: readline.Interface | null = null;
   private options: AssetClientOptions;
 
+  private readonly extractQueue: QueuedJob[] = [];
+  private extracting = false;
+
+  private keepaliveRefcount = 0;
+  private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+
   constructor(options: AssetClientOptions) {
     this.options = options;
+  }
+
+  /**
+   * Increment the keepalive ref-count. While the count is > 0, a heartbeat timer
+   * pings `status` every idleTimeout/2 seconds to keep an already-running server
+   * alive. The server is NOT started just for the heartbeat — if it isn't running
+   * the ping is silently skipped.
+   */
+  acquireKeepalive(): void {
+    this.keepaliveRefcount++;
+    if (this.keepaliveRefcount === 1) {
+      const intervalMs = Math.max(1000, this.options.idleTimeout * 500);
+      this.keepaliveTimer = setInterval(() => {
+        if (this.serverProcess && !this.serverProcess.killed) {
+          void this.status().catch(() => {});
+        }
+      }, intervalMs);
+    }
+  }
+
+  /** Decrement the keepalive ref-count. When it reaches 0 the heartbeat stops. */
+  releaseKeepalive(): void {
+    if (this.keepaliveRefcount <= 0) return;
+    this.keepaliveRefcount--;
+    if (this.keepaliveRefcount === 0 && this.keepaliveTimer !== null) {
+      clearInterval(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+    }
   }
 
   private async ensureRunning(): Promise<void> {
@@ -102,12 +149,18 @@ export class AssetClient {
       this.rl?.close();
       this.rl = null;
 
-      // Reject any pending requests
       const err = new Error("Server process exited");
       for (const req of this.pendingRequests.values()) {
         req.reject(err);
       }
       this.pendingRequests.clear();
+
+      // Reject queued jobs that haven't started yet. drainQueue's finally block
+      // resets extracting once the in-flight doExtract throws.
+      for (const job of this.extractQueue) {
+        job.reject(err);
+      }
+      this.extractQueue.length = 0;
     });
 
     this.serverProcess.on("error", (err) => {
@@ -118,6 +171,11 @@ export class AssetClient {
         req.reject(rejectErr);
       }
       this.pendingRequests.clear();
+
+      for (const job of this.extractQueue) {
+        job.reject(rejectErr);
+      }
+      this.extractQueue.length = 0;
     });
 
     this.rl = readline.createInterface({
@@ -171,10 +229,36 @@ export class AssetClient {
     });
   }
 
-  public async extractFiles(paths: string[], cdnEnabled = false): Promise<ExtractionResult> {
-    if (paths.length === 0) {
-      return { ok: true, extracted: 0, unavailable: 0, errors: 0 };
+  /** Remove paths that appear in pending prewarm jobs (exact-path jobs only, no globs). */
+  private promoteFromPrewarm(userPaths: string[]): void {
+    if (userPaths.some(isGlob)) return;
+    const userSet = new Set(userPaths.map((p) => p.toLowerCase()));
+    for (let i = this.extractQueue.length - 1; i >= 0; i--) {
+      const job = this.extractQueue[i];
+      if (job.priority !== "prewarm" || job.paths.some(isGlob)) continue;
+      job.paths = job.paths.filter((p) => !userSet.has(p.toLowerCase()));
+      if (job.paths.length === 0) {
+        this.extractQueue.splice(i, 1);
+        job.resolve({ ok: true, extracted: 0, unavailable: 0, errors: 0 });
+      }
     }
+  }
+
+  private enqueue(job: QueuedJob): void {
+    if (job.priority === "user") {
+      this.promoteFromPrewarm(job.paths);
+      const insertAt = this.extractQueue.findIndex((j) => j.priority === "prewarm");
+      if (insertAt === -1) {
+        this.extractQueue.push(job);
+      } else {
+        this.extractQueue.splice(insertAt, 0, job);
+      }
+    } else {
+      this.extractQueue.push(job);
+    }
+  }
+
+  private async doExtract(paths: string[], cdnEnabled: boolean): Promise<ExtractionResult> {
     this.options.log?.("info", `client: Sending extract request: ${paths.length} path(s)/glob(s)`);
     const res = await this.request<ExtractionResult>("extract", { paths, cdnEnabled });
     if (!res.ok) {
@@ -188,6 +272,40 @@ export class AssetClient {
     };
   }
 
+  private async drainQueue(): Promise<void> {
+    if (this.extracting) return;
+    this.extracting = true;
+    try {
+      while (this.extractQueue.length > 0) {
+        const job = this.extractQueue.shift()!;
+        try {
+          const result = await this.doExtract(job.paths, job.cdnEnabled);
+          job.resolve(result);
+        } catch (err) {
+          job.reject(err);
+          // If the server crashed, the crash handler has already cleared the queue,
+          // so the while condition exits naturally on the next iteration.
+        }
+      }
+    } finally {
+      this.extracting = false;
+    }
+  }
+
+  public extractFiles(
+    paths: string[],
+    cdnEnabled = false,
+    priority: Priority = "prewarm",
+  ): Promise<ExtractionResult> {
+    if (paths.length === 0) {
+      return Promise.resolve({ ok: true, extracted: 0, unavailable: 0, errors: 0 });
+    }
+    return new Promise((resolve, reject) => {
+      this.enqueue({ paths, cdnEnabled, priority, resolve, reject });
+      void this.drainQueue();
+    });
+  }
+
   public async status(): Promise<AssetStatus> {
     const res = await this.request<AssetStatus>("status");
     return {
@@ -199,6 +317,11 @@ export class AssetClient {
   }
 
   public async shutdown(): Promise<void> {
+    this.keepaliveRefcount = 0;
+    if (this.keepaliveTimer !== null) {
+      clearInterval(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+    }
     if (!this.serverProcess || this.serverProcess.killed) return;
     try {
       await this.request("shutdown");
