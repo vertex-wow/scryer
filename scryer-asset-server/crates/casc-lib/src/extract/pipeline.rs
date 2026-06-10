@@ -16,6 +16,7 @@ use crate::blte::encryption::TactKeyStore;
 use crate::cdn::CdnClient;
 use crate::config::build_config::{BuildConfig, config_path, parse_build_config};
 use crate::config::build_info::{BuildInfo, list_products, parse_build_info};
+use crate::config::cdn_config::parse_cdn_config;
 use crate::encoding::parser::{EncodingEntry, EncodingFile};
 use crate::error::{CascError, Result};
 use crate::listfile::downloader::load_or_download;
@@ -199,11 +200,28 @@ impl CascStorage {
         // 10. Set up CDN client (only when cdn_cache_dir is configured and build.info has CDN coords)
         let cdn_client = config.cdn_cache_dir.as_ref().and_then(|cache_dir| {
             let indices_dir = data_dir.join("indices");
+            // Load the CDN config to get the current list of live archive hashes.
+            // Entries in local Data/indices/ that point to archives no longer in the CDN
+            // config are stale — the blob moved to a new archive. We skip those entries so
+            // an EKey with both a stale and a current mapping resolves to the current one.
+            let cdn_archives: Option<std::collections::HashSet<String>> =
+                (!build_info.cdn_key.is_empty()).then(|| {
+                    let cfg_path = data_dir
+                        .join("config")
+                        .join(&build_info.cdn_key[..2])
+                        .join(&build_info.cdn_key[2..4])
+                        .join(&build_info.cdn_key);
+                    std::fs::read_to_string(&cfg_path)
+                        .ok()
+                        .and_then(|s| parse_cdn_config(&s).ok())
+                        .map(|c| c.archives.into_iter().collect())
+                }).flatten();
             CdnClient::new(
                 build_info.cdn_hosts.clone(),
                 build_info.cdn_path.clone(),
                 cache_dir.clone(),
                 Some(indices_dir),
+                cdn_archives,
             )
         });
 

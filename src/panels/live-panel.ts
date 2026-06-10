@@ -314,7 +314,7 @@ export class ScryerLivePanel {
         this.output.warn(`texture miss (after extraction): ${rawPath}`);
       } else if (this.extractionTriedPaths.has(rawPath)) {
         this.output.trace(`texture miss (already tried): ${rawPath}`);
-      } else {
+      } else if (!this.missingPaths.has(rawPath)) {
         this.output.debug(`texture miss (queued for extraction): ${rawPath}`);
         this.missingPaths.set(rawPath, addonDir);
         this.scheduleMissingExtract();
@@ -456,6 +456,15 @@ export class ScryerLivePanel {
             .toString();
         } catch {}
       } catch {}
+    }
+
+    // Ensure atlas manifest exists; generate from wago.tools if absent.
+    // Non-blocking: if a manifest is newly created, restart the session so
+    // registerWowApi and sendFrames both get the populated manifest.
+    if (!this.assets.hasAtlasManifestRun()) {
+      void this.assets.ensureAtlasManifest().then((generated) => {
+        if (generated) void this.runAndRender(uri);
+      });
     }
 
     try {

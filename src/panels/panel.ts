@@ -309,7 +309,7 @@ export class ScryerPanel {
         this.output.warn(`texture miss (after extraction): ${rawPath}`);
       } else if (this.extractionTriedPaths.has(rawPath)) {
         this.output.trace(`texture miss (already tried): ${rawPath}`);
-      } else {
+      } else if (!this.missingPaths.has(rawPath)) {
         this.output.debug(`texture miss (queued for extraction): ${rawPath}`);
         this.missingPaths.set(rawPath, addonDir);
         this.scheduleMissingExtract();

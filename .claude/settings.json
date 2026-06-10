@@ -81,7 +81,8 @@
       "Bash(cargo check *)",
       "Bash(curl *)",
       "Bash(xxd *)",
-      "Bash(pnpm test:net)"
+      "Bash(pnpm test:net)",
+      "Bash(git ls-tree *)"
     ],
     "additionalDirectories": [
       "/tmp"

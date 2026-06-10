@@ -33,6 +33,12 @@ impl CdnClient {
     /// blobs absent as loose CDN files can be fetched via HTTPS Range request
     /// from the CDN archive they belong to.
     ///
+    /// `cdn_archives` is the set of archive hashes from the CDN config (the current
+    /// live archives). When provided, index entries pointing to archives outside this
+    /// set are skipped — those archives no longer exist on the CDN and fetching their
+    /// ranges would always 404. An EKey present in both a stale and a current archive
+    /// resolves to the current one.
+    ///
     /// Returns `None` when `hosts` is empty or `path` is empty — this is the normal
     /// case for Steam installs which do not include CDN coordinates.
     pub fn new(
@@ -40,6 +46,7 @@ impl CdnClient {
         path: String,
         cache_dir: PathBuf,
         indices_dir: Option<PathBuf>,
+        cdn_archives: Option<HashSet<String>>,
     ) -> Option<Self> {
         if hosts.is_empty() || path.is_empty() {
             return None;
@@ -60,7 +67,7 @@ impl CdnClient {
         };
 
         let archive_index = indices_dir.as_ref().and_then(|dir| {
-            match CdnArchiveIndex::load_all(dir, u64::MAX) {
+            match CdnArchiveIndex::load_all(dir, u64::MAX, cdn_archives.as_ref()) {
                 Ok(idx) => Some(idx),
                 Err(e) => {
                     tracing::warn!("cdn: archive index load failed — archive fallback disabled: {}", e);

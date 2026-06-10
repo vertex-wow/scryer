@@ -11,7 +11,7 @@
 //!   toc_hash[8] + params[8] + num_entries[4 LE u32] + data_hash[8]
 //!   params: version[1] + unk[2] + block_size_kb[1] + f1[1] + f2[1] + key_size[1] + checksum_size[1]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::error::Result;
@@ -44,7 +44,13 @@ impl CdnArchiveIndex {
     /// Files larger than `max_file_bytes` are skipped — large archives contain bulk
     /// game assets (textures, models) unlikely to include the small interface files
     /// Scryer needs. Set to `usize::MAX` to load everything.
-    pub fn load_all(indices_dir: &Path, max_file_bytes: u64) -> Result<Self> {
+    ///
+    /// When `valid_archives` is `Some`, only entries whose archive hash is in that
+    /// set are kept. Entries from stale archives (present locally but absent from
+    /// the CDN config) are skipped so they cannot shadow a valid entry for the same
+    /// EKey. This resolves the common case where a blob appears in both a superseded
+    /// archive and the replacement archive.
+    pub fn load_all(indices_dir: &Path, max_file_bytes: u64, valid_archives: Option<&HashSet<String>>) -> Result<Self> {
         let mut entries: HashMap<[u8; 16], CdnArchiveEntry> = HashMap::new();
 
         let read_dir = match std::fs::read_dir(indices_dir) {
@@ -68,6 +74,15 @@ impl CdnArchiveIndex {
                 Some(h) if h.len() == 32 => h.to_owned(),
                 _ => continue,
             };
+
+            // Skip archives not in the CDN config — their ranges no longer exist on
+            // the CDN, so any entry they contribute would cause a 404 on fetch.
+            if let Some(valid) = valid_archives {
+                if !valid.contains(&archive_hash_hex) {
+                    skipped += 1;
+                    continue;
+                }
+            }
 
             // Skip files that are too large.
             let file_size = match entry.metadata().map(|m| m.len()) {

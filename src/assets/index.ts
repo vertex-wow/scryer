@@ -292,7 +292,7 @@ export class AssetService {
 
     fs.mkdirSync(path.dirname(this.atlasManifestPath), { recursive: true });
 
-    const listfileReady = fs.existsSync(path.join(this.downloadsDir, "listfile.csv"));
+    const listfileReady = fs.existsSync(path.join(this.cascMetaDir, "listfile.csv"));
     if (listfileReady) {
       try {
         this.opts.output.info("Atlas manifest absent — generating…");
@@ -303,7 +303,7 @@ export class AssetService {
 
     await genAtlas({
       manifestPath: this.atlasManifestPath,
-      listfileDir: this.downloadsDir,
+      listfileDir: this.cascMetaDir,
       output: this.opts.output,
     });
 
@@ -364,7 +364,7 @@ export class AssetService {
         assetServerPath: this.opts.assetServerPath,
         assetServerIdleTimeout: this.opts.assetServerIdleTimeout,
         grepPath: this.opts.grepPath,
-        listfileDir: this.downloadsDir,
+        listfileDir: this.cascMetaDir,
         logFile: path.join(this.opts.cacheRoot, "logs", "asset-server.log"),
         output: this.opts.output,
       };
@@ -430,9 +430,9 @@ export class AssetService {
     return path.join(this.opts.texturesConvDir, "..", "atlas-manifest.json");
   }
 
-  /** <cacheRoot>/downloads — shared downloads not specific to any flavor (listfile, etc.). */
-  get downloadsDir(): string {
-    return path.join(this.opts.cacheRoot, "downloads");
+  /** Directory where the Rust CASC server caches the community listfile. */
+  get cascMetaDir(): string {
+    return path.join(this.opts.sourceDir, ".casc-meta");
   }
 
   /**
@@ -533,7 +533,7 @@ export class AssetService {
       assetServerPath: this.opts.assetServerPath,
       assetServerIdleTimeout: this.opts.assetServerIdleTimeout,
       grepPath: this.opts.grepPath,
-      listfileDir: this.downloadsDir,
+      listfileDir: this.cascMetaDir,
       cdnEnabled: cdnFallback === "cdn",
       output: this.opts.output,
     });
