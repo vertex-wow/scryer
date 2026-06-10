@@ -1,6 +1,6 @@
 # Milestone 15 — CASC Asset Service
 
-**Status: ⬜ Pending**
+**Status: ✅ Complete (2026-06-10)**
 
 ## Goal
 

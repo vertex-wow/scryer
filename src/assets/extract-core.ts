@@ -2,7 +2,7 @@
  * WoW asset extraction — self-contained, no vscode dependency.
  *
  * Implements WoW asset extraction as importable TypeScript (dev/extract.ts is a thin CLI shim over this):
- *   - Retail: delegates to rustydemon-cli (CASC extraction binary)
+ *   - Retail: delegates to scryer-asset-server (long-lived CASC extraction server)
  *   - Classic/Classic Era: copies loose files directly from the WoW install
  *
  * Used by:
@@ -441,7 +441,7 @@ async function extractLooseBulk(
 
 /**
  * Extract specific WoW-relative paths (e.g. "Interface/Buttons/UI-Minimap-Arrow.blp").
- * Retail uses rustydemon-cli; Classic copies loose files from the install directory.
+ * Retail uses scryer-asset-server; Classic copies loose files from the install directory.
  */
 export async function extractPaths(
   paths: string[],
@@ -458,7 +458,7 @@ export async function extractPaths(
 
 /**
  * Extract a whole category of files (textures, interface addon files, or both).
- * Retail uses rustydemon-cli with glob patterns; Classic recursively copies by extension.
+ * Retail uses scryer-asset-server with glob patterns; Classic recursively copies by extension.
  */
 export async function extractBulk(
   type: ExtractType,

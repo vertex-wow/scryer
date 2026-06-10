@@ -401,7 +401,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tr>
   <td>15</td>
   <td><strong><a href="015_casc_asset_service.md">CASC Asset Service</a></strong></td>
-  <td>⬜ Pending</td>
+  <td>✅ Complete (2026-06-10)</td>
   <td>Standalone long-lived Rust server for CASC extraction; replaces <code>rustydemon-cli</code></td>
   <td>M–L</td>
   <td>3</td>
