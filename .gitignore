@@ -18,10 +18,10 @@ dev/bench-baseline.json
 dev/bench-casc-results.json
 
 # Scryer asset cache (on-demand BLP→PNG conversions)
+.scryer-cache/
 .wow-cache/
 
 # Extracted WoW Interface textures (pnpm run extract output)
-.wow-cache/
 build/
 *.zip
 *.tar.gz
