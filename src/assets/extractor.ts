@@ -20,6 +20,67 @@ import {
 } from "./extract-core.js";
 import { generateAtlasManifest } from "./atlas-gen.js";
 
+/**
+ * Merges all extraction popup notifications into one persistent notification that
+ * updates its message based on what is currently running. User-priority jobs take
+ * precedence in the displayed message over prewarm jobs.
+ */
+class ExtractionProgressNotifier {
+  private progressReporter: vscode.Progress<{ message?: string }> | null = null;
+  private resolveNotification: (() => void) | null = null;
+  private userJobs = 0;
+  private prewarmJobs = 0;
+
+  async run<T>(phase: "user" | "prewarm", fn: () => Promise<T>): Promise<T> {
+    const wasIdle = this.userJobs + this.prewarmJobs === 0;
+    if (phase === "user") {
+      this.userJobs++;
+    } else {
+      this.prewarmJobs++;
+    }
+
+    if (wasIdle) {
+      void vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: "Scryer", cancellable: false },
+        (progress) => {
+          this.progressReporter = progress;
+          this.updateMessage();
+          return new Promise<void>((resolve) => {
+            this.resolveNotification = resolve;
+          });
+        },
+      );
+    } else {
+      this.updateMessage();
+    }
+
+    try {
+      return await fn();
+    } finally {
+      if (phase === "user") {
+        this.userJobs--;
+      } else {
+        this.prewarmJobs--;
+      }
+      if (this.userJobs + this.prewarmJobs === 0) {
+        this.resolveNotification?.();
+        this.resolveNotification = null;
+        this.progressReporter = null;
+      } else {
+        this.updateMessage();
+      }
+    }
+  }
+
+  private updateMessage(): void {
+    const msg =
+      this.userJobs > 0 ? "extracting game assets…" : "prewarming cache with game assets…";
+    this.progressReporter?.report({ message: msg });
+  }
+}
+
+const progressNotifier = new ExtractionProgressNotifier();
+
 export interface ExtractorOptions {
   flavor: string;
   outDir: string;
@@ -118,17 +179,8 @@ export async function extractMissing(paths: string[], opts: ExtractorOptions): P
     return;
   }
   const normalized = paths.map(normalizeForExtraction);
-  const notif = "Extracting game assets…";
-  safeLog(opts.output, "trace", `notif: ${notif}`);
   try {
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: notif,
-        cancellable: false,
-      },
-      () => extractPaths(normalized, makeCoreOpts(opts), "user"),
-    );
+    await progressNotifier.run("user", () => extractPaths(normalized, makeCoreOpts(opts), "user"));
   } catch (err) {
     safeLog(opts.output, "warn", `Extraction failed: ${String(err)}`);
   }
@@ -153,30 +205,25 @@ export async function extractBlizzardShared(
     );
     return undefined;
   }
-  const notif = "Prewarming cache with game assets…";
-  safeLog(opts.output, "trace", `notif: ${notif}`);
   let result: ExtractionResult | undefined;
   try {
     const coreOpts = makeCoreOpts(opts);
-    result = await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: notif, cancellable: false },
-      async () => {
-        if (opts.flavor === "retail") {
-          // Two prewarm jobs so a user-priority panel open can slip between them.
-          // Job A: Lua-critical addons (SharedXMLBase, Colors, SharedXML).
-          const criticalRes = await extractPaths(BLIZZARD_LUA_CRITICAL_GLOBS, coreOpts, "prewarm");
-          // Job B: FrameXML templates + fonts (pop-in candidates, not Lua-blocking).
-          const bulkRes = await extractPaths(BLIZZARD_BULK_GLOBS, coreOpts, "prewarm");
-          return {
-            exported: criticalRes.exported + bulkRes.exported,
-            unavailable: criticalRes.unavailable + bulkRes.unavailable,
-            errors: criticalRes.errors + bulkRes.errors,
-          };
-        }
-        // Classic: single loose-file extraction (no priority queue, globs unsupported).
-        return extractBulk("interface", coreOpts);
-      },
-    );
+    result = await progressNotifier.run("prewarm", async () => {
+      if (opts.flavor === "retail") {
+        // Two prewarm jobs so a user-priority panel open can slip between them.
+        // Job A: Lua-critical addons (SharedXMLBase, Colors, SharedXML).
+        const criticalRes = await extractPaths(BLIZZARD_LUA_CRITICAL_GLOBS, coreOpts, "prewarm");
+        // Job B: FrameXML templates + fonts (pop-in candidates, not Lua-blocking).
+        const bulkRes = await extractPaths(BLIZZARD_BULK_GLOBS, coreOpts, "prewarm");
+        return {
+          exported: criticalRes.exported + bulkRes.exported,
+          unavailable: criticalRes.unavailable + bulkRes.unavailable,
+          errors: criticalRes.errors + bulkRes.errors,
+        };
+      }
+      // Classic: single loose-file extraction (no priority queue, globs unsupported).
+      return extractBulk("interface", coreOpts);
+    });
   } catch (err) {
     safeLog(
       opts.output,
@@ -210,16 +257,10 @@ export async function extractCriticalBlizzardFiles(
   if (!opts.wowDir) return undefined;
   try {
     const coreOpts = makeCoreOpts(opts);
-    return await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: "Loading Blizzard templates…",
-        cancellable: false,
-      },
-      () =>
-        opts.flavor === "retail"
-          ? extractPaths(BLIZZARD_LUA_CRITICAL_GLOBS, coreOpts, "user")
-          : extractBulk("interface", coreOpts),
+    return await progressNotifier.run("user", () =>
+      opts.flavor === "retail"
+        ? extractPaths(BLIZZARD_LUA_CRITICAL_GLOBS, coreOpts, "user")
+        : extractBulk("interface", coreOpts),
     );
   } catch (err) {
     safeLog(opts.output, "warn", `Critical Blizzard file extraction failed: ${String(err)}`);
