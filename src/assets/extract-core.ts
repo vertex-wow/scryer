@@ -41,7 +41,7 @@ export interface ExtractCoreOptions {
   /** Directory where listfile.csv is cached (and downloaded if absent). */
   listfileDir: string;
   /** Log callback for progress lines. Defaults to console.log. */
-  log?: (level: LogLevel, msg: string) => void;
+  log?: (level: LogLevel, msg: string, serverTime?: string) => void;
   /** Path to write scryer-asset-server logs to. */
   logFile?: string;
 }

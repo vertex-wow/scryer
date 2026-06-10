@@ -85,7 +85,16 @@ function makeCoreOpts(opts: ExtractorOptions): ExtractCoreOptions {
     grepPath: opts.grepPath,
     listfileDir: opts.listfileDir || "",
     logFile: opts.logFile,
-    log: (level, msg) => safeLog(opts.output, level, msg),
+    log: (level, msg, serverTime) => {
+      if (serverTime) {
+        const ch = opts.output as { logServer?: (l: string, m: string, t: string) => void };
+        if (ch.logServer) {
+          ch.logServer(level, msg, serverTime);
+          return;
+        }
+      }
+      safeLog(opts.output, level, msg);
+    },
   };
 }
 

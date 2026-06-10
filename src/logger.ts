@@ -2,6 +2,11 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 
+const ANSI_RE = /\x1b\[[0-9;]*[a-zA-Z]/g;
+function stripAnsi(s: string): string {
+  return s.replace(ANSI_RE, "");
+}
+
 /**
  * A wrapper around vscode.LogOutputChannel that mirrors all log output to a
  * disk file in addition to the VS Code Output panel.
@@ -32,7 +37,21 @@ export class TeeLogOutputChannel implements vscode.LogOutputChannel {
     }
   }
 
-  private writeLine(level: string, message: string, args: unknown[]): void {
+  logServer(
+    level: "trace" | "debug" | "info" | "warn" | "error",
+    msg: string,
+    serverTime: string,
+  ): void {
+    const clean = stripAnsi(msg);
+    this.writeLine(level, clean, [], serverTime);
+    try {
+      this.channel[level](clean);
+    } catch {
+      // channel was disposed
+    }
+  }
+
+  private writeLine(level: string, message: string, args: unknown[], timeOverride?: string): void {
     if (!this.fileStream) return;
 
     const now = new Date();
@@ -43,11 +62,12 @@ export class TeeLogOutputChannel implements vscode.LogOutputChannel {
       "-" +
       String(now.getDate()).padStart(2, "0");
     const timeStr =
+      timeOverride ??
       String(now.getHours()).padStart(2, "0") +
-      ":" +
-      String(now.getMinutes()).padStart(2, "0") +
-      ":" +
-      String(now.getSeconds()).padStart(2, "0");
+        ":" +
+        String(now.getMinutes()).padStart(2, "0") +
+        ":" +
+        String(now.getSeconds()).padStart(2, "0");
 
     if (this.lastDate !== dateStr) {
       const prefix = this.lastDate === null ? "" : "\n";
@@ -61,12 +81,10 @@ export class TeeLogOutputChannel implements vscode.LogOutputChannel {
         " " + args.map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a))).join(" ");
     }
 
-    // Strip ANSI escape codes
-
-    formatted = formatted.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "");
+    formatted = stripAnsi(formatted);
 
     const shortLevel = level.charAt(0).toLowerCase();
-    this.fileStream.write(`${timeStr} [${shortLevel}]: ${formatted}\n`);
+    this.fileStream.write(`${timeStr} [${shortLevel}] ${formatted}\n`);
   }
 
   // --- vscode.LogOutputChannel implementation ---
@@ -76,15 +94,15 @@ export class TeeLogOutputChannel implements vscode.LogOutputChannel {
   }
 
   append(value: string): void {
-    this.channel.append(value);
+    this.channel.append(stripAnsi(value));
   }
 
   appendLine(value: string): void {
-    this.channel.appendLine(value);
+    this.channel.appendLine(stripAnsi(value));
   }
 
   replace(value: string): void {
-    this.channel.replace(value);
+    this.channel.replace(stripAnsi(value));
   }
 
   clear(): void {
@@ -122,28 +140,33 @@ export class TeeLogOutputChannel implements vscode.LogOutputChannel {
   }
 
   trace(message: string, ...args: unknown[]): void {
-    this.writeLine("trace", message, args);
-    this.channel.trace(message, ...args);
+    const clean = stripAnsi(message);
+    this.writeLine("trace", clean, args);
+    this.channel.trace(clean, ...args);
   }
 
   debug(message: string, ...args: unknown[]): void {
-    this.writeLine("debug", message, args);
-    this.channel.debug(message, ...args);
+    const clean = stripAnsi(message);
+    this.writeLine("debug", clean, args);
+    this.channel.debug(clean, ...args);
   }
 
   info(message: string, ...args: unknown[]): void {
-    this.writeLine("info", message, args);
-    this.channel.info(message, ...args);
+    const clean = stripAnsi(message);
+    this.writeLine("info", clean, args);
+    this.channel.info(clean, ...args);
   }
 
   warn(message: string, ...args: unknown[]): void {
-    this.writeLine("warn", message, args);
-    this.channel.warn(message, ...args);
+    const clean = stripAnsi(message);
+    this.writeLine("warn", clean, args);
+    this.channel.warn(clean, ...args);
   }
 
   error(error: string | Error, ...args: unknown[]): void {
     const msg = error instanceof Error ? error.stack || error.message : String(error);
-    this.writeLine("error", msg, args);
-    this.channel.error(error, ...args);
+    const clean = stripAnsi(msg);
+    this.writeLine("error", clean, args);
+    this.channel.error(error instanceof Error ? error : clean, ...args);
   }
 }

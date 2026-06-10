@@ -11,10 +11,15 @@ const RUST_LEVEL_MAP: Record<string, LogLevel> = {
   ERROR: "error",
 };
 
-function parseServerLogLine(raw: string): { level: LogLevel; msg: string } {
-  const m = raw.match(/^\S+Z\s+(TRACE|DEBUG|INFO|WARN|ERROR)\s+(.+)$/);
-  if (!m) return { level: "info", msg: raw };
-  return { level: RUST_LEVEL_MAP[m[1]], msg: m[2] };
+const ANSI_RE = /\x1b\[[0-9;]*[a-zA-Z]/g;
+
+function parseServerLogLine(raw: string): { level: LogLevel; msg: string; timeStr?: string } {
+  const clean = raw.replace(ANSI_RE, "");
+  const m = clean.match(
+    /^\d{4}-\d{2}-\d{2}T(\d{2}:\d{2}:\d{2})\.\d+Z\s+(TRACE|DEBUG|INFO|WARN|ERROR)\s+(.+)$/,
+  );
+  if (!m) return { level: "info", msg: clean };
+  return { level: RUST_LEVEL_MAP[m[2]], msg: m[3], timeStr: m[1] };
 }
 
 export interface ExtractionResult {
@@ -37,7 +42,7 @@ export interface AssetClientOptions {
   wowDir: string;
   outDir: string;
   idleTimeout: number;
-  log?: (level: LogLevel, msg: string) => void;
+  log?: (level: LogLevel, msg: string, serverTime?: string) => void;
   logFile?: string;
 }
 
@@ -85,8 +90,8 @@ export class AssetClient {
       for (const line of data.toString().split("\n")) {
         const trimmed = line.trim();
         if (!trimmed) continue;
-        const { level, msg } = parseServerLogLine(trimmed);
-        this.options.log?.(level, `server: ${msg}`);
+        const { level, msg, timeStr } = parseServerLogLine(trimmed);
+        this.options.log?.(level, msg, timeStr);
       }
     });
 
