@@ -4,6 +4,16 @@ Completed items moved from [todo.md](todo.md). Historical record of what was bui
 
 ---
 
+## CASC Asset Service (replace extract.sh + rustydemon-cli)
+
+**Completed: 2026-06-10** — Promoted to and completed as [Milestone 15](015_casc_asset_service.md).
+
+Previously titled "In-process JavaScript CASC reader." Scope evolved from an in-process JS library to a standalone long-lived Rust server after analysis showed that process isolation, clean memory lifecycle, and the availability of `casc-extractor` (MIT Rust implementation) make a separate-process architecture superior.
+
+**Effort:** M–L (MVP); additional L in aggregate for post-MVP optimizations (tracked as pending ↳ rows under M15).
+
+---
+
 ## Asset loading priority queue
 
 **Status:** ✅ Done (2026-06-10)
