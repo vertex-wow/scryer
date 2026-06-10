@@ -424,6 +424,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
+  <td>CDN client startup caching</td>
+  <td>📋 Pending</td>
+  <td>Serialize CDN archive index (11 M entries, 18–29 s parse) to binary cache; also persist host-probe results (invalidate daily or on 0 reachable hosts)</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
   <td>Direct byte streaming over stdio</td>
   <td>📋 Pending</td>
   <td>Return raw file bytes over the protocol instead of writing to disk</td>

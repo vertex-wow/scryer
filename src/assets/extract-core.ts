@@ -45,6 +45,8 @@ export interface ExtractCoreOptions {
   log?: (level: LogLevel, msg: string, serverTime?: string) => void;
   /** Path to write scryer-asset-server logs to. */
   logFile?: string;
+  /** When true, tell the server to attempt CDN fallback for CDN-only stubs. */
+  cdnEnabled?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -269,7 +271,7 @@ async function extractRetailPaths(
   opts: ExtractCoreOptions,
 ): Promise<ExtractionResult> {
   const client = getAssetClient(opts);
-  const res = await client.extractFiles(paths);
+  const res = await client.extractFiles(paths, opts.cdnEnabled ?? false);
   await normalizeSubtreeToLowercase(opts.outDir);
   return { exported: res.extracted, unavailable: res.unavailable, errors: res.errors };
 }
@@ -287,7 +289,7 @@ async function extractRetailBulk(
   opts.log?.("info", `assets-extraction: "${opts.flavor}/${type}" → global cache "${shortOut}"`);
 
   const client = getAssetClient(opts);
-  const res = await client.extractFiles(globs);
+  const res = await client.extractFiles(globs, opts.cdnEnabled ?? false);
   await normalizeSubtreeToLowercase(opts.outDir);
   return { exported: res.extracted, unavailable: res.unavailable, errors: res.errors };
 }

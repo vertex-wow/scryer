@@ -353,7 +353,11 @@ export class AssetService {
       } catch {
         /* channel disposed */
       }
-      await extractBlizzardShared({
+
+      const cfg = vscode.workspace.getConfiguration("scryer");
+      let cdnFallback = cfg.get<string>("cdnFallback") ?? "ask";
+
+      const extractOpts = {
         flavor: this.opts.flavor,
         outDir: this.opts.sourceDir,
         wowDir: this.opts.installDir,
@@ -363,27 +367,48 @@ export class AssetService {
         listfileDir: this.downloadsDir,
         logFile: path.join(this.opts.cacheRoot, "logs", "asset-server.log"),
         output: this.opts.output,
+      };
+
+      let result = await extractBlizzardShared({
+        ...extractOpts,
+        cdnEnabled: cdnFallback === "cdn",
       });
+
+      // CDN consent dialog — shown once when unavailable files are found and the
+      // setting is still "ask". The user's answer is stored permanently.
+      if (result && result.unavailable > 0 && cdnFallback === "ask") {
+        const choice = await vscode.window.showWarningMessage(
+          "One or more game files for previews can be found in your WoW installation's index but have not been downloaded by Battle.net. Scryer can fetch them directly from Blizzard's CDN.\n\nDo you want to download missing files from Blizzard's CDN from now on?",
+          { modal: true },
+          "Yes, do that from now on",
+          "No, use placeholders",
+        );
+        if (choice === "Yes, do that from now on") {
+          await vscode.workspace.getConfiguration("scryer").update("cdnFallback", "cdn", true);
+          cdnFallback = "cdn";
+          result = await extractBlizzardShared({ ...extractOpts, cdnEnabled: true });
+        } else {
+          await vscode.workspace.getConfiguration("scryer").update("cdnFallback", "none", true);
+        }
+      }
+
       this.writeBuildStampIfConfigured();
 
       // Re-check: only signal re-render if extraction actually produced new files.
-      // If it didn't (no script, failed extraction, etc.) we stop here rather than loop.
       const afterAddons = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
       const afterFontsMissing = !fs.existsSync(fontsDir);
 
-      // Warn when Blizzard addon files remain missing after extraction. The most common
-      // cause is CDN-only stubs: Battle.net downloaded partial game data (enough to play)
-      // but skipped addon scaffolding files. Without these files, Blizzard templates and
-      // Lua won't load and textures will be missing. The fix is a Battle.net Scan & Repair.
       if (afterAddons.length > 0) {
         const tocFiles = afterAddons.filter((p) => /\.toc$/i.test(p));
         if (tocFiles.length > 0) {
           try {
             this.opts.output.warn(
-              `[assets] Blizzard addon TOC files could not be extracted (CDN-only stubs or not installed).\n` +
-                `  Blizzard templates and Lua corpus will not load — textures and NineSlice borders will be missing.\n` +
+              `[assets] Some Blizzard addon files could not be extracted.\n` +
+                `  Blizzard templates and Lua corpus will not load — textures and NineSlice borders may be missing.\n` +
                 `  Still missing: ${tocFiles.join(", ")}\n` +
-                `  Fix: open Battle.net → World of Warcraft → Options → Scan and Repair to download all game files.`,
+                (cdnFallback !== "cdn"
+                  ? `  To enable CDN download, set scryer.cdnFallback to "cdn" in settings.`
+                  : `  CDN download was enabled but files are still missing — check your internet connection.`),
             );
           } catch {
             /* channel disposed */
@@ -494,6 +519,13 @@ export class AssetService {
   }
 
   async extractMissing(paths: string[]): Promise<void> {
+    const cdnFallback =
+      vscode.workspace.getConfiguration("scryer").get<string>("cdnFallback") ?? "ask";
+    try {
+      this.opts.output.debug(`extractMissing: ${paths.length} path(s), cdnFallback=${cdnFallback}`);
+    } catch {
+      /* channel disposed */
+    }
     await extractMissing(paths, {
       flavor: this.opts.flavor,
       outDir: this.opts.sourceDir,
@@ -502,6 +534,7 @@ export class AssetService {
       assetServerIdleTimeout: this.opts.assetServerIdleTimeout,
       grepPath: this.opts.grepPath,
       listfileDir: this.downloadsDir,
+      cdnEnabled: cdnFallback === "cdn",
       output: this.opts.output,
     });
     this.writeBuildStampIfConfigured();

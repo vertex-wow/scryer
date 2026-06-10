@@ -304,14 +304,20 @@ export class ScryerPanel {
   private async resolveAndSendAsset(rawPath: string, addonDir: string): Promise<void> {
     const absPath = await this.assets.resolveToAbsPath(rawPath, addonDir);
     if (!absPath) {
-      this.output.warn(`Asset not found: ${rawPath}`);
-      if (!this.retryInProgress && !this.extractionTriedPaths.has(rawPath)) {
+      if (this.retryInProgress) {
+        // After extraction pass — file still not found. Log at warn so it's visible.
+        this.output.warn(`texture miss (after extraction): ${rawPath}`);
+      } else if (this.extractionTriedPaths.has(rawPath)) {
+        this.output.trace(`texture miss (already tried): ${rawPath}`);
+      } else {
+        this.output.debug(`texture miss (queued for extraction): ${rawPath}`);
         this.missingPaths.set(rawPath, addonDir);
         this.scheduleMissingExtract();
       }
       return;
     }
 
+    this.output.trace(`texture resolved: ${rawPath} → ${path.basename(absPath)}`);
     try {
       const uri = this.panel.webview.asWebviewUri(vscode.Uri.file(absPath)).toString();
       const msg: HostMessage = { type: "assetResolved", path: rawPath, uri };
@@ -334,16 +340,26 @@ export class ScryerPanel {
     this.missingPaths.clear();
     if (batch.size === 0) return;
 
+    this.output.info(`texture extraction: ${batch.size} missing asset(s) — extracting`);
+    if (this.output.logLevel <= vscode.LogLevel.Debug) {
+      for (const p of batch.keys()) this.output.debug(`  → ${p}`);
+    }
+
     this.retryInProgress = true;
+    let resolved = 0;
     try {
       await this.assets.extractMissing(Array.from(batch.keys()));
       // Use lightweight invalidation: picks up newly extracted files without resetting
       // blizzardFilesPromise or the registry cache, preventing a re-extraction loop.
       this.assets.invalidateTextures();
       await Promise.all(
-        Array.from(batch).map(([rawPath, addonDir]) => this.resolveAndSendAsset(rawPath, addonDir)),
+        Array.from(batch).map(async ([rawPath, addonDir]) => {
+          const found = await this.assets.resolveToAbsPath(rawPath, addonDir);
+          if (found) resolved++;
+          return this.resolveAndSendAsset(rawPath, addonDir);
+        }),
       );
-      this.output.debug(`#3: textures resolved (${batch.size} extracted)`);
+      this.output.info(`texture extraction: ${resolved}/${batch.size} resolved`);
     } finally {
       this.retryInProgress = false;
       // Mark all attempted paths so future re-renders don't re-queue them.
@@ -356,6 +372,11 @@ export class ScryerPanel {
     if (this.extractDebounce !== undefined) {
       clearTimeout(this.extractDebounce);
       this.extractDebounce = undefined;
+      if (this.missingPaths.size > 0) {
+        this.output.debug(
+          `render cycle reset — cancelled pending extraction of ${this.missingPaths.size} asset(s)`,
+        );
+      }
     }
     this.missingPaths.clear();
 

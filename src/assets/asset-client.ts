@@ -171,12 +171,12 @@ export class AssetClient {
     });
   }
 
-  public async extractFiles(paths: string[]): Promise<ExtractionResult> {
+  public async extractFiles(paths: string[], cdnEnabled = false): Promise<ExtractionResult> {
     if (paths.length === 0) {
       return { ok: true, extracted: 0, unavailable: 0, errors: 0 };
     }
     this.options.log?.("info", `client: Sending extract request: ${paths.length} path(s)/glob(s)`);
-    const res = await this.request<ExtractionResult>("extract", { paths });
+    const res = await this.request<ExtractionResult>("extract", { paths, cdnEnabled });
     if (!res.ok) {
       throw new Error(res.error || "Unknown extraction error");
     }

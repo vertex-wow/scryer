@@ -100,11 +100,28 @@ Configuration documentation is split across three files so users see only what i
 
 ## scryer-asset-server philosophy
 
-The Rust asset server (`scryer-asset-server/`) extracts game files from the user's **local CASC archives only**. There is no CDN fallback, no outbound HTTP for game content, and no automatic download of files the user has not installed.
+The Rust asset server (`scryer-asset-server/`) extracts game files from the user's local
+CASC archives. For Battle.net installs, it may also fetch CDN-only stubs — files present
+in the local index metadata but not yet downloaded — directly from Blizzard's CDN, subject
+to the user's `scryer.cdnFallback` preference.
 
-- **Local files only.** If a CASC entry exists in the local `.idx` index but the data at the archive offset is not valid BLTE (a "CDN-only stub" — present in metadata but not downloaded by Battle.net), the file must be reported as `skipped:cdn-only`, not silently fetched from Blizzard's CDN.
-- **No outbound asset fetching.** `casc-lib` is a local CASC reader. Do not add HTTP client logic for fetching game content. `reqwest` is present only for the community listfile download (metadata, not game content).
-- **Graceful degradation.** Missing files produce placeholder textures and a user-visible log entry. The correct user fix is to run the Battle.net launcher and complete the WoW download — not for Scryer to download it silently on their behalf.
+- **Local-first.** All extraction attempts the local CASC archive first. CDN is only tried
+  when the local data block is absent (CDN-only stub detected via `InvalidMagic`).
+- **CDN fallback requires user consent.** The default setting (`"ask"`) prompts once on
+  first encounter; the user's answer is stored permanently. Setting `"none"` disables CDN
+  entirely. Never fetch CDN content silently without a stored consent choice.
+- **Battle.net installs only.** CDN coordinates (`cdn_hosts`, `cdn_path`) come from
+  `.build.info`. If those fields are absent (Steam installs, or missing), the CDN client
+  is not created and no outbound fetch occurs — enforced by the data, not policy logic.
+- **Scoped to the local encoding table.** Only blobs whose EKey already appears in the
+  local CASC encoding table can be fetched. Scryer cannot enumerate or download arbitrary
+  game files.
+- **No other outbound game content.** `casc-lib` must not add any HTTP client logic beyond
+  the CDN blob fetch and the existing community listfile download. No GitHub mirrors, no
+  wago.tools game content, no arbitrary URLs.
+- **ToS is a grey area; do not misrepresent it.** The consent dialog must be factual about
+  what is fetched and from where. Do not tell users this is definitely fine. Do not tell
+  them it is definitely prohibited. See ADR 013 for the full position.
 
 See `docs/decisions/012_no_cdn_fallback.md` for the full rationale.
 

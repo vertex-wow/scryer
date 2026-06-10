@@ -13,6 +13,7 @@ use rayon::prelude::*;
 
 use crate::blte::decoder::decode_blte_with_keys;
 use crate::blte::encryption::TactKeyStore;
+use crate::cdn::CdnClient;
 use crate::config::build_config::{BuildConfig, config_path, parse_build_config};
 use crate::config::build_info::{BuildInfo, list_products, parse_build_info};
 use crate::encoding::parser::{EncodingEntry, EncodingFile};
@@ -42,6 +43,10 @@ pub struct OpenConfig {
     pub listfile: Option<PathBuf>,
     /// Directory for listfile cache and other output.
     pub output_dir: Option<PathBuf>,
+    /// When `Some`, enable CDN fallback for CDN-only stubs.
+    /// The path is used as a local blob cache (content-addressed by EKey hex).
+    /// Has no effect when `.build.info` has no CDN coordinates (Steam installs).
+    pub cdn_cache_dir: Option<PathBuf>,
 }
 
 /// Extraction configuration.
@@ -135,6 +140,8 @@ pub struct CascStorage {
     index_ecache: Option<CascIndex>,
     /// Fallback data store from `Data/ecache/` — `None` when that directory is absent.
     data_ecache: Option<DataStore>,
+    /// CDN fallback client — `None` when CDN is disabled or CDN coordinates are absent.
+    cdn_client: Option<CdnClient>,
 }
 
 impl CascStorage {
@@ -189,6 +196,17 @@ impl CascStorage {
         // 9. Load listfile
         let listfile = load_listfile(config)?;
 
+        // 10. Set up CDN client (only when cdn_cache_dir is configured and build.info has CDN coords)
+        let cdn_client = config.cdn_cache_dir.as_ref().and_then(|cache_dir| {
+            let indices_dir = data_dir.join("indices");
+            CdnClient::new(
+                build_info.cdn_hosts.clone(),
+                build_info.cdn_path.clone(),
+                cache_dir.clone(),
+                Some(indices_dir),
+            )
+        });
+
         Ok(Self {
             build_info,
             build_config,
@@ -200,6 +218,7 @@ impl CascStorage {
             keystore,
             index_ecache,
             data_ecache,
+            cdn_client,
         })
     }
 
@@ -265,7 +284,19 @@ impl CascStorage {
             }
         }
 
-        // File absent from both local stores — CDN-only (not downloaded by Battle.net).
+        // Try CDN fallback if enabled and the user has consented.
+        if let Some(cdn) = &self.cdn_client {
+            match cdn.fetch_ekey(ekey) {
+                Ok(raw) => return decode_blte_with_keys(&raw, Some(&self.keystore)),
+                Err(e) => tracing::debug!(
+                    "cdn fallback failed for ekey {}: {}",
+                    hex::encode(&ekey[..4]),
+                    e
+                ),
+            }
+        }
+
+        // File absent from all stores.
         Err(CascError::KeyNotFound {
             key_type: "EKey".into(),
             hash: hex::encode(ekey),
@@ -920,6 +951,7 @@ mod tests {
             keyfile: None,
             listfile: None,
             output_dir: None,
+            cdn_cache_dir: None,
         };
         assert_eq!(config.product, Some("wow".into()));
     }
@@ -1141,6 +1173,7 @@ mod tests {
             keyfile: None,
             listfile: None,
             output_dir: Some(std::env::temp_dir().join("casc_test_open")),
+            cdn_cache_dir: None,
         };
         let storage = CascStorage::open(&config).unwrap();
         let info = storage.info();
@@ -1160,6 +1193,7 @@ mod tests {
             keyfile: None,
             listfile: None,
             output_dir: Some(std::env::temp_dir().join("casc_test_read")),
+            cdn_cache_dir: None,
         };
         let storage = CascStorage::open(&config).unwrap();
         // FDID 1 should exist in virtually every WoW build
@@ -1270,6 +1304,7 @@ mod tests {
             keyfile: None,
             listfile: None,
             output_dir: Some(std::env::temp_dir().join("casc_extract_test")),
+            cdn_cache_dir: None,
         };
         let storage = CascStorage::open(&open_config).unwrap();
 

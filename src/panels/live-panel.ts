@@ -310,21 +310,19 @@ export class ScryerLivePanel {
   private async resolveAndSendAsset(rawPath: string, addonDir: string): Promise<void> {
     const absPath = await this.assets.resolveToAbsPath(rawPath, addonDir);
     if (!absPath) {
-      if (!this.retryInProgress && !this.extractionTriedPaths.has(rawPath)) {
-        this.output.trace(`    asset miss — queuing extraction: ${rawPath}`);
+      if (this.retryInProgress) {
+        this.output.warn(`texture miss (after extraction): ${rawPath}`);
+      } else if (this.extractionTriedPaths.has(rawPath)) {
+        this.output.trace(`texture miss (already tried): ${rawPath}`);
+      } else {
+        this.output.debug(`texture miss (queued for extraction): ${rawPath}`);
         this.missingPaths.set(rawPath, addonDir);
         this.scheduleMissingExtract();
-      } else if (this.extractionTriedPaths.has(rawPath)) {
-        this.output.trace(`    asset miss — already tried: ${rawPath}`);
       }
       return;
     }
+    this.output.trace(`texture resolved: ${rawPath} → ${path.basename(absPath)}`);
     const uri = this.panel.webview.asWebviewUri(vscode.Uri.file(absPath)).toString();
-    try {
-      this.output.trace(`    assetResolved: ${rawPath} → ${uri}`);
-    } catch {
-      /* disposed */
-    }
     const msg: HostMessage = { type: "assetResolved", path: rawPath, uri };
     void this.panel.webview.postMessage(msg);
   }
@@ -342,14 +340,25 @@ export class ScryerLivePanel {
     this.missingPaths.clear();
     if (batch.size === 0) return;
 
+    this.output.info(`texture extraction: ${batch.size} missing asset(s) — extracting`);
+    if (this.output.logLevel <= vscode.LogLevel.Debug) {
+      for (const p of batch.keys()) this.output.debug(`  → ${p}`);
+    }
+
     await this.assets.extractMissing(Array.from(batch.keys()));
     this.assets.invalidateTextures();
 
     this.retryInProgress = true;
+    let resolved = 0;
     try {
       await Promise.all(
-        Array.from(batch).map(([rawPath, addonDir]) => this.resolveAndSendAsset(rawPath, addonDir)),
+        Array.from(batch).map(async ([rawPath, addonDir]) => {
+          const found = await this.assets.resolveToAbsPath(rawPath, addonDir);
+          if (found) resolved++;
+          return this.resolveAndSendAsset(rawPath, addonDir);
+        }),
       );
+      this.output.info(`texture extraction: ${resolved}/${batch.size} resolved`);
     } finally {
       this.retryInProgress = false;
       for (const rawPath of batch.keys()) this.extractionTriedPaths.add(rawPath);

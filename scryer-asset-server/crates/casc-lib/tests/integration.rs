@@ -174,6 +174,7 @@ fn bootstraps_root_file() {
         keyfile: None,
         listfile: None,
         output_dir: Some(std::env::temp_dir().join("casc_integ_root")),
+        cdn_cache_dir: None,
     };
     let storage = CascStorage::open(&open_config).unwrap();
     let info = storage.info();
@@ -200,6 +201,7 @@ fn full_storage_open_and_info() {
         keyfile: None,
         listfile: None,
         output_dir: Some(std::env::temp_dir().join("casc_integ_info")),
+        cdn_cache_dir: None,
     };
     let storage = CascStorage::open(&open_config).unwrap();
     let info = storage.info();
@@ -232,6 +234,7 @@ fn extract_known_small_file() {
         keyfile: None,
         listfile: None,
         output_dir: Some(std::env::temp_dir().join("casc_integ_extract")),
+        cdn_cache_dir: None,
     };
     let storage = CascStorage::open(&open_config).unwrap();
 
@@ -276,6 +279,7 @@ fn extract_single_file_to_disk() {
         keyfile: None,
         listfile: None,
         output_dir: Some(out_dir.clone()),
+        cdn_cache_dir: None,
     };
     let storage = CascStorage::open(&open_config).unwrap();
 
@@ -306,6 +310,7 @@ fn list_files_returns_results() {
         keyfile: None,
         listfile: None,
         output_dir: Some(std::env::temp_dir().join("casc_integ_list")),
+        cdn_cache_dir: None,
     };
     let storage = CascStorage::open(&open_config).unwrap();
 
@@ -333,6 +338,7 @@ fn list_files_with_filter() {
         keyfile: None,
         listfile: None,
         output_dir: Some(std::env::temp_dir().join("casc_integ_filter")),
+        cdn_cache_dir: None,
     };
     let storage = CascStorage::open(&open_config).unwrap();
 
@@ -363,6 +369,7 @@ fn extract_batch_small_subset() {
         keyfile: None,
         listfile: None,
         output_dir: Some(out_dir.clone()),
+        cdn_cache_dir: None,
     };
     let storage = CascStorage::open(&open_config).unwrap();
 
@@ -422,6 +429,7 @@ fn extract_verifies_ckey_md5() {
         keyfile: None,
         listfile: None,
         output_dir: Some(std::env::temp_dir().join("casc_integ_verify")),
+        cdn_cache_dir: None,
     };
     let storage = CascStorage::open(&open_config).unwrap();
 

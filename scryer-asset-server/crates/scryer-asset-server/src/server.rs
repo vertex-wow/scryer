@@ -10,7 +10,11 @@ use casc_lib::extract::{CascStorage, ExtractionConfig, OpenConfig, extract_all};
 #[derive(Deserialize, Debug)]
 #[serde(tag = "method", rename_all = "camelCase")]
 enum RequestPayload {
-    Extract { paths: Vec<String> },
+    Extract {
+        paths: Vec<String>,
+        #[serde(rename = "cdnEnabled", default)]
+        cdn_enabled: bool,
+    },
     Status,
     Shutdown,
 }
@@ -95,14 +99,8 @@ pub fn run_server(
     // Lazy load storage on first request
     let mut storage: Option<CascStorage> = None;
     let mut build_hash = String::new();
-
-    let open_config = OpenConfig {
-        install_dir: wow_dir,
-        product: Some("wow".into()), // default to retail for now
-        keyfile: None,
-        listfile,
-        output_dir: Some(out_dir.clone()),
-    };
+    // Track the cdn setting for the current storage instance so we can reinit on change.
+    let mut current_cdn_enabled = false;
 
     let threads = std::thread::available_parallelism()
         .map(|p| p.get())
@@ -158,8 +156,12 @@ pub fn run_server(
                 stdout.flush().unwrap();
                 in_flight.store(false, Ordering::Relaxed);
             }
-            RequestPayload::Extract { paths } => {
-                tracing::info!("Extract request: {} path(s)/glob(s)", paths.len());
+            RequestPayload::Extract { paths, cdn_enabled } => {
+                tracing::info!(
+                    "Extract request: {} path(s)/glob(s), cdn_enabled={}",
+                    paths.len(),
+                    cdn_enabled
+                );
                 if tracing::enabled!(tracing::Level::DEBUG) {
                     for p in paths.iter().take(5) {
                         tracing::debug!("  {}", p);
@@ -169,9 +171,33 @@ pub fn run_server(
                     }
                 }
 
+                // Reinitialize storage when the CDN setting changes.
+                if cdn_enabled != current_cdn_enabled && storage.is_some() {
+                    tracing::info!(
+                        "CDN setting changed ({} → {}) — reinitializing storage",
+                        current_cdn_enabled,
+                        cdn_enabled
+                    );
+                    storage = None;
+                }
+                current_cdn_enabled = cdn_enabled;
+
+                let open_config = OpenConfig {
+                    install_dir: wow_dir.clone(),
+                    product: Some("wow".into()),
+                    keyfile: None,
+                    listfile: listfile.clone(),
+                    output_dir: Some(out_dir.clone()),
+                    cdn_cache_dir: if cdn_enabled {
+                        Some(out_dir.join(".casc-cdn-cache"))
+                    } else {
+                        None
+                    },
+                };
+
                 // Initialize storage if not ready
                 if storage.is_none() {
-                    tracing::info!("Initializing CASC storage for the first time...");
+                    tracing::info!("Initializing CASC storage...");
                     match CascStorage::open(&open_config) {
                         Ok(s) => {
                             let info = s.info();
@@ -267,10 +293,11 @@ mod tests {
         let req: ServerRequest = serde_json::from_str(raw).unwrap();
         assert_eq!(req.id, 1);
         match req.payload {
-            RequestPayload::Extract { paths } => {
+            RequestPayload::Extract { paths, cdn_enabled } => {
                 assert_eq!(paths.len(), 2);
                 assert_eq!(paths[0], "fonts/*.ttf");
                 assert_eq!(paths[1], "interface/*.blp");
+                assert!(!cdn_enabled, "cdn_enabled defaults to false when absent");
             }
             _ => panic!("expected Extract variant"),
         }
@@ -281,7 +308,20 @@ mod tests {
         let raw = r#"{"id":5,"method":"extract","paths":[]}"#;
         let req: ServerRequest = serde_json::from_str(raw).unwrap();
         match req.payload {
-            RequestPayload::Extract { paths } => assert!(paths.is_empty()),
+            RequestPayload::Extract { paths, .. } => assert!(paths.is_empty()),
+            _ => panic!("expected Extract variant"),
+        }
+    }
+
+    #[test]
+    fn parse_extract_request_with_cdn_enabled() {
+        let raw = r#"{"id":7,"method":"extract","paths":["fonts/**"],"cdnEnabled":true}"#;
+        let req: ServerRequest = serde_json::from_str(raw).unwrap();
+        match req.payload {
+            RequestPayload::Extract { paths, cdn_enabled } => {
+                assert_eq!(paths.len(), 1);
+                assert!(cdn_enabled);
+            }
             _ => panic!("expected Extract variant"),
         }
     }

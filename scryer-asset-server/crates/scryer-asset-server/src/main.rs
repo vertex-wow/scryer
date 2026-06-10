@@ -319,6 +319,7 @@ fn run(cli: Cli) -> casc_lib::error::Result<()> {
                 keyfile: keyfile.clone(),
                 listfile: listfile.clone(),
                 output_dir: None,
+                cdn_cache_dir: None,
             };
             let locale_val = parse_locale(locale);
             cmd_get(&open_config, target, output, locale_val)
@@ -339,6 +340,7 @@ fn make_open_config(casc: &CascArgs, output_dir: Option<&Path>) -> OpenConfig {
         keyfile: casc.keyfile.clone(),
         listfile: casc.listfile.clone(),
         output_dir: output_dir.map(Path::to_path_buf),
+        cdn_cache_dir: None,
     }
 }
 

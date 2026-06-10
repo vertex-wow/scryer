@@ -1,69 +1,122 @@
-# ADR 012 — No CDN fallback; only locally-present game files
+# ADR 012 — CDN fallback policy for game asset extraction
 
-**Status:** Decided (2026-06-09)
+**Status:** Revised (2026-06-10) — original decision (local-only) replaced by CDN-with-consent
 
-## Context
+## Original decision (2026-06-09): local files only
 
-The scryer-asset-server reads WoW game files from the user's local CASC archives (`Data/data/data.NNN`). During development it was observed that approximately 55% of Blizzard interface files (229 of 418 matched) fail extraction with:
+During initial development it was observed that approximately 55% of Blizzard interface
+files (229 of 418 matched) failed extraction because Battle.net tracks file metadata in
+the local `.idx` index even for content it hasn't downloaded yet. These "CDN-only stubs"
+cause BLTE decode to fail with `InvalidMagic`. The previous extraction tool
+(rustydemon-cli) silently fetched these files from Blizzard's CDN.
 
-```
-Invalid magic: expected BLTE, found <garbage bytes>
-```
+The original decision was **Option B — local files only**: only extract files physically
+present in the local CASC archives, report stubs as `skipped:cdn-only`, and tell the user
+to run Battle.net → Scan & Repair.
 
-The cause is that WoW's Battle.net streaming client tracks file metadata (EKey entries) in the local `.idx` index files even for content that has not been downloaded yet. When those entries are read, the data at the archive offset is not valid BLTE — it is either a CDN placeholder stub or leftover bytes from an adjacent entry. These are called "CDN-only" files.
+**Original rationale (preserved):**
 
-The previous extraction tool (rustydemon-cli) silently fetched CDN-only files over HTTP using the CDN URLs embedded in `.build.info` (`cdn_hosts`, `cdn_path`). This masked the problem: previews appeared to work but relied on outbound network access that Scryer's design doc (see `docs/decisions/004_license.md` and security model in `README.md`) does not budget for.
+- Respect user storage choices (Battle.net allows selective/minimal installs)
+- Keep `casc-lib` as a local CASC reader, not a CASC+CDN client
+- No outbound network dependency for an offline-capable developer tool
+- Transparency: missing file → placeholder + log, not a silent download
+- The "correct fix" was assumed to be completing the WoW download
 
-## Options considered
+## Why the decision was revised
 
-**Option A — CDN fallback**  
-When local BLTE decode fails, construct the CDN URL from the EKey and download the file over HTTPS. `reqwest` (blocking) is already a dependency of `casc-lib`. The CDN URL format is:
+Testing confirmed that **Scan & Repair does not fill CDN-only stubs**. They remain stubs
+after a full repair. On a default Battle.net installation the 229 unavailable files are
+unrecoverable by any local action the user can take. The recommended user action in the
+original decision simply does not work.
 
-```
-https://<cdn_host>/<cdn_path>/data/<ekey[0:2]>/<ekey[2:4]>/<full_ekey_hex>
-```
+More critically: the files affected are not cosmetic. They are Blizzard's own interface
+templates — the XML and Lua that defines `NineSlicePanelTemplate`, `UIPanelButtonTemplate`,
+`TooltipDefaultLayout`, and the `SharedXML`/`Blizzard_FrameXML` Lua environment. Without
+them Scryer cannot:
 
-Pro: transparent, matches rustydemon-cli behavior, fixes missing files automatically.  
-Con: outbound network dependency; introduces latency on on-demand asset requests (1–5 s per file); Blizzard CDN terms of use are unclear for tooling; makes extraction depend on internet connectivity and CDN availability; creates a silent data-freshness risk if CDN content diverges from the build hash.
+- Resolve template inheritance (`inherits="NineSlicePanelTemplate"` renders unstyled)
+- Trace addon callsites (no definition of what `CreateFrame(... "UIPanelButtonTemplate")`
+  produces)
+- Load the Blizzard Lua environment that virtually every WoW addon depends on
 
-**Option B — Local files only; degrade gracefully**  
-Only extract from files physically present in the user's CASC archives. Files that fail BLTE decode are logged as `skipped:cdn-only` (or `errors`, as currently) and are absent from the output directory. The extension shows placeholder textures for anything it cannot extract.
+This is not a degraded state — it is the normal state for most users on default installs,
+and it breaks the tool's central purpose.
 
-**Option C — Fetch Lua/XML sources from a GitHub mirror (e.g. wowdev/wow-ui-source)**  
-Download missing Blizzard interface files (Lua, XML) from a public WoW UI source mirror at extension install or build time. Since these are plain text files, no BLTE decoding is needed, and the download could be done from TypeScript rather than `casc-lib`.
+## Revised decision (2026-06-10): CDN fallback with user consent
 
-Pro: fixes missing Lua/XML files without touching the CDN; source is publicly available.  
-Con: still requires outbound network access; introduces a dependency on a third-party GitHub mirror that Scryer does not control and that could go stale, be renamed, or disappear; establishes a precedent that Scryer fetches game data from external sources; Blizzard's copyright applies to these files regardless of hosting.
+Implement CDN fallback for Battle.net installs, gated behind an explicit user consent
+preference (`scryer.cdnFallback`: `"ask"` / `"cdn"` / `"none"`, default `"ask"`).
 
-**Option D — Hardcode known templates (e.g. `NineSlicePanelTemplate`) in the extension**  
-Embed a minimal hand-written definition of critical Blizzard templates directly in Scryer's source, allowing template inheritance to work even when the source files are absent.
+- **`"ask"`** — Show a one-time modal dialog on first encounter. Store the user's answer
+  permanently; never ask again.
+- **`"cdn"`** — Fetch CDN-only stubs automatically.
+- **`"none"`** — Never fetch from CDN; report stubs as unavailable.
 
-Pro: zero network dependency; always available.  
-Con: embedding Blizzard's copyrighted code in Scryer's source would complicate the license. Even a "minimal stub" is a derived work of WoW's UI layer. Maintenance burden: any Blizzard update that changes the template signature would silently break the stub. Scope creep: once one template is hardcoded, the list grows.
+Dialog text (factual, does not minimise the nature of the request):
 
-## Decision
+> One or more game files for previews can be found in your WoW installation's index but
+> have not been downloaded by Battle.net. Scryer can fetch them directly from
+> Blizzard's CDN.
+>
+> Do you want to download missing files from Blizzard's CDN?
+>
+> [Yes, do that from now on] [No, use placeholders]
 
-**Option B.** Scryer only extracts from files the user has actually downloaded. No CDN fallback, no outbound asset fetching, no fetching from GitHub mirrors, and no hardcoded Blizzard resources.
+## What makes this defensible
 
-## Rationale
+Several factors constrain the CDN fetch tightly enough that it differs meaningfully from a
+general game-file downloader:
 
-- **Respect the user's storage choices.** Battle.net allows selective downloading — users can choose a minimal install footprint. Scryer should not silently override that choice by fetching files the user chose not to download.
+1. **Local-install-gated.** The CDN client is only created after a local CASC archive is
+   successfully opened (root manifest, encoding table, and IDX files all present). There is
+   no path to CDN content without a valid local install.
 
-- **No network dependency.** Scryer is an offline-capable developer tool. Asset extraction must work without internet access. Introducing any remote fetch (CDN, GitHub mirror, or otherwise) creates a dependency on external availability, connectivity, and DNS — all of which can fail silently.
+2. **CDN coordinates come from Blizzard.** The host list and path prefix are read from
+   `.build.info`, a file Battle.net itself writes into the install directory. Scryer is
+   following Blizzard's own signposting.
 
-- **No external mirrors.** Fetching from `wowdev/wow-ui-source` or any other GitHub mirror of Blizzard's interface files is not materially different from fetching from Blizzard's CDN: it still requires outbound network access, depends on a resource Scryer does not control, and carries the same copyright. The fact that the payload is plain text rather than BLTE-encoded binary does not change the analysis.
+3. **Battle.net installs only.** Steam installs do not include `CDN Hosts` / `CDN Path` in
+   `.build.info`. If those fields are absent, the CDN client is not created and no outbound
+   fetch ever occurs — enforced by the data, not by policy logic.
 
-- **No hardcoded Blizzard resources.** Embedding copies or stubs of Blizzard's copyrighted Lua/XML in Scryer's source introduces license complexity and a maintenance burden. Any Blizzard update that changes a hardcoded definition silently breaks the stub, and the list of "necessary" hardcoded files grows without bound. The right fix is always for the user to have a complete WoW installation.
+4. **Scoped to the local encoding table.** Only blobs whose encoding key (EKey) already
+   appears in the local CASC encoding table can be fetched. Scryer cannot enumerate or
+   download arbitrary game content.
 
-- **Transparency over magic.** When a file is missing, the correct behavior is to tell the user (placeholder texture, log entry) rather than to fetch it automatically. The user can fix the root cause by opening the Battle.net launcher and completing the WoW download.
+5. **Ecosystem precedent and game accessibility.** rustydemon-cli implements the same
+   fallback. wow.export goes further: it offers CDN fetching from the first screen with no
+   local install required at all. WoW is distributed as a free trial with no purchase
+   required. The files in question are interface templates, not premium content.
 
-- **Security model.** Scryer's sandbox design (see `docs/decisions/004_license.md`) assumes no outbound network requests from the asset pipeline. Any remote fetch would violate this.
+## ToS / terms of use
 
-- **Scope.** `casc-lib` is a local CASC reader, not a CASC+CDN client. Adding any remote-fetch capability would significantly expand its scope and maintenance surface.
+This is a grey area and we do not claim otherwise. The WoW EULA broadly prohibits
+"unauthorized third-party programs" accessing Blizzard services, and "services" could
+plausibly be read to include the CDN. The game client performs these same fetches, but as
+licensed software acting as Blizzard's agent — that permission does not automatically
+extend to third-party tools.
 
-## Consequences
+At the same time, Blizzard's CDN serves content-addressed blobs over plain HTTP with no
+authentication. The use case here — a developer tool fetching interface templates to
+preview an addon the user is writing — is far removed from the harms the EULA targets
+(botting, competitive automation, circumvention of purchase).
 
-- Files not locally cached by Battle.net will not be extractable. This includes, on a minimal WoW install, many Blizzard interface XML/Lua files and Western fonts (`FRIZQT__.TTF`, `ARIALN.TTF`, etc.).
-- Previews that depend on those files (e.g. `NineSlicePanelTemplate` templates, `TooltipDefaultLayout` layouts) will degrade to placeholder/unstyled frames until the user runs a full WoW download.
-- The `scryer-asset-server` should distinguish CDN-only misses from genuine extraction errors — reporting them as `skipped:cdn-only` rather than `errors`, so the stats remain meaningful and the log is not alarming.
-- A future "install completeness check" (telling the user which content categories are missing and prompting them to run the Battle.net launcher) is the recommended user-facing improvement, not automatic CDN fetching.
+We are being as conservative as the use case allows:
+
+- Requires a valid local install
+- Uses only Blizzard-provided CDN coordinates
+- Fetches only files referenced in the local encoding table
+- Requires explicit user consent
+- Does not apply to Steam installs
+
+Because we prompt the user, we owe them honesty about the ambiguity. The dialog must not
+misrepresent what is happening. Scryer surfaces the question; the user makes the call.
+
+## What does not change
+
+- Community metadata (listfile, atlas DB2 tables from wago.tools) continues without a
+  consent gate — not Blizzard game content.
+- Files absent from the local encoding table entirely are still reported as unavailable.
+- CDN blobs are cached locally, content-addressed, so each file is fetched at most once.
+- `casc-lib` gains a CDN client component but remains scoped to EKey-addressed blob fetch —
+  it is not a general HTTP client.

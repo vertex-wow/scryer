@@ -26,6 +26,7 @@
 //!     keyfile: None,
 //!     listfile: None,
 //!     output_dir: None,
+//!     cdn_cache_dir: None,
 //! };
 //! let storage = CascStorage::open(&config)?;
 //! let data = storage.read_by_fdid(136235, LocaleFlags::EN_US)?;
@@ -34,6 +35,8 @@
 
 /// BLTE (Binary Large Table Entry) container decoding, compression, and encryption.
 pub mod blte;
+/// CDN client for fetching EKey-addressed blobs from Blizzard's content delivery network.
+pub mod cdn;
 /// CASC configuration file parsers (`.build.info`, build config, CDN config).
 pub mod config;
 /// Encoding file parser - maps content keys (CKeys) to encoding keys (EKeys).

@@ -125,6 +125,12 @@ Switch flavors at any time with **Scryer: Select Flavor** or by changing `scryer
 
 ---
 
+## FAQ
+
+Common questions — does Scryer play WoW, download game files, or let you browse assets? See [docs/faq.md](docs/faq.md).
+
+---
+
 ## License
 
 [AGPL-3.0](./LICENSE) — Maintained by the [Vertex WoW Community](https://github.com/vertex-wow) and [Vertex Industries](https://github.com/vertex-industries).

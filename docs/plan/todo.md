@@ -6,6 +6,22 @@ Completed items are in [todo-archive.md](todo-archive.md).
 
 ---
 
+## CDN client startup caching
+
+**Status:** 📋 Pending
+
+**Problem:** On every cold start the CDN client parses 1,406 `Data/indices/*.index` files to build an 11 M-entry `HashMap<[u8;16], CdnArchiveEntry>`. This takes 18–29 s. Additionally, the host probe (HEAD request to each CDN host) adds ~1 s and the result is always the same between sessions (level3.blizzard.com is permanently 403).
+
+**Plan:**
+
+1. **Archive index disk cache** — after `load_all()` builds the HashMap, serialize it to a flat binary file in the CDN cache dir (e.g. `.casc-cdn-cache/archive-index.bin`). Format: a header with entry count + build version string, followed by N × 28-byte records (`ekey[16] + archive_hash_hex_offset[4] + size[4] + offset[4]`) and a string table for the 32-char hex archive hashes. On startup, check if the cache file exists and matches the current CASC build version; if so, load directly (mmap or bulk read) instead of parsing the 1,406 `.index` files. Invalidate when the build version changes (same mechanism as the TS-side build stamp). Expected result: 18–29 s → ~1 s.
+
+2. **Host probe cache** — after probing, write `failed_hosts: Vec<String>` + timestamp to `.casc-cdn-cache/host-probe.json`. On startup, if the file is < 24 h old, skip the probe and use the cached result. Invalidate if all known hosts are in the failed list (forces a fresh probe to detect CDN recovery). Expected savings: ~1 s per startup.
+
+**Effort:** S — binary serialization is ~50–100 lines of Rust; the host probe JSON is ~20 lines.
+
+---
+
 ## TGA texture decode (deferred from M3)
 
 **Problem:** TGA (Targa) textures are used by many addon-bundled images. M3 logs a warning and shows a labeled placeholder for `.tga` files; it does not decode them.

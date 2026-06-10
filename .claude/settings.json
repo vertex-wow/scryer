@@ -78,7 +78,10 @@
       "Bash(cargo test *)",
       "Bash(pnpm prettier *)",
       "Bash(pnpm jest *)",
-      "Bash(cargo check *)"
+      "Bash(cargo check *)",
+      "Bash(curl *)",
+      "Bash(xxd *)",
+      "Bash(pnpm test:net)"
     ],
     "additionalDirectories": [
       "/tmp"

@@ -190,6 +190,21 @@
           "default": 20,
           "description": "Idle timeout in seconds before the asset server self-exits to free memory."
         },
+        "scryer.cdnFallback": {
+          "type": "string",
+          "enum": [
+            "ask",
+            "cdn",
+            "none"
+          ],
+          "enumDescriptions": [
+            "Ask once the first time a missing file is encountered, then remember your choice.",
+            "Always download missing files from Blizzard's CDN without prompting.",
+            "Never download from CDN. Missing files show as placeholders."
+          ],
+          "default": "ask",
+          "description": "What to do when a game file is present in your WoW installation's index but hasn't been downloaded by Battle.net. Only applies to Battle.net installs (Steam installs have no CDN coordinates)."
+        },
         "scryer.defaultTarget": {
           "type": "string",
           "enum": [
@@ -359,6 +374,7 @@
     "watch": "node esbuild.mjs --watch",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests",
     "test:casc": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.casc.config.mjs",
+    "test:net": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.net.config.mjs",
     "test:webview": "playwright test",
     "test:webview:ui": "playwright test --ui",
     "test:webview:update": "playwright test --update-snapshots",

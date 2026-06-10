@@ -28,6 +28,8 @@ export interface ExtractorOptions {
   grepPath?: string;
   listfileDir?: string;
   logFile?: string;
+  /** When true, tell the asset server to attempt CDN fallback for CDN-only stubs. */
+  cdnEnabled?: boolean;
   output: vscode.LogOutputChannel;
 }
 
@@ -85,6 +87,7 @@ function makeCoreOpts(opts: ExtractorOptions): ExtractCoreOptions {
     grepPath: opts.grepPath,
     listfileDir: opts.listfileDir || "",
     logFile: opts.logFile,
+    cdnEnabled: opts.cdnEnabled,
     log: (level, msg, serverTime) => {
       if (serverTime) {
         const ch = opts.output as { logServer?: (l: string, m: string, t: string) => void };
@@ -131,17 +134,20 @@ export async function extractMissing(paths: string[], opts: ExtractorOptions): P
 
 /**
  * Extract all Blizzard addon interface files via a bulk --type interface pass.
- * Much faster than per-file extraction for the initial Blizzard corpus setup.
+ * Returns the ExtractionResult so the caller can detect unavailable files and
+ * show the CDN consent dialog if needed.
  * Errors when wowDir is not configured — it is required for extraction to work.
  */
-export async function extractBlizzardShared(opts: ExtractorOptions): Promise<void> {
+export async function extractBlizzardShared(
+  opts: ExtractorOptions,
+): Promise<ExtractionResult | undefined> {
   if (!opts.wowDir) {
     safeLog(
       opts.output,
       "error",
       "scryer.installDir is not set. Set it to your WoW root directory (the folder containing _retail_/, _classic_/, .build.info) to enable extraction.",
     );
-    return;
+    return undefined;
   }
   const notif = "Prewarming cache with game assets…";
   safeLog(opts.output, "trace", `notif: ${notif}`);
@@ -161,13 +167,14 @@ export async function extractBlizzardShared(opts: ExtractorOptions): Promise<voi
       "error",
       `assets-extraction failed: "${opts.flavor}/shared" → ${String(err)}`,
     );
-    return;
+    return undefined;
   }
   safeLog(
     opts.output,
     "info",
     `assets-extraction: Blizzard shared extracted (${result.exported} exported, ${result.unavailable} unavailable, ${result.errors} errors)`,
   );
+  return result;
 }
 
 /**
