@@ -533,7 +533,7 @@ pub fn extract_all<S: ExtractionStore + Sync>(
     let completed = AtomicU64::new(0);
     let stat_success = AtomicU64::new(0);
     let stat_errors = AtomicU64::new(0);
-    let stat_skipped = AtomicU64::new(0);
+    let stat_unavailable = AtomicU64::new(0);
     let stat_bytes = AtomicU64::new(0);
 
     pool.install(|| {
@@ -546,7 +546,16 @@ pub fn extract_all<S: ExtractionStore + Sync>(
                     stat_bytes.fetch_add(*bytes, Ordering::Relaxed);
                 }
                 Err(e) if e.starts_with("skipped:") => {
-                    stat_skipped.fetch_add(1, Ordering::Relaxed);
+                    stat_unavailable.fetch_add(1, Ordering::Relaxed);
+                    if tracing::enabled!(tracing::Level::DEBUG) {
+                        let path = storage.listfile_path(*fdid).unwrap_or("unknown");
+                        tracing::debug!(
+                            "    unavailable: {} (fdid={}) — {}",
+                            path,
+                            fdid,
+                            e.trim_start_matches("skipped:")
+                        );
+                    }
                 }
                 Err(e) => {
                     stat_errors.fetch_add(1, Ordering::Relaxed);
@@ -580,7 +589,7 @@ pub fn extract_all<S: ExtractionStore + Sync>(
         total,
         success: stat_success.load(Ordering::Relaxed),
         errors: stat_errors.load(Ordering::Relaxed),
-        skipped: stat_skipped.load(Ordering::Relaxed),
+        unavailable: stat_unavailable.load(Ordering::Relaxed),
         bytes_written: stat_bytes.load(Ordering::Relaxed),
     };
 
@@ -1212,8 +1221,8 @@ mod tests {
 
         let stats = extract_all(&storage, &extract_config, None).unwrap();
         println!(
-            "Extracted: {} success, {} errors, {} skipped",
-            stats.success, stats.errors, stats.skipped
+            "Extracted: {} success, {} errors, {} unavailable",
+            stats.success, stats.errors, stats.unavailable
         );
         assert!(stats.total > 0);
     }
@@ -1335,7 +1344,7 @@ mod mock_tests {
         assert_eq!(stats.total, 2);
         assert_eq!(stats.success, 2);
         assert_eq!(stats.errors, 0);
-        assert_eq!(stats.skipped, 0);
+        assert_eq!(stats.unavailable, 0);
         assert_eq!(stats.bytes_written, 30);
         let _ = std::fs::remove_dir_all(&outdir);
     }
@@ -1365,13 +1374,13 @@ mod mock_tests {
         assert_eq!(stats.total, 4);
         assert_eq!(stats.success, 1);
         assert_eq!(stats.errors, 1);
-        assert_eq!(stats.skipped, 2); // cdn-only + encrypted
+        assert_eq!(stats.unavailable, 2); // cdn-only + encrypted = both unavailable locally
         assert_eq!(stats.bytes_written, 5);
         let _ = std::fs::remove_dir_all(&outdir);
     }
 
     #[test]
-    fn cdn_only_maps_to_skipped_not_error() {
+    fn cdn_only_maps_to_unavailable_not_error() {
         let ck = [0x20u8; 16];
         let store = MockStore {
             entries: vec![(10, any_locale(ck))],
@@ -1379,14 +1388,14 @@ mod mock_tests {
         };
         let outdir = temp_out("cdn_only");
         let stats = extract_all(&store, &base_config(outdir.clone()), None).unwrap();
-        assert_eq!(stats.skipped, 1);
+        assert_eq!(stats.unavailable, 1);
         assert_eq!(stats.errors, 0);
         assert_eq!(stats.success, 0);
         let _ = std::fs::remove_dir_all(&outdir);
     }
 
     #[test]
-    fn encrypted_with_skip_maps_to_skipped() {
+    fn encrypted_with_skip_maps_to_unavailable() {
         let ck = [0x30u8; 16];
         let store = MockStore {
             entries: vec![(20, encrypted_entry(ck))],
@@ -1396,7 +1405,7 @@ mod mock_tests {
         let mut config = base_config(outdir.clone());
         config.skip_encrypted = true;
         let stats = extract_all(&store, &config, None).unwrap();
-        assert_eq!(stats.skipped, 1);
+        assert_eq!(stats.unavailable, 1);
         assert_eq!(stats.success, 0);
         assert_eq!(stats.errors, 0);
         let _ = std::fs::remove_dir_all(&outdir);
@@ -1413,7 +1422,7 @@ mod mock_tests {
         let stats = extract_all(&store, &base_config(outdir.clone()), None).unwrap();
         assert_eq!(stats.errors, 1);
         assert_eq!(stats.success, 0);
-        assert_eq!(stats.skipped, 0);
+        assert_eq!(stats.unavailable, 0);
         let _ = std::fs::remove_dir_all(&outdir);
     }
 
@@ -1428,7 +1437,7 @@ mod mock_tests {
         assert_eq!(stats.total, 0);
         assert_eq!(stats.success, 0);
         assert_eq!(stats.errors, 0);
-        assert_eq!(stats.skipped, 0);
+        assert_eq!(stats.unavailable, 0);
         assert_eq!(stats.bytes_written, 0);
         let _ = std::fs::remove_dir_all(&outdir);
     }

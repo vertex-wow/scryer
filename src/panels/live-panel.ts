@@ -495,11 +495,19 @@ export class ScryerLivePanel {
       // not silent skips. If a file fails, fix the missing C stub or add the dependency
       // addon to this list; do not add a shadow stub in wow-api.ts.
       for (const addonName of ["Blizzard_SharedXMLBase", "Blizzard_Colors", "Blizzard_SharedXML"]) {
-        for (const luaPath of this.assets.blizzardAddonLuaFiles(addonName, (rel) => {
+        const luaFiles = this.assets.blizzardAddonLuaFiles(addonName, (rel) => {
           this.output.warn(
             `[Live] Blizzard Lua not extracted — ${addonName}/${rel} (run full extraction to fix)`,
           );
-        })) {
+        });
+        if (luaFiles.length === 0) {
+          this.output.warn(
+            `[Live] ${addonName}: no Lua files loaded — TOC file missing or CDN-only stub.\n` +
+              `  Blizzard templates, NineSlice borders, and shared APIs will be unavailable.\n` +
+              `  Fix: Battle.net → World of Warcraft → Options → Scan and Repair.`,
+          );
+        }
+        for (const luaPath of luaFiles) {
           try {
             const content = Buffer.from(
               await vscode.workspace.fs.readFile(vscode.Uri.file(luaPath)),

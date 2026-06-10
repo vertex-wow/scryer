@@ -381,7 +381,7 @@ fn extract_batch_small_subset() {
     println!("  Total:   {}", stats.total);
     println!("  Success: {}", stats.success);
     println!("  Errors:  {}", stats.errors);
-    println!("  Skipped: {}", stats.skipped);
+    println!("  Unavailable: {}", stats.unavailable);
 
     assert!(stats.total > 0, "Should have found some files");
     assert!(

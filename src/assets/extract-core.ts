@@ -22,7 +22,8 @@ export type ExtractType = "textures" | "interface" | "all";
 
 export interface ExtractionResult {
   exported: number;
-  skippedExists: number;
+  /** Files in the CASC index the server could not extract locally: CDN-only stubs or encrypted. NOT "already cached". */
+  unavailable: number;
   errors: number;
 }
 
@@ -270,7 +271,7 @@ async function extractRetailPaths(
   const client = getAssetClient(opts);
   const res = await client.extractFiles(paths);
   await normalizeSubtreeToLowercase(opts.outDir);
-  return { exported: res.extracted, skippedExists: res.skipped, errors: res.errors };
+  return { exported: res.extracted, unavailable: res.unavailable, errors: res.errors };
 }
 
 async function extractRetailBulk(
@@ -288,7 +289,7 @@ async function extractRetailBulk(
   const client = getAssetClient(opts);
   const res = await client.extractFiles(globs);
   await normalizeSubtreeToLowercase(opts.outDir);
-  return { exported: res.extracted, skippedExists: res.skipped, errors: res.errors };
+  return { exported: res.extracted, unavailable: res.unavailable, errors: res.errors };
 }
 
 // ---------------------------------------------------------------------------
@@ -362,7 +363,7 @@ async function extractLoosePaths(
     exported++;
   }
   await normalizeSubtreeToLowercase(opts.outDir);
-  return { exported, skippedExists: 0, errors };
+  return { exported, unavailable: 0, errors };
 }
 
 async function copyFilesRecursive(
@@ -407,7 +408,7 @@ async function extractLooseBulk(
 
   const exported = await copyFilesRecursive(interfaceDir, opts.outDir, exts);
   await normalizeSubtreeToLowercase(opts.outDir);
-  return { exported, skippedExists: 0, errors: 0 };
+  return { exported, unavailable: 0, errors: 0 };
 }
 
 // ---------------------------------------------------------------------------
@@ -422,7 +423,7 @@ export async function extractPaths(
   paths: string[],
   opts: ExtractCoreOptions,
 ): Promise<ExtractionResult> {
-  if (paths.length === 0) return { exported: 0, skippedExists: 0, errors: 0 };
+  if (paths.length === 0) return { exported: 0, unavailable: 0, errors: 0 };
   if (opts.flavor === "retail") {
     return extractRetailPaths(paths, opts);
   } else {

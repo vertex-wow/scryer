@@ -370,6 +370,27 @@ export class AssetService {
       // If it didn't (no script, failed extraction, etc.) we stop here rather than loop.
       const afterAddons = discoverBlizzardPaths(this.opts.sourceDir, addonsDir);
       const afterFontsMissing = !fs.existsSync(fontsDir);
+
+      // Warn when Blizzard addon files remain missing after extraction. The most common
+      // cause is CDN-only stubs: Battle.net downloaded partial game data (enough to play)
+      // but skipped addon scaffolding files. Without these files, Blizzard templates and
+      // Lua won't load and textures will be missing. The fix is a Battle.net Scan & Repair.
+      if (afterAddons.length > 0) {
+        const tocFiles = afterAddons.filter((p) => /\.toc$/i.test(p));
+        if (tocFiles.length > 0) {
+          try {
+            this.opts.output.warn(
+              `[assets] Blizzard addon TOC files could not be extracted (CDN-only stubs or not installed).\n` +
+                `  Blizzard templates and Lua corpus will not load — textures and NineSlice borders will be missing.\n` +
+                `  Still missing: ${tocFiles.join(", ")}\n` +
+                `  Fix: open Battle.net → World of Warcraft → Options → Scan and Repair to download all game files.`,
+            );
+          } catch {
+            /* channel disposed */
+          }
+        }
+      }
+
       return afterAddons.length < missingAddons.length || (fontsMissing && !afterFontsMissing);
     } finally {
       this.blizzardFilesSettled = true;

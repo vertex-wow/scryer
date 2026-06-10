@@ -76,7 +76,9 @@
       "Bash(find /home/*/_live/Addons/ * | xargs * | head *)",
       "Read(//mnt/*//World of Warcraft/_retail_/Interface/AddOns/**)",
       "Bash(cargo test *)",
-      "Bash(pnpm prettier *)"
+      "Bash(pnpm prettier *)",
+      "Bash(pnpm jest *)",
+      "Bash(cargo check *)"
     ],
     "additionalDirectories": [
       "/tmp"

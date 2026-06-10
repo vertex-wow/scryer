@@ -166,7 +166,7 @@ export async function extractBlizzardShared(opts: ExtractorOptions): Promise<voi
   safeLog(
     opts.output,
     "info",
-    `assets-extraction: Blizzard shared extracted (${result.exported} exported, ${result.skippedExists} cached, ${result.errors} ignored)`,
+    `assets-extraction: Blizzard shared extracted (${result.exported} exported, ${result.unavailable} unavailable, ${result.errors} errors)`,
   );
 }
 

@@ -397,7 +397,7 @@ fn cmd_extract(
     println!("  Total files:   {}", stats.total);
     println!("  Successful:    {}", stats.success);
     println!("  Errors:        {}", stats.errors);
-    println!("  Skipped:       {}", stats.skipped);
+    println!("  Unavailable:   {}", stats.unavailable);
     println!(
         "  Bytes written: {:.2} GB",
         stats.bytes_written as f64 / (1024.0 * 1024.0 * 1024.0)

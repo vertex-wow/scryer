@@ -377,8 +377,8 @@ fn synthetic_happy_path() {
     assert_eq!(stats.success, 1, "FDID 1 (valid BLTE payload) should succeed");
     assert_eq!(stats.errors, 0, "no hard errors expected");
     assert_eq!(
-        stats.skipped, 2,
-        "FDID 2 (cdn-only) + FDID 3 (encrypted) both skipped"
+        stats.unavailable, 2,
+        "FDID 2 (cdn-only) + FDID 3 (encrypted) both unavailable locally"
     );
     assert_eq!(
         stats.bytes_written,
@@ -402,7 +402,7 @@ fn synthetic_happy_path() {
 /// CDN-only stub: EKEY2's archive slot contains non-BLTE bytes → `skipped:cdn-only`,
 /// not `errors`.
 #[test]
-fn synthetic_cdn_only_maps_to_skipped() {
+fn synthetic_cdn_only_maps_to_unavailable() {
     let fix = temp_dir("cdn_fix");
     let out = temp_dir("cdn_out");
 
@@ -411,10 +411,10 @@ fn synthetic_cdn_only_maps_to_skipped() {
 
     let stats = extract_all(&storage, &base_extract_cfg(out.clone()), None).unwrap();
 
-    // CDN-only detection must increment skipped, never errors
+    // CDN-only detection must increment unavailable, never errors
     assert_eq!(stats.errors, 0, "CDN-only stub must not increment errors");
-    // skipped includes at least FDID 2 (cdn-only) — FDID 3 (encrypted) also skipped
-    assert!(stats.skipped >= 1, "CDN-only stub should increment skipped");
+    // unavailable includes at least FDID 2 (cdn-only) — FDID 3 (encrypted) also unavailable
+    assert!(stats.unavailable >= 1, "CDN-only stub should increment unavailable");
 
     let _ = std::fs::remove_dir_all(&fix);
     let _ = std::fs::remove_dir_all(&out);
@@ -435,10 +435,10 @@ fn synthetic_encrypted_skip() {
     let stats = extract_all(&storage, &cfg, None).unwrap();
 
     assert_eq!(stats.errors, 0);
-    // FDID 3 should contribute to skipped
+    // FDID 3 should contribute to unavailable
     assert!(
-        stats.skipped >= 1,
-        "encrypted entry must be skipped with skip_encrypted=true"
+        stats.unavailable >= 1,
+        "encrypted entry must be counted unavailable with skip_encrypted=true"
     );
     // FDID 3 has no idx entry — if extract_one tried to read it, we'd get a
     // KeyNotFound error and errors would be > 0.

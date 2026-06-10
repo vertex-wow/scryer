@@ -29,7 +29,9 @@ enum ServerResponse {
         id: u64,
         ok: bool,
         extracted: u64,
-        skipped: u64,
+        /// Files in the CASC index that could not be extracted locally (CDN-only stubs or encrypted).
+        /// NOT "already cached" — the server always attempts extraction.
+        unavailable: u64,
         errors: u64,
     },
     Status {
@@ -201,7 +203,7 @@ pub fn run_server(
                 let store = storage.as_ref().unwrap();
 
                 let mut extracted_count = 0;
-                let mut skipped_count = 0;
+                let mut unavailable_count = 0;
                 let mut errors_count = 0;
 
                 let config = ExtractionConfig {
@@ -217,7 +219,7 @@ pub fn run_server(
                 match extract_all(store, &config, None) {
                     Ok(stats) => {
                         extracted_count += stats.success;
-                        skipped_count += stats.skipped;
+                        unavailable_count += stats.unavailable;
                         errors_count += stats.errors;
                     }
                     Err(e) => {
@@ -227,9 +229,9 @@ pub fn run_server(
                 }
 
                 tracing::info!(
-                    "Extract complete: extracted={} skipped={} errors={}",
+                    "Extract complete: extracted={} unavailable={} errors={}",
                     extracted_count,
-                    skipped_count,
+                    unavailable_count,
                     errors_count
                 );
 
@@ -237,7 +239,7 @@ pub fn run_server(
                     id: req.id,
                     ok: true,
                     extracted: extracted_count,
-                    skipped: skipped_count,
+                    unavailable: unavailable_count,
                     errors: errors_count,
                 };
                 serde_json::to_writer(&mut stdout, &res).unwrap();
@@ -321,14 +323,14 @@ mod tests {
             id: 1,
             ok: true,
             extracted: 42,
-            skipped: 3,
+            unavailable: 3,
             errors: 1,
         };
         let json: serde_json::Value = serde_json::to_value(&res).unwrap();
         assert_eq!(json["id"], 1);
         assert_eq!(json["ok"], true);
         assert_eq!(json["extracted"], 42);
-        assert_eq!(json["skipped"], 3);
+        assert_eq!(json["unavailable"], 3);
         assert_eq!(json["errors"], 1);
     }
 

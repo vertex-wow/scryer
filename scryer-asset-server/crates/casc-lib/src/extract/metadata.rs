@@ -37,14 +37,16 @@ pub struct MetadataEntry {
 /// Accumulated extraction statistics.
 #[derive(Debug, Clone, Serialize)]
 pub struct ExtractionStats {
-    /// Total number of files processed (success + errors + skipped).
+    /// Total number of files processed (success + errors + unavailable).
     pub total: u64,
     /// Number of files successfully extracted.
     pub success: u64,
-    /// Number of files that failed extraction.
+    /// Number of files that failed extraction with an error.
     pub errors: u64,
-    /// Number of files skipped (e.g. encrypted files when `skip_encrypted` is set).
-    pub skipped: u64,
+    /// Number of files that could not be extracted because the data is not locally present.
+    /// This includes CDN-only stubs (Battle.net partial install) and encrypted files.
+    /// Distinct from "already cached" — the server always attempts extraction.
+    pub unavailable: u64,
     /// Total bytes written to disk across all successful extractions.
     pub bytes_written: u64,
 }
@@ -56,7 +58,7 @@ impl ExtractionStats {
             total: 0,
             success: 0,
             errors: 0,
-            skipped: 0,
+            unavailable: 0,
             bytes_written: 0,
         }
     }
@@ -168,7 +170,7 @@ impl MetadataWriter {
             } else if entry.status.starts_with("error") {
                 stats.errors += 1;
             } else if entry.status.starts_with("skipped") {
-                stats.skipped += 1;
+                stats.unavailable += 1;
             }
         }
 
@@ -341,7 +343,7 @@ mod tests {
         assert_eq!(stats.total, 4);
         assert_eq!(stats.success, 2);
         assert_eq!(stats.errors, 1);
-        assert_eq!(stats.skipped, 1);
+        assert_eq!(stats.unavailable, 1);
         assert_eq!(stats.bytes_written, 2048); // 2 successful * 1024
 
         writer.finish().unwrap();
