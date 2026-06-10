@@ -244,6 +244,20 @@ fn main() {
             .init();
     }
 
+    {
+        let mtime = std::env::current_exe()
+            .and_then(|p| p.metadata())
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| {
+                let secs = t.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs();
+                let utc = chrono::DateTime::from_timestamp(secs as i64, 0)?;
+                Some(utc.with_timezone(&chrono::Local).format("%H:%M:%S").to_string())
+            })
+            .unwrap_or_else(|| "unknown".into());
+        tracing::info!("binary built: {}", mtime);
+    }
+
     if let Err(e) = run(cli) {
         tracing::error!("{}", e);
         std::process::exit(1);

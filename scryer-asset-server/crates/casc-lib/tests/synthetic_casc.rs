@@ -225,13 +225,15 @@ fn temp_dir(tag: &str) -> PathBuf {
 /// offset 0          : [30-byte header for ENCODING_EKEY][enc_blte]
 /// offset enc_total  : [30-byte header for ROOT_EKEY][root_blte]
 /// offset cont_start : [payload1_blte]      ← BLTE directly (no header prefix)
-/// offset stub_start : [0x00 × 8]           ← CDN-only: not "BLTE", 8 bytes minimum
+/// offset stub_start : [0x00 × 8]           ← CDN-only stub: not "BLTE", 8 bytes minimum
 /// ```
 ///
 /// Bootstrap reads (`bootstrap_encoding`, `bootstrap_root`) use `read_entry`
 /// which skips the 30-byte header. Content reads (`read_by_ckey`) use
-/// `read_raw` which returns data from the idx offset directly, so content
-/// entries have their BLTE payload sitting at the idx offset with no prefix.
+/// `read_raw` which returns data from the idx offset directly — so content
+/// entries have their BLTE payload sitting directly at the idx offset with no
+/// prefix. CDN stubs have non-BLTE bytes (zeros or a bare data header), causing
+/// BLTE decode to fail with `InvalidMagic`, which triggers the ecache fallback.
 fn build_fixture(dir: &Path) -> OpenConfig {
     // Encoding raw (decoded) content
     let enc_raw = make_encoding_raw(&[
@@ -415,6 +417,127 @@ fn synthetic_cdn_only_maps_to_unavailable() {
     assert_eq!(stats.errors, 0, "CDN-only stub must not increment errors");
     // unavailable includes at least FDID 2 (cdn-only) — FDID 3 (encrypted) also unavailable
     assert!(stats.unavailable >= 1, "CDN-only stub should increment unavailable");
+
+    let _ = std::fs::remove_dir_all(&fix);
+    let _ = std::fs::remove_dir_all(&out);
+}
+
+/// Ecache fallback: FDID 10 has an IDX entry in `Data/data/` pointing to a CDN-only
+/// zero stub, but the real BLTE data lives in `Data/ecache/`. Storage must fall back
+/// and extract the file successfully — zero errors, zero unavailable.
+#[test]
+fn synthetic_ecache_fallback() {
+    const E4_CKEY: [u8; 16] = [0xC4; 16];
+    const E4_EKEY: [u8; 16] = [0xD4; 16];
+    const E4_PAYLOAD: &[u8] = b"ecache data";
+
+    let fix = temp_dir("ecache_fix");
+    let out = temp_dir("ecache_out");
+
+    // Encoding table: bootstrap entries + E4_CKEY → E4_EKEY
+    let enc_raw = make_encoding_raw(&[
+        (ROOT_CKEY, ROOT_EKEY, 1000),
+        (E4_CKEY, E4_EKEY, E4_PAYLOAD.len() as u64),
+    ]);
+    let enc_blte = make_blte(&enc_raw);
+
+    // Root: single FDID 10 → E4_CKEY
+    let root_raw = make_root_raw(&[(
+        0x10000000, // NoNameHash
+        0xFFFF_FFFF,
+        vec![(10i32, E4_CKEY)],
+    )]);
+    let root_blte = make_blte(&root_raw);
+
+    let enc_entry_total = 30 + enc_blte.len();
+    let root_entry_total = 30 + root_blte.len();
+    let stub_offset: u64 = (enc_entry_total + root_entry_total) as u64;
+
+    // Data/data/data.000: bootstrap entries + 8-byte zero stub for E4_EKEY
+    let mut data000_primary: Vec<u8> = Vec::new();
+    data000_primary.extend_from_slice(&make_data_header(&ENCODING_EKEY, enc_entry_total as u32));
+    data000_primary.extend_from_slice(&enc_blte);
+    data000_primary.extend_from_slice(&make_data_header(&ROOT_EKEY, root_entry_total as u32));
+    data000_primary.extend_from_slice(&root_blte);
+    data000_primary.extend_from_slice(&[0u8; 8]); // CDN stub — zeros, not BLTE
+
+    let idx_primary = make_idx(&[
+        (key9(&ENCODING_EKEY), 0, 0, enc_entry_total as u32),
+        (key9(&ROOT_EKEY), 0, enc_entry_total as u64, root_entry_total as u32),
+        (key9(&E4_EKEY), 0, stub_offset, 8u32),
+    ]);
+
+    // Data/ecache/data.000: [30-byte header][BLTE payload] for E4_EKEY at offset 0.
+    // Ecache entries use the same data.NNN format as bootstrap entries — read_entry skips
+    // the 30-byte header to expose the BLTE payload.
+    let payload_blte = make_blte(E4_PAYLOAD);
+    let ecache_entry_total = 30 + payload_blte.len();
+    let mut data000_ecache: Vec<u8> = Vec::new();
+    data000_ecache.extend_from_slice(&make_data_header(&E4_EKEY, ecache_entry_total as u32));
+    data000_ecache.extend_from_slice(&payload_blte);
+    let idx_ecache = make_idx(&[(key9(&E4_EKEY), 0, 0, ecache_entry_total as u32)]);
+
+    // Write Data/data/
+    let data_data = fix.join("Data").join("data");
+    std::fs::create_dir_all(&data_data).unwrap();
+    std::fs::write(data_data.join("data.000"), &data000_primary).unwrap();
+    std::fs::write(data_data.join("0000000001.idx"), &idx_primary).unwrap();
+
+    // Write Data/ecache/
+    let data_ecache_dir = fix.join("Data").join("ecache");
+    std::fs::create_dir_all(&data_ecache_dir).unwrap();
+    std::fs::write(data_ecache_dir.join("data.000"), &data000_ecache).unwrap();
+    std::fs::write(data_ecache_dir.join("0000000001.idx"), &idx_ecache).unwrap();
+
+    // Build config (reuse existing module-level constants)
+    let cfg_rel = format!(
+        "config/{}/{}/{}",
+        &BUILD_KEY_HEX[..2],
+        &BUILD_KEY_HEX[2..4],
+        BUILD_KEY_HEX
+    );
+    let cfg_path = fix.join("Data").join(&cfg_rel);
+    std::fs::create_dir_all(cfg_path.parent().unwrap()).unwrap();
+    std::fs::write(
+        &cfg_path,
+        format!(
+            "root = {root}\nencoding = 00000000000000000000000000000000 {enc}\n\
+             build-name = test-build\nbuild-uid = wow\nbuild-product = WoW\n",
+            root = ROOT_CKEY_HEX,
+            enc = ENCODING_EKEY_HEX,
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        fix.join(".build.info"),
+        format!(
+            "Branch!STRING:0|Active!DEC:1|Build Key!HEX:16|Version!STRING:0|Product!STRING:0\n\
+             eu|1|{}|1.0.0.0|wow\n",
+            BUILD_KEY_HEX
+        ),
+    )
+    .unwrap();
+
+    let listfile = fix.join("listfile.csv");
+    std::fs::write(&listfile, "").unwrap();
+
+    let open_cfg = OpenConfig {
+        install_dir: fix.clone(),
+        product: Some("wow".into()),
+        keyfile: None,
+        listfile: Some(listfile),
+        output_dir: None,
+    };
+
+    let storage = CascStorage::open(&open_cfg).expect("CascStorage::open on ecache fixture");
+    let stats = extract_all(&storage, &base_extract_cfg(out.clone()), None)
+        .expect("extract_all should not error");
+
+    assert_eq!(stats.total, 1, "one root entry (FDID 10)");
+    assert_eq!(stats.success, 1, "FDID 10 should be extracted via ecache fallback");
+    assert_eq!(stats.errors, 0);
+    assert_eq!(stats.unavailable, 0, "nothing unavailable after ecache fallback");
+    assert_eq!(stats.bytes_written, E4_PAYLOAD.len() as u64);
 
     let _ = std::fs::remove_dir_all(&fix);
     let _ = std::fs::remove_dir_all(&out);

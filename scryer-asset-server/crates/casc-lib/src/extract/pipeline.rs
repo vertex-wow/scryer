@@ -21,7 +21,7 @@ use crate::listfile::downloader::load_or_download;
 use crate::listfile::parser::Listfile;
 use crate::root::flags::LocaleFlags;
 use crate::root::parser::{RootEntry, RootFile, RootFormat};
-use crate::storage::data::DataStore;
+use crate::storage::data::{DATA_HEADER_SIZE, DataStore};
 use crate::storage::index::{CascIndex, IndexEntry};
 
 use super::metadata::{ExtractionStats, MetadataEntry, MetadataWriter};
@@ -112,6 +112,11 @@ pub trait ExtractionStore {
 }
 
 // ---------------------------------------------------------------------------
+// CDN stub detection
+// ---------------------------------------------------------------------------
+
+
+// ---------------------------------------------------------------------------
 // Central CASC storage facade
 // ---------------------------------------------------------------------------
 
@@ -126,6 +131,10 @@ pub struct CascStorage {
     pub root: RootFile,
     pub listfile: Listfile,
     pub keystore: TactKeyStore,
+    /// Fallback index from `Data/ecache/` — `None` when that directory is absent.
+    index_ecache: Option<CascIndex>,
+    /// Fallback data store from `Data/ecache/` — `None` when that directory is absent.
+    data_ecache: Option<DataStore>,
 }
 
 impl CascStorage {
@@ -155,6 +164,15 @@ impl CascStorage {
         // 5. Open DataStore from Data/data/
         let data_store = DataStore::open(&data_data_dir)?;
 
+        // 5b. Load ecache fallback (Data/ecache/) — silently skip if absent
+        let ecache_dir = data_dir.join("ecache");
+        let index_ecache = CascIndex::load_if_exists(&ecache_dir)?;
+        let data_ecache = DataStore::open_if_exists(&ecache_dir)?;
+        match &index_ecache {
+            Some(idx) => tracing::info!("ecache loaded: {} entries from {}", idx.len(), ecache_dir.display()),
+            None => tracing::info!("ecache absent: {} not found", ecache_dir.display()),
+        }
+
         // 6. Set up keystore
         let mut keystore = TactKeyStore::with_known_keys();
         if let Some(ref keyfile_path) = config.keyfile {
@@ -180,10 +198,20 @@ impl CascStorage {
             root,
             listfile,
             keystore,
+            index_ecache,
+            data_ecache,
         })
     }
 
     /// Read a file by its content key (CKey).
+    ///
+    /// Content files in `Data/data/` store BLTE directly at the IDX offset (no header
+    /// prefix). CDN-only stubs have non-BLTE bytes there (zeros, or a bare 30-byte data
+    /// header with no payload), causing BLTE decode to fail with `InvalidMagic`. When
+    /// that happens, the method falls through to `Data/ecache/`. Ecache entries DO include
+    /// the 30-byte data header at their IDX offset, so reads there use `read_entry` to
+    /// skip it. If the EKey is absent from both stores, the file has not been downloaded
+    /// locally — the caller should report it as CDN-only.
     pub fn read_by_ckey(&self, ckey: &[u8; 16]) -> Result<Vec<u8>> {
         let enc_entry = self
             .encoding
@@ -194,21 +222,54 @@ impl CascStorage {
             })?;
 
         let ekey = &enc_entry.ekeys[0];
-        let idx_entry = self
-            .index
-            .find(ekey)
-            .ok_or_else(|| CascError::KeyNotFound {
-                key_type: "EKey".into(),
-                hash: hex::encode(ekey),
-            })?;
 
-        let blte_data = self.data.read_raw(
-            idx_entry.archive_number,
-            idx_entry.archive_offset,
-            idx_entry.size,
-        )?;
+        // Try primary index (Data/data/). Content files: BLTE sits directly at the IDX
+        // offset. CDN stubs: non-BLTE bytes → InvalidMagic → fall through to ecache.
+        if let Some(idx_entry) = self.index.find(ekey) {
+            let raw = self.data.read_raw(
+                idx_entry.archive_number,
+                idx_entry.archive_offset,
+                idx_entry.size,
+            )?;
+            match decode_blte_with_keys(raw, Some(&self.keystore)) {
+                Ok(data) => return Ok(data),
+                Err(CascError::InvalidMagic { .. }) => {
+                    tracing::debug!(
+                        "cdn stub in primary for ekey {} — trying ecache",
+                        hex::encode(&ekey[..4])
+                    );
+                    // Fall through to ecache.
+                }
+                Err(e) => return Err(e),
+            }
+        }
 
-        decode_blte_with_keys(blte_data, Some(&self.keystore))
+        // Try ecache fallback (Data/ecache/). Ecache entries are stored with a 30-byte
+        // data header at the IDX offset; use read_entry to skip it. Entries with
+        // size == DATA_HEADER_SIZE have no BLTE payload (ecache stubs) — skip them.
+        if let (Some(ecache_index), Some(ecache_data)) = (&self.index_ecache, &self.data_ecache) {
+            if let Some(idx_entry) = ecache_index.find(ekey) {
+                if idx_entry.size > DATA_HEADER_SIZE as u32 {
+                    let payload = ecache_data.read_entry(
+                        idx_entry.archive_number,
+                        idx_entry.archive_offset,
+                        idx_entry.size,
+                    )?;
+                    return decode_blte_with_keys(payload, Some(&self.keystore));
+                }
+                tracing::debug!(
+                    "ecache stub (size={}) for ekey {} — reporting cdn-only",
+                    idx_entry.size,
+                    hex::encode(&ekey[..4])
+                );
+            }
+        }
+
+        // File absent from both local stores — CDN-only (not downloaded by Battle.net).
+        Err(CascError::KeyNotFound {
+            key_type: "EKey".into(),
+            hash: hex::encode(ekey),
+        })
     }
 
     /// Read a file by FileDataID and locale.
@@ -683,6 +744,9 @@ fn extract_one<S: ExtractionStore>(
     let data = match storage.read_by_ckey(&root_entry.ckey) {
         Ok(d) => d,
         Err(CascError::InvalidMagic { ref expected, .. }) if expected == "BLTE" => {
+            return Err("skipped:cdn-only".into());
+        }
+        Err(CascError::KeyNotFound { ref key_type, .. }) if key_type == "EKey" => {
             return Err("skipped:cdn-only".into());
         }
         Err(e) => return Err(format!("error:{}", e)),
@@ -1244,6 +1308,8 @@ mod mock_tests {
         Success(Vec<u8>),
         /// `read_by_ckey` returns `InvalidMagic { expected: "BLTE" }` — maps to `skipped:cdn-only`.
         CdnOnly,
+        /// `read_by_ckey` returns `KeyNotFound { key_type: "EKey" }` — maps to `skipped:cdn-only`.
+        EKeyMissing,
         /// `read_by_ckey` returns a generic `InvalidFormat` error — maps to `error:...`.
         Error(String),
     }
@@ -1261,6 +1327,10 @@ mod mock_tests {
                 Some(MockOutcome::CdnOnly) => Err(CascError::InvalidMagic {
                     expected: "BLTE".into(),
                     found: "0000".into(),
+                }),
+                Some(MockOutcome::EKeyMissing) => Err(CascError::KeyNotFound {
+                    key_type: "EKey".into(),
+                    hash: "".into(),
                 }),
                 Some(MockOutcome::Error(msg)) => Err(CascError::InvalidFormat(msg.clone())),
                 None => Err(CascError::KeyNotFound {
@@ -1423,6 +1493,23 @@ mod mock_tests {
         assert_eq!(stats.errors, 1);
         assert_eq!(stats.success, 0);
         assert_eq!(stats.unavailable, 0);
+        let _ = std::fs::remove_dir_all(&outdir);
+    }
+
+    #[test]
+    fn ekey_not_found_maps_to_unavailable() {
+        // KeyNotFound { key_type: "EKey" } should map to skipped:cdn-only, not error.
+        // This covers the case where neither Data/data/ nor Data/ecache/ has the EKey.
+        let ck = [0x60u8; 16];
+        let store = MockStore {
+            entries: vec![(50, any_locale(ck))],
+            outcomes: HashMap::from([(ck, MockOutcome::EKeyMissing)]),
+        };
+        let outdir = temp_out("ekey_missing");
+        let stats = extract_all(&store, &base_config(outdir.clone()), None).unwrap();
+        assert_eq!(stats.unavailable, 1);
+        assert_eq!(stats.errors, 0);
+        assert_eq!(stats.success, 0);
         let _ = std::fs::remove_dir_all(&outdir);
     }
 

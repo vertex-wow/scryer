@@ -73,6 +73,14 @@ fn parse_data_filename(name: &str) -> Option<u32> {
 }
 
 impl DataStore {
+    /// Like [`DataStore::open`] but returns `Ok(None)` when `data_dir` does not exist.
+    pub fn open_if_exists(data_dir: &Path) -> Result<Option<Self>> {
+        if !data_dir.exists() {
+            return Ok(None);
+        }
+        Self::open(data_dir).map(Some)
+    }
+
     /// Open and memory-map all `data.NNN` files found in `data_dir`.
     pub fn open(data_dir: &Path) -> Result<Self> {
         let pattern = data_dir.join("data.*");

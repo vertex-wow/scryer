@@ -182,6 +182,14 @@ pub fn select_idx_files(data_dir: &Path) -> Result<Vec<PathBuf>> {
 }
 
 impl CascIndex {
+    /// Like [`CascIndex::load`] but returns `Ok(None)` when `data_dir` does not exist.
+    pub fn load_if_exists(data_dir: &Path) -> Result<Option<Self>> {
+        if !data_dir.exists() {
+            return Ok(None);
+        }
+        Self::load(data_dir).map(Some)
+    }
+
     /// Load all idx files from `data_dir`, parse them, and build a lookup map.
     pub fn load(data_dir: &Path) -> Result<Self> {
         let idx_files = select_idx_files(data_dir)?;
