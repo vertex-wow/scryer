@@ -72,6 +72,10 @@ class ExtractionProgressNotifier {
     }
   }
 
+  isExtracting(): boolean {
+    return this.userJobs + this.prewarmJobs > 0;
+  }
+
   private updateMessage(): void {
     const msg =
       this.userJobs > 0 ? "Extracting game assets…" : "Pre-warming cache with game assets…";
@@ -80,6 +84,11 @@ class ExtractionProgressNotifier {
 }
 
 const progressNotifier = new ExtractionProgressNotifier();
+
+/** Returns true if any extraction (user-priority or prewarm) is currently running. */
+export function isExtracting(): boolean {
+  return progressNotifier.isExtracting();
+}
 
 export interface ExtractorOptions {
   flavor: string;

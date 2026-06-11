@@ -5,6 +5,7 @@ import * as vscode from "vscode";
 import type { LuaEngine } from "wasmoon";
 import { resolveAtlasNames } from "../assets/atlas-manifest.js";
 import { FLAVOR_INFO, listInstalledFlavors } from "../assets/build-info.js";
+import { isExtracting } from "../assets/extractor.js";
 import { AssetService } from "../assets/index.js";
 import type { CanvasMode } from "../constants.js";
 import {
@@ -290,6 +291,11 @@ export class ScryerLivePanel {
 
     switch (msg.type) {
       case "ready":
+        if (isExtracting())
+          void this.panel.webview.postMessage({
+            type: "setStatus",
+            state: "extracting",
+          } as HostMessage);
         void this.runAndRender(uri);
         break;
 

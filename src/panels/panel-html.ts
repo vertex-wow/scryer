@@ -172,9 +172,16 @@ export function buildPanelHtml(options: PanelHtmlOptions): string {
     body.mode-grab.panning{cursor:grabbing}
     body.mode-grab #viewport *{pointer-events:none}
     body.mode-eyedropper{cursor:crosshair}
+    body.loading-initial{cursor:wait}
+    body.loading-assets{cursor:progress}
+    #loading-overlay{position:fixed;inset:0;top:${sbH}px;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9998;gap:12px;pointer-events:none}
+    body:not(.loading-initial) #loading-overlay{display:none}
+    .loading-spinner{width:28px;height:28px;border:2px solid rgba(255,255,255,0.12);border-top-color:rgba(255,255,255,0.55);border-radius:50%;animation:scryer-spin 0.75s linear infinite}
+    @keyframes scryer-spin{to{transform:rotate(360deg)}}
+    .loading-label{color:rgba(255,255,255,0.35);font:${c.statusTextFont}}
   </style>
 </head>
-<body>
+<body class="loading-initial">
   <div id="status-bar">
     <button id="ruler-toggle" class="toolbar-btn" title="Toggle pixel ruler (R)"><span class="ruler-icon">📏</span></button>
     <button id="interact-toggle" class="toolbar-btn" title="Interact — normal mouse cursor (I)"><svg width="10" height="13" viewBox="0 0 10 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><polygon points="0,0 0,10 2.5,7.5 4.5,12.5 6,12 4,7 7.5,7"/></svg></button>
@@ -271,6 +278,10 @@ ${ZOOM_PRESETS.map(
     <span id="debug">script not yet loaded</span>
   </div>
   <div id="viewport"></div>
+  <div id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div id="loading-label" class="loading-label">Loading…</div>
+  </div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

@@ -216,6 +216,12 @@ updateZoomDisplay();
 // Last render message — restored when loading status clears.
 let lastRenderMsg = "";
 
+/** Sync Phase 2 cursor state: progress cursor while placeholders remain in viewport. */
+function syncLoadingState(): void {
+  const hasPending = (viewport?.querySelectorAll("[data-placeholder]").length ?? 0) > 0;
+  document.body.classList.toggle("loading-assets", hasPending);
+}
+
 function dbg(msg: string): void {
   if (debug) debug.textContent = msg;
   vscode.postMessage({ type: "dbg", text: msg });
@@ -818,6 +824,7 @@ function applyAsset(rawPath: string, uri: string): void {
             const ph = capturedEl.querySelector("[data-placeholder]");
             if (ph) ph.remove();
             capturedEl.style.pointerEvents = "none";
+            syncLoadingState();
           })
           .catch((err) => {
             console.error("canvas extraction failed:", err);
@@ -878,6 +885,7 @@ function applyAsset(rawPath: string, uri: string): void {
     if (ph) ph.remove();
     el.style.pointerEvents = "none";
   }
+  syncLoadingState();
 
   // Apply as mask-image to any texture masked by this path.
   // VS Code's webview is Electron/Chromium, which honors the -webkit- prefixed
@@ -1103,6 +1111,8 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
           `rendered ${msg.frames.length} frame${msg.frames.length === 1 ? "" : "s"}${suffix}`,
         );
         requestRenderedAssets();
+        document.body.classList.remove("loading-initial");
+        syncLoadingState();
       } catch (e) {
         dbg(`render error: ${String(e)}`);
       }
@@ -1127,12 +1137,15 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
     }
 
     case "setStatus": {
+      const loadingLabel = document.getElementById("loading-label");
       if (msg.state === "idle") {
         if (debug && lastRenderMsg) debug.textContent = lastRenderMsg;
+        if (loadingLabel) loadingLabel.textContent = "Loading…";
       } else {
-        const label =
-          msg.state === "extracting" ? "⏳ Extracting game assets…" : "⏳ Building atlas manifest…";
-        if (debug) debug.textContent = label;
+        const bare =
+          msg.state === "extracting" ? "Extracting game assets…" : "Building atlas manifest…";
+        if (debug) debug.textContent = `⏳ ${bare}`;
+        if (loadingLabel) loadingLabel.textContent = bare;
       }
       break;
     }

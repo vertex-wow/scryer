@@ -4,6 +4,7 @@ import { PanelToolbar } from "./panel-toolbar.js";
 import * as vscode from "vscode";
 import { resolveAtlasNames } from "../assets/atlas-manifest.js";
 import { FLAVOR_INFO, listInstalledFlavors } from "../assets/build-info.js";
+import { isExtracting } from "../assets/extractor.js";
 import { AssetService } from "../assets/index.js";
 import type { CanvasMode } from "../constants.js";
 import {
@@ -286,6 +287,12 @@ export class ScryerPanel {
 
     switch (msg.type) {
       case "ready":
+        if (isExtracting())
+          void this.panel.webview.postMessage({
+            type: "setStatus",
+            state: "extracting",
+          } as HostMessage);
+        else this.syncStatus();
         void this.renderFile(uri);
         break;
 
