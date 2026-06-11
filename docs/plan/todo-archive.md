@@ -4,6 +4,25 @@ Completed items moved from [todo.md](todo.md). Historical record of what was bui
 
 ---
 
+## Disk-cached lookup tables {#disk-cached-lookup-tables}
+
+**Completed: 2026-06-10**
+
+**Problem:** Every `CascStorage::open()` call re-parsed the encoding table, root file, and TVFS manifests from raw CASC data (BLTE decode + HashMap construction). This dominated cold-start time (~200 ms) on each server restart.
+
+**What was built:**
+
+- New `crates/casc-lib/src/cache/mod.rs` module with `serialize` / `deserialize` for `CascIndex`, `EncodingFile`, `RootFile`, and `TvfsManifest` into a flat binary format (`CASCACHE` magic, `u32` format version, build-key header, then length-prefixed LE sections for each component).
+- `cache::try_load(path, build_key)` — loads the cache if present and the stored build key matches; returns `None` on any mismatch/corruption.
+- `cache::save(...)` — atomic write (`.tmp` + rename) after slow-path parse; non-fatal on error.
+- `CascStorage::open()` refactored: DataStore always opened (needed for extraction); index/encoding/root/tvfs populated from cache on hit, or parsed then cached on miss.
+- Iterator + constructor methods added to `CascIndex`, `EncodingFile`, `RootFile`, `TvfsManifest` to enable serialization without exposing private fields directly.
+- 10 unit tests in `cache::tests` covering round-trips, stale key, wrong magic, truncated data, and per-field value preservation.
+
+Cache invalidates automatically when `.build.info` build key changes (game patch). Expected improvement: ~200 ms → ~50 ms cold-start after first run.
+
+---
+
 ## CDN client startup caching {#cdn-client-startup-caching}
 
 **Completed: 2026-06-10**

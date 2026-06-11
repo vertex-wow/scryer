@@ -218,6 +218,11 @@ impl CascIndex {
         Ok(Self { entries })
     }
 
+    /// Construct a [`CascIndex`] from a pre-built entries map.
+    pub fn from_entries(entries: HashMap<[u8; 9], IndexEntry>) -> Self {
+        Self { entries }
+    }
+
     /// Return the total number of index entries.
     pub fn len(&self) -> usize {
         self.entries.len()
@@ -226,6 +231,11 @@ impl CascIndex {
     /// Return whether the index contains no entries.
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
+    }
+
+    /// Iterate all `(ekey9_prefix, entry)` pairs.
+    pub fn iter(&self) -> impl Iterator<Item = (&[u8; 9], &IndexEntry)> {
+        self.entries.iter()
     }
 
     /// Look up an index entry by the first 9 bytes of an EKey.

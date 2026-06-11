@@ -172,15 +172,9 @@ Reference: `_reference/casc-extractor/` (Rust), `_reference/wow.export/` (JS), w
 
 ### ↳ Disk-cached lookup tables
 
-**Status:** 📋 Pending
+**Status:** ✅ Complete (2026-06-10)
 
-**Prerequisite:** Eliminate listfile dependency (above) — caching the listfile parse doesn't help much; caching the TVFS/encoding parse is where the win is.
-
-Serialize the parsed lookup tables (path→hash map, encoding table, archive indices) to a binary cache file after first parse. On subsequent server starts, load from cache instead of re-parsing the raw CASC files. Invalidate when `.build.info` hash changes (game patch).
-
-Expected cold-start improvement (after TVFS is implemented): **~200 ms → ~50 ms**.
-
-**Effort:** S — serialization of hash maps to/from a flat binary format.
+`CascIndex`, `EncodingFile`, `RootFile`, and `TvfsManifest` are serialized to `{output_dir}/.casc-lookup-cache/lookup-cache.bin` after the first parse. On subsequent starts the cache is loaded directly, skipping BLTE decode and HashMap construction. The build key from `.build.info` is stored in the cache header; a key mismatch (game patch) triggers a full re-parse and cache overwrite. Atomic write (`.tmp` + rename) prevents corrupt cache files. See `crates/casc-lib/src/cache/mod.rs`.
 
 ---
 

@@ -35,6 +35,8 @@
 
 /// BLTE (Binary Large Table Entry) container decoding, compression, and encryption.
 pub mod blte;
+/// Disk-cached lookup tables — serialize/deserialize parsed CASC indices to skip re-parsing on restart.
+pub mod cache;
 /// CDN client for fetching EKey-addressed blobs from Blizzard's content delivery network.
 pub mod cdn;
 /// CASC configuration file parsers (`.build.info`, build config, CDN config).

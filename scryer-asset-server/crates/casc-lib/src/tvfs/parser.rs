@@ -191,6 +191,11 @@ impl TvfsManifest {
         self.entries.iter()
     }
 
+    /// Construct a [`TvfsManifest`] from a pre-built entries map (e.g. loaded from cache).
+    pub fn from_entries(entries: HashMap<String, TvfsEntry>) -> Self {
+        Self { entries }
+    }
+
     /// Merge all entries from `other` into this manifest (last-write wins on collision).
     pub fn extend(&mut self, other: TvfsManifest) {
         self.entries.extend(other.entries);
@@ -203,7 +208,7 @@ impl TvfsManifest {
             path.to_lowercase().replace('\\', "/"),
             TvfsEntry { ekey9, content_size },
         );
-        Self { entries }
+        Self::from_entries(entries)
     }
 }
 

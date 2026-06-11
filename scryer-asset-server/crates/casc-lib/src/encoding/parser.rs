@@ -61,6 +61,28 @@ const HEADER_SIZE: usize = 0x16;
 const PAGE_INDEX_ENTRY_MD5: usize = 16;
 
 impl EncodingFile {
+    /// Construct an [`EncodingFile`] from a pre-built entries map (e.g. loaded from cache).
+    ///
+    /// A synthetic header is generated since header fields are not needed post-parse.
+    pub fn from_raw(entries: HashMap<[u8; 16], EncodingEntry>) -> Self {
+        let header = EncodingHeader {
+            version: 1,
+            hash_size_ckey: 16,
+            hash_size_ekey: 16,
+            ce_page_size_kb: 0,
+            espec_page_size_kb: 0,
+            ce_page_count: 0,
+            espec_page_count: 0,
+            espec_block_size: 0,
+        };
+        Self { header, entries }
+    }
+
+    /// Iterate all `(ckey, entry)` pairs.
+    pub fn iter(&self) -> impl Iterator<Item = (&[u8; 16], &EncodingEntry)> {
+        self.entries.iter()
+    }
+
     /// Parse from decoded (post-BLTE) encoding file data.
     pub fn parse(data: &[u8]) -> Result<Self> {
         if data.len() < HEADER_SIZE {

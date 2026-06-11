@@ -63,6 +63,20 @@ pub struct RootFile {
 }
 
 impl RootFile {
+    /// Construct a [`RootFile`] from pre-built entries (e.g. loaded from cache).
+    pub fn from_raw(
+        format: RootFormat,
+        entries: HashMap<u32, Vec<RootEntry>>,
+        total_entries: usize,
+    ) -> Self {
+        Self { format, entries, total_entries }
+    }
+
+    /// Iterate all `(fdid, entry_list)` pairs.
+    pub fn iter_fdid_groups(&self) -> impl Iterator<Item = (u32, &Vec<RootEntry>)> {
+        self.entries.iter().map(|(&fdid, entries)| (fdid, entries))
+    }
+
     /// Parse a root file from raw bytes.
     pub fn parse(data: &[u8]) -> Result<Self> {
         let (format, block_start) = detect_format(data)?;

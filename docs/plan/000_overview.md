@@ -400,7 +400,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="todo-archive.md#eliminate-listfile-dependency-tvfs-root-direct">Eliminate listfile dependency (TVFS/root direct)</a>, <a href="todo-archive.md#cdn-client-startup-caching">CDN client startup caching</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#eliminate-listfile-dependency-tvfs-root-direct">Eliminate listfile dependency (TVFS/root direct)</a>, <a href="todo-archive.md#cdn-client-startup-caching">CDN client startup caching</a>, <a href="todo-archive.md#disk-cached-lookup-tables">Disk-cached lookup tables</a></td>
 </tr>
 <tr>
   <td>↳</td>
@@ -409,14 +409,6 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>Multi-segment TVFS loading in place but skip is disabled; verify retail coverage ≥ threshold then re-enable <code>load_listfile_optional</code> skip logic</td>
   <td>XS</td>
   <td>TVFS multi-segment load ✅</td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td>Disk-cached lookup tables</td>
-  <td>📋 Pending</td>
-  <td>Serialize parsed tables to binary cache; cold start ~200 ms → ~50 ms</td>
-  <td>S</td>
-  <td>—</td>
 </tr>
 <tr>
   <td>↳</td>
