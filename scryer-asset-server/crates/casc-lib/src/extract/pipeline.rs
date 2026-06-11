@@ -878,6 +878,9 @@ pub fn extract_all<S: ExtractionStore + Sync>(
                     stat_success.fetch_add(1, Ordering::Relaxed);
                     stat_bytes.fetch_add(*bytes, Ordering::Relaxed);
                 }
+                Err(e) if e == "skipped:cached" => {
+                    // already on disk — don't count in any bucket
+                }
                 Err(e) if e.starts_with("skipped:") => {
                     stat_unavailable.fetch_add(1, Ordering::Relaxed);
                     if tracing::enabled!(tracing::Level::DEBUG) {
@@ -903,12 +906,14 @@ pub fn extract_all<S: ExtractionStore + Sync>(
             }
 
             if let Some(ref meta) = metadata {
-                let meta_path = storage
-                    .path_for_fdid(*fdid)
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| format!("unknown/{}.dat", fdid));
-                let entry = make_metadata_entry(*fdid, root_entry, &result, &meta_path);
-                let _ = meta.record(&entry);
+                if !matches!(&result, Err(e) if e == "skipped:cached") {
+                    let meta_path = storage
+                        .path_for_fdid(*fdid)
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| format!("unknown/{}.dat", fdid));
+                    let entry = make_metadata_entry(*fdid, root_entry, &result, &meta_path);
+                    let _ = meta.record(&entry);
+                }
             }
 
             let done = completed.fetch_add(1, Ordering::Relaxed) + 1;
@@ -1026,6 +1031,21 @@ fn extract_one<S: ExtractionStore>(
         return Err("skipped:encrypted".into());
     }
 
+    // Resolve output path early so we can skip the expensive BLTE decode for
+    // files already on disk.
+    let out_path = match storage.path_for_fdid(fdid) {
+        Some(path) => {
+            let normalized = path.replace('\\', "/");
+            let safe = normalized.trim_start_matches('/').trim_start_matches("../");
+            config.output_dir.join(safe)
+        }
+        None => config.output_dir.join("unknown").join(format!("{}.dat", fdid)),
+    };
+
+    if out_path.exists() && !config.verify {
+        return Err("skipped:cached".into());
+    }
+
     // Read the file data. If the archive slot exists but doesn't contain valid BLTE data, the
     // Battle.net client hasn't downloaded this file — it's a CDN-only stub. Report it as
     // skipped rather than an error so it doesn't pollute the error count.
@@ -1050,16 +1070,6 @@ fn extract_one<S: ExtractionStore>(
             return Err(format!("error:checksum mismatch for FDID {}", fdid));
         }
     }
-
-    // Determine output path and write — mirrors output_path() but uses the trait
-    let out_path = match storage.path_for_fdid(fdid) {
-        Some(path) => {
-            let normalized = path.replace('\\', "/");
-            let safe = normalized.trim_start_matches('/').trim_start_matches("../");
-            config.output_dir.join(safe)
-        }
-        None => config.output_dir.join("unknown").join(format!("{}.dat", fdid)),
-    };
 
     if let Some(parent) = out_path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("error:mkdir: {}", e))?;

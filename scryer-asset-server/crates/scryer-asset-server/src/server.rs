@@ -40,7 +40,7 @@ enum ServerResponse {
         ok: bool,
         extracted: u64,
         /// Files in the CASC index that could not be extracted locally (CDN-only stubs or encrypted).
-        /// NOT "already cached" — the server always attempts extraction.
+        /// Already-cached files are silently skipped and not counted here.
         unavailable: u64,
         errors: u64,
     },
