@@ -6,24 +6,6 @@ Completed items are in [todo-archive.md](todo-archive.md).
 
 ---
 
-## Re-enable listfile-skip once TVFS coverage confirmed
-
-**Status:** 📋 Pending  
-**Milestone:** M15 CASC Asset Service
-
-**Problem:** Multi-segment TVFS loading is implemented (`bootstrap_tvfs` now loads all `vfs-*` build config keys and merges them). However, the listfile download skip in `load_listfile_optional` is currently disabled — the `tvfs_loaded` parameter is prefixed `_tvfs_loaded` with a comment explaining why. We don't yet know whether the merged TVFS segments give sufficient path coverage for the paths Scryer actually requests (Blizzard addon TOC files, `Fonts/`, interface textures).
-
-**What's needed:**
-
-1. Run the live view with the new multi-segment TVFS binary and check the log: `TVFS: loaded N virtual paths from K/M segment(s)`. N should be in the hundreds of thousands for a retail install.
-2. Confirm that `fdid_for_path` resolves the critical paths (`Interface/AddOns/Blizzard_SharedXMLBase/...`, `Fonts/FRIZQT__.TTF`, etc.) through TVFS — these paths need to appear in the name-hash reverse index (meaning the root file entries for those FDIDs must have `name_hash` set, i.e. not `NoNameHash`).
-3. If coverage is sufficient (e.g. `tvfs_paths > 100_000` and the critical paths resolve): change `_tvfs_loaded` back to `tvfs_loaded` in `load_listfile_optional` and remove the disabling `if tvfs_loaded { return Ok(None); }` guard that was reverted. Also update the doc comment on that function.
-4. If coverage is insufficient (critical paths still miss): investigate whether the missing paths have `NoNameHash` in the root file; if so, the name-hash reverse index approach can't replace the listfile for those files and the skip cannot be safely enabled.
-
-**Effort:** XS (if coverage is sufficient); S (if we need to debug NoNameHash misses).
-
----
-
 ## Listfile binary parse cache
 
 **Status:** 📋 Pending

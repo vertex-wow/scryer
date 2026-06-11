@@ -4,6 +4,24 @@ Completed items moved from [todo.md](todo.md). Historical record of what was bui
 
 ---
 
+## Listfile lazy-load with TVFS-first resolution {#listfile-lazy-load-tvfs-first}
+
+**Completed: 2026-06-11**
+
+**Problem:** The original plan was to skip the listfile download entirely for retail installs once TVFS multi-segment loading gave sufficient path coverage. This required an explicit `load_listfile_optional` guard gated on a `tvfs_loaded` flag.
+
+**What was built instead:**
+
+The implementation settled on a lazy `OnceLock`-based approach that obsoletes the skip-entirely concept:
+
+- `PathResolver` is constructed at open time with TVFS + name-hash index only (`listfile: None`). No listfile is consulted during startup.
+- A background prewarm thread calls `load_or_refresh` immediately after open so the listfile is ready when first needed.
+- `lookup_fdid` tries TVFS first; on miss it blocks on the prewarm (via `OnceLock::get_or_init`) or triggers an immediate load. For retail installs with full TVFS coverage, the listfile is rarely if ever queried.
+- `load_listfile_optional` and the `_tvfs_loaded` flag no longer exist.
+- An `#[ignore]` integration test `tvfs_loaded_on_retail_install` validates that retail boots yield `tvfs_paths > 100_000` without requiring the listfile.
+
+---
+
 ## Disk-cached lookup tables {#disk-cached-lookup-tables}
 
 **Completed: 2026-06-10**
