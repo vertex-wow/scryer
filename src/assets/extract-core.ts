@@ -157,8 +157,8 @@ export async function ensureListfile(
   return listfilePath;
 }
 
-/** Spawn grep to extract interface/ and fonts/ rows from the full listfile into filteredPath. */
-function filterListfile(
+/** Spawn grep to extract Interface/ and Fonts/ rows from the full listfile. */
+function filterListfileGrep(
   fullPath: string,
   filteredPath: string,
   grepCmd: string,
@@ -177,6 +177,94 @@ function filterListfile(
       if ((code ?? 0) > 1) reject(new Error(`grep exited with code ${code}`));
     });
   });
+}
+
+/**
+ * 1BRC-style stream + byte scan fallback for platforms without grep.
+ * Uses raw Buffer chunks and Buffer.indexOf() to avoid string allocation overhead.
+ */
+function filterListfileNode(
+  fullPath: string,
+  filteredPath: string,
+  log?: (level: LogLevel, msg: string) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    log?.("info", `Filtering listfile to Interface/ and Fonts/ entries (Node fallback)...`);
+    const NEWLINE = 0x0a;
+    const SEMI = 0x3b;
+    const rs = fs.createReadStream(fullPath, { highWaterMark: 256 * 1024 });
+    const ws = fs.createWriteStream(filteredPath);
+    let carry: Buffer | null = null;
+
+    function matches(buf: Buffer, semiPos: number, end: number): boolean {
+      const len = end - semiPos;
+      if (len < 7) return false; // ";fonts/" is 7 chars — minimum match
+      const sliceLen = Math.min(11, len); // ";interface/" is 11 chars — maximum to check
+      const lc = buf
+        .subarray(semiPos, semiPos + sliceLen)
+        .toString("ascii")
+        .toLowerCase();
+      return lc.startsWith(";interface/") || lc.startsWith(";fonts/");
+    }
+
+    rs.on("data", (chunk: Buffer) => {
+      const buf = carry ? Buffer.concat([carry, chunk]) : chunk;
+      carry = null;
+      let lineStart = 0;
+      while (true) {
+        const nlPos = buf.indexOf(NEWLINE, lineStart);
+        if (nlPos === -1) {
+          if (lineStart < buf.length) carry = buf.subarray(lineStart);
+          break;
+        }
+        const semiPos = buf.indexOf(SEMI, lineStart);
+        if (semiPos !== -1 && semiPos < nlPos && matches(buf, semiPos, nlPos)) {
+          ws.write(buf.subarray(lineStart, nlPos + 1));
+        }
+        lineStart = nlPos + 1;
+      }
+    });
+
+    rs.on("end", () => {
+      if (carry && carry.length > 0) {
+        const semiPos = carry.indexOf(SEMI);
+        if (semiPos !== -1 && matches(carry, semiPos, carry.length)) {
+          ws.write(carry);
+          ws.write(Buffer.from("\n"));
+        }
+      }
+      ws.end();
+    });
+
+    rs.on("error", reject);
+    ws.on("finish", resolve);
+    ws.on("error", reject);
+  });
+}
+
+/**
+ * Filter the listfile to Interface/ and Fonts/ entries.
+ * Priority: explicit grepCmd → system grep → Node stream fallback.
+ * The Node fallback is used automatically when grep is not on PATH (e.g. Windows without grep installed).
+ */
+function filterListfile(
+  fullPath: string,
+  filteredPath: string,
+  grepCmd: string | undefined,
+  log?: (level: LogLevel, msg: string) => void,
+): Promise<void> {
+  if (grepCmd) {
+    return filterListfileGrep(fullPath, filteredPath, grepCmd, log);
+  }
+  return filterListfileGrep(fullPath, filteredPath, "grep", log).catch(
+    (err: NodeJS.ErrnoException) => {
+      if (err.code === "ENOENT") {
+        log?.("info", "grep not found on PATH, using Node stream fallback");
+        return filterListfileNode(fullPath, filteredPath, log);
+      }
+      throw err;
+    },
+  );
 }
 
 /**
@@ -224,7 +312,7 @@ export async function ensureFilteredListfile(
     }
   }
 
-  await filterListfile(fullPath, filteredPath, grepPath || "grep", log);
+  await filterListfile(fullPath, filteredPath, grepPath, log);
   if (buildText) fs.writeFileSync(stampPath, buildText, "utf8");
   return filteredPath;
 }
