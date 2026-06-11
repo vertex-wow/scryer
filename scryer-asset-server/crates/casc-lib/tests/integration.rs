@@ -214,7 +214,7 @@ fn full_storage_open_and_info() {
     println!("Encoding:  {} entries", info.encoding_entries);
     println!("Root:      {} entries", info.root_entries);
     println!("Index:     {} entries", info.index_entries);
-    println!("Listfile:  {} entries", info.listfile_entries);
+    println!("Resolver:  {} paths ({} TVFS)", info.resolver_paths, info.tvfs_paths);
 
     assert!(!info.build_name.is_empty());
     assert!(!info.product.is_empty());
@@ -1005,4 +1005,45 @@ fn dump_root_block_headers() {
     }
 
     println!("\n===== END DIAGNOSTIC =====");
+}
+
+// ---------------------------------------------------------------------------
+// TVFS integration tests (retail 8.2+ only)
+// ---------------------------------------------------------------------------
+
+/// Verify that a retail WoW install boots with TVFS and skips the listfile
+/// download, resulting in resolver_paths > 0 and tvfs_paths > 0.
+#[test]
+#[ignore]
+fn tvfs_loaded_on_retail_install() {
+    require_wow!();
+    let start = std::time::Instant::now();
+    let open_config = OpenConfig {
+        install_dir: wow_dir(),
+        product: Some("wow".into()),
+        keyfile: None,
+        listfile: None,
+        output_dir: None, // no output_dir → would normally trigger download, but TVFS skips it
+        cdn_cache_dir: None,
+    };
+    let storage = CascStorage::open(&open_config).unwrap();
+    let elapsed = start.elapsed();
+    let info = storage.info();
+
+    println!("=== TVFS boot timing ===");
+    println!("  open() elapsed:  {:.2}s", elapsed.as_secs_f64());
+    println!("  tvfs_paths:      {}", info.tvfs_paths);
+    println!("  resolver_paths:  {}", info.resolver_paths);
+
+    assert!(
+        info.tvfs_paths > 100_000,
+        "Retail install should have >100k TVFS paths, got {}",
+        info.tvfs_paths
+    );
+    assert!(
+        info.resolver_paths > 0,
+        "Resolver should have entries from TVFS, got {}",
+        info.resolver_paths
+    );
+    println!("  Boot without listfile download: {:.2}s (target <1s)", elapsed.as_secs_f64());
 }

@@ -74,7 +74,7 @@ class ExtractionProgressNotifier {
 
   private updateMessage(): void {
     const msg =
-      this.userJobs > 0 ? "extracting game assets…" : "prewarming cache with game assets…";
+      this.userJobs > 0 ? "Extracting game assets…" : "Prewarming cache with game assets…";
     this.progressReporter?.report({ message: msg });
   }
 }
@@ -281,12 +281,12 @@ export async function genAtlas(opts: AtlasGenWrapperOptions): Promise<void> {
     return;
   }
 
-  safeLog(opts.output, "trace", `notif: Scryer: generating atlas manifest…`);
+  safeLog(opts.output, "trace", `notif: Scryer: Generating atlas manifest…`);
   try {
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: "Scryer: generating atlas manifest…",
+        title: "Scryer: Generating atlas manifest…",
         cancellable: false,
       },
       () =>

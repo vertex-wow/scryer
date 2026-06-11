@@ -47,9 +47,13 @@ pub mod error;
 pub mod extract;
 /// Community listfile download and parsing (FDID to filename mapping).
 pub mod listfile;
+/// Layered path resolver — maps virtual paths ↔ FDIDs ↔ EKey9s (TVFS + name-hash + listfile).
+pub mod resolve;
 /// Root file parser - maps file data IDs (FDIDs) to content keys (CKeys).
 pub mod root;
 /// Low-level data archive and index file access.
 pub mod storage;
+/// TVFS (TACT Virtual File System) manifest parser — maps virtual paths to EKeys directly.
+pub mod tvfs;
 /// Shared I/O and hashing utilities.
 pub mod util;

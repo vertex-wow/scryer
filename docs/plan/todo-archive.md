@@ -1057,3 +1057,41 @@ Canvas-based sprite extraction in `src/webview/main.ts`:
 - `extractSpriteDataUrl(uri, crop)` — extracts the sprite sub-region to an offscreen canvas at physical resolution (`img.naturalWidth / crop.sheetW` scale), returns a data URL, caches by `uri:x,y,w,h`.
 - In `applyAsset`, when `needsCanvasH = crop.tilesH && crop.sheetW > crop.width` (or `needsCanvasV`): dispatches the async extraction and uses `continue` to skip the synchronous CSS path. Placeholder stays until the promise resolves. On resolution: sets `background-image` to the canvas data URL, `background-repeat: repeat-x no-repeat` (or `no-repeat repeat-y` / `repeat` for the other cases), and `background-size` to the sprite's logical dimensions scaled to fit the element's non-tiling axis.
 - The key lesson from the first failed attempt (2026-06-02): do NOT fall through to the CSS path for canvas sprites. The async write raced with the synchronous sheet URI, producing layout artifacts. The `continue` skips all CSS writes; the callback does the full apply in one shot.
+
+## Eliminate listfile dependency (TVFS/root direct) {#eliminate-listfile-dependency-tvfs-root-direct}
+
+**Completed:** 2026-06-10  
+**Milestone:** M15 CASC Asset Service
+
+### Problem
+
+Cold-start time was 25–29 s because `CascStorage::open()` always downloaded and parsed the community listfile CSV (2.17 M rows, ~75 MB). This blocked the first asset request on every fresh server start.
+
+### What was built
+
+- **`casc-lib/src/tvfs/`** — TVFS binary manifest parser (`TvfsManifest::parse`). Reads the `vfs-root` CKey from the build config, resolves it through the encoding table, and decodes the BLTE-encoded binary trie to produce a `HashMap<String, TvfsEntry>` mapping lowercase virtual paths to 9-byte EKeys. 16 unit tests.
+- **`casc-lib/src/resolve/`** — `PathResolver` struct layering three sources in priority order: TVFS manifest (path → EKey9), name-hash reverse index (Jenkins96 hash → FDID, built from root file's `name_hash` fields), and optional listfile supplement. 9 unit tests.
+- **`read_by_ekey(&self, ekey: &[u8])`** — new method on `CascStorage` and `ExtractionStore` trait that reads directly by EKey (or 9-byte EKey prefix), enabling the TVFS extraction path that bypasses the encoding table lookup entirely.
+- **`bootstrap_tvfs`** — private function in `pipeline.rs` that loads the TVFS manifest at open time. Returns `None` (not an error) for Classic installs or any config without `vfs-root`.
+- **`load_listfile_optional`** — replaces `load_listfile`; skips the community listfile download entirely when TVFS loaded successfully (retail 8.2+). Classic installs still download.
+- **`StorageInfo`** — `listfile_entries` renamed to `resolver_paths` + `tvfs_paths` for observability.
+- **Server timing log** — `CascStorage::open()` now logs elapsed time and TVFS/resolver counts at INFO level.
+
+### Architecture
+
+```
+vfs-root CKey → encoding → EKey → index → BLTE → TvfsManifest
+root file iter_all → name_hash fields → HashMap<u64, u32>
+listfile (optional, skipped on retail) → supplement
+
+PathResolver::new(tvfs, hash_to_fdid, listfile)
+  .ekey_for_path(path)   → direct TVFS lookup (server hot path)
+  .fdid_for_path(path)   → name-hash index → listfile fallback
+  .path_for_fdid(fdid)   → TVFS-derived paths → listfile fallback
+```
+
+### Cold-start improvement
+
+- Before: 25–29 s (listfile download + 2.17 M row CSV parse)
+- After (retail): ~200 ms (TVFS parse only; no network I/O)
+- After (Classic): unchanged (listfile still downloaded; TVFS absent)

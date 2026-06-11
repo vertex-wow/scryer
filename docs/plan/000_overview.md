@@ -400,11 +400,15 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td>Eliminate listfile dependency (TVFS/root direct)</td>
+  <td colspan="5">✅ <a href="todo-archive.md#eliminate-listfile-dependency-tvfs-root-direct">Eliminate listfile dependency (TVFS/root direct)</a></td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td>Re-enable listfile-skip once TVFS coverage confirmed</td>
   <td>📋 Pending</td>
-  <td>Parse TVFS manifest and encoding tables directly; cold start 25 s → ~200 ms</td>
-  <td>L</td>
-  <td>—</td>
+  <td>Multi-segment TVFS loading in place but skip is disabled; verify retail coverage ≥ threshold then re-enable <code>load_listfile_optional</code> skip logic</td>
+  <td>XS</td>
+  <td>TVFS multi-segment load ✅</td>
 </tr>
 <tr>
   <td>↳</td>

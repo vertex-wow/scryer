@@ -366,11 +366,12 @@ fn cmd_extract(
         info.version
     );
     tracing::info!(
-        "Encoding: {} entries | Root: {} entries ({}) | Listfile: {} entries",
+        "Encoding: {} entries | Root: {} entries ({}) | Paths: {} ({} TVFS)",
         info.encoding_entries,
         info.root_entries,
         info.root_format,
-        info.listfile_entries
+        info.resolver_paths,
+        info.tvfs_paths,
     );
 
     let threads = threads.unwrap_or_else(|| {
@@ -483,7 +484,7 @@ fn cmd_info(open_config: &OpenConfig) -> casc_lib::error::Result<()> {
     println!("  Encoding:       {} entries", info.encoding_entries);
     println!("  Root:           {} entries", info.root_entries);
     println!("  Index:          {} entries", info.index_entries);
-    println!("  Listfile:       {} entries", info.listfile_entries);
+    println!("  Resolver:       {} paths ({} TVFS)", info.resolver_paths, info.tvfs_paths);
 
     Ok(())
 }

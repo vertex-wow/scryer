@@ -121,6 +121,29 @@ impl RootFile {
     pub fn fdid_count(&self) -> usize {
         self.entries.len()
     }
+
+    #[cfg(test)]
+    pub fn empty_for_tests() -> Self {
+        Self {
+            format: RootFormat::Legacy,
+            entries: HashMap::new(),
+            total_entries: 0,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn with_entries_for_tests(entries: Vec<(u32, RootEntry)>) -> Self {
+        let mut map: HashMap<u32, Vec<RootEntry>> = HashMap::new();
+        let total = entries.len();
+        for (fdid, entry) in entries {
+            map.entry(fdid).or_default().push(entry);
+        }
+        Self {
+            format: RootFormat::Legacy,
+            entries: map,
+            total_entries: total,
+        }
+    }
 }
 
 /// Detect the root file format and return the byte offset where blocks begin.

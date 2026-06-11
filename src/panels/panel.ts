@@ -115,7 +115,7 @@ export class ScryerPanel {
       title: "Open Settings",
       arguments: ["@id:scryer.installDir"],
     };
-    this.installDirBar.text = "$(warning) Scryer: set installDir";
+    this.installDirBar.text = "$(warning) Scryer: Set installDir";
     this.installDirBar.tooltip =
       "scryer.installDir is not set — extraction is disabled. Click to configure.";
     this.installDirBar.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");

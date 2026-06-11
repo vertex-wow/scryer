@@ -11,6 +11,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 
+use std::collections::HashSet;
+
 use crate::blte::decoder::decode_blte_with_keys;
 use crate::blte::encryption::TactKeyStore;
 use crate::cdn::CdnClient;
@@ -21,8 +23,10 @@ use crate::encoding::parser::{EncodingEntry, EncodingFile};
 use crate::error::{CascError, Result};
 use crate::listfile::downloader::load_or_download;
 use crate::listfile::parser::Listfile;
+use crate::resolve::{PathResolver, build_name_hash_index};
 use crate::root::flags::LocaleFlags;
 use crate::root::parser::{RootEntry, RootFile, RootFormat};
+use crate::tvfs::parser::TvfsManifest;
 use crate::storage::data::{DATA_HEADER_SIZE, DataStore};
 use crate::storage::index::{CascIndex, IndexEntry};
 
@@ -84,8 +88,10 @@ pub struct StorageInfo {
     pub root_format: String,
     /// Number of entries in the CASC index.
     pub index_entries: usize,
-    /// Number of entries in the loaded listfile.
-    pub listfile_entries: usize,
+    /// Number of FDID→path mappings in the resolver (TVFS-derived + listfile).
+    pub resolver_paths: usize,
+    /// Number of virtual file entries in the TVFS manifest (0 for Classic).
+    pub tvfs_paths: usize,
 }
 
 // ---------------------------------------------------------------------------
@@ -101,10 +107,12 @@ pub struct StorageInfo {
 pub trait ExtractionStore {
     /// Read decoded file bytes by content key (CKey).
     fn read_by_ckey(&self, ckey: &[u8; 16]) -> Result<Vec<u8>>;
-    /// Look up a file path by FileDataID (original case preserved).
-    fn listfile_path(&self, fdid: u32) -> Option<&str>;
+    /// Read decoded file bytes by EKey (or EKey prefix ≥ 9 bytes).
+    fn read_by_ekey(&self, ekey: &[u8]) -> Result<Vec<u8>>;
+    /// Look up a display path for a FileDataID.
+    fn path_for_fdid(&self, fdid: u32) -> Option<&str>;
     /// Look up a FileDataID by file path (case-insensitive).
-    fn listfile_fdid(&self, path: &str) -> Option<u32>;
+    fn fdid_for_path(&self, path: &str) -> Option<u32>;
     /// Iterate all (FileDataID, RootEntry) pairs.
     fn root_iter_all(&self) -> impl Iterator<Item = (u32, &RootEntry)> + '_;
     /// Find encoding entry by CKey — used for archive-offset sort; may return `None`.
@@ -135,7 +143,7 @@ pub struct CascStorage {
     pub data: DataStore,
     pub encoding: EncodingFile,
     pub root: RootFile,
-    pub listfile: Listfile,
+    pub resolver: PathResolver,
     pub keystore: TactKeyStore,
     /// Fallback index from `Data/ecache/` — `None` when that directory is absent.
     index_ecache: Option<CascIndex>,
@@ -194,8 +202,11 @@ impl CascStorage {
         // 8. Bootstrap root file
         let root = bootstrap_root(&build_config, &encoding, &index, &data_store, &keystore)?;
 
-        // 9. Load listfile
-        let listfile = load_listfile(config)?;
+        // 9. Bootstrap path resolver (TVFS + name-hash + optional listfile)
+        let tvfs = bootstrap_tvfs(&build_config, &encoding, &index, &data_store, &keystore);
+        let hash_to_fdid = build_name_hash_index(&root);
+        let listfile = load_listfile_optional(config, tvfs.is_some())?;
+        let resolver = PathResolver::new(tvfs, hash_to_fdid, listfile);
 
         // 10. Set up CDN client (only when cdn_cache_dir is configured and build.info has CDN coords)
         let cdn_client = config.cdn_cache_dir.as_ref().and_then(|cache_dir| {
@@ -232,7 +243,7 @@ impl CascStorage {
             data: data_store,
             encoding,
             root,
-            listfile,
+            resolver,
             keystore,
             index_ecache,
             data_ecache,
@@ -242,13 +253,8 @@ impl CascStorage {
 
     /// Read a file by its content key (CKey).
     ///
-    /// Content files in `Data/data/` store BLTE directly at the IDX offset (no header
-    /// prefix). CDN-only stubs have non-BLTE bytes there (zeros, or a bare 30-byte data
-    /// header with no payload), causing BLTE decode to fail with `InvalidMagic`. When
-    /// that happens, the method falls through to `Data/ecache/`. Ecache entries DO include
-    /// the 30-byte data header at their IDX offset, so reads there use `read_entry` to
-    /// skip it. If the EKey is absent from both stores, the file has not been downloaded
-    /// locally — the caller should report it as CDN-only.
+    /// Resolves CKey → EKey via the encoding table, then delegates to
+    /// [`read_by_ekey`].
     pub fn read_by_ckey(&self, ckey: &[u8; 16]) -> Result<Vec<u8>> {
         let enc_entry = self
             .encoding
@@ -258,8 +264,18 @@ impl CascStorage {
                 hash: hex::encode(ckey),
             })?;
 
-        let ekey = &enc_entry.ekeys[0];
+        self.read_by_ekey(&enc_entry.ekeys[0])
+    }
 
+    /// Read a file by EKey (or EKey prefix ≥ 9 bytes).
+    ///
+    /// Tries the primary `Data/data/` index, then the `Data/ecache/` fallback,
+    /// then the CDN client (when configured). CDN-only stubs are detected via
+    /// [`CascError::InvalidMagic`] on the primary path and skipped gracefully.
+    ///
+    /// Used directly by the TVFS extraction path (which has a 9-byte EKey from
+    /// the CFT table) and internally by [`read_by_ckey`].
+    pub fn read_by_ekey(&self, ekey: &[u8]) -> Result<Vec<u8>> {
         // Try primary index (Data/data/). Content files: BLTE sits directly at the IDX
         // offset. CDN stubs: non-BLTE bytes → InvalidMagic → fall through to ecache.
         if let Some(idx_entry) = self.index.find(ekey) {
@@ -273,7 +289,7 @@ impl CascStorage {
                 Err(CascError::InvalidMagic { .. }) => {
                     tracing::debug!(
                         "cdn stub in primary for ekey {} — trying ecache",
-                        hex::encode(&ekey[..4])
+                        hex::encode(&ekey[..4.min(ekey.len())])
                     );
                     // Fall through to ecache.
                 }
@@ -297,18 +313,21 @@ impl CascStorage {
                 tracing::debug!(
                     "ecache stub (size={}) for ekey {} — reporting cdn-only",
                     idx_entry.size,
-                    hex::encode(&ekey[..4])
+                    hex::encode(&ekey[..4.min(ekey.len())])
                 );
             }
         }
 
-        // Try CDN fallback if enabled and the user has consented.
-        if let Some(cdn) = &self.cdn_client {
-            match cdn.fetch_ekey(ekey) {
+        // Try CDN fallback if enabled, the user has consented, and we have a full 16-byte
+        // EKey (TVFS supplies only 9-byte prefixes, which are not enough for CDN URL
+        // construction).
+        if let (Some(cdn), Some(full_key)) = (&self.cdn_client, ekey.get(..16)) {
+            let key16: &[u8; 16] = full_key.try_into().unwrap();
+            match cdn.fetch_ekey(key16) {
                 Ok(raw) => return decode_blte_with_keys(&raw, Some(&self.keystore)),
                 Err(e) => tracing::debug!(
                     "cdn fallback failed for ekey {}: {}",
-                    hex::encode(&ekey[..4]),
+                    hex::encode(&ekey[..4.min(ekey.len())]),
                     e
                 ),
             }
@@ -350,7 +369,8 @@ impl CascStorage {
             root_entries: self.root.len(),
             root_format: root_format.to_string(),
             index_entries: self.index.len(),
-            listfile_entries: self.listfile.len(),
+            resolver_paths: self.resolver.len(),
+            tvfs_paths: self.resolver.tvfs_len(),
         }
     }
 }
@@ -359,11 +379,14 @@ impl ExtractionStore for CascStorage {
     fn read_by_ckey(&self, ckey: &[u8; 16]) -> Result<Vec<u8>> {
         self.read_by_ckey(ckey)
     }
-    fn listfile_path(&self, fdid: u32) -> Option<&str> {
-        self.listfile.path(fdid)
+    fn read_by_ekey(&self, ekey: &[u8]) -> Result<Vec<u8>> {
+        self.read_by_ekey(ekey)
     }
-    fn listfile_fdid(&self, path: &str) -> Option<u32> {
-        self.listfile.fdid(path)
+    fn path_for_fdid(&self, fdid: u32) -> Option<&str> {
+        self.resolver.path_for_fdid(fdid)
+    }
+    fn fdid_for_path(&self, path: &str) -> Option<u32> {
+        self.resolver.fdid_for_path(path)
     }
     fn root_iter_all(&self) -> impl Iterator<Item = (u32, &RootEntry)> + '_ {
         self.root.iter_all()
@@ -491,18 +514,117 @@ fn bootstrap_root(
     RootFile::parse(&raw_data)
 }
 
-/// Load the listfile from a custom path or via download.
-fn load_listfile(config: &OpenConfig) -> Result<Listfile> {
+/// Load the listfile from a custom path or via download/cache.
+///
+/// `tvfs_loaded` is passed for future use (skip download when TVFS provides
+/// full coverage), but currently has no effect — the listfile is always loaded
+/// because WoW's `vfs-root` manifest is a hierarchical index with ~867
+/// top-level entries, not the flat game-asset catalog. Full TVFS coverage
+/// requires recursive sub-manifest loading (not yet implemented); until then
+/// the community listfile remains the authoritative path source.
+fn load_listfile_optional(config: &OpenConfig, _tvfs_loaded: bool) -> Result<Option<Listfile>> {
     if let Some(ref path) = config.listfile {
-        return Listfile::load(path);
+        return Listfile::load(path).map(Some);
     }
-
     let output_dir = config
         .output_dir
         .clone()
         .unwrap_or_else(|| std::env::temp_dir().join("casc-extractor"));
+    load_or_download(&output_dir).map(Some)
+}
 
-    load_or_download(&output_dir)
+/// Try to bootstrap the TVFS manifest by loading all `vfs-*` manifest segments
+/// from the build config and merging them.
+///
+/// WoW's build config lists multiple VFS segments (`vfs-root`, `vfs-1`,
+/// `vfs-2`, …`vfs-N`), each a separate TVFS blob. The full virtual file catalog
+/// is the union of all segments. Returns `None` when no `vfs-*` keys are
+/// present (Classic / pre-8.2 installs). Individual segment failures are
+/// logged as warnings and skipped so one bad segment doesn't abort the rest.
+fn bootstrap_tvfs(
+    build_config: &BuildConfig,
+    encoding: &EncodingFile,
+    index: &CascIndex,
+    data: &DataStore,
+    keystore: &TactKeyStore,
+) -> Option<TvfsManifest> {
+    // Collect all vfs-* CKeys from the build config, excluding the *-size entries.
+    let mut segments: Vec<(String, [u8; 16])> = build_config
+        .raw
+        .iter()
+        .filter(|(k, _)| k.starts_with("vfs-") && !k.ends_with("-size"))
+        .filter_map(|(k, v)| {
+            let ckey_hex = v.split_whitespace().next()?;
+            let ckey = hex_to_16(ckey_hex)
+                .map_err(|e| tracing::warn!("TVFS: invalid CKey for {}: {}", k, e))
+                .ok()?;
+            Some((k.clone(), ckey))
+        })
+        .collect();
+
+    if segments.is_empty() {
+        return None;
+    }
+
+    // Deduplicate: vfs-root and vfs-1 often share the same CKey.
+    let mut seen: HashSet<[u8; 16]> = HashSet::new();
+    segments.retain(|(_, ckey)| seen.insert(*ckey));
+
+    let total = segments.len();
+    let mut merged: Option<TvfsManifest> = None;
+    let mut loaded = 0usize;
+
+    for (key_name, ckey) in &segments {
+        match load_tvfs_segment(&ckey, encoding, index, data, keystore) {
+            Ok(m) => {
+                loaded += 1;
+                match merged {
+                    None => merged = Some(m),
+                    Some(ref mut acc) => acc.extend(m),
+                }
+            }
+            Err(e) => tracing::warn!("TVFS: skipping {} ({}): {}", key_name, hex::encode(&ckey[..4]), e),
+        }
+    }
+
+    match merged {
+        Some(ref m) => tracing::info!(
+            "TVFS: loaded {} virtual paths from {}/{} segment(s)",
+            m.len(), loaded, total
+        ),
+        None => tracing::warn!("TVFS: all {} segment(s) failed to load", total),
+    }
+    merged
+}
+
+/// Load and parse a single TVFS manifest segment identified by its CKey.
+fn load_tvfs_segment(
+    ckey: &[u8; 16],
+    encoding: &EncodingFile,
+    index: &CascIndex,
+    data: &DataStore,
+    keystore: &TactKeyStore,
+) -> Result<TvfsManifest> {
+    let enc_entry = encoding
+        .find_ekey(ckey)
+        .ok_or_else(|| CascError::KeyNotFound {
+            key_type: "TVFS CKey".into(),
+            hash: hex::encode(ckey),
+        })?;
+
+    let ekey = &enc_entry.ekeys[0];
+    let idx_entry = index.find(ekey).ok_or_else(|| CascError::KeyNotFound {
+        key_type: "TVFS EKey".into(),
+        hash: hex::encode(&ekey[..4]),
+    })?;
+
+    let blte_data = data.read_entry(
+        idx_entry.archive_number,
+        idx_entry.archive_offset,
+        idx_entry.size,
+    )?;
+    let raw = decode_blte_with_keys(blte_data, Some(keystore))?;
+    TvfsManifest::parse(&raw)
 }
 
 /// Decode a hex string to a `Vec<u8>`.
@@ -525,13 +647,13 @@ fn hex_to_16(hex_str: &str) -> Result<[u8; 16]> {
     Ok(arr)
 }
 
-/// Compute the output path for a FileDataID, using the listfile for naming.
+/// Compute the output path for a FileDataID using the path resolver for naming.
 ///
-/// If the listfile has a path for the FDID, the path is normalized
+/// If the resolver has a path for the FDID, the path is normalized
 /// (backslashes replaced with forward slashes) and sanitized against
 /// path traversal. Unknown files go to `output_dir/unknown/<fdid>.dat`.
-pub fn output_path(output_dir: &Path, fdid: u32, listfile: &Listfile) -> PathBuf {
-    match listfile.path(fdid) {
+pub fn output_path(output_dir: &Path, fdid: u32, resolver: &PathResolver) -> PathBuf {
+    match resolver.path_for_fdid(fdid) {
         Some(path) => {
             let normalized = path.replace('\\', "/");
             // Prevent path traversal
@@ -574,7 +696,7 @@ pub fn extract_all<S: ExtractionStore + Sync>(
         for f in &config.filters {
             if f.contains('*') {
                 glob_patterns.push(f.clone());
-            } else if let Some(fdid) = storage.listfile_fdid(f) {
+            } else if let Some(fdid) = storage.fdid_for_path(f) {
                 exact_fdids.insert(fdid);
             } else {
                 tracing::debug!("filter: exact path not in listfile — {:?}", f);
@@ -586,7 +708,7 @@ pub fn extract_all<S: ExtractionStore + Sync>(
                 return true;
             }
             if !glob_patterns.is_empty() {
-                if let Some(path) = storage.listfile_path(*fdid) {
+                if let Some(path) = storage.path_for_fdid(*fdid) {
                     return glob_patterns.iter().any(|pattern| glob_matches(pattern, path));
                 }
             }
@@ -658,7 +780,7 @@ pub fn extract_all<S: ExtractionStore + Sync>(
                 Err(e) if e.starts_with("skipped:") => {
                     stat_unavailable.fetch_add(1, Ordering::Relaxed);
                     if tracing::enabled!(tracing::Level::DEBUG) {
-                        let path = storage.listfile_path(*fdid).unwrap_or("unknown");
+                        let path = storage.path_for_fdid(*fdid).unwrap_or("unknown");
                         tracing::debug!(
                             "    unavailable: {} (fdid={}) — {}",
                             path,
@@ -669,7 +791,7 @@ pub fn extract_all<S: ExtractionStore + Sync>(
                 }
                 Err(e) => {
                     stat_errors.fetch_add(1, Ordering::Relaxed);
-                    let path = storage.listfile_path(*fdid).unwrap_or("unknown");
+                    let path = storage.path_for_fdid(*fdid).unwrap_or("unknown");
                     tracing::warn!(
                         "    extract error: {} (fdid={}) — {}",
                         path,
@@ -681,7 +803,7 @@ pub fn extract_all<S: ExtractionStore + Sync>(
 
             if let Some(ref meta) = metadata {
                 let meta_path = storage
-                    .listfile_path(*fdid)
+                    .path_for_fdid(*fdid)
                     .map(|s| s.to_string())
                     .unwrap_or_else(|| format!("unknown/{}.dat", fdid));
                 let entry = make_metadata_entry(*fdid, root_entry, &result, &meta_path);
@@ -723,14 +845,14 @@ pub fn list_files(storage: &CascStorage, locale: u32, filter: Option<&str>) -> V
         .filter(|(_, entry)| entry.locale_flags.matches(locale_filter))
         .filter(|(fdid, _)| seen.insert(*fdid))
         .filter(|(fdid, _)| match filter {
-            Some(pat) => match storage.listfile.path(*fdid) {
+            Some(pat) => match storage.resolver.path_for_fdid(*fdid) {
                 Some(path) => glob_matches(pat, path),
                 None => false,
             },
             None => true,
         })
         .map(|(fdid, _)| {
-            let path = storage.listfile.path(fdid).unwrap_or("unknown").to_string();
+            let path = storage.resolver.path_for_fdid(fdid).unwrap_or("unknown").to_string();
             (fdid, path)
         })
         .collect();
@@ -753,8 +875,8 @@ pub fn extract_single_file(
         storage.read_by_fdid(fdid, LocaleFlags(locale))?
     } else {
         let fdid = storage
-            .listfile
-            .fdid(target)
+            .resolver
+            .fdid_for_path(target)
             .ok_or_else(|| CascError::KeyNotFound {
                 key_type: "path".into(),
                 hash: target.into(),
@@ -813,7 +935,7 @@ fn extract_one<S: ExtractionStore>(
     }
 
     // Determine output path and write — mirrors output_path() but uses the trait
-    let out_path = match storage.listfile_path(fdid) {
+    let out_path = match storage.path_for_fdid(fdid) {
         Some(path) => {
             let normalized = path.replace('\\', "/");
             let safe = normalized.trim_start_matches('/').trim_start_matches("../");
@@ -907,42 +1029,43 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
+    fn resolver_from_listfile(content: &str) -> PathResolver {
+        let lf = Listfile::parse(content);
+        PathResolver::new(None, std::collections::HashMap::new(), Some(lf))
+    }
+
     #[test]
     fn output_path_from_listfile_hit() {
-        let listfile = Listfile::parse("53;Cameras/FlyBy.m2");
+        let resolver = resolver_from_listfile("53;Cameras/FlyBy.m2");
         let out = PathBuf::from("/output");
-        let result = output_path(&out, 53, &listfile);
-        // Should use the listfile path (preserving case from listfile)
+        let result = output_path(&out, 53, &resolver);
         assert!(result.to_string_lossy().contains("Cameras"));
         assert!(result.to_string_lossy().contains("FlyBy.m2"));
     }
 
     #[test]
     fn output_path_from_listfile_miss() {
-        let listfile = Listfile::parse("");
+        let resolver = resolver_from_listfile("");
         let out = PathBuf::from("/output");
-        let result = output_path(&out, 99999, &listfile);
+        let result = output_path(&out, 99999, &resolver);
         assert!(result.to_string_lossy().contains("unknown"));
         assert!(result.to_string_lossy().contains("99999.dat"));
     }
 
     #[test]
     fn output_path_normalizes_backslashes() {
-        let listfile = Listfile::parse("100;World\\Maps\\Test.adt");
+        let resolver = resolver_from_listfile("100;World\\Maps\\Test.adt");
         let out = PathBuf::from("/output");
-        let result = output_path(&out, 100, &listfile);
-        // Should not contain backslashes (on the path level)
+        let result = output_path(&out, 100, &resolver);
         let s = result.to_string_lossy().replace('\\', "/");
         assert!(s.contains("World/Maps/Test.adt") || s.contains("world/maps/test.adt"));
     }
 
     #[test]
     fn output_path_prevents_traversal() {
-        // A malicious listfile entry
-        let listfile = Listfile::parse("200;../../../etc/passwd");
+        let resolver = resolver_from_listfile("200;../../../etc/passwd");
         let out = PathBuf::from("/output");
-        let result = output_path(&out, 200, &listfile);
-        // Must not escape output_dir
+        let result = output_path(&out, 200, &resolver);
         assert!(result.starts_with("/output"));
     }
 
@@ -984,7 +1107,8 @@ mod tests {
             root_entries: 500000,
             root_format: "MfstV2".into(),
             index_entries: 200000,
-            listfile_entries: 400000,
+            resolver_paths: 400000,
+            tvfs_paths: 0,
         };
         assert_eq!(info.build_name, "WOW-12345");
         assert_eq!(info.root_entries, 500000);
@@ -1392,10 +1516,16 @@ mod mock_tests {
                 }),
             }
         }
-        fn listfile_path(&self, _fdid: u32) -> Option<&str> {
+        fn read_by_ekey(&self, ekey: &[u8]) -> crate::error::Result<Vec<u8>> {
+            Err(CascError::KeyNotFound {
+                key_type: "EKey".into(),
+                hash: hex::encode(&ekey[..4.min(ekey.len())]),
+            })
+        }
+        fn path_for_fdid(&self, _fdid: u32) -> Option<&str> {
             None
         }
-        fn listfile_fdid(&self, _path: &str) -> Option<u32> {
+        fn fdid_for_path(&self, _path: &str) -> Option<u32> {
             None
         }
         fn root_iter_all(&self) -> impl Iterator<Item = (u32, &RootEntry)> + '_ {

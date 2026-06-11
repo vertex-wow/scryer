@@ -198,14 +198,19 @@ pub fn run_server(
                 // Initialize storage if not ready
                 if storage.is_none() {
                     tracing::info!("Initializing CASC storage...");
+                    let open_start = Instant::now();
                     match CascStorage::open(&open_config) {
                         Ok(s) => {
+                            let elapsed = open_start.elapsed();
                             let info = s.info();
                             tracing::info!(
-                                "CASC storage initialized. build={} product={} root_entries={}",
+                                "CASC storage ready in {:.2}s — build={} product={} root={} paths={} tvfs={}",
+                                elapsed.as_secs_f64(),
                                 info.version,
                                 info.product,
-                                info.root_entries
+                                info.root_entries,
+                                info.resolver_paths,
+                                info.tvfs_paths,
                             );
                             build_hash = info.version.clone();
                             storage = Some(s);

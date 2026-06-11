@@ -171,11 +171,11 @@ export function activate(context: vscode.ExtensionContext): void {
   const cmd = vscode.commands.registerCommand("scryer.open", (uri?: vscode.Uri) => {
     const resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
     if (!resolved) {
-      void vscode.window.showErrorMessage("Scryer: open a .xml file first.");
+      void vscode.window.showErrorMessage("Scryer: Open a .xml file first.");
       return;
     }
     if (!resolved.fsPath.endsWith(".xml")) {
-      void vscode.window.showErrorMessage("Scryer: active file is not an XML file.");
+      void vscode.window.showErrorMessage("Scryer: Active file is not an XML file.");
       return;
     }
     output.info(`Viewing ${path.basename(resolved.fsPath)}`);
@@ -187,11 +187,11 @@ export function activate(context: vscode.ExtensionContext): void {
   const liveCmd = vscode.commands.registerCommand("scryer.openLive", (uri?: vscode.Uri) => {
     const resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
     if (!resolved) {
-      void vscode.window.showErrorMessage("Scryer: open a .toc file first.");
+      void vscode.window.showErrorMessage("Scryer: Open a .toc file first.");
       return;
     }
     if (!resolved.fsPath.endsWith(".toc")) {
-      void vscode.window.showErrorMessage("Scryer: active file is not a TOC file.");
+      void vscode.window.showErrorMessage("Scryer: Active file is not a TOC file.");
       return;
     }
     output.info(`Viewing Live ${path.basename(resolved.fsPath)}`);
@@ -204,7 +204,7 @@ export function activate(context: vscode.ExtensionContext): void {
     "scryer.openLiveFolder",
     async (uri?: vscode.Uri) => {
       if (!uri) {
-        void vscode.window.showErrorMessage("Scryer: no folder selected.");
+        void vscode.window.showErrorMessage("Scryer: No folder selected.");
         return;
       }
       const folderName = uri.fsPath.split(/[\\/]/).pop()!;
@@ -213,7 +213,7 @@ export function activate(context: vscode.ExtensionContext): void {
         await vscode.workspace.fs.stat(tocUri);
       } catch {
         void vscode.window.showErrorMessage(
-          `Scryer: no matching TOC file found (${folderName}.toc).`,
+          `Scryer: No matching TOC file found (${folderName}.toc).`,
         );
         return;
       }
@@ -279,7 +279,7 @@ export function activate(context: vscode.ExtensionContext): void {
             );
           } else {
             await vscode.window.withProgress(
-              { location: vscode.ProgressLocation.Window, title: "Scryer: prewarming textures…" },
+              { location: vscode.ProgressLocation.Window, title: "Scryer: Prewarming textures…" },
               () => assets.prewarmBlizzardTextures(SHARED_ADDON_NAMES),
             );
             if (cancelled) return;
@@ -287,7 +287,7 @@ export function activate(context: vscode.ExtensionContext): void {
               await vscode.window.withProgress(
                 {
                   location: vscode.ProgressLocation.Window,
-                  title: "Scryer: prewarming all textures…",
+                  title: "Scryer: Prewarming all textures…",
                 },
                 () => assets.prewarmBlizzardTextures(ADDON_NAMES),
               );

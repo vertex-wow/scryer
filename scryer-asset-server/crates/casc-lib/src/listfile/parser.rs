@@ -80,6 +80,11 @@ impl Listfile {
     pub fn is_empty(&self) -> bool {
         self.by_id.is_empty()
     }
+
+    /// Iterate all `(fdid, path)` pairs in arbitrary order.
+    pub fn iter(&self) -> impl Iterator<Item = (u32, &str)> {
+        self.by_id.iter().map(|(&fdid, path)| (fdid, path.as_str()))
+    }
 }
 
 #[cfg(test)]
