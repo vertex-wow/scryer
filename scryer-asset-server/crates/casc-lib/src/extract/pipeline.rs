@@ -6,6 +6,7 @@
 //! [`extract_all`], [`extract_single_file`], and [`list_files`].
 
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, OnceLock};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use rayon::ThreadPoolBuilder;
@@ -22,7 +23,7 @@ use crate::config::build_info::{BuildInfo, list_products, parse_build_info};
 use crate::config::cdn_config::parse_cdn_config;
 use crate::encoding::parser::{EncodingEntry, EncodingFile};
 use crate::error::{CascError, Result};
-use crate::listfile::downloader::load_or_download;
+use crate::listfile::downloader::load_or_refresh;
 use crate::listfile::parser::Listfile;
 use crate::resolve::{PathResolver, build_name_hash_index};
 use crate::root::flags::LocaleFlags;
@@ -89,7 +90,7 @@ pub struct StorageInfo {
     pub root_format: String,
     /// Number of entries in the CASC index.
     pub index_entries: usize,
-    /// Number of FDID→path mappings in the resolver (TVFS-derived + listfile).
+    /// Number of FDID→path mappings in the resolver (TVFS-derived only; listfile is lazy).
     pub resolver_paths: usize,
     /// Number of virtual file entries in the TVFS manifest (0 for Classic).
     pub tvfs_paths: usize,
@@ -152,6 +153,15 @@ pub struct CascStorage {
     data_ecache: Option<DataStore>,
     /// CDN fallback client — `None` when CDN is disabled or CDN coordinates are absent.
     cdn_client: Option<CdnClient>,
+    /// Resolved output directory used for the listfile cache.
+    output_dir: PathBuf,
+    /// Lazily loaded community listfile.
+    ///
+    /// Pre-warmed in a background thread after `open()` returns. On the first
+    /// TVFS miss in `fdid_for_path`, the calling thread hoists the load by
+    /// blocking on `get_or_init` — either joining the in-progress prewarm or
+    /// triggering an immediate load if the prewarm hasn't started yet.
+    listfile_cell: Arc<OnceLock<Option<Arc<Listfile>>>>,
 }
 
 impl CascStorage {
@@ -194,14 +204,12 @@ impl CascStorage {
             keystore.merge(&custom);
         }
 
-        // 6. Determine cache file path (derived from output_dir, defaulting to temp dir).
-        let cache_path = {
-            let output_dir = config
-                .output_dir
-                .clone()
-                .unwrap_or_else(|| std::env::temp_dir().join("casc-extractor"));
-            cache::cache_file_path(&output_dir)
-        };
+        // 6. Resolve output directory (used for disk caches: lookup tables, listfile).
+        let output_dir = config
+            .output_dir
+            .clone()
+            .unwrap_or_else(|| std::env::temp_dir().join("casc-extractor"));
+        let cache_path = cache::cache_file_path(&output_dir);
 
         // 7. Try fast path: load pre-parsed tables from the disk cache.
         let (index, index_ecache, encoding, root, tvfs) =
@@ -255,11 +263,39 @@ impl CascStorage {
                 (index, index_ecache, encoding, root, tvfs)
             };
 
-        // 9. Bootstrap path resolver (TVFS + name-hash + optional listfile).
+        // 9. Bootstrap path resolver (TVFS + name-hash only; listfile is lazy).
         //    TVFS is consumed here; it was saved to cache before this point.
         let hash_to_fdid = build_name_hash_index(&root);
-        let listfile = load_listfile_optional(config, tvfs.is_some())?;
-        let resolver = PathResolver::new(tvfs, hash_to_fdid, listfile);
+        let resolver = PathResolver::new(tvfs, hash_to_fdid, None);
+
+        // 9b. Set up the lazy listfile cell.
+        //
+        // Custom path → load synchronously and pre-populate the cell.
+        // Auto path   → spawn a prewarm thread; the first fdid_for_path miss
+        //               will hoist (block on get_or_init) if the prewarm is
+        //               still in flight, or trigger an immediate load if not.
+        let listfile_cell: Arc<OnceLock<Option<Arc<Listfile>>>> = Arc::new(OnceLock::new());
+        if let Some(ref custom_path) = config.listfile {
+            match Listfile::load(custom_path) {
+                Ok(lf) => { let _ = listfile_cell.set(Some(Arc::new(lf))); }
+                Err(e) => {
+                    tracing::warn!("custom listfile load failed {:?}: {}", custom_path, e);
+                    let _ = listfile_cell.set(None);
+                }
+            }
+        } else {
+            let cell = Arc::clone(&listfile_cell);
+            let out = output_dir.clone();
+            std::thread::spawn(move || {
+                cell.get_or_init(|| match load_or_refresh(&out) {
+                    Ok(lf) => Some(Arc::new(lf)),
+                    Err(e) => {
+                        tracing::warn!("listfile prewarm failed: {}", e);
+                        None
+                    }
+                });
+            });
+        }
 
         // 10. Set up CDN client (only when cdn_cache_dir is configured and build.info has CDN coords)
         let cdn_client = config.cdn_cache_dir.as_ref().and_then(|cache_dir| {
@@ -297,6 +333,8 @@ impl CascStorage {
             build_config,
             index,
             data: data_store,
+            output_dir,
+            listfile_cell,
             encoding,
             root,
             resolver,
@@ -409,6 +447,27 @@ impl CascStorage {
         self.read_by_ckey(&root_entry.ckey)
     }
 
+    /// Resolve a virtual path to a FileDataID using TVFS first, listfile on miss.
+    ///
+    /// If the TVFS name-hash index has no entry, blocks until the background
+    /// prewarm completes (or triggers an immediate load if not yet started).
+    fn lookup_fdid(&self, path: &str) -> Option<u32> {
+        if let Some(fdid) = self.resolver.fdid_for_path(path) {
+            return Some(fdid);
+        }
+        let out = &self.output_dir;
+        self.listfile_cell
+            .get_or_init(|| match load_or_refresh(out) {
+                Ok(lf) => Some(Arc::new(lf)),
+                Err(e) => {
+                    tracing::warn!("listfile load failed: {}", e);
+                    None
+                }
+            })
+            .as_deref()?
+            .fdid(path)
+    }
+
     /// Return high-level statistics about the loaded storage.
     pub fn info(&self) -> StorageInfo {
         let root_format = match self.root.format() {
@@ -439,10 +498,15 @@ impl ExtractionStore for CascStorage {
         self.read_by_ekey(ekey)
     }
     fn path_for_fdid(&self, fdid: u32) -> Option<&str> {
-        self.resolver.path_for_fdid(fdid)
+        if let Some(p) = self.resolver.path_for_fdid(fdid) {
+            return Some(p);
+        }
+        // Don't trigger a load here — by the time path_for_fdid is called
+        // during extraction, fdid_for_path has already hoisted the listfile.
+        self.listfile_cell.get()?.as_deref()?.path(fdid)
     }
     fn fdid_for_path(&self, path: &str) -> Option<u32> {
-        self.resolver.fdid_for_path(path)
+        self.lookup_fdid(path)
     }
     fn root_iter_all(&self) -> impl Iterator<Item = (u32, &RootEntry)> + '_ {
         self.root.iter_all()
@@ -568,25 +632,6 @@ fn bootstrap_root(
 
     let raw_data = decode_blte_with_keys(blte_data, Some(keystore))?;
     RootFile::parse(&raw_data)
-}
-
-/// Load the listfile from a custom path or via download/cache.
-///
-/// `tvfs_loaded` is passed for future use (skip download when TVFS provides
-/// full coverage), but currently has no effect — the listfile is always loaded
-/// because WoW's `vfs-root` manifest is a hierarchical index with ~867
-/// top-level entries, not the flat game-asset catalog. Full TVFS coverage
-/// requires recursive sub-manifest loading (not yet implemented); until then
-/// the community listfile remains the authoritative path source.
-fn load_listfile_optional(config: &OpenConfig, _tvfs_loaded: bool) -> Result<Option<Listfile>> {
-    if let Some(ref path) = config.listfile {
-        return Listfile::load(path).map(Some);
-    }
-    let output_dir = config
-        .output_dir
-        .clone()
-        .unwrap_or_else(|| std::env::temp_dir().join("casc-extractor"));
-    load_or_download(&output_dir).map(Some)
 }
 
 /// Try to bootstrap the TVFS manifest by loading all `vfs-*` manifest segments
@@ -931,8 +976,7 @@ pub fn extract_single_file(
         storage.read_by_fdid(fdid, LocaleFlags(locale))?
     } else {
         let fdid = storage
-            .resolver
-            .fdid_for_path(target)
+            .lookup_fdid(target)
             .ok_or_else(|| CascError::KeyNotFound {
                 key_type: "path".into(),
                 hash: target.into(),

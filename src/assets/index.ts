@@ -401,7 +401,12 @@ export class AssetService {
     if (!this.opts.sourceDir || !this.opts.installDir) return false;
 
     const addonsDir = resolveAddonsDir(this.opts.sourceDir);
-    const criticalNames = ["blizzard_sharedxmlbase", "blizzard_colors", "blizzard_sharedxml"];
+    const criticalNames = [
+      "blizzard_sharedxmlbase",
+      "blizzard_colors",
+      "blizzard_sharedxml",
+      "blizzard_framexml",
+    ];
     const allPresent = criticalNames.every((name) => {
       try {
         fs.statSync(path.join(addonsDir, name));

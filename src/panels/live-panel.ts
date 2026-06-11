@@ -470,9 +470,10 @@ export class ScryerLivePanel {
       const clock = new VirtualClock();
       const sandbox = await createSandbox(wasmPath, { timeout: flavorConfig.sandboxTimeout });
 
-      // Extract the three Lua-critical Blizzard addon trees at user priority so this
-      // render doesn't block on the full prewarm glob. FrameXML + fonts come from the
-      // background prewarm and appear via pop-in on subsequent renders.
+      // Extract critical Blizzard addons at user priority (SharedXMLBase, Colors,
+      // SharedXML, FrameXML). FrameXML is required for loadBlizzardTemplates() to
+      // find NineSlicePanelTemplate and other inherited frame templates. Fonts come
+      // from the background prewarm and pop in once extracted.
       await this.assets.ensureBlizzardLuaCritical();
 
       // Generate atlas manifest if needed — listfile is guaranteed present after extraction.

@@ -24,6 +24,35 @@ Completed items are in [todo-archive.md](todo-archive.md).
 
 ---
 
+## Listfile binary parse cache
+
+**Status:** 📋 Pending
+**Milestone:** M15 CASC Asset Service
+
+**Problem:** `Listfile::load` parses ~140 MB of CSV on every server start. With prewarm
+this cost is off the critical path, but it still takes ~1–2 s on every cold launch and
+on every subsequent server restart (e.g. after idle timeout).
+
+**Goal:** Serialize the parsed `Listfile` to a binary sidecar (`listfile.bin`) after the
+first parse. On subsequent loads, if the sidecar is newer than `listfile.csv`, deserialize
+from binary instead (~100 ms, ~10× faster than CSV parse). Invalidate the sidecar
+automatically when `listfile.csv` is updated (new download).
+
+**Plan:**
+
+1. Add `postcard` (or `bincode`) as a dev dependency of `casc-lib`.
+2. In `Listfile::load`, after parsing: serialize to `listfile.bin` alongside `listfile.csv`.
+3. In `load_or_refresh`, before calling `Listfile::load`: check if `listfile.bin` exists
+   and `listfile.bin.modified >= listfile.csv.modified`. If so, deserialize from binary
+   and return early. If deserialization fails (schema change, corruption), fall through to
+   CSV parse and regenerate.
+4. Add a unit test: round-trip serialize → deserialize → assert equal to CSV parse result.
+
+**Effort:** XS–S — postcard/bincode serialization is ~1 hour once the dependency is
+chosen; the freshness check and fallback logic add ~30 min.
+
+---
+
 ## TGA texture decode (deferred from M3)
 
 **Problem:** TGA (Targa) textures are used by many addon-bundled images. M3 logs a warning and shows a labeled placeholder for `.tga` files; it does not decode them.

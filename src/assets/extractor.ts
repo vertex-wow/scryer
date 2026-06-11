@@ -74,7 +74,7 @@ class ExtractionProgressNotifier {
 
   private updateMessage(): void {
     const msg =
-      this.userJobs > 0 ? "Extracting game assets…" : "Prewarming cache with game assets…";
+      this.userJobs > 0 ? "Extracting game assets…" : "Pre-warming cache with game assets…";
     this.progressReporter?.report({ message: msg });
   }
 }
@@ -189,7 +189,7 @@ export async function extractMissing(paths: string[], opts: ExtractorOptions): P
 /**
  * Extract all Blizzard addon interface files for the prewarm path.
  * Enqueues two jobs at prewarm priority: (A) the Lua-critical addon trees
- * (SharedXMLBase, Colors, SharedXML) first, then (B) FrameXML + fonts.
+ * (SharedXMLBase, Colors, SharedXML, FrameXML) first, then (B) fonts.
  * Splitting lets a user-priority critical job slip between A and B when a
  * panel opens mid-prewarm. Returns the combined ExtractionResult so the
  * caller can detect unavailable files and show the CDN consent dialog.
@@ -211,9 +211,9 @@ export async function extractBlizzardShared(
     result = await progressNotifier.run("prewarm", async () => {
       if (opts.flavor === "retail") {
         // Two prewarm jobs so a user-priority panel open can slip between them.
-        // Job A: Lua-critical addons (SharedXMLBase, Colors, SharedXML).
+        // Job A: critical addons (SharedXMLBase, Colors, SharedXML, FrameXML).
         const criticalRes = await extractPaths(BLIZZARD_LUA_CRITICAL_GLOBS, coreOpts, "prewarm");
-        // Job B: FrameXML templates + fonts (pop-in candidates, not Lua-blocking).
+        // Job B: fonts (pop-in candidate — text rendering delays are less jarring).
         const bulkRes = await extractPaths(BLIZZARD_BULK_GLOBS, coreOpts, "prewarm");
         return {
           exported: criticalRes.exported + bulkRes.exported,
@@ -241,12 +241,9 @@ export async function extractBlizzardShared(
 }
 
 /**
- * Extract only the Lua-critical Blizzard addon trees at user priority.
- * Called from live/static panels when a user opens a preview while the
- * prewarm is still running. Jumps ahead of pending prewarm jobs in the queue.
- */
-/**
- * Extract only the Lua-critical Blizzard addon trees at user priority (retail only).
+ * Extract critical Blizzard addon trees at user priority (retail only).
+ * Covers SharedXMLBase, Colors, SharedXML (Lua prerequisites) and FrameXML
+ * (XML template registry — required for NineSlice and other inherited templates).
  * Called from live/static panels when a user opens a preview while the prewarm is
  * still running — jumps ahead of pending prewarm jobs in the queue.
  * Classic/ClassicEra: falls back to a full extractBulk("interface") pass (no queue).

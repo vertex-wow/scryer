@@ -62,15 +62,20 @@ const TEXTURE_GLOBS = [
   "interface/tooltips/**",
 ];
 
-/** Lua-critical addon trees: must be present before the live sandbox runs. */
+/**
+ * Critical addon trees: must be fully extracted before the live panel's first render.
+ * Includes Lua prerequisites AND FrameXML (required for NineSlicePanelTemplate and
+ * other XML templates that NineSlice Lua expects to find in the registry).
+ */
 export const BLIZZARD_LUA_CRITICAL_GLOBS = [
   "interface/addons/blizzard_sharedxmlbase/**",
   "interface/addons/blizzard_colors/**",
   "interface/addons/blizzard_sharedxml/**",
+  "interface/addons/blizzard_framexml/**",
 ];
 
-/** Non-critical bulk globs: FrameXML templates + fonts. Pop-in candidates. */
-export const BLIZZARD_BULK_GLOBS = ["interface/addons/blizzard_framexml/**", "fonts/**"];
+/** Bulk pop-in globs: fonts only. Extracted in the background after critical addons. */
+export const BLIZZARD_BULK_GLOBS = ["fonts/**"];
 
 const INTERFACE_GLOBS = [...BLIZZARD_LUA_CRITICAL_GLOBS, ...BLIZZARD_BULK_GLOBS];
 

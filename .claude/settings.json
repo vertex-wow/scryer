@@ -82,7 +82,11 @@
       "Bash(curl *)",
       "Bash(xxd *)",
       "Bash(pnpm test:net)",
-      "Bash(git ls-tree *)"
+      "Bash(git ls-tree *)",
+      "Bash(rustc --version)",
+      "Bash(git -C * log *)",
+      "Bash(git -C * show *)",
+      "Bash(git -C * status *)"
     ],
     "additionalDirectories": [
       "/tmp"
