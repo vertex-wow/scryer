@@ -176,3 +176,13 @@ function probeAddonRelative(
 export function clearResolutionMemo(): void {
   memo.clear();
 }
+
+/** Remove a single stale null entry so the next probe re-checks disk. */
+export function deleteResolutionMemoEntry(
+  rawPath: string,
+  searchDirs: string[],
+  addonDir?: string,
+): void {
+  const key = rawPath + "\0" + searchDirs.join(",") + "\0" + (addonDir ?? "");
+  memo.delete(key);
+}

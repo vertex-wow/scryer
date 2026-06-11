@@ -13,5 +13,5 @@ pub mod pipeline;
 /// Re-exported types for convenient access.
 pub use pipeline::{
     CascStorage, ExtractionConfig, OpenConfig, StorageInfo, extract_all, extract_single_file,
-    list_files, output_path,
+    list_files, output_path, read_file_bytes,
 };

@@ -306,6 +306,15 @@ export class AssetClient {
     });
   }
 
+  public async readFileBytes(path: string, cdnEnabled = false): Promise<Buffer | null> {
+    const res = await this.request<{ ok: boolean; data?: string; error?: string }>("readFile", {
+      path,
+      cdnEnabled,
+    });
+    if (!res.ok || !res.data) return null;
+    return Buffer.from(res.data, "base64");
+  }
+
   public async status(): Promise<AssetStatus> {
     const res = await this.request<AssetStatus>("status");
     return {

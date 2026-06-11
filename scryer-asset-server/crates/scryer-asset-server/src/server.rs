@@ -5,7 +5,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use casc_lib::extract::{CascStorage, ExtractionConfig, OpenConfig, extract_all};
+use base64::prelude::*;
+use casc_lib::extract::{CascStorage, ExtractionConfig, OpenConfig, extract_all, read_file_bytes};
 
 #[derive(Deserialize, Debug)]
 #[serde(tag = "method", rename_all = "camelCase")]
@@ -17,6 +18,11 @@ enum RequestPayload {
     },
     Status,
     Shutdown,
+    ReadFile {
+        path: String,
+        #[serde(rename = "cdnEnabled", default)]
+        cdn_enabled: bool,
+    },
 }
 
 #[derive(Deserialize, Debug)]
@@ -50,6 +56,14 @@ enum ServerResponse {
     Shutdown {
         id: u64,
         ok: bool,
+    },
+    ReadFile {
+        id: u64,
+        ok: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        data: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
     },
     Error {
         id: u64,
@@ -151,6 +165,93 @@ pub fn run_server(
                     build_hash: build_hash.clone(),
                     idle_timeout_ms: idle_timeout * 1000,
                 };
+                serde_json::to_writer(&mut stdout, &res).unwrap();
+                stdout.write_all(b"\n").unwrap();
+                stdout.flush().unwrap();
+                in_flight.store(false, Ordering::Relaxed);
+            }
+            RequestPayload::ReadFile { path, cdn_enabled } => {
+                tracing::debug!("ReadFile request: {}", path);
+
+                if cdn_enabled != current_cdn_enabled && storage.is_some() {
+                    tracing::info!(
+                        "CDN setting changed ({} → {}) — reinitializing storage",
+                        current_cdn_enabled,
+                        cdn_enabled
+                    );
+                    storage = None;
+                }
+                current_cdn_enabled = cdn_enabled;
+
+                if storage.is_none() {
+                    tracing::info!("Initializing CASC storage...");
+                    let open_start = Instant::now();
+                    let open_config = OpenConfig {
+                        install_dir: wow_dir.clone(),
+                        product: Some("wow".into()),
+                        keyfile: None,
+                        listfile: listfile.clone(),
+                        output_dir: Some(out_dir.clone()),
+                        cdn_cache_dir: if cdn_enabled {
+                            Some(out_dir.join(".casc-cdn-cache"))
+                        } else {
+                            None
+                        },
+                    };
+                    match CascStorage::open(&open_config) {
+                        Ok(s) => {
+                            let elapsed = open_start.elapsed();
+                            let info = s.info();
+                            tracing::info!(
+                                "CASC storage ready in {:.2}s — build={} product={} root={} paths={} tvfs={}",
+                                elapsed.as_secs_f64(),
+                                info.version,
+                                info.product,
+                                info.root_entries,
+                                info.resolver_paths,
+                                info.tvfs_paths,
+                            );
+                            build_hash = info.version.clone();
+                            storage = Some(s);
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to initialize CASC storage: {}", e);
+                            let res = ServerResponse::Error {
+                                id: req.id,
+                                ok: false,
+                                error: format!("Failed to initialize CASC storage: {}", e),
+                            };
+                            serde_json::to_writer(&mut stdout, &res).unwrap();
+                            stdout.write_all(b"\n").unwrap();
+                            stdout.flush().unwrap();
+                            in_flight.store(false, Ordering::Relaxed);
+                            continue;
+                        }
+                    }
+                }
+
+                let store = storage.as_ref().unwrap();
+                let res = match read_file_bytes(store, &path, 0x2) {
+                    Ok(bytes) => {
+                        tracing::debug!("readFile hit: {} ({} bytes)", path, bytes.len());
+                        ServerResponse::ReadFile {
+                            id: req.id,
+                            ok: true,
+                            data: Some(BASE64_STANDARD.encode(&bytes)),
+                            error: None,
+                        }
+                    }
+                    Err(e) => {
+                        tracing::debug!("readFile miss: {} — {}", path, e);
+                        ServerResponse::ReadFile {
+                            id: req.id,
+                            ok: false,
+                            data: None,
+                            error: Some(e.to_string()),
+                        }
+                    }
+                };
+
                 serde_json::to_writer(&mut stdout, &res).unwrap();
                 stdout.write_all(b"\n").unwrap();
                 stdout.flush().unwrap();
@@ -329,6 +430,63 @@ mod tests {
             }
             _ => panic!("expected Extract variant"),
         }
+    }
+
+    #[test]
+    fn parse_read_file_request() {
+        let raw = r#"{"id":8,"method":"readFile","path":"interface/icons/foo.blp"}"#;
+        let req: ServerRequest = serde_json::from_str(raw).unwrap();
+        assert_eq!(req.id, 8);
+        match req.payload {
+            RequestPayload::ReadFile { path, cdn_enabled } => {
+                assert_eq!(path, "interface/icons/foo.blp");
+                assert!(!cdn_enabled, "cdn_enabled defaults to false when absent");
+            }
+            _ => panic!("expected ReadFile variant"),
+        }
+    }
+
+    #[test]
+    fn parse_read_file_request_with_cdn() {
+        let raw = r#"{"id":9,"method":"readFile","path":"fonts/arialn.ttf","cdnEnabled":true}"#;
+        let req: ServerRequest = serde_json::from_str(raw).unwrap();
+        match req.payload {
+            RequestPayload::ReadFile { path, cdn_enabled } => {
+                assert_eq!(path, "fonts/arialn.ttf");
+                assert!(cdn_enabled);
+            }
+            _ => panic!("expected ReadFile variant"),
+        }
+    }
+
+    #[test]
+    fn serialize_read_file_response_ok() {
+        let res = ServerResponse::ReadFile {
+            id: 8,
+            ok: true,
+            data: Some("aGVsbG8=".into()),
+            error: None,
+        };
+        let json: serde_json::Value = serde_json::to_value(&res).unwrap();
+        assert_eq!(json["id"], 8);
+        assert_eq!(json["ok"], true);
+        assert_eq!(json["data"], "aGVsbG8=");
+        assert!(json.get("error").is_none(), "error must be omitted when ok");
+    }
+
+    #[test]
+    fn serialize_read_file_response_miss() {
+        let res = ServerResponse::ReadFile {
+            id: 9,
+            ok: false,
+            data: None,
+            error: Some("key not found".into()),
+        };
+        let json: serde_json::Value = serde_json::to_value(&res).unwrap();
+        assert_eq!(json["id"], 9);
+        assert_eq!(json["ok"], false);
+        assert_eq!(json["error"], "key not found");
+        assert!(json.get("data").is_none(), "data must be omitted on miss");
     }
 
     #[test]

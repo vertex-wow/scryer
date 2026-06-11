@@ -400,15 +400,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="todo-archive.md#eliminate-listfile-dependency-tvfs-root-direct">Eliminate listfile dependency (TVFS/root direct)</a>, <a href="todo-archive.md#cdn-client-startup-caching">CDN client startup caching</a>, <a href="todo-archive.md#disk-cached-lookup-tables">Disk-cached lookup tables</a>, <a href="todo-archive.md#listfile-lazy-load-tvfs-first">Listfile lazy-load with TVFS-first resolution</a></td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td>Direct byte streaming over stdio</td>
-  <td>📋 Pending</td>
-  <td>Return raw file bytes over the protocol instead of writing to disk</td>
-  <td>S</td>
-  <td>—</td>
+  <td colspan="5">✅ <a href="todo-archive.md#eliminate-listfile-dependency-tvfs-root-direct">Eliminate listfile dependency (TVFS/root direct)</a>, <a href="todo-archive.md#cdn-client-startup-caching">CDN client startup caching</a>, <a href="todo-archive.md#disk-cached-lookup-tables">Disk-cached lookup tables</a>, <a href="todo-archive.md#listfile-lazy-load-tvfs-first">Listfile lazy-load with TVFS-first resolution</a>, <a href="todo-archive.md#direct-byte-streaming-over-stdio">Direct byte streaming over stdio</a></td>
 </tr>
 <tr>
   <td>↳</td>

@@ -962,6 +962,23 @@ pub fn list_files(storage: &CascStorage, locale: u32, filter: Option<&str>) -> V
     result
 }
 
+/// Read a single file by FDID or path string, returning the raw bytes without
+/// writing to disk. The `target` parameter is parsed as a numeric FDID first;
+/// if that fails it is treated as a listfile path lookup.
+pub fn read_file_bytes(storage: &CascStorage, target: &str, locale: u32) -> Result<Vec<u8>> {
+    if let Ok(fdid) = target.parse::<u32>() {
+        storage.read_by_fdid(fdid, LocaleFlags(locale))
+    } else {
+        let fdid = storage
+            .lookup_fdid(target)
+            .ok_or_else(|| CascError::KeyNotFound {
+                key_type: "path".into(),
+                hash: target.into(),
+            })?;
+        storage.read_by_fdid(fdid, LocaleFlags(locale))
+    }
+}
+
 /// Extract a single file by FDID or path string to the given output location.
 ///
 /// The `target` parameter is parsed as a numeric FDID first; if that fails it

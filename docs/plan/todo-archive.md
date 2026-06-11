@@ -1111,6 +1111,31 @@ Canvas-based sprite extraction in `src/webview/main.ts`:
 - In `applyAsset`, when `needsCanvasH = crop.tilesH && crop.sheetW > crop.width` (or `needsCanvasV`): dispatches the async extraction and uses `continue` to skip the synchronous CSS path. Placeholder stays until the promise resolves. On resolution: sets `background-image` to the canvas data URL, `background-repeat: repeat-x no-repeat` (or `no-repeat repeat-y` / `repeat` for the other cases), and `background-size` to the sprite's logical dimensions scaled to fit the element's non-tiling axis.
 - The key lesson from the first failed attempt (2026-06-02): do NOT fall through to the CSS path for canvas sprites. The async write raced with the synchronous sheet URI, producing layout artifacts. The `continue` skips all CSS writes; the callback does the full apply in one shot.
 
+## Direct byte streaming over stdio {#direct-byte-streaming-over-stdio}
+
+**Completed:** 2026-06-11  
+**Milestone:** M15 CASC Asset Service
+
+### Problem
+
+On-demand texture loads required two full disk round-trips: Rust extracted the BLP from CASC and wrote it to `sourceDir`, then TS read it back off disk for BLP→PNG conversion. This was the hot path for any texture not caught by the prewarm.
+
+### What was built
+
+- **`casc-lib`: `read_file_bytes(storage, target, locale)`** — resolves a path or FDID to raw bytes from CASC without any disk write.
+- **`scryer-asset-server`: `ReadFile` request/response** — new protocol method. Request: `{ method: "readFile", path, cdnEnabled }`. Response: `{ ok, data? (base64), error? }`. Handler follows the same CDN-aware storage-init pattern as `Extract`. 6 new serde tests.
+- **`blp.ts`: `blpToPngBuffer(buf)`** — converts BLP bytes already in memory, skipping `readFileSync`.
+- **`asset-client.ts`: `readFileBytes(path, cdnEnabled)`** — sends `readFile` request, base64-decodes the response to a `Buffer`.
+- **`extract-core.ts`: `readAssetBytes(path, opts)`** — thin retail-only wrapper over the shared client.
+- **`resolver.ts`: `deleteResolutionMemoEntry`** — removes a single stale null memo entry without clearing the whole map.
+- **`AssetService._streamBlp`** — on a disk miss in `_resolve`, streams bytes from Rust, writes BLP to `sourceDir` for future sessions, clears the stale memo entry, converts to PNG in memory via `blpToPngBuffer`, and caches the result. Net: 2 fewer disk I/O ops per on-demand BLP load (eliminates the Rust-side disk write and the TS `readFileSync` for conversion).
+
+### Architecture change
+
+Rust is now a pure extraction engine with no disk responsibility for on-demand fetches. TS owns the disk cache throughout. The `Extract` method (glob-based bulk extraction for prewarm) is unchanged.
+
+---
+
 ## Eliminate listfile dependency (TVFS/root direct) {#eliminate-listfile-dependency-tvfs-root-direct}
 
 **Completed:** 2026-06-10  

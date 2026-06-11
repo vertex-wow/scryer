@@ -9,7 +9,8 @@ import {
   extractMissing,
   genAtlas,
 } from "./extractor.js";
-import { acquireClientKeepalive, releaseClientKeepalive } from "./extract-core.js";
+import { acquireClientKeepalive, releaseClientKeepalive, readAssetBytes } from "./extract-core.js";
+import { blpToPngBuffer } from "./blp.js";
 import {
   ADDON_NAMES,
   SHARED_ADDON_NAMES,
@@ -29,7 +30,7 @@ import {
   readBuildText,
   writeBuildStamp,
 } from "./build-info.js";
-import { clearResolutionMemo, resolveTexturePath } from "./resolver.js";
+import { clearResolutionMemo, deleteResolutionMemoEntry, resolveTexturePath } from "./resolver.js";
 
 import { collectTexturePaths } from "../parser/collect-textures.js";
 import { loadAtlasManifest, resolveAtlasNames, type AtlasManifest } from "./atlas-manifest.js";
@@ -249,7 +250,9 @@ export class AssetService {
       }
     };
     const found = resolveTexturePath(rawPath, this.searchDirs, addonDir, log);
-    if (!found) return null;
+    if (!found) {
+      return this.opts.installDir ? this._streamBlp(rawPath, addonDir) : null;
+    }
 
     if (found.kind === "png" || found.kind === "font") {
       return found.absPath;
@@ -272,6 +275,51 @@ export class AssetService {
       return writeCached(this.opts.texturesConvDir, key, pngBytes);
     } catch (err) {
       this.opts.output.warn(`BLP decode failed for ${rawPath}: ${String(err)}`);
+      return null;
+    }
+  }
+
+  /**
+   * On-demand BLP streaming: fetch raw bytes from the CASC server (no disk write in Rust),
+   * write the BLP to sourceDir for future sessions, convert to PNG in memory, and cache.
+   * Clears the stale null resolver memo entry so subsequent re-renders hit the disk path.
+   */
+  private async _streamBlp(rawPath: string, addonDir?: string): Promise<string | null> {
+    if (!this.opts.installDir) return null;
+
+    const slashed = rawPath.replace(/\\/g, "/");
+    const normalized = (/\.\w+$/i.test(slashed) ? slashed : slashed + ".blp").toLowerCase();
+
+    const cfg = vscode.workspace.getConfiguration("scryer");
+    const cdnEnabled = (cfg.get<string>("cdnFallback") ?? "ask") === "cdn";
+
+    let bytes: Buffer | null;
+    try {
+      bytes = await readAssetBytes(normalized, this.makeCoreOpts(cdnEnabled));
+    } catch {
+      return null;
+    }
+    if (!bytes) return null;
+
+    // Write BLP to sourceDir for future disk-hit resolution
+    const blpDest = path.join(this.opts.sourceDir, normalized);
+    try {
+      fs.mkdirSync(path.dirname(blpDest), { recursive: true });
+      fs.writeFileSync(blpDest, bytes);
+    } catch {
+      // Non-fatal: PNG cache will still be written below
+    }
+
+    // Clear the stale null memo entry so re-renders find the BLP on disk directly
+    deleteResolutionMemoEntry(rawPath, this.searchDirs, addonDir);
+
+    // Convert to PNG using stat-based key (BLP is now on disk)
+    try {
+      const key = cacheKey(blpDest);
+      const pngBytes = blpToPngBuffer(bytes);
+      return writeCached(this.opts.texturesConvDir, key, pngBytes);
+    } catch (err) {
+      this.opts.output.warn(`BLP stream-decode failed for ${rawPath}: ${String(err)}`);
       return null;
     }
   }

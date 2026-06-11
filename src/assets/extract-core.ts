@@ -533,6 +533,24 @@ async function extractLooseBulk(
 // ---------------------------------------------------------------------------
 
 /**
+ * Fetch raw bytes for a single WoW-relative path from the CASC server without writing
+ * to disk. Retail-only — returns null for Classic/ClassicEra flavors or when the server
+ * is unavailable or the file is not found in CASC.
+ */
+export async function readAssetBytes(
+  path: string,
+  opts: ExtractCoreOptions,
+): Promise<Buffer | null> {
+  if (opts.flavor !== "retail") return null;
+  const client = getAssetClient(opts);
+  try {
+    return await client.readFileBytes(path, opts.cdnEnabled ?? false);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Extract specific WoW-relative paths (e.g. "Interface/Buttons/UI-Minimap-Arrow.blp").
  * Retail uses scryer-asset-server; Classic copies loose files from the install directory.
  */

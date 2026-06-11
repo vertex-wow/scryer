@@ -6,6 +6,20 @@ const BLP2_MAGIC = 0x32504c42; // 'BLP2' LE
 const BLP_HEADER_SIZE = 148; // 4+4+1+1+1+1+4+4+64+64
 
 /**
+ * Decode BLP bytes to a PNG-encoded Buffer.
+ * Throws if the bytes are not a valid BLP or the variant is unsupported.
+ */
+export function blpToPngBuffer(buf: Buffer): Buffer {
+  const blp = new BLPFile(buf);
+  const pixels = blp.getPixels(0);
+  const rgba = pixels.raw;
+
+  const png = new PNG({ width: blp.width, height: blp.height });
+  png.data = rgba;
+  return PNG.sync.write(png);
+}
+
+/**
  * Decode a BLP file to a PNG-encoded Buffer.
  * Throws if the file is not a valid BLP or the variant is unsupported.
  */
