@@ -341,7 +341,7 @@ fn build_fixture(dir: &Path) -> OpenConfig {
         product: Some("wow".into()),
         keyfile: None,
         listfile: Some(listfile),
-        output_dir: None,
+        output_dir: Some(dir.to_path_buf()),
         cdn_cache_dir: None,
     }
 }
@@ -527,7 +527,7 @@ fn synthetic_ecache_fallback() {
         product: Some("wow".into()),
         keyfile: None,
         listfile: Some(listfile),
-        output_dir: None,
+        output_dir: Some(fix.clone()),
         cdn_cache_dir: None,
     };
 
