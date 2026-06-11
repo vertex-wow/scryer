@@ -19,6 +19,7 @@ hex = "0.4.3"
 lz4_flex = "0.13"
 md-5 = "0.10.6"
 memmap2 = "0.9.10"
+postcard = { version = "1", features = ["alloc"] }
 rayon = "1.11.0"
 reqwest = { version = "0.13.2", features = ["blocking"] }
 salsa20 = "0.10.2"

@@ -428,15 +428,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td>Listfile binary parse cache</td>
-  <td>📋 Pending</td>
-  <td>Serialize parsed listfile to <code>listfile.bin</code> (postcard/bincode); deserialize on subsequent loads (~10× faster than CSV parse)</td>
-  <td>XS–S</td>
-  <td>Listfile prewarm</td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td colspan="5">✅ <a href="todo-archive.md#rust-server-tier-1-protocol-serde-tests">Rust server: Tier 1 — protocol serde tests</a>, <a href="todo-archive.md#rust-server-tier-2-extraction-stats-mock-tests">Rust server: Tier 2 — extraction stats mock tests</a>, <a href="todo-archive.md#rust-server-tier-3-synthetic-casc-fixtures">Rust server: Tier 3 — synthetic CASC fixtures</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#rust-server-tier-1-protocol-serde-tests">Rust server: Tier 1 — protocol serde tests</a>, <a href="todo-archive.md#rust-server-tier-2-extraction-stats-mock-tests">Rust server: Tier 2 — extraction stats mock tests</a>, <a href="todo-archive.md#rust-server-tier-3-synthetic-casc-fixtures">Rust server: Tier 3 — synthetic CASC fixtures</a>, <a href="todo-archive.md#listfile-binary-parse-cache">Listfile binary parse cache</a></td>
 </tr>
 </tbody>
 </table>

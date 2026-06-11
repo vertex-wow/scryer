@@ -8,12 +8,15 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use serde::{Deserialize, Serialize};
+
 use crate::error::Result;
 
 /// Parsed listfile mapping FileDataID <-> file path.
 ///
 /// The community listfile format is one `FileDataID;FilePath` pair per line
 /// (semicolon-separated). This struct provides bidirectional lookup.
+#[derive(Serialize, Deserialize)]
 pub struct Listfile {
     /// FileDataID -> path (original case preserved)
     by_id: HashMap<u32, String>,
@@ -145,5 +148,19 @@ mod tests {
         assert_eq!(lf.path(53), Some("World/Maps/Azeroth.wdt"));
         // by_path uses lowercase for lookup
         assert_eq!(lf.fdid("world/maps/azeroth.wdt"), Some(53));
+    }
+
+    #[test]
+    fn postcard_round_trip() {
+        let content = "53;Cameras/FlyBy.m2\n69;Creature/Bear/Bear.m2\n1000;Interface/Icons/Ability_Warrior_Charge.blp\n";
+        let original = Listfile::parse(content);
+        let bytes = postcard::to_allocvec(&original).expect("serialize");
+        let restored: Listfile = postcard::from_bytes(&bytes).expect("deserialize");
+        assert_eq!(restored.len(), original.len());
+        assert_eq!(restored.path(53), original.path(53));
+        assert_eq!(restored.path(69), original.path(69));
+        assert_eq!(restored.path(1000), original.path(1000));
+        assert_eq!(restored.fdid("cameras/flyby.m2"), original.fdid("cameras/flyby.m2"));
+        assert_eq!(restored.fdid("interface/icons/ability_warrior_charge.blp"), original.fdid("interface/icons/ability_warrior_charge.blp"));
     }
 }

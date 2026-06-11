@@ -15,6 +15,7 @@ use std::time::SystemTime;
 use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
+use super::parser::Listfile;
 
 const LISTFILE_URL_PRIMARY: &str =
     "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv";
@@ -102,6 +103,68 @@ pub fn download_listfile(output_dir: &Path) -> Result<PathBuf> {
     Ok(dest)
 }
 
+/// Cache path for the binary sidecar (postcard-encoded).
+pub fn bin_cache_path(output_dir: &Path) -> PathBuf {
+    output_dir.join(".casc-meta").join("listfile.bin")
+}
+
+fn file_mtime(path: &Path) -> Option<SystemTime> {
+    std::fs::metadata(path).ok()?.modified().ok()
+}
+
+/// Try to load `Listfile` from the binary cache if it is at least as fresh as
+/// the CSV. Returns `None` on any failure (missing, stale, corrupt, schema
+/// change) so the caller can fall back to CSV parsing.
+fn try_load_bin(bin_path: &Path, csv_path: &Path) -> Option<Listfile> {
+    let bin_mtime = file_mtime(bin_path)?;
+    let csv_mtime = file_mtime(csv_path)?;
+    if bin_mtime < csv_mtime {
+        tracing::debug!("listfile: binary cache is stale — will re-parse CSV");
+        return None;
+    }
+    let bytes = std::fs::read(bin_path).ok()?;
+    match postcard::from_bytes::<Listfile>(&bytes) {
+        Ok(lf) => {
+            tracing::info!(
+                "listfile: loaded {} entries from binary cache",
+                lf.len()
+            );
+            Some(lf)
+        }
+        Err(e) => {
+            tracing::warn!("listfile: binary cache corrupt ({e}) — re-parsing CSV");
+            None
+        }
+    }
+}
+
+/// Serialize `Listfile` to the binary sidecar. Errors are logged and swallowed
+/// — a missing binary cache only costs one extra CSV parse on the next start.
+fn save_bin(bin_path: &Path, lf: &Listfile) {
+    match postcard::to_allocvec(lf) {
+        Ok(bytes) => match std::fs::write(bin_path, &bytes) {
+            Ok(()) => tracing::info!(
+                "listfile: wrote binary cache ({} bytes) to {}",
+                bytes.len(),
+                bin_path.display()
+            ),
+            Err(e) => tracing::warn!("listfile: failed to write binary cache: {e}"),
+        },
+        Err(e) => tracing::warn!("listfile: failed to serialize binary cache: {e}"),
+    }
+}
+
+/// Load from binary cache if fresh, otherwise parse the CSV and write the
+/// binary cache for next time.
+fn load_with_bin_cache(csv_path: &Path, bin_path: &Path) -> Result<Listfile> {
+    if let Some(lf) = try_load_bin(bin_path, csv_path) {
+        return Ok(lf);
+    }
+    let lf = Listfile::load(csv_path)?;
+    save_bin(bin_path, &lf);
+    Ok(lf)
+}
+
 /// Load a fresh, valid listfile — using the disk cache whenever possible.
 ///
 /// Decision logic:
@@ -112,8 +175,9 @@ pub fn download_listfile(output_dir: &Path) -> Result<PathBuf> {
 /// 3. If the Releases API is unreachable:
 ///    - Cache present → warn and reuse; bump `checked_at` to avoid hammering.
 ///    - No cache at all → fall back to an unconditional download.
-pub fn load_or_refresh(output_dir: &Path) -> Result<super::parser::Listfile> {
+pub fn load_or_refresh(output_dir: &Path) -> Result<Listfile> {
     let csv = cache_path(output_dir);
+    let bin = bin_cache_path(output_dir);
     let mp = meta_path(output_dir);
 
     let now_secs = SystemTime::now()
@@ -132,7 +196,7 @@ pub fn load_or_refresh(output_dir: &Path) -> Result<super::parser::Listfile> {
                     m.tag,
                     now_secs.saturating_sub(m.checked_at_secs),
                 );
-                return super::parser::Listfile::load(&csv);
+                return load_with_bin_cache(&csv, &bin);
             }
         }
     }
@@ -143,7 +207,7 @@ pub fn load_or_refresh(output_dir: &Path) -> Result<super::parser::Listfile> {
             if tag_unchanged && csv.exists() {
                 tracing::info!("listfile: tag unchanged ({}) — using cache", tag);
                 save_meta(&mp, &tag, now_secs);
-                return super::parser::Listfile::load(&csv);
+                return load_with_bin_cache(&csv, &bin);
             }
             tracing::info!("listfile: new release ({}) — downloading", tag);
             download_listfile(output_dir)?;
@@ -154,7 +218,7 @@ pub fn load_or_refresh(output_dir: &Path) -> Result<super::parser::Listfile> {
                 tracing::warn!("listfile: GitHub API unavailable — reusing cached file");
                 let tag = meta.as_ref().map(|m| m.tag.as_str()).unwrap_or("");
                 save_meta(&mp, tag, now_secs);
-                return super::parser::Listfile::load(&csv);
+                return load_with_bin_cache(&csv, &bin);
             }
             tracing::info!("listfile: no cache and GitHub API unavailable — downloading unconditionally");
             download_listfile(output_dir)?;
@@ -162,7 +226,7 @@ pub fn load_or_refresh(output_dir: &Path) -> Result<super::parser::Listfile> {
         }
     }
 
-    super::parser::Listfile::load(&csv)
+    load_with_bin_cache(&csv, &bin)
 }
 
 #[cfg(test)]
@@ -198,6 +262,63 @@ mod tests {
         let loaded = load_meta(&mp).expect("meta should round-trip");
         assert_eq!(loaded.tag, "20260610");
         assert_eq!(loaded.checked_at_secs, 1234567890);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn bin_cache_path_construction() {
+        let base = PathBuf::from("some_output");
+        let path = bin_cache_path(&base);
+        assert_eq!(path, base.join(".casc-meta").join("listfile.bin"));
+    }
+
+    #[test]
+    fn load_with_bin_cache_writes_and_reads_sidecar() {
+        let dir = std::env::temp_dir()
+            .join(format!("casc-test-bincache-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let csv_path = dir.join("listfile.csv");
+        let bin_path = dir.join("listfile.bin");
+        let content = "53;Cameras/FlyBy.m2\n69;Creature/Bear/bear.m2\n";
+        std::fs::write(&csv_path, content).unwrap();
+
+        // First call: no binary cache → CSV parse → binary written.
+        let lf1 = load_with_bin_cache(&csv_path, &bin_path).expect("first load");
+        assert!(bin_path.exists(), "binary cache should have been written");
+        assert_eq!(lf1.len(), 2);
+
+        // Second call: binary cache exists and is fresh → deserialize from binary.
+        let lf2 = load_with_bin_cache(&csv_path, &bin_path).expect("second load");
+        assert_eq!(lf2.len(), lf1.len());
+        assert_eq!(lf2.path(53), lf1.path(53));
+        assert_eq!(lf2.path(69), lf1.path(69));
+
+        // Stale binary: touch the CSV so it's newer than the binary.
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        std::fs::write(&csv_path, content).unwrap(); // bumps mtime
+        let lf3 = load_with_bin_cache(&csv_path, &bin_path).expect("stale binary load");
+        assert_eq!(lf3.len(), 2, "should re-parse CSV and still find 2 entries");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn try_load_bin_falls_back_on_corrupt_data() {
+        let dir = std::env::temp_dir()
+            .join(format!("casc-test-corrupt-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let csv_path = dir.join("listfile.csv");
+        let bin_path = dir.join("listfile.bin");
+        std::fs::write(&csv_path, "53;Path.m2\n").unwrap();
+        // Write corrupt bytes with a newer mtime than the CSV.
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        std::fs::write(&bin_path, b"not valid postcard data").unwrap();
+
+        let result = try_load_bin(&bin_path, &csv_path);
+        assert!(result.is_none(), "corrupt binary should yield None");
+
         std::fs::remove_dir_all(&dir).ok();
     }
 }

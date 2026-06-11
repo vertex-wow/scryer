@@ -4,6 +4,23 @@ Completed items moved from [todo.md](todo.md). Historical record of what was bui
 
 ---
 
+## Listfile binary parse cache {#listfile-binary-parse-cache}
+
+**Completed: 2026-06-11**
+
+**Problem:** `Listfile::load` parses ~140 MB of CSV on every server start, costing ~1–2 s on cold launch and on each idle-timeout restart.
+
+**What was built:**
+
+- Added `postcard` (v1) dependency to `casc-lib`.
+- Added `#[derive(Serialize, Deserialize)]` to `Listfile`.
+- Added `bin_cache_path()`, `try_load_bin()`, `save_bin()`, and `load_with_bin_cache()` helpers in `downloader.rs`.
+- `load_with_bin_cache` checks whether `listfile.bin` is at least as fresh as `listfile.csv`; if so, deserializes from binary (target: ~100 ms). On any failure (missing, stale, corrupt, schema change) it falls through to CSV parse and rewrites the sidecar.
+- All four `Listfile::load` call sites in `load_or_refresh` replaced with `load_with_bin_cache`.
+- Tests: `postcard_round_trip` in `parser.rs`; `bin_cache_path_construction`, `load_with_bin_cache_writes_and_reads_sidecar`, `try_load_bin_falls_back_on_corrupt_data` in `downloader.rs`.
+
+---
+
 ## Listfile lazy-load with TVFS-first resolution {#listfile-lazy-load-tvfs-first}
 
 **Completed: 2026-06-11**
