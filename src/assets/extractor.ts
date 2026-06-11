@@ -19,75 +19,13 @@ import {
   type Flavor,
 } from "./extract-core.js";
 import { generateAtlasManifest } from "./atlas-gen.js";
+import { NotificationQueue } from "../notification-queue.js";
 
-/**
- * Merges all extraction popup notifications into one persistent notification that
- * updates its message based on what is currently running. User-priority jobs take
- * precedence in the displayed message over prewarm jobs.
- */
-class ExtractionProgressNotifier {
-  private progressReporter: vscode.Progress<{ message?: string }> | null = null;
-  private resolveNotification: (() => void) | null = null;
-  private userJobs = 0;
-  private prewarmJobs = 0;
+const progressQueue = new NotificationQueue();
 
-  async run<T>(phase: "user" | "prewarm", fn: () => Promise<T>): Promise<T> {
-    const wasIdle = this.userJobs + this.prewarmJobs === 0;
-    if (phase === "user") {
-      this.userJobs++;
-    } else {
-      this.prewarmJobs++;
-    }
-
-    if (wasIdle) {
-      void vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: "Scryer", cancellable: false },
-        (progress) => {
-          this.progressReporter = progress;
-          this.updateMessage();
-          return new Promise<void>((resolve) => {
-            this.resolveNotification = resolve;
-          });
-        },
-      );
-    } else {
-      this.updateMessage();
-    }
-
-    try {
-      return await fn();
-    } finally {
-      if (phase === "user") {
-        this.userJobs--;
-      } else {
-        this.prewarmJobs--;
-      }
-      if (this.userJobs + this.prewarmJobs === 0) {
-        this.resolveNotification?.();
-        this.resolveNotification = null;
-        this.progressReporter = null;
-      } else {
-        this.updateMessage();
-      }
-    }
-  }
-
-  isExtracting(): boolean {
-    return this.userJobs + this.prewarmJobs > 0;
-  }
-
-  private updateMessage(): void {
-    const msg =
-      this.userJobs > 0 ? "Extracting game assets…" : "Pre-warming cache with game assets…";
-    this.progressReporter?.report({ message: msg });
-  }
-}
-
-const progressNotifier = new ExtractionProgressNotifier();
-
-/** Returns true if any extraction (user-priority or prewarm) is currently running. */
+/** Returns true if any extraction (user-priority or system) is currently queued or running. */
 export function isExtracting(): boolean {
-  return progressNotifier.isExtracting();
+  return progressQueue.isActive();
 }
 
 export interface ExtractorOptions {
@@ -188,10 +126,13 @@ export async function extractMissing(paths: string[], opts: ExtractorOptions): P
     return;
   }
   const normalized = paths.map(normalizeForExtraction);
+  const id = progressQueue.pushUser("Scryer: Extracting game assets…");
   try {
-    await progressNotifier.run("user", () => extractPaths(normalized, makeCoreOpts(opts), "user"));
+    await extractPaths(normalized, makeCoreOpts(opts), "user");
   } catch (err) {
     safeLog(opts.output, "warn", `Extraction failed: ${String(err)}`);
+  } finally {
+    progressQueue.clear(id);
   }
 }
 
@@ -215,32 +156,34 @@ export async function extractBlizzardShared(
     return undefined;
   }
   let result: ExtractionResult | undefined;
+  const id = progressQueue.pushSystem("Scryer: Pre-warming cache with game assets…");
   try {
     const coreOpts = makeCoreOpts(opts);
-    result = await progressNotifier.run("prewarm", async () => {
-      if (opts.flavor === "retail") {
-        // Two prewarm jobs so a user-priority panel open can slip between them.
-        // Job A: critical addons (SharedXMLBase, Colors, SharedXML, FrameXML).
-        const criticalRes = await extractPaths(BLIZZARD_LUA_CRITICAL_GLOBS, coreOpts, "prewarm");
-        // Job B: fonts (pop-in candidate — text rendering delays are less jarring).
-        const bulkRes = await extractPaths(BLIZZARD_BULK_GLOBS, coreOpts, "prewarm");
-        return {
-          exported: criticalRes.exported + bulkRes.exported,
-          unavailable: criticalRes.unavailable + bulkRes.unavailable,
-          errors: criticalRes.errors + bulkRes.errors,
-        };
-      }
+    if (opts.flavor === "retail") {
+      // Two asset-client jobs so a user-priority panel open can slip between them.
+      // Job A: critical addons (SharedXMLBase, Colors, SharedXML, FrameXML).
+      const criticalRes = await extractPaths(BLIZZARD_LUA_CRITICAL_GLOBS, coreOpts, "prewarm");
+      // Job B: fonts (pop-in candidate — text rendering delays are less jarring).
+      const bulkRes = await extractPaths(BLIZZARD_BULK_GLOBS, coreOpts, "prewarm");
+      result = {
+        exported: criticalRes.exported + bulkRes.exported,
+        unavailable: criticalRes.unavailable + bulkRes.unavailable,
+        errors: criticalRes.errors + bulkRes.errors,
+      };
+    } else {
       // Classic: single loose-file extraction (no priority queue, globs unsupported).
-      return extractBulk("interface", coreOpts);
-    });
+      result = await extractBulk("interface", coreOpts);
+    }
   } catch (err) {
     safeLog(
       opts.output,
       "error",
       `assets-extraction failed: "${opts.flavor}/shared" → ${String(err)}`,
     );
-    return undefined;
+  } finally {
+    progressQueue.clear(id);
   }
+  if (!result) return undefined;
   safeLog(
     opts.output,
     "info",
@@ -261,16 +204,17 @@ export async function extractCriticalBlizzardFiles(
   opts: ExtractorOptions,
 ): Promise<ExtractionResult | undefined> {
   if (!opts.wowDir) return undefined;
+  const id = progressQueue.pushUser("Scryer: Extracting game assets…");
   try {
     const coreOpts = makeCoreOpts(opts);
-    return await progressNotifier.run("user", () =>
-      opts.flavor === "retail"
-        ? extractPaths(BLIZZARD_LUA_CRITICAL_GLOBS, coreOpts, "user")
-        : extractBulk("interface", coreOpts),
-    );
+    return await (opts.flavor === "retail"
+      ? extractPaths(BLIZZARD_LUA_CRITICAL_GLOBS, coreOpts, "user")
+      : extractBulk("interface", coreOpts));
   } catch (err) {
     safeLog(opts.output, "warn", `Critical Blizzard file extraction failed: ${String(err)}`);
     return undefined;
+  } finally {
+    progressQueue.clear(id);
   }
 }
 

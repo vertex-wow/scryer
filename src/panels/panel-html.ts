@@ -174,6 +174,7 @@ export function buildPanelHtml(options: PanelHtmlOptions): string {
     body.mode-eyedropper{cursor:crosshair}
     body.loading-initial{cursor:wait}
     body.loading-assets{cursor:progress}
+    .texture-failed{background:repeating-conic-gradient(#FF00FF 0% 25%,#000 0% 50%) 50% / 8px 8px}
     #loading-overlay{position:fixed;inset:0;top:${sbH}px;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9998;gap:12px;pointer-events:none}
     body:not(.loading-initial) #loading-overlay{display:none}
     .loading-spinner{width:28px;height:28px;border:2px solid rgba(255,255,255,0.12);border-top-color:rgba(255,255,255,0.55);border-radius:50%;animation:scryer-spin 0.75s linear infinite}

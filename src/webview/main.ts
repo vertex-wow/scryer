@@ -213,8 +213,10 @@ updateZoomDisplay();
 // Debug / status
 // ---------------------------------------------------------------------------
 
-// Last render message — restored when loading status clears.
-let lastRenderMsg = "";
+// Last render message parts — base is e.g. "rendered 3 frames", suffix is " ✓" or " — 2 warnings".
+let lastRenderBase = "";
+let lastRenderSuffix = "";
+let failedTextureCount = 0;
 
 /** Sync Phase 2 cursor state: progress cursor while placeholders remain in viewport. */
 function syncLoadingState(): void {
@@ -222,14 +224,42 @@ function syncLoadingState(): void {
   document.body.classList.toggle("loading-assets", hasPending);
 }
 
+/** Update #debug text to reflect current failure state, replacing the suffix when failures exist. */
+function updateDebugText(): void {
+  if (!debug || !lastRenderBase) return;
+  if (failedTextureCount > 0) {
+    const n = failedTextureCount;
+    debug.innerHTML = `${lastRenderBase} <strong style="color:var(--vscode-errorForeground,#f44747)">✗</strong> ${n} texture${n === 1 ? "" : "s"} missing`;
+  } else {
+    debug.textContent = lastRenderBase + lastRenderSuffix;
+  }
+}
+
+/** Mark all texture elements for a path as permanently failed. */
+function applyAssetFailed(rawPath: string): void {
+  const selector = `[data-asset-path="${rawPath.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"]`;
+  const els = Array.from(viewport!.querySelectorAll<HTMLElement>(selector));
+  for (const el of els) {
+    const ph = el.querySelector("[data-placeholder]");
+    if (ph) {
+      ph.remove();
+      failedTextureCount++;
+      el.classList.add("texture-failed");
+    }
+  }
+  syncLoadingState();
+  updateDebugText();
+}
+
 function dbg(msg: string): void {
   if (debug) debug.textContent = msg;
   vscode.postMessage({ type: "dbg", text: msg });
 }
 
-function dbgRender(msg: string): void {
-  lastRenderMsg = msg;
-  dbg(msg);
+function dbgRender(base: string, suffix: string): void {
+  lastRenderBase = base;
+  lastRenderSuffix = suffix;
+  dbg(base + suffix);
 }
 
 dbg("view ready, waiting for scryer");
@@ -353,7 +383,7 @@ function setEyedropperState(next: EyedropperState): void {
   eyedropperBtn?.classList.toggle("active", active);
   if (next === "off") {
     eyedropperText = null;
-    if (debug) debug.textContent = lastRenderMsg;
+    updateDebugText();
     vscode.postMessage({ type: "eyedropperOff" });
   } else if (next === "sampling") {
     vscode.postMessage({ type: "eyedropperOn" });
@@ -757,7 +787,13 @@ function extractSpriteDataUrl(
 function applyAsset(rawPath: string, uri: string): void {
   const selector = `[data-asset-path="${rawPath.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"]`;
   const els = Array.from(viewport!.querySelectorAll<HTMLElement>(selector));
+  let didUpgrade = false;
   for (const el of els) {
+    if (el.classList.contains("texture-failed")) {
+      el.classList.remove("texture-failed");
+      failedTextureCount = Math.max(0, failedTextureCount - 1);
+      didUpgrade = true;
+    }
     el.style.backgroundImage = `url("${uri}")`;
     el.style.backgroundRepeat = "no-repeat";
     el.style.imageRendering = "pixelated";
@@ -823,8 +859,14 @@ function applyAsset(rawPath: string, uri: string): void {
             }
             const ph = capturedEl.querySelector("[data-placeholder]");
             if (ph) ph.remove();
+            const wasFailedCanvas = capturedEl.classList.contains("texture-failed");
+            if (wasFailedCanvas) {
+              capturedEl.classList.remove("texture-failed");
+              failedTextureCount = Math.max(0, failedTextureCount - 1);
+            }
             capturedEl.style.pointerEvents = "none";
             syncLoadingState();
+            if (wasFailedCanvas) updateDebugText();
           })
           .catch((err) => {
             console.error("canvas extraction failed:", err);
@@ -886,6 +928,7 @@ function applyAsset(rawPath: string, uri: string): void {
     el.style.pointerEvents = "none";
   }
   syncLoadingState();
+  if (didUpgrade) updateDebugText();
 
   // Apply as mask-image to any texture masked by this path.
   // VS Code's webview is Electron/Chromium, which honors the -webkit- prefixed
@@ -1071,6 +1114,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       }
       try {
         if (msg.defaultFontUri) applyDefaultFont(msg.defaultFontUri);
+        failedTextureCount = 0;
         viewport!.innerHTML = "";
         const root = renderFrames(
           msg.frames,
@@ -1099,17 +1143,16 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
           updateRulers(currentWowViewport, currentScale * currentUiScale * panZoom, currentConfig);
         // On first render (not hot-reload), center the frame content in view.
         if (msg.type === "render") centerOnContent(msg.flavorConfig);
-        let suffix = " ✓";
+        const renderBase = `rendered ${msg.frames.length} frame${msg.frames.length === 1 ? "" : "s"}`;
+        let renderSuffix = " ✓";
         if (msg.extractionPending)
-          suffix =
+          renderSuffix =
             msg.pendingFiles > 0
               ? ` — ${msg.pendingFiles} texture${msg.pendingFiles === 1 ? "" : "s"} pending`
               : ` — pending`;
         else if (msg.warnings > 0)
-          suffix = ` — ${msg.warnings} warning${msg.warnings === 1 ? "" : "s"}`;
-        dbgRender(
-          `rendered ${msg.frames.length} frame${msg.frames.length === 1 ? "" : "s"}${suffix}`,
-        );
+          renderSuffix = ` — ${msg.warnings} warning${msg.warnings === 1 ? "" : "s"}`;
+        dbgRender(renderBase, renderSuffix);
         requestRenderedAssets();
         document.body.classList.remove("loading-initial");
         syncLoadingState();
@@ -1121,6 +1164,11 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
 
     case "assetResolved": {
       applyAsset(msg.path, msg.uri);
+      break;
+    }
+
+    case "assetFailed": {
+      applyAssetFailed(msg.path);
       break;
     }
 
@@ -1139,7 +1187,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
     case "setStatus": {
       const loadingLabel = document.getElementById("loading-label");
       if (msg.state === "idle") {
-        if (debug && lastRenderMsg) debug.textContent = lastRenderMsg;
+        updateDebugText();
         if (loadingLabel) loadingLabel.textContent = "Loading…";
       } else {
         const bare =

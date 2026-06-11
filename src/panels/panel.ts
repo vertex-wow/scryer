@@ -309,14 +309,20 @@ export class ScryerPanel {
     }
   }
 
-  private async resolveAndSendAsset(rawPath: string, addonDir: string): Promise<void> {
+  private async resolveAndSendAsset(
+    rawPath: string,
+    addonDir: string,
+    skipFailed = false,
+  ): Promise<void> {
     const absPath = await this.assets.resolveToAbsPath(rawPath, addonDir);
     if (!absPath) {
+      if (skipFailed) return;
       if (this.retryInProgress) {
-        // After extraction pass — file still not found. Log at warn so it's visible.
         this.output.warn(`texture miss (after extraction): ${rawPath}`);
+        void this.panel.webview.postMessage({ type: "assetFailed", path: rawPath } as HostMessage);
       } else if (this.extractionTriedPaths.has(rawPath)) {
         this.output.trace(`texture miss (already tried): ${rawPath}`);
+        void this.panel.webview.postMessage({ type: "assetFailed", path: rawPath } as HostMessage);
       } else if (!this.missingPaths.has(rawPath)) {
         this.output.debug(`texture miss (queued for extraction): ${rawPath}`);
         this.missingPaths.set(rawPath, addonDir);
@@ -353,18 +359,46 @@ export class ScryerPanel {
       for (const p of batch.keys()) this.output.debug(`  → ${p}`);
     }
 
+    // Capture blocking state before starting extraction, then start extractMissing
+    // immediately so userJobs is incremented before any async gap. The pre-check runs
+    // concurrently — this prevents the notification from closing mid-check (which would
+    // cause it to reopen when extractMissing later sees wasIdle=true).
+    const wasBlocked = isExtracting();
+    const extractionPromise = this.assets.extractMissing(Array.from(batch.keys()));
+
+    const preReportedFailed = new Set<string>();
+    if (wasBlocked) {
+      await Promise.all(
+        Array.from(batch).map(async ([rawPath, addonDir]) => {
+          const found = await this.assets.resolveToAbsPath(rawPath, addonDir);
+          if (!found) {
+            preReportedFailed.add(rawPath);
+            try {
+              void this.panel.webview.postMessage({
+                type: "assetFailed",
+                path: rawPath,
+              } as HostMessage);
+            } catch {
+              /* panel disposed */
+            }
+          }
+        }),
+      );
+    }
+
+    await extractionPromise;
+    // Use lightweight invalidation: picks up newly extracted files without resetting
+    // blizzardFilesPromise or the registry cache, preventing a re-extraction loop.
+    this.assets.invalidateTextures();
+
     this.retryInProgress = true;
     let resolved = 0;
     try {
-      await this.assets.extractMissing(Array.from(batch.keys()));
-      // Use lightweight invalidation: picks up newly extracted files without resetting
-      // blizzardFilesPromise or the registry cache, preventing a re-extraction loop.
-      this.assets.invalidateTextures();
       await Promise.all(
         Array.from(batch).map(async ([rawPath, addonDir]) => {
           const found = await this.assets.resolveToAbsPath(rawPath, addonDir);
           if (found) resolved++;
-          return this.resolveAndSendAsset(rawPath, addonDir);
+          return this.resolveAndSendAsset(rawPath, addonDir, preReportedFailed.has(rawPath));
         }),
       );
       this.output.info(`texture extraction: ${resolved}/${batch.size} resolved`);

@@ -48,6 +48,7 @@ export type HostMessage =
       toolbarState: ToolbarState;
     }
   | { type: "assetResolved"; path: string; uri: string }
+  | { type: "assetFailed"; path: string }
   | { type: "fontResolved"; uri: string }
   | { type: "setRuler"; show: boolean }
   | { type: "setStatus"; state: "idle" | "extracting" | "buildingAtlas" }
