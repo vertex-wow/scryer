@@ -400,7 +400,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="todo-archive.md#eliminate-listfile-dependency-tvfs-root-direct">Eliminate listfile dependency (TVFS/root direct)</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#eliminate-listfile-dependency-tvfs-root-direct">Eliminate listfile dependency (TVFS/root direct)</a>, <a href="todo-archive.md#cdn-client-startup-caching">CDN client startup caching</a></td>
 </tr>
 <tr>
   <td>↳</td>
@@ -415,14 +415,6 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>Disk-cached lookup tables</td>
   <td>📋 Pending</td>
   <td>Serialize parsed tables to binary cache; cold start ~200 ms → ~50 ms</td>
-  <td>S</td>
-  <td>—</td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td>CDN client startup caching</td>
-  <td>📋 Pending</td>
-  <td>Serialize CDN archive index (11 M entries, 18–29 s parse) to binary cache; also persist host-probe results (invalidate daily or on 0 reachable hosts)</td>
   <td>S</td>
   <td>—</td>
 </tr>

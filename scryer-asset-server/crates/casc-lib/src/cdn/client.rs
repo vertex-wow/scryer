@@ -5,6 +5,48 @@ use std::sync::Mutex;
 use crate::cdn::archive_index::CdnArchiveIndex;
 use crate::error::{CascError, Result};
 
+const HOST_PROBE_CACHE_TTL_SECS: u64 = 86_400; // 24 hours
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct HostProbeCache {
+    failed: Vec<String>,
+    ts: u64,
+}
+
+fn load_host_probe_cache(cache_path: &Path, all_hosts: &[String]) -> Option<HashSet<String>> {
+    let text = std::fs::read_to_string(cache_path).ok()?;
+    let cached: HostProbeCache = serde_json::from_str(&text).ok()?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    if now.saturating_sub(cached.ts) > HOST_PROBE_CACHE_TTL_SECS {
+        return None;
+    }
+    let failed: HashSet<String> = cached.failed.into_iter().collect();
+    // If every known host is marked failed the CDN may have recovered — force a fresh probe.
+    if all_hosts.iter().all(|h| failed.contains(h.as_str())) {
+        return None;
+    }
+    Some(failed)
+}
+
+fn save_host_probe_cache(cache_path: &Path, failed: &HashSet<String>) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let cache = HostProbeCache { failed: failed.iter().cloned().collect(), ts: now };
+    match serde_json::to_string(&cache) {
+        Ok(s) => {
+            if let Err(e) = std::fs::write(cache_path, s) {
+                tracing::debug!("cdn: host probe cache write failed: {}", e);
+            }
+        }
+        Err(e) => tracing::debug!("cdn: host probe cache serialize failed: {}", e),
+    }
+}
+
 /// CDN client for fetching EKey-addressed blobs from Blizzard's CDN.
 ///
 /// Only created when CDN coordinates are present in `.build.info` (Battle.net installs).
@@ -47,6 +89,7 @@ impl CdnClient {
         cache_dir: PathBuf,
         indices_dir: Option<PathBuf>,
         cdn_archives: Option<HashSet<String>>,
+        build_key: &str,
     ) -> Option<Self> {
         if hosts.is_empty() || path.is_empty() {
             return None;
@@ -66,9 +109,16 @@ impl CdnClient {
             }
         };
 
+        let archive_index_cache = cache_dir.join("archive-index.bin");
         let archive_index = indices_dir.as_ref().and_then(|dir| {
+            if let Some(cached) = CdnArchiveIndex::try_load_cache(&archive_index_cache, build_key) {
+                return Some(cached);
+            }
             match CdnArchiveIndex::load_all(dir, u64::MAX, cdn_archives.as_ref()) {
-                Ok(idx) => Some(idx),
+                Ok(idx) => {
+                    idx.save_cache(&archive_index_cache, build_key);
+                    Some(idx)
+                }
                 Err(e) => {
                     tracing::warn!("cdn: archive index load failed — archive fallback disabled: {}", e);
                     None
@@ -76,31 +126,35 @@ impl CdnClient {
             }
         });
 
-        // Probe each host before any file requests so unreachable or geo-blocked
-        // hosts (e.g. level3.blizzard.com returning 403) are eliminated up front.
-        // A 2xx or 404 response means the host is reachable; anything else marks
-        // it failed immediately. This mirrors wow.export's host ranking step.
-        let failed_hosts: HashSet<String> = hosts.iter().filter_map(|host| {
-            let probe_url = format!("https://{}/{}/", host, path);
-            match http.head(&probe_url).send() {
-                Ok(resp) if resp.status().is_success() || resp.status().as_u16() == 404 => {
-                    tracing::debug!("cdn: probe {} → reachable", host);
-                    None
-                }
-                Ok(resp) => {
-                    tracing::info!(
-                        "cdn: probe {} → {} — host skipped",
-                        host,
-                        resp.status()
-                    );
-                    Some(host.clone())
-                }
-                Err(e) => {
-                    tracing::info!("cdn: probe {} → error — host skipped: {}", host, e);
-                    Some(host.clone())
-                }
-            }
-        }).collect();
+        // Probe each host to eliminate unreachable or geo-blocked ones
+        // (e.g. level3.blizzard.com always returns 403). Result is cached for
+        // 24 h so subsequent cold-starts skip the ~1 s round-trip.
+        let host_probe_cache = cache_dir.join("host-probe.json");
+        let failed_hosts: HashSet<String> =
+            if let Some(cached) = load_host_probe_cache(&host_probe_cache, &hosts) {
+                tracing::info!("cdn: using cached host probe ({} failed)", cached.len());
+                cached
+            } else {
+                let probed: HashSet<String> = hosts.iter().filter_map(|host| {
+                    let probe_url = format!("https://{}/{}/", host, path);
+                    match http.head(&probe_url).send() {
+                        Ok(resp) if resp.status().is_success() || resp.status().as_u16() == 404 => {
+                            tracing::debug!("cdn: probe {} → reachable", host);
+                            None
+                        }
+                        Ok(resp) => {
+                            tracing::info!("cdn: probe {} → {} — host skipped", host, resp.status());
+                            Some(host.clone())
+                        }
+                        Err(e) => {
+                            tracing::info!("cdn: probe {} → error — host skipped: {}", host, e);
+                            Some(host.clone())
+                        }
+                    }
+                }).collect();
+                save_host_probe_cache(&host_probe_cache, &probed);
+                probed
+            };
 
         let reachable = hosts.len() - failed_hosts.len();
         tracing::info!(

@@ -233,6 +233,7 @@ impl CascStorage {
                 cache_dir.clone(),
                 Some(indices_dir),
                 cdn_archives,
+                &build_info.build_key,
             )
         });
 

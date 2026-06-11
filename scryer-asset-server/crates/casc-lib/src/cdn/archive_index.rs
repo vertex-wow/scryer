@@ -18,6 +18,9 @@ use crate::error::Result;
 
 const FOOTER_SIZE: usize = 28;
 
+/// Magic bytes written at the start of every archive-index cache file.
+const CACHE_MAGIC: &[u8; 4] = b"CACI";
+
 /// Location of a blob inside a CDN archive.
 #[derive(Debug, Clone)]
 pub struct CdnArchiveEntry {
@@ -142,6 +145,145 @@ impl CdnArchiveIndex {
     /// Whether the index is empty.
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
+    }
+
+    /// Try to load the archive index from a previously-written binary cache file.
+    ///
+    /// Returns `None` silently on any problem (absent file, bad magic, stale
+    /// `build_key`, truncated data). The caller should fall back to [`load_all`]
+    /// in that case.
+    ///
+    /// ## Binary format
+    /// ```text
+    /// magic[4]         = b"CACI"
+    /// key_len[4 LE]
+    /// key[key_len]     build_key string (ASCII hex)
+    /// entry_count[4 LE]
+    /// string_count[4 LE]
+    /// entries[entry_count × 28]:
+    ///   ekey[16] + archive_idx[4 LE] + size[4 LE] + offset[4 LE]
+    /// strings[string_count × 32]:
+    ///   32-byte ASCII hex archive hash per entry
+    /// ```
+    pub fn try_load_cache(cache_path: &Path, build_key: &str) -> Option<Self> {
+        let data = std::fs::read(cache_path).ok()?;
+        let mut pos = 0usize;
+
+        if data.len() < 4 || &data[0..4] != CACHE_MAGIC {
+            return None;
+        }
+        pos += 4;
+
+        if pos + 4 > data.len() { return None; }
+        let key_len = u32::from_le_bytes(data[pos..pos + 4].try_into().ok()?) as usize;
+        pos += 4;
+
+        if pos + key_len > data.len() { return None; }
+        if std::str::from_utf8(&data[pos..pos + key_len]).ok()? != build_key {
+            return None;
+        }
+        pos += key_len;
+
+        if pos + 8 > data.len() { return None; }
+        let entry_count = u32::from_le_bytes(data[pos..pos + 4].try_into().ok()?) as usize;
+        let string_count = u32::from_le_bytes(data[pos + 4..pos + 8].try_into().ok()?) as usize;
+        pos += 8;
+
+        let needed = entry_count.checked_mul(28)?.checked_add(string_count.checked_mul(32)?)?;
+        if pos + needed > data.len() { return None; }
+
+        let entries_start = pos;
+        let strings_start = pos + entry_count * 28;
+
+        let mut string_table: Vec<String> = Vec::with_capacity(string_count);
+        for i in 0..string_count {
+            let s_off = strings_start + i * 32;
+            string_table.push(std::str::from_utf8(&data[s_off..s_off + 32]).ok()?.to_owned());
+        }
+
+        let mut entries: HashMap<[u8; 16], CdnArchiveEntry> = HashMap::with_capacity(entry_count);
+        for i in 0..entry_count {
+            let e_off = entries_start + i * 28;
+            let mut ekey = [0u8; 16];
+            ekey.copy_from_slice(&data[e_off..e_off + 16]);
+            let archive_idx = u32::from_le_bytes(data[e_off + 16..e_off + 20].try_into().ok()?) as usize;
+            let size  = u32::from_le_bytes(data[e_off + 20..e_off + 24].try_into().ok()?);
+            let offset = u32::from_le_bytes(data[e_off + 24..e_off + 28].try_into().ok()?);
+            if archive_idx >= string_count { return None; }
+            entries.insert(ekey, CdnArchiveEntry {
+                archive_hash_hex: string_table[archive_idx].clone(),
+                size,
+                offset,
+            });
+        }
+
+        tracing::info!(
+            "cdn archive index: loaded {} entries from disk cache",
+            entries.len()
+        );
+        Some(Self { entries })
+    }
+
+    /// Save this index to a binary cache file keyed on `build_key`.
+    /// All I/O errors are logged as warnings and silently dropped.
+    pub fn save_cache(&self, cache_path: &Path, build_key: &str) {
+        if let Err(e) = self.write_cache(cache_path, build_key) {
+            tracing::warn!("cdn archive index: cache write failed (non-fatal): {}", e);
+        } else {
+            tracing::debug!("cdn archive index: cache written to {}", cache_path.display());
+        }
+    }
+
+    fn write_cache(&self, cache_path: &Path, build_key: &str) -> std::io::Result<()> {
+        let mut hash_to_idx: HashMap<&str, u32> = HashMap::new();
+        let mut string_table: Vec<&str> = Vec::new();
+        for entry in self.entries.values() {
+            let h = entry.archive_hash_hex.as_str();
+            if !hash_to_idx.contains_key(h) {
+                hash_to_idx.insert(h, string_table.len() as u32);
+                string_table.push(h);
+            }
+        }
+
+        for h in &string_table {
+            if h.len() != 32 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("archive hash length unexpected: {}", h),
+                ));
+            }
+        }
+
+        let key_bytes = build_key.as_bytes();
+        let mut buf: Vec<u8> = Vec::with_capacity(
+            4 + 4 + key_bytes.len() + 8
+                + self.entries.len() * 28
+                + string_table.len() * 32,
+        );
+
+        buf.extend_from_slice(CACHE_MAGIC);
+        buf.extend_from_slice(&(key_bytes.len() as u32).to_le_bytes());
+        buf.extend_from_slice(key_bytes);
+        buf.extend_from_slice(&(self.entries.len() as u32).to_le_bytes());
+        buf.extend_from_slice(&(string_table.len() as u32).to_le_bytes());
+
+        for (ekey, entry) in &self.entries {
+            buf.extend_from_slice(ekey);
+            buf.extend_from_slice(&hash_to_idx[entry.archive_hash_hex.as_str()].to_le_bytes());
+            buf.extend_from_slice(&entry.size.to_le_bytes());
+            buf.extend_from_slice(&entry.offset.to_le_bytes());
+        }
+        for hash in &string_table {
+            buf.extend_from_slice(hash.as_bytes());
+        }
+
+        if let Some(parent) = cache_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let tmp = cache_path.with_extension("partial");
+        std::fs::write(&tmp, &buf)?;
+        std::fs::rename(&tmp, cache_path)?;
+        Ok(())
     }
 }
 

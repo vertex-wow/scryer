@@ -4,6 +4,22 @@ Completed items moved from [todo.md](todo.md). Historical record of what was bui
 
 ---
 
+## CDN client startup caching {#cdn-client-startup-caching}
+
+**Completed: 2026-06-10**
+
+**Problem:** On every cold start the CDN client parsed 1,406 `Data/indices/*.index` files to build an 11 M-entry `HashMap` — taking 18–29 s. The host probe (HEAD request per host) added ~1 s and the result was always identical between sessions (level3.blizzard.com is permanently 403).
+
+**What was built:**
+
+- **Archive index disk cache** (`archive_index.rs`) — `try_load_cache` / `save_cache` / `write_cache` methods on `CdnArchiveIndex`. Binary format (`CACI` magic, `build_key` string, entry count, string count, N×28-byte records, 32-byte-per-hash string table). On cold start: check `<cache_dir>/archive-index.bin`; if magic valid and `build_key` matches, load directly (~1 s); otherwise run full `load_all()` and write the cache. Invalidates automatically when game patches (build key changes).
+- **Host probe cache** (`client.rs`) — `load_host_probe_cache` / `save_host_probe_cache` helpers. JSON file `<cache_dir>/host-probe.json` storing `{ failed: [...], ts: <unix secs> }`. TTL: 24 h. Invalidation guard: if all known hosts are in the failed list the cache is ignored (forces fresh probe to detect CDN recovery).
+- `CdnClient::new` signature — added `build_key: &str` parameter; `pipeline.rs` passes `&build_info.build_key`.
+
+**Effort:** S (actual).
+
+---
+
 ## CASC Asset Service (replace extract.sh + rustydemon-cli)
 
 **Completed: 2026-06-10** — Promoted to and completed as [Milestone 15](015_casc_asset_service.md).
