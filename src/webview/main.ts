@@ -896,8 +896,17 @@ function applyAsset(rawPath: string, uri: string): void {
       const bgW = Math.round(crop.sheetW * scaleX);
       const bgH = Math.round(crop.sheetH * scaleY);
       el.style.backgroundSize = `${bgW}px ${bgH}px`;
+      // DO NOT add `+ seamBleed` to bgPosX. That shifts content right by 1px,
+      // making element x=0 transparent and re-introducing the mixed-element
+      // device pixel at the TopLeft/TopEdge seam under fractional uiScale.
+      // DO NOT use a non-integer bgPosY (remove the Math.round). A fractional
+      // bgPosY diverges across Chromium repeat paths, misaligning horizontal
+      // border rows between corner and edge pieces at non-integer uiScale.
+      // See docs/troubleshooting/nineslice_dpr_border_misalignment.md.
       el.style.backgroundPosition = `${Math.round(-crop.x * scaleX)}px ${Math.round(-crop.y * scaleY)}px`;
-      // All pieces use no-repeat now that tiling is handled by stretching.
+      // DO NOT change h-only tiles to repeat-x. Chromium's repeat path runs a
+      // tile-fit phase-snap on ALL axes (including the non-repeating Y axis),
+      // shifting the edge piece's Y origin relative to no-repeat corner pieces.
       el.style.backgroundRepeat = "no-repeat";
 
       // Apply horizontal/vertical mirror if SetTexCoord flipped the axes.
