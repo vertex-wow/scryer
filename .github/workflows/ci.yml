@@ -30,3 +30,12 @@ jobs:
 
       - name: Run unit tests
         run: pnpm test
+
+      - name: Upload Playwright snapshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-snapshots
+          path: |
+            test-results/
+            test/webview/visual.spec.ts-snapshots/
