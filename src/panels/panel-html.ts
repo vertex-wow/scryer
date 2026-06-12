@@ -143,6 +143,9 @@ export function buildPanelHtml(options: PanelHtmlOptions): string {
     #locale-dropdown{justify-content:center;padding:0 8px}
     .locale-stack{display:flex;flex-direction:column;align-items:center;line-height:1;font-size:10px;margin-top:2px;font-family:monospace}
     .locale-single{font-family:monospace;font-size:12px}
+    .toolbar-checkbox{flex-shrink:0;display:flex;align-items:center;gap:4px;border-right:1px solid ${c.rulerBorder};padding:0 7px;height:${sbH}px;cursor:pointer;opacity:0.55;font:${c.toolbarFont};color:${c.statusBarColor};user-select:none}
+    .toolbar-checkbox:hover{background:rgba(255,255,255,0.07);opacity:0.85}
+    .toolbar-checkbox input{cursor:pointer;margin:0}
     .custom-dropdown{flex-shrink:0;background:none;border:none;color:${c.statusBarColor};font:${c.toolbarFont};outline:none;position:relative;display:flex;align-items:center;border-right:1px solid ${c.rulerBorder};padding:0 8px;height:${sbH}px;cursor:pointer;opacity:0.7}
     .custom-dropdown:hover{background:rgba(255,255,255,0.07);opacity:1}
     .custom-dropdown-trigger{display:flex;align-items:center;gap:4px}
@@ -189,6 +192,7 @@ export function buildPanelHtml(options: PanelHtmlOptions): string {
     <button id="grab-toggle" class="toolbar-btn" title="Grab — pan and zoom (H) (drag · middle-drag · space-drag · ctrl+scroll · ctrl+0 fit · ctrl+shift+0 reset)"><svg width="12" height="13" viewBox="0 0 12 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="2" width="2" height="6" rx="1"/><rect x="4" y="0" width="2" height="8" rx="1"/><rect x="7" y="0" width="2" height="8" rx="1"/><rect x="10" y="2" width="2" height="6" rx="1"/><rect x="0" y="7" width="12" height="6" rx="2"/></svg></button>
     <button id="recenter-btn" class="toolbar-btn" title="Re-center canvas (C)"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="2.8"/><line x1="6.5" y1="0.5" x2="6.5" y2="3.7"/><line x1="6.5" y1="9.3" x2="6.5" y2="12.5"/><line x1="0.5" y1="6.5" x2="3.7" y2="6.5"/><line x1="9.3" y1="6.5" x2="12.5" y2="6.5"/></svg></button>
     <button id="eyedropper-toggle" class="toolbar-btn" title="Eyedropper &mdash; sample pixel color (Ctrl+C to copy)"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M13.354.646a1.207 1.207 0 0 0-1.708 0L8.5 3.793l-.646-.647a.5.5 0 1 0-.708.708L8.293 5l-7.147 7.146A.5.5 0 0 0 1 12.5v1.793l-.854.853a.5.5 0 1 0 .708.707L1.707 15H3.5a.5.5 0 0 0 .354-.146L11 7.707l1.146 1.147a.5.5 0 0 0 .708-.708l-.647-.646 3.147-3.146a1.207 1.207 0 0 0 0-1.708zM2 12.707l7-7L10.293 7l-7 7H2z"/></svg></button>
+    <label class="toolbar-checkbox" title="Allow local CASC texture overrides"><input type="checkbox" id="local-tx-toggle" checked> tx</label>
     <div id="bg-dropdown" class="custom-dropdown" title="Workarea Background&#10;${bgLabel}">
       <div id="bg-dropdown-trigger" class="custom-dropdown-trigger">
         <div id="bg-preview"></div>

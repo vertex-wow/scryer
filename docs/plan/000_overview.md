@@ -92,6 +92,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
+  <td><a href="todo.md#local-texture-overrides-assets-directory-convention">Local texture overrides (<code>assets/</code> convention)</a></td>
+  <td>📋 Pending</td>
+  <td>Before hitting CASC, check <code>&lt;addonDir&gt;/assets/&lt;interface/path&gt;.png</code>; lets users supply preview-only texture replacements without a WoW install</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
   <td><a href="todo.md#atlas-manifest-from-db2-replace-wagotools">Atlas manifest from DB2</a></td>
   <td>📋 Pending</td>
   <td>Parse UiTextureAtlas DB2 files directly; no outbound HTTP</td>

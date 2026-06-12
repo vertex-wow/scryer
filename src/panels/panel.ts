@@ -602,6 +602,8 @@ export class ScryerPanel {
           defaultCanvasMode,
           workareaBackground,
           workareaBackgroundPath,
+          localTextureOverrides:
+            this.toolbar.getSetting<boolean>("localTextureOverrides") !== false,
         },
       };
 

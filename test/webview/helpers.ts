@@ -17,7 +17,12 @@ export const FLAVOR_CONFIG = {
 };
 
 export const VIEWPORT = { w: FLAVOR_CONFIG.uiParentWidth, h: FLAVOR_CONFIG.uiParentHeight };
-export const TOOLBAR_STATE = { flavor: "retail", locale: "enUS", screenResolution: "1920x1080" };
+export const TOOLBAR_STATE = {
+  flavor: "retail",
+  locale: "enUS",
+  screenResolution: "1920x1080",
+  localTextureOverrides: true,
+};
 export const HARNESS = `file://${resolve(__dirname, "harness.html")}`;
 
 // ---------------------------------------------------------------------------

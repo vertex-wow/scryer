@@ -325,6 +325,14 @@ document.getElementById("ruler-toggle")?.addEventListener("click", () => {
   vscode.postMessage({ type: "toggleRuler" });
 });
 
+document.getElementById("local-tx-toggle")?.addEventListener("change", (e) => {
+  vscode.postMessage({
+    type: "settingChange",
+    key: "localTextureOverrides",
+    value: (e.target as HTMLInputElement).checked,
+  });
+});
+
 interactBtn?.addEventListener("click", () => setMode("interact"));
 grabBtn?.addEventListener("click", () => setMode("grab"));
 
@@ -1107,6 +1115,9 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
           }
         }
       }
+
+      const localTxToggle = document.getElementById("local-tx-toggle") as HTMLInputElement | null;
+      if (localTxToggle) localTxToggle.checked = msg.toolbarState.localTextureOverrides !== false;
 
       if (!initialModeSet && msg.toolbarState.defaultCanvasMode) {
         initialModeSet = true;

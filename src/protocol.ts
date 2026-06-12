@@ -16,6 +16,7 @@ export interface ToolbarState {
   defaultCanvasMode: CanvasMode;
   workareaBackground: string;
   workareaBackgroundPath: string;
+  localTextureOverrides: boolean;
 }
 
 // Extension host → webview
@@ -70,8 +71,14 @@ export type WebviewMessage =
     }
   | {
       type: "settingChange";
-      key: "flavor" | "locale" | "screenResolution" | "defaultCanvasMode" | "workareaBackground";
-      value: string;
+      key:
+        | "flavor"
+        | "locale"
+        | "screenResolution"
+        | "defaultCanvasMode"
+        | "workareaBackground"
+        | "localTextureOverrides";
+      value: string | boolean;
     }
   | { type: "eyedropperOn" }
   | { type: "eyedropperOff" }

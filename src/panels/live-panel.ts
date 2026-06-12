@@ -314,11 +314,40 @@ export class ScryerLivePanel {
     }
   }
 
+  private async resolveLocalOverride(
+    rawPath: string,
+    addonDir: string,
+  ): Promise<string | undefined> {
+    const normalised = rawPath
+      .replace(/\\/g, "/")
+      .replace(/\.[^/.]+$/, "")
+      .toLowerCase();
+    const localPath = path.join(addonDir, "assets", normalised + ".png");
+    try {
+      await vscode.workspace.fs.stat(vscode.Uri.file(localPath));
+      return this.panel.webview.asWebviewUri(vscode.Uri.file(localPath)).toString();
+    } catch {
+      return undefined;
+    }
+  }
+
   private async resolveAndSendAsset(
     rawPath: string,
     addonDir: string,
     skipFailed = false,
   ): Promise<void> {
+    if (this.toolbar.getSetting<boolean>("localTextureOverrides") !== false) {
+      const overrideUri = await this.resolveLocalOverride(rawPath, addonDir);
+      if (overrideUri) {
+        void this.panel.webview.postMessage({
+          type: "assetResolved",
+          path: rawPath,
+          uri: overrideUri,
+        } as HostMessage);
+        return;
+      }
+    }
+
     const absPath = await this.assets.resolveToAbsPath(rawPath, addonDir);
     if (!absPath) {
       if (skipFailed) return;
@@ -434,6 +463,7 @@ export class ScryerLivePanel {
         workareaBackground:
           this.toolbar.getSetting<string>("workareaBackground") ?? "checkerBoardAuto",
         workareaBackgroundPath: this.toolbar.getSetting<string>("workareaBackgroundPath") ?? "",
+        localTextureOverrides: this.toolbar.getSetting<boolean>("localTextureOverrides") !== false,
       },
       customBackgroundUri: this.customBackgroundUri,
       customBackgroundIsFolder: this.customBackgroundIsFolder,
@@ -690,6 +720,8 @@ TROUBLESHOOTING:
           defaultCanvasMode,
           workareaBackground,
           workareaBackgroundPath,
+          localTextureOverrides:
+            this.toolbar.getSetting<boolean>("localTextureOverrides") !== false,
         },
       };
 

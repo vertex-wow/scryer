@@ -23,6 +23,99 @@ import { getExtractedAssetsDir, makeExtractCoreOpts } from "../unit-casc/helpers
 export { queryRendered, VIEWPORT } from "../webview/helpers";
 export { getExtractedAssetsDir };
 
+/**
+ * Inject local PNG overrides from <addonDir>/assets/<path>.png for any
+ * requestAsset messages pending in the page. Posts assetResolved for each found
+ * override. Does not fall back to CASC — missing paths are silently skipped.
+ *
+ * Path convention: backslash→slash, strip extension, lowercase, append .png.
+ * e.g. Interface/FrameGeneral/UIFrameMetal2X → assets/interface/framegeneral/uiframemetal2x.png
+ */
+export async function injectLocalAssets(page: Page, addonDir: string): Promise<void> {
+  const msgs = await page.evaluate(
+    () => (window as Window & { _vscodeMessages: unknown[] })._vscodeMessages,
+  );
+  const uniquePaths = [
+    ...new Set(
+      (msgs as Array<{ type: string; path?: string }>)
+        .filter((m) => m.type === "requestAsset" && m.path)
+        .map((m) => m.path!),
+    ),
+  ];
+
+  for (const assetPath of uniquePaths) {
+    const normalised = assetPath
+      .replace(/\\/g, "/")
+      .replace(/\.[^/.]+$/, "")
+      .toLowerCase();
+    const localPath = path.join(addonDir, "assets", normalised + ".png");
+    if (!fs.existsSync(localPath)) continue;
+    const uri = `data:image/png;base64,${fs.readFileSync(localPath).toString("base64")}`;
+    await page.evaluate(
+      ({ p, u }: { p: string; u: string }) =>
+        window.postMessage({ type: "assetResolved", path: p, uri: u }, "*"),
+      { p: assetPath, u: uri },
+    );
+  }
+}
+
+/**
+ * Run a TOC addon fixture with Blizzard Lua, render at a custom screen
+ * resolution, and inject local PNG overrides from the addon's assets/ directory.
+ * Does not require an extracted CASC cache beyond Blizzard AddOns for templates.
+ */
+export async function renderTocFixtureWithLocalAssets(
+  page: Page,
+  tocDir: string,
+  addonsDir: string,
+  screenW: number,
+  screenH: number,
+): Promise<void> {
+  const uiH = FLAVOR_CONFIG.uiParentHeight as number;
+  const uiW = Math.round((uiH * screenW) / screenH);
+  const wideConfig = { ...FLAVOR_CONFIG, uiParentWidth: uiW };
+  const wideViewport = { w: uiW, h: uiH };
+
+  await page.setViewportSize({
+    width: Math.max(uiW + 100, 1600),
+    height: Math.max(uiH + 200, 900),
+  });
+
+  const frames = await runTocFixtureWithBlizzard(tocDir, addonsDir);
+
+  await page.goto(HARNESS);
+  await page.evaluate(
+    ({ frames, viewport, flavorConfig, toolbarState }) => {
+      window.postMessage(
+        {
+          type: "render",
+          frames,
+          viewport,
+          warnings: 0,
+          extractionPending: false,
+          pendingFiles: 0,
+          flavorConfig,
+          toolbarState,
+        },
+        "*",
+      );
+    },
+    {
+      frames: frames as unknown as Record<string, unknown>[],
+      viewport: wideViewport,
+      flavorConfig: wideConfig as Record<string, unknown>,
+      toolbarState: {
+        ...TOOLBAR_STATE,
+        screenResolution: `${screenW}x${screenH}`,
+      },
+    },
+  );
+  await expect(page.locator("#debug")).toContainText("rendered", { timeout: 2000 });
+
+  await injectLocalAssets(page, tocDir);
+  await page.waitForTimeout(200);
+}
+
 const WASM_PATH = path.join(__dirname, "../../node_modules/wasmoon/dist/glue.wasm");
 
 const BLIZZARD_ADDON_LOAD_ORDER = [
