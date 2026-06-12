@@ -6,6 +6,20 @@ Completed items are in [todo-archive.md](todo-archive.md).
 
 ---
 
+## Fix resolution dropdown picker
+
+**Problem:** The toolbar resolution dropdown has known issues that need investigation and fixing.
+
+**Plan:**
+
+1. Reproduce the issue in the live view.
+2. Identify whether the bug is in the dropdown HTML/JS, the `settingChange` → `flavorConfig` update path, or the `uiParentWidth` recalculation.
+3. Fix and add a regression test if appropriate.
+
+**Effort:** XS–S
+
+---
+
 ## Local texture overrides (`assets/` directory convention)
 
 **Problem:** Users without a WoW install (or with a Steam install that has no CDN fallback) see placeholder tiles for all CASC-sourced textures. Addon developers also can't easily supply prototype or brand-specific textures for preview without a game installation. There is no mechanism to override a CASC texture with a local file.

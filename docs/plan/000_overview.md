@@ -286,6 +286,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>S–M</td>
   <td>9</td>
 </tr>
+<tr>
+  <td>↳</td>
+  <td><a href="todo.md#fix-resolution-dropdown-picker">Fix resolution dropdown picker</a></td>
+  <td>📋 Pending</td>
+  <td>Toolbar resolution dropdown has known issues; needs investigation and fix</td>
+  <td>XS–S</td>
+  <td>9</td>
+</tr>
 </tbody>
 </table>
 
