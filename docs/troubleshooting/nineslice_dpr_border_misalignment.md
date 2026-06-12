@@ -55,12 +55,23 @@ After Fix 4, two vertical seam lines appeared at the horizontal junctions where 
 
 A secondary contributor: `background-size` was computed as a raw float (`sheetW × elemW / cropW`). At fractional DPR the background could fall 1 device pixel short of the element's right edge, exposing the element's transparent background.
 
-**Fix (committed):**
+**Fix 5 (committed):**
 
-- `renderer.ts`: h-only tiles (`tilesH && !tilesV` — TopEdge, BottomEdge) are extended 1 CSS px left and 1 CSS px right at render time. These tiles are x-uniform (pure y-gradient), so the 1px bleed columns are visually identical to any other column. `applyAsset` reads the already-extended `offsetWidth`, so `scaleX`/`bgW` fill the wider element correctly; `bgPosX` shifts +1 to keep atlas content visually aligned.
+- `renderer.ts`: h-only tiles (`tilesH && !tilesV` — TopEdge, BottomEdge) are extended 1 CSS px left and 1 CSS px right at render time. These tiles are x-uniform (pure y-gradient), so the 1px bleed columns are visually identical to any other column. `applyAsset` reads the already-extended `offsetWidth`, so `scaleX`/`bgW` fill the wider element correctly; `bgPosX` was shifted +1 at the time to keep atlas content visually aligned.
 - `main.ts`: `bgW` and `bgH` now rounded to integer px (`Math.round`), eliminating background-size underfill.
 
-**Remaining issue (left seam, accepted):** After Fix 5, the right seam (TopEdge/TopRight) is nearly eliminated; the left seam (TopLeft/TopEdge) remains faint. The asymmetry likely reflects different device-pixel rounding at the two boundary positions under the specific DPR × panZoom combination in use. A deeper fix (device-pixel-aligned layout or per-seam bleed tuning) is out of scope for now — the result is acceptable for a rough preview. Tracked in `.plan/005_title_lines.md`.
+**Remaining issue after Fix 5 (left seam):** The right seam (TopEdge/TopRight) was nearly eliminated; the left seam (TopLeft/TopEdge) remained faint. The asymmetry arose because `bgPosX +1` made element x=0 of TopEdge transparent, leaving the fractional device-pixel at the TopLeft.right boundary as a 62.5% TopLeft / 37.5% TopEdge blend — visible whenever the two atlas sources differ at that column.
+
+---
+
+## Root cause 4 — transparent seam-bleed column exposes mixed-element device pixel (left seam)
+
+With seamBleed=1, TopEdge element starts at CSS x=TopLeft.right−1. The `bgPosX+1` shift left element x=0 transparent, so atlas content started at element x=1 = CSS x=TopLeft.right. At uiScale=1.875 this maps to viewport x=TopLeft.right×1.875 (fractional). The device pixel straddling that position blended 62.5% TopLeft with 37.5% TopEdge — a faint seam when the two atlas sources differ.
+
+**Fix 6:** Remove the `+seamBleed` offset from `bgPosX`. Content starts at element x=0 (CSS x=TopLeft.right−1). Because edge pieces render on top of corners in DOM order (TopEdge is added after TopLeftCorner in NineSlice setup), the 1px overlap pixel is covered by TopEdge content. The device pixel straddling TopLeft.right now falls entirely within TopEdge's rasterized element — no mixed-element blend.
+
+- `main.ts`: `bgPosX` formula changed from `Math.round(-crop.x * scaleX) + seamBleed` to `Math.round(-crop.x * scaleX)`. One-line change.
+- Test added: "H-only NineSlice tiles bgPosX is 0" guards this invariant.
 
 ---
 

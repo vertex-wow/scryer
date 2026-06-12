@@ -832,12 +832,13 @@ function applyAsset(rawPath: string, uri: string): void {
       const elemW = el.offsetWidth || crop.width;
       const elemH = el.offsetHeight || crop.height;
 
-      // H-only tiles (TopEdge, BottomEdge) are extended 1px each side in renderer.ts
-      // (seam bleed) so that no device pixel falls between adjacent element boxes at
-      // fractional DPR × panZoom. elemW here is the already-extended width; the
-      // background must fill that extended width, so scaleX uses elemW directly.
-      // bgPosX shifts right by 1 to keep atlas content visually aligned after the
-      // element shifted left by 1px.
+      // H-only tiles (TopEdge, BottomEdge) are extended 1px left and right by
+      // renderer.ts (seam bleed) to cover device-pixel gaps at element boundaries
+      // under fractional uiScale / panZoom. elemW is the extended width so scaleX
+      // fills the whole element. bgPosX is intentionally NOT shifted: content
+      // starts at element x=0 (the 1px overlap with the adjacent corner piece).
+      // Because edge pieces render on top of corners (DOM order), this overlap
+      // pixel covers the fractional-boundary seam instead of leaving it transparent.
       const seamBleed = crop.tilesH && !crop.tilesV ? 1 : 0;
 
       // When a tiling sprite doesn't fill its sheet width/height, CSS background-repeat
@@ -895,9 +896,27 @@ function applyAsset(rawPath: string, uri: string): void {
       const bgW = Math.round(crop.sheetW * scaleX);
       const bgH = Math.round(crop.sheetH * scaleY);
       el.style.backgroundSize = `${bgW}px ${bgH}px`;
-      el.style.backgroundPosition = `${Math.round(-crop.x * scaleX) + seamBleed}px ${Math.round(-crop.y * scaleY)}px`;
+      el.style.backgroundPosition = `${Math.round(-crop.x * scaleX)}px ${Math.round(-crop.y * scaleY)}px`;
       // All pieces use no-repeat now that tiling is handled by stretching.
       el.style.backgroundRepeat = "no-repeat";
+
+      // Apply horizontal/vertical mirror if SetTexCoord flipped the axes.
+      // coordsRaw is always written alongside atlasCrop; left>right = H-flip,
+      // top>bottom = V-flip. Background-position is in pre-transform space, so
+      // it needs no adjustment — CSS transform flips the painted content.
+      if (coordsRaw) {
+        const tc = JSON.parse(coordsRaw) as {
+          left: number;
+          right: number;
+          top: number;
+          bottom: number;
+        };
+        const flipH = tc.left > tc.right;
+        const flipV = tc.top > tc.bottom;
+        if (flipH || flipV) {
+          el.style.transform = `${flipH ? "scaleX(-1)" : ""} ${flipV ? "scaleY(-1)" : ""}`.trim();
+        }
+      }
     } else if (coordsRaw) {
       const { left, right, top, bottom } = JSON.parse(coordsRaw) as {
         left: number;

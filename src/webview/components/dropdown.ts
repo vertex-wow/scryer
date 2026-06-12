@@ -25,6 +25,7 @@ export function setupDropdown(
   });
 
   menu.addEventListener("click", (e) => {
+    e.stopPropagation();
     const item = (e.target as HTMLElement).closest(".dropdown-item") as HTMLElement;
     if (item) {
       const value = item.getAttribute("data-value");

@@ -74,7 +74,7 @@
       "Bash(find * | grep * | head *)",
       "Read(//mnt/c/Users/**)",
       "Bash(find /home/*/_live/Addons/ * | xargs * | head *)",
-      "Read(//mnt/*//World of Warcraft/_retail_/Interface/AddOns/**)",
+      "Read(//**//World of Warcraft/*/Interface/AddOns/**)",
       "Bash(cargo test *)",
       "Bash(pnpm prettier *)",
       "Bash(pnpm jest *)",
@@ -88,7 +88,10 @@
       "Bash(git -C * show *)",
       "Bash(git -C * status *)",
       "Bash(echo \"EXIT:$?\")",
-      "Bash(gh issue view *)"
+      "Bash(gh issue view *)",
+      "Bash(gh issue list *)",
+      "Bash(find * | head *)",
+      "Read(//**/World of Warcraft/Interface/AddOns/**)"
     ],
     "additionalDirectories": [
       "/tmp"

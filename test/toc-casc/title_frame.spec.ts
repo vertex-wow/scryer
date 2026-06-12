@@ -17,7 +17,6 @@
 
 import { test, expect } from "@playwright/test";
 import { resolve } from "path";
-import { PNG } from "pngjs";
 import {
   runTocFixtureWithBlizzard,
   renderTocFixtureWithBlizzard,
@@ -223,6 +222,37 @@ test("ExampleFrameTitleFrameAddon CASC — top-row NineSlice textures have backg
 const TOL = 2;
 const near = (a: number, b: number) => Math.abs(a - b) <= TOL;
 
+// ---------------------------------------------------------------------------
+// No dim band at TopLeft/TopEdge seam (WoW x=389, y=257)
+//
+// At 1024x768, TopLeft corner right edge = WoW x=389. TopEdge element starts at
+// x=388 (1px seam-bleed overlap) and TopEdge content also starts at x=388 (bgPosX=0).
+// The column at x=388-390 must be within ±25 brightness of its neighbours.
+// A dim-seam would appear as a markedly darker column at the element boundary.
+// ---------------------------------------------------------------------------
+test("ExampleFrameTitleFrameAddon CASC — no dim seam between TopLeftCorner and TopEdge at (384-394,257)", async ({
+  page,
+}) => {
+  const addonsDir = getBlizzardAddonsDir();
+  const assetsDir = getExtractedAssetsDir();
+
+  await renderTocFixtureWithScreenResolution(page, FIXTURE_DIR, addonsDir!, assetsDir!, 1024, 768);
+
+  const samples: Array<{ x: number; brightness: number }> = [];
+  for (let x = 383; x <= 395; x++) {
+    const p = await sampleAtWowCoord(page, x, 257);
+    if (p) samples.push({ x, brightness: p.r + p.g + p.b });
+  }
+
+  expect(samples.length).toBeGreaterThanOrEqual(10);
+
+  const maxB = Math.max(...samples.map((s) => s.brightness));
+  const minB = Math.min(...samples.map((s) => s.brightness));
+  // All sampled pixels should be within 25 brightness units of the max. A dim seam
+  // would appear as a pixel ≥50 units below neighboring bright pixels.
+  expect(maxB - minB).toBeLessThanOrEqual(25);
+});
+
 // TODO: replace with a custom-texture version using the swap fixture (ExampleFrameTitleFrameSwap__Vertex).
 // Pixel assertions against CASC textures are fragile — composite values change whenever the rock
 // background or atlas sprites change. Known solid-color textures make these assertions exact.
@@ -279,18 +309,11 @@ test("ExampleFrameTitleFrameAddon CASC — title bar bottom highlight pixel colo
 // ---------------------------------------------------------------------------
 // CSS invariant: top-row NineSlice background-position-y must be integer
 //
-// Root cause of the title bar corner/middle misalignment: all three top-row
-// NineSlice pieces (TopLeftCorner, TopEdge, TopRightCorner) currently receive
-// a fractional background-position-y of -0.5px — a half-pixel offset from the
-// 2x atlas ÷2 convention. Chromium's `background-repeat: repeat` path
-// (TopEdge) quantizes fractional tile phase differently than the `no-repeat`
-// path (corners), shifting the visible content by ~2px and creating the
-// uneven border width visible in .plan/title_bar_weird.png.
-//
-// The fix (main.ts:655, currently commented out) rounds background-position to
-// integers. This test asserts that invariant. Currently FAILS because posY is
-// -0.5. Once the fix is enabled, all three pieces emit integer positions and
-// this test passes — remove test.fail() at that point.
+// The 2x atlas ÷2 convention produces crop.y=0.5 for all top-row pieces.
+// Math.round(-0.5 * scaleY) = 0, so all three pieces emit integer
+// background-position-y values. Chromium's repeat-x path (TopEdge) and
+// no-repeat path (corners) then use the same quantization, keeping the
+// title bar border visually aligned.
 // ---------------------------------------------------------------------------
 
 test("ExampleFrameTitleFrameAddon CASC — top-row NineSlice background-position-y is integer", async ({
@@ -341,73 +364,17 @@ test("ExampleFrameTitleFrameAddon CASC — top-row NineSlice background-position
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Bottom border alignment — corner vs middle (screenshot)
-//
-// The border band at the bottom of the title bar must appear at the same CSS y
-// in both the corner piece and the middle edge piece. Scans a y-range in each
-// column to find the brightest row; asserts both land at the same y.
-//
-// At 1024x768, uiScale=1.0 so screenshot pixel = WoW coord exactly.
-// Frame left=322. TopLeftCorner: x=314-388 (75px). TopEdge: x=389+.
-// corner sample x=374 (14px from corner right edge — clear of the seam).
-// middle sample x=402 (13px into TopEdge from its left edge — clear of the seam).
-//
-// Uses viewport screenshot rather than sampleAtWowCoord because sampleAtWowCoord
-// does not handle repeat-x tiling (returns null past the first tile boundary).
-//
-// Currently fails: the background-position rounding bug (.plan/005_title_bug.md)
-// places the corner band at a different y than the middle band, producing a
-// visible gap at the seam (GitHub issue #6).
-// ---------------------------------------------------------------------------
-test("ExampleFrameTitleFrameAddon CASC — bottom border bright row aligns between corner and middle", async ({
-  page,
-}) => {
-  test.fail(); // background-position rounding bug — corner band y ≠ middle band y (issue #6)
-  // TODO: once issue #6 is fixed, delete this test — the local texture swap test below
-  // covers the same assertion more robustly (raw atlas brightness, no composite ambiguity)
-  const addonsDir = getBlizzardAddonsDir();
-  const assetsDir = getExtractedAssetsDir();
-
-  await renderTocFixtureWithScreenResolution(page, FIXTURE_DIR, addonsDir!, assetsDir!, 1024, 768);
-
-  const png = PNG.sync.read(await page.locator("#viewport").screenshot());
-
-  // Scan y=255-282. corner: x=374 (14px from TopLeftCorner right edge).
-  // middle: x=402 (13px into TopEdge from its left edge).
-  let cornerBest = { y: 0, brightness: -1 };
-  let middleBest = { y: 0, brightness: -1 };
-
-  for (let y = 255; y <= 282; y++) {
-    const ic = (y * png.width + 374) * 4;
-    const im = (y * png.width + 402) * 4;
-    const bc = png.data[ic] + png.data[ic + 1] + png.data[ic + 2];
-    const bm = png.data[im] + png.data[im + 1] + png.data[im + 2];
-    if (bc > cornerBest.brightness) cornerBest = { y, brightness: bc };
-    if (bm > middleBest.brightness) middleBest = { y, brightness: bm };
-  }
-
-  // Both columns must have a clearly bright row (≥ rgb(100,100,100) sum = 300).
-  expect(cornerBest.brightness).toBeGreaterThan(300);
-  expect(middleBest.brightness).toBeGreaterThan(300);
-
-  // The bright rows must be at the same y (within 1 px tolerance).
-  expect(Math.abs(cornerBest.y - middleBest.y)).toBeLessThanOrEqual(1);
-});
-
-// ---------------------------------------------------------------------------
 // Bottom border alignment — corner vs middle (local texture swap)
 //
-// Same alignment assertion as the CASC test above, using local PNG overrides
-// from ExampleFrameTitleFrameAddon/assets/ instead of CASC-extracted BLPs.
-// Uses sampleAtWowCoord (raw atlas brightness) so the composited-over-dark-rock
-// ambiguity that makes the CASC screenshot scan unreliable is not an issue here.
+// The border band at the bottom of the title bar must appear at the same y
+// in both the corner piece and the middle edge piece.
 //
-// Scans y=248-280 at corner x=384 (14 px inside TopLeftCorner) and middle x=402
-// (13 px into TopEdge). The bright metallic band reads ~rgb(114,111,103) sum≈328
-// from the raw atlas. Both columns must find a bright row at the same y.
+// Uses local PNG overrides from ExampleFrameTitleFrameAddon/assets/ so the
+// test does not depend on CASC-extracted BLPs. sampleAtWowCoord returns raw
+// atlas brightness, avoiding composited-over-dark-rock ambiguity.
 //
-// This is the authoritative replacement for the CASC version above. Once issue
-// #6 is fixed this test will pass; delete the CASC version above at that point.
+// Scans y=248-280 at corner x=384 (14 px inside TopLeftCorner) and middle
+// x=402 (13 px into TopEdge). Both columns must find a bright row at same y.
 // ---------------------------------------------------------------------------
 test("ExampleFrameTitleFrameAddon local texture swap — bottom border bright row aligns between corner and middle", async ({
   page,
@@ -435,6 +402,45 @@ test("ExampleFrameTitleFrameAddon local texture swap — bottom border bright ro
   expect(cornerBest.brightness).toBeGreaterThan(300);
   expect(middleBest.brightness).toBeGreaterThan(300);
   expect(Math.abs(cornerBest.y - middleBest.y)).toBeLessThanOrEqual(1);
+});
+
+// ---------------------------------------------------------------------------
+// CSS invariant: H-only NineSlice tiles must have backgroundPositionX = 0
+//
+// renderer.ts extends H-only tiles (TopEdge, BottomEdge) 1px left via seamBleed.
+// applyAsset() must NOT shift bgPosX right by seamBleed — instead, content starts
+// at element x=0 (the 1px overlap with the adjacent corner). Because edge pieces
+// render on top of corners (DOM order), this covers the fractional-boundary seam
+// that appears at non-integer uiScale (e.g. 1.875× at 3440×1440).
+// If bgPosX were +1, element x=0 would be transparent and the seam would leak through.
+// ---------------------------------------------------------------------------
+test("ExampleFrameTitleFrameAddon CASC — H-only NineSlice tiles bgPosX is 0", async ({ page }) => {
+  const addonsDir = getBlizzardAddonsDir();
+  const assetsDir = getExtractedAssetsDir();
+
+  await renderTocFixtureWithScreenResolution(page, FIXTURE_DIR, addonsDir!, assetsDir!, 1024, 768);
+
+  const hOnlyPieces = await page.evaluate(() => {
+    const frameEl = document.querySelector<HTMLElement>('[data-name="ExampleFrameTitleFrame"]');
+    if (!frameEl) return null;
+    return Array.from(
+      frameEl.querySelectorAll<HTMLElement>('[data-layer="OVERLAY"] [data-kind="Texture"]'),
+    )
+      .filter((el) => getComputedStyle(el).backgroundImage !== "none" && el.dataset.atlasCrop)
+      .map((el) => {
+        const crop = JSON.parse(el.dataset.atlasCrop!) as { tilesH: boolean; tilesV: boolean };
+        const cs = getComputedStyle(el);
+        const posX = parseFloat(cs.backgroundPosition.split(" ")[0]);
+        return { tilesH: crop.tilesH, tilesV: crop.tilesV, posX };
+      })
+      .filter((p) => p.tilesH && !p.tilesV);
+  });
+
+  expect(hOnlyPieces).not.toBeNull();
+  expect(hOnlyPieces!.length).toBeGreaterThan(0);
+  for (const piece of hOnlyPieces!) {
+    expect(piece.posX).toBe(0);
+  }
 });
 
 test("ExampleFrameTitleFrameAddon CASC — horizontal-only NineSlice tiles use no-repeat (stretch-to-fill)", async ({
