@@ -223,12 +223,15 @@ const TOL = 2;
 const near = (a: number, b: number) => Math.abs(a - b) <= TOL;
 
 // ---------------------------------------------------------------------------
-// No dim band at TopLeft/TopEdge seam (WoW x=389, y=257)
+// No dim band at TopLeft/TopEdge seam (WoW x=389, y=257) — x-axis air gap
 //
 // At 1024x768, TopLeft corner right edge = WoW x=389. TopEdge element starts at
 // x=388 (1px seam-bleed overlap) and TopEdge content also starts at x=388 (bgPosX=0).
 // The column at x=388-390 must be within ±25 brightness of its neighbours.
 // A dim-seam would appear as a markedly darker column at the element boundary.
+//
+// Pair with "bottom border bright row aligns" below, which covers the y-axis
+// misalignment bug (corner and middle rendering bright row at different y).
 // ---------------------------------------------------------------------------
 test("ExampleFrameTitleFrameAddon CASC — no dim seam between TopLeftCorner and TopEdge at (384-394,257)", async ({
   page,
@@ -364,10 +367,13 @@ test("ExampleFrameTitleFrameAddon CASC — top-row NineSlice background-position
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Bottom border alignment — corner vs middle (local texture swap)
+// Bottom border alignment — corner vs middle (local texture swap) — y-axis misalignment
 //
 // The border band at the bottom of the title bar must appear at the same y
-// in both the corner piece and the middle edge piece.
+// in both the corner piece and the middle edge piece. This was the original
+// issue #6 bug: corner and middle rendered the bright metallic row at different
+// y positions due to background-position-y rounding. Pair with the "no dim seam"
+// test above, which covers the x-axis air gap that appeared after the y fix.
 //
 // Uses local PNG overrides from ExampleFrameTitleFrameAddon/assets/ so the
 // test does not depend on CASC-extracted BLPs. sampleAtWowCoord returns raw
