@@ -16,8 +16,9 @@ import {
 import type { FrameIR } from "../../src/parser/ir";
 import { loadAtlasManifest, resolveAtlasNames } from "../../src/assets/atlas-manifest";
 import { blpToPng } from "../../src/assets/blp";
+import { extractPaths } from "../../src/assets/extract-core";
 import { renderFrames, FLAVOR_CONFIG, HARNESS, TOOLBAR_STATE } from "../webview/helpers";
-import { getExtractedAssetsDir } from "../unit-casc/helpers";
+import { getExtractedAssetsDir, makeExtractCoreOpts } from "../unit-casc/helpers";
 
 export { queryRendered, VIEWPORT } from "../webview/helpers";
 export { getExtractedAssetsDir };
@@ -223,12 +224,23 @@ export async function sampleAtWowCoord(
       if (!vp) return null;
 
       const vpRect = vp.getBoundingClientRect();
-      const clientX = vpRect.left + wowX;
-      const clientY = vpRect.top + wowY;
+      // WoW coordinates are in logical units. The DOM applies a chain of CSS transforms:
+      //   #viewport:             translate(panX, panY) scale(panZoom)
+      //   #wow-viewport:         scale(frameScale)  (often identity)
+      //   #wow-logical-parent:   scale(uiScale = screenHeight / viewport.h)
+      // Read each scale to convert WoW → client correctly.
+      const lp = document.getElementById("wow-logical-parent");
+      const wowVp = document.getElementById("wow-viewport");
+      const uiScale = lp ? new DOMMatrix(window.getComputedStyle(lp).transform).a : 1;
+      const frameScale = wowVp ? new DOMMatrix(window.getComputedStyle(wowVp).transform).a : 1;
+      const panZoom = new DOMMatrix(window.getComputedStyle(vp).transform).a;
+      const clientX = vpRect.left + wowX * uiScale * frameScale * panZoom;
+      const clientY = vpRect.top + wowY * uiScale * frameScale * panZoom;
 
       function hitTest(root: Element, cx: number, cy: number): HTMLElement | null {
         for (let i = root.children.length - 1; i >= 0; i--) {
           const child = root.children[i] as HTMLElement;
+          if (child.dataset.phLabel !== undefined) continue;
           const r = child.getBoundingClientRect();
           if (cx >= r.left && cx < r.right && cy >= r.top && cy < r.bottom) {
             const found = hitTest(child, cx, cy);
@@ -309,13 +321,48 @@ export async function sampleAtWowCoord(
   );
 }
 
+function normalizeForExtract(p: string): string {
+  const s = p.replace(/\\/g, "/");
+  return (/\.\w+$/i.test(s) ? s : s + ".blp").toLowerCase();
+}
+
+async function injectSingleAsset(
+  page: Page,
+  assetsDir: string,
+  assetPath: string,
+): Promise<boolean> {
+  let filePath: string;
+  try {
+    filePath = resolveCI(assetsDir, assetPath);
+    if (!fs.existsSync(filePath) && !/\.\w+$/i.test(assetPath)) {
+      filePath = resolveCI(assetsDir, assetPath + ".blp");
+    }
+  } catch {
+    return false;
+  }
+  if (!fs.existsSync(filePath)) return false;
+  let pngBuf: Buffer;
+  try {
+    pngBuf = blpToPng(filePath);
+  } catch {
+    return false;
+  }
+  const uri = `data:image/png;base64,${pngBuf.toString("base64")}`;
+  await page.evaluate(
+    ({ p, u }: { p: string; u: string }) =>
+      window.postMessage({ type: "assetResolved", path: p, uri: u }, "*"),
+    { p: assetPath, u: uri },
+  );
+  return true;
+}
+
 /**
- * Resolve all pending requestAsset messages by reading the BLP files from
- * assetsDir, decoding them to PNG, and posting assetResolved back into the
- * webview. After this call the caller should wait for a repaint tick before
- * taking screenshots (e.g. page.waitForTimeout).
+ * Resolve all pending requestAsset messages by reading BLP files from assetsDir,
+ * decoding them to PNG, and posting assetResolved back into the webview.
  *
- * Paths that cannot be found or decoded are silently skipped.
+ * Mirrors the production live-panel extraction loop: paths not found on disk are
+ * extracted on demand via the asset server (using dev/settings.local.json), then
+ * retried. Subsequent test runs hit the populated cache directly.
  */
 export async function injectResolvedAssets(page: Page, assetsDir: string): Promise<void> {
   const msgs = await page.evaluate(
@@ -329,25 +376,19 @@ export async function injectResolvedAssets(page: Page, assetsDir: string): Promi
     ),
   ];
 
+  const missing: string[] = [];
   for (const assetPath of uniquePaths) {
-    let filePath: string;
-    try {
-      filePath = resolveCI(assetsDir, assetPath);
-    } catch {
-      continue;
-    }
-    if (!fs.existsSync(filePath)) continue;
-    let pngBuf: Buffer;
-    try {
-      pngBuf = blpToPng(filePath);
-    } catch {
-      continue;
-    }
-    const uri = `data:image/png;base64,${pngBuf.toString("base64")}`;
-    await page.evaluate(
-      ({ p, u }: { p: string; u: string }) =>
-        window.postMessage({ type: "assetResolved", path: p, uri: u }, "*"),
-      { p: assetPath, u: uri },
-    );
+    if (!(await injectSingleAsset(page, assetsDir, assetPath))) missing.push(assetPath);
+  }
+
+  if (missing.length === 0) return;
+
+  const coreOpts = makeExtractCoreOpts();
+  if (!coreOpts) return;
+
+  await extractPaths(missing.map(normalizeForExtract), coreOpts, "user");
+
+  for (const assetPath of missing) {
+    await injectSingleAsset(page, assetsDir, assetPath);
   }
 }

@@ -11,6 +11,7 @@ import { Module } from "module";
 };
 
 export default defineConfig({
+  globalSetup: "./test/toc-casc/setup.ts",
   testDir: "test/toc-casc",
   testMatch: "*.spec.ts",
   tsconfig: "./tsconfig.playwright.json",

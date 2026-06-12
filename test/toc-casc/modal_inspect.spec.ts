@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
 import { renderTocFixtureWithBlizzard, getBlizzardAddonsDir } from "./helpers";
 import * as path from "path";
 import * as fs from "fs";
@@ -26,5 +26,6 @@ test("Inspect Modal Dialog Borders with CASC", async ({ page }) => {
     out += `Rect: ${JSON.stringify(rect)}\n`;
     out += `bgSize: ${bgSize}, bgPos: ${bgPos}, bgRep: ${bgRep}\n\n`;
   }
-  fs.writeFileSync("inspect_output_casc.txt", out);
+  fs.mkdirSync("test-results", { recursive: true });
+  fs.writeFileSync("test-results/inspect_output_casc.txt", out);
 });

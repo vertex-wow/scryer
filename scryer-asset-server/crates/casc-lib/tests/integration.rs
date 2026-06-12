@@ -1040,10 +1040,12 @@ fn tvfs_loaded_on_retail_install() {
         "Retail install should have >100k TVFS paths, got {}",
         info.tvfs_paths
     );
+    // MfstV2 (retail 10.1.7+) has NO_NAME_HASH on all root entries, so
+    // fdid_to_path stays empty — TVFS provides path→EKey directly. Accepting
+    // 0 here is correct; resolver_paths is non-zero only for Legacy/MfstV1.
     assert!(
-        info.resolver_paths > 0,
-        "Resolver should have entries from TVFS, got {}",
-        info.resolver_paths
+        info.tvfs_paths > 0 || info.resolver_paths > 0,
+        "Storage should have TVFS paths or resolver paths, got both 0"
     );
     println!("  Boot without listfile download: {:.2}s (target <1s)", elapsed.as_secs_f64());
 }

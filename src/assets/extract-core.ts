@@ -353,6 +353,17 @@ export function releaseClientKeepalive(): void {
   sharedAssetClient?.releaseKeepalive();
 }
 
+/**
+ * Gracefully shut down the shared asset client and clear the singleton.
+ * Call in afterAll / globalTeardown so Jest/Playwright don't wait for the
+ * server's idle timeout before exiting.
+ */
+export async function shutdownAssetClient(): Promise<void> {
+  const client = sharedAssetClient;
+  sharedAssetClient = null;
+  await client?.shutdown();
+}
+
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // Retail extraction

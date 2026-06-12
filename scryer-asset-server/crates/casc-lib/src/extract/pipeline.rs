@@ -501,9 +501,17 @@ impl ExtractionStore for CascStorage {
         if let Some(p) = self.resolver.path_for_fdid(fdid) {
             return Some(p);
         }
-        // Don't trigger a load here — by the time path_for_fdid is called
-        // during extraction, fdid_for_path has already hoisted the listfile.
-        self.listfile_cell.get()?.as_deref()?.path(fdid)
+        let out = &self.output_dir;
+        self.listfile_cell
+            .get_or_init(|| match load_or_refresh(out) {
+                Ok(lf) => Some(Arc::new(lf)),
+                Err(e) => {
+                    tracing::warn!("listfile load failed: {}", e);
+                    None
+                }
+            })
+            .as_deref()?
+            .path(fdid)
     }
     fn fdid_for_path(&self, path: &str) -> Option<u32> {
         self.lookup_fdid(path)
@@ -951,14 +959,16 @@ pub fn list_files(storage: &CascStorage, locale: u32, filter: Option<&str>) -> V
         .filter(|(_, entry)| entry.locale_flags.matches(locale_filter))
         .filter(|(fdid, _)| seen.insert(*fdid))
         .filter(|(fdid, _)| match filter {
-            Some(pat) => match storage.resolver.path_for_fdid(*fdid) {
+            Some(pat) => match <CascStorage as ExtractionStore>::path_for_fdid(storage, *fdid) {
                 Some(path) => glob_matches(pat, path),
                 None => false,
             },
             None => true,
         })
         .map(|(fdid, _)| {
-            let path = storage.resolver.path_for_fdid(fdid).unwrap_or("unknown").to_string();
+            let path = <CascStorage as ExtractionStore>::path_for_fdid(storage, fdid)
+                .unwrap_or("unknown")
+                .to_string();
             (fdid, path)
         })
         .collect();
@@ -1433,11 +1443,17 @@ mod tests {
     }
 
     // Integration tests - only run with real WoW install
+    fn wow_dir() -> PathBuf {
+        std::env::var("WOW_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from(r"E:\World of Warcraft"))
+    }
+
     #[test]
     #[ignore]
     fn open_real_casc_storage() {
         let config = OpenConfig {
-            install_dir: PathBuf::from(r"E:\World of Warcraft"),
+            install_dir: wow_dir(),
             product: Some("wow".into()),
             keyfile: None,
             listfile: None,
@@ -1457,7 +1473,7 @@ mod tests {
     #[ignore]
     fn read_known_file_by_fdid() {
         let config = OpenConfig {
-            install_dir: PathBuf::from(r"E:\World of Warcraft"),
+            install_dir: wow_dir(),
             product: Some("wow".into()),
             keyfile: None,
             listfile: None,
@@ -1568,7 +1584,7 @@ mod tests {
     #[ignore]
     fn extract_all_small_filter() {
         let open_config = OpenConfig {
-            install_dir: PathBuf::from(r"E:\World of Warcraft"),
+            install_dir: wow_dir(),
             product: Some("wow".into()),
             keyfile: None,
             listfile: None,

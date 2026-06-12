@@ -4,22 +4,34 @@
  * Set scryer.cacheDir in dev/settings.local.json then run:
  *   pnpm test:casc
  *
- * These are skipped automatically when the directory is not configured.
+ * Errors as misconfigured when the directory is not configured.
  */
 
-import * as path from "path";
+import * as fs from "fs";
 import { PNG } from "pngjs";
 import { blpToPng } from "../../src/assets/blp";
-import { getExtractedAssetsDir } from "./helpers";
+import { extractPaths, shutdownAssetClient } from "../../src/assets/extract-core";
+import { resolveCI } from "../../src/parser/blizzard-registry";
+import { getExtractedAssetsDir, makeExtractCoreOpts, requireExtractedAssetsDir } from "./helpers";
 
 const assetsDir = getExtractedAssetsDir();
 
-const describeIf = (condition: boolean) => (condition ? describe : describe.skip);
+const BLP_SUBPATH = "interface/tooltips/tooltip.blp";
 
-describeIf(assetsDir !== null)("CASC BLP decode", () => {
-  // Mirrors the texture used in test/manual/direct_texture.xml.
-  test("decodes Interface/Buttons/UI-CheckBox-Check.blp to a valid PNG", () => {
-    const blpPath = path.join(assetsDir!, "Interface", "Buttons", "UI-CheckBox-Check.blp");
+describe("CASC BLP decode", () => {
+  beforeAll(async () => {
+    requireExtractedAssetsDir();
+    if (!fs.existsSync(resolveCI(assetsDir!, BLP_SUBPATH))) {
+      const coreOpts = makeExtractCoreOpts();
+      if (coreOpts) await extractPaths([BLP_SUBPATH], coreOpts, "user");
+    }
+  }, 120_000);
+
+  afterAll(async () => {
+    await shutdownAssetClient();
+  });
+  test("decodes Interface/Tooltips/Tooltip.blp to a valid PNG", () => {
+    const blpPath = resolveCI(assetsDir!, BLP_SUBPATH);
     const pngBuf = blpToPng(blpPath);
 
     // PNG magic: 0x89 P N G

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
 import { renderTocFixture } from "./helpers";
 import * as path from "path";
 import * as fs from "fs";
@@ -22,5 +22,6 @@ test("Inspect Modal Dialog Borders", async ({ page }) => {
       out += `tag:${tag} name:${name} kind:${kind} asset:${asset} -> ${s}\n`;
     }
   }
-  fs.writeFileSync("inspect_output.txt", out);
+  fs.mkdirSync("test-results", { recursive: true });
+  fs.writeFileSync("test-results/inspect_output.txt", out);
 });

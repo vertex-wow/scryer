@@ -2,7 +2,7 @@
  * TOC live view test — NineSliceUtilAddon (CASC)
  *
  * Requires scryer.cacheDir in dev/settings.local.json with
- * Interface/AddOns/Blizzard_SharedXML/ present. Skips automatically otherwise.
+ * Interface/AddOns/Blizzard_SharedXML/ present. Errors as misconfigured otherwise.
  *
  * Verifies the happy path: with Blizzard Lua loaded, NineSliceUtil.ApplyLayout
  * runs successfully and creates all nine NineSlice piece textures. Complements
@@ -38,7 +38,6 @@ function normPath(p: string) {
 
 test("NineSliceUtilAddon CASC — frame geometry", async ({ page }) => {
   const addonsDir = getBlizzardAddonsDir();
-  test.skip(addonsDir === null, "Blizzard_SharedXML not found under scryer.cacheDir — skipping");
 
   await renderTocFixtureWithBlizzard(page, FIXTURE_DIR, addonsDir!);
 
@@ -57,7 +56,6 @@ test("NineSliceUtilAddon CASC — frame geometry", async ({ page }) => {
 
 test("NineSliceUtilAddon CASC — 9 NineSlice pieces created", async ({ page }) => {
   const addonsDir = getBlizzardAddonsDir();
-  test.skip(addonsDir === null, "Blizzard_SharedXML not found under scryer.cacheDir — skipping");
 
   await renderTocFixtureWithBlizzard(page, FIXTURE_DIR, addonsDir!);
 
@@ -76,7 +74,6 @@ test("NineSliceUtilAddon CASC — requestAsset emitted for NineSlice atlas sheet
   page,
 }) => {
   const addonsDir = getBlizzardAddonsDir();
-  test.skip(addonsDir === null, "Blizzard_SharedXML not found under scryer.cacheDir — skipping");
 
   await renderTocFixtureWithBlizzard(page, FIXTURE_DIR, addonsDir!);
 

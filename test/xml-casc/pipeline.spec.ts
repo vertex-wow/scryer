@@ -1,14 +1,16 @@
 /**
  * E2E pipeline test — CASC variant.
- * Requires scryer.cacheDir in dev/settings.local.json; skips automatically otherwise.
+ * Requires scryer.cacheDir in dev/settings.local.json; errors as misconfigured otherwise.
  */
 
 import { test, expect } from "@playwright/test";
-import { readFileSync, existsSync } from "fs";
-import { resolve, join } from "path";
+import { existsSync, readFileSync } from "fs";
+import { resolve } from "path";
 import { parseXmlFile, resolveInheritance } from "../../src/parser";
+import { resolveCI } from "../../src/parser/blizzard-registry";
 import { blpToPng } from "../../src/assets/blp";
-import { getExtractedAssetsDir } from "../unit-casc/helpers";
+import { extractPaths } from "../../src/assets/extract-core";
+import { getExtractedAssetsDir, makeExtractCoreOpts } from "../unit-casc/helpers";
 import { VIEWPORT, renderFrames, queryRendered } from "../webview/helpers";
 
 function parseE2eXml(filename: string): Record<string, unknown>[] {
@@ -20,12 +22,16 @@ function parseE2eXml(filename: string): Record<string, unknown>[] {
 
 test("direct_texture_casc.xml — full parse→render pipeline (CASC)", async ({ page }) => {
   const assetsDir = getExtractedAssetsDir();
-  test.skip(assetsDir === null, "scryer.cacheDir not set in dev/settings.local.json");
 
-  const blpPath = join(assetsDir!, "Interface", "Buttons", "UI-CheckBox-Check.blp");
-  test.skip(!existsSync(blpPath), `BLP not found: ${blpPath} — extract textures first`);
+  // Extract the BLP on first run if not yet in cache, then resolve case-insensitively.
+  const BLP_PATH = "interface/tooltips/tooltip.blp";
+  if (!existsSync(resolveCI(assetsDir!, BLP_PATH))) {
+    const coreOpts = makeExtractCoreOpts();
+    if (coreOpts) await extractPaths([BLP_PATH], coreOpts, "user");
+  }
+  const blpPath = resolveCI(assetsDir!, BLP_PATH);
 
-  const frames = parseE2eXml("../e2e/direct_texture_casc.xml");
+  const frames = parseE2eXml("../xml/direct_texture_casc.xml");
 
   const pngBuf = blpToPng(blpPath);
   const assetUri = `data:image/png;base64,${pngBuf.toString("base64")}`;
@@ -47,7 +53,7 @@ test("direct_texture_casc.xml — full parse→render pipeline (CASC)", async ({
     (m) => m.type === "requestAsset",
   );
   expect(assetReq).toBeDefined();
-  expect(assetReq!.path).toContain("UI-CheckBox-Check");
+  expect(assetReq!.path).toContain("Tooltip");
 
   await page.evaluate(
     ({ path, uri }) => window.postMessage({ type: "assetResolved", path, uri }, "*"),

@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
+  globalSetup: "./test/xml-casc/setup.ts",
   testDir: "test/xml-casc",
   testMatch: "*.spec.ts",
   tsconfig: "./tsconfig.playwright.json",
