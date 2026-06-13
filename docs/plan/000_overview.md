@@ -268,7 +268,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="todo-archive.md#preview-settings-toolbar">Preview settings toolbar</a>, <a href="todo-archive.md#customizable-keyboard-shortcuts-for-toolbar-actions">Customizable keyboard shortcuts for toolbar actions</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#preview-settings-toolbar">Preview settings toolbar</a>, <a href="todo-archive.md#customizable-keyboard-shortcuts-for-toolbar-actions">Customizable keyboard shortcuts for toolbar actions</a>, <a href="todo-archive.md#fix-resolution-dropdown-picker">Fix resolution dropdown picker</a></td>
 </tr>
 <tr>
   <td>↳</td>
@@ -276,14 +276,6 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>📋 Pending</td>
   <td>Toolbar "Game Input" mode (controller icon): captures keystrokes into Lua event bridge; ESC always exits</td>
   <td>S–M</td>
-  <td>9</td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td><a href="todo.md#fix-resolution-dropdown-picker">Fix resolution dropdown picker</a></td>
-  <td>📋 Pending</td>
-  <td>Toolbar resolution dropdown has known issues; needs investigation and fix</td>
-  <td>XS–S</td>
   <td>9</td>
 </tr>
 </tbody>

@@ -4,6 +4,18 @@ Completed items moved from [todo.md](todo.md). Historical record of what was bui
 
 ---
 
+## Fix resolution dropdown picker {#fix-resolution-dropdown-picker}
+
+**Completed: 2026-06-13**
+
+**Problem:** Clicking an option in the toolbar resolution dropdown failed to register — the frame did not re-draw at the new resolution. The `settingChange` → `flavorConfig` update path was not being triggered correctly by the native `<select>` element used at the time.
+
+**What was built:**
+
+The dropdown was converted from a native `<select>` to the custom HTML/JS dropdown mechanism (commit `979186b`). This wired up the resolution picker to `setupDropdown`, which posts a `settingChange` message to the extension host, stores the value in `ephemeralSettings`, and triggers `renderFile` with the new `uiParentWidth`. The bug was confirmed resolved; no regression test was added.
+
+---
+
 ## Local texture overrides (`assets/` directory convention) {#local-texture-overrides-assets-directory-convention}
 
 **Completed: 2026-06-13**

@@ -6,20 +6,6 @@ Completed items are in [todo-archive.md](todo-archive.md).
 
 ---
 
-## Fix resolution dropdown picker
-
-**Problem:** The toolbar resolution dropdown has known issues that need investigation and fixing.
-
-**Plan:**
-
-1. Reproduce the issue in the live view.
-2. Identify whether the bug is in the dropdown HTML/JS, the `settingChange` → `flavorConfig` update path, or the `uiParentWidth` recalculation.
-3. Fix and add a regression test if appropriate.
-
-**Effort:** XS–S
-
----
-
 ## TGA texture decode (deferred from M3)
 
 **Problem:** TGA (Targa) textures are used by many addon-bundled images. M3 logs a warning and shows a labeled placeholder for `.tga` files; it does not decode them.

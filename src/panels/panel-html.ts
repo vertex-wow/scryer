@@ -1,7 +1,7 @@
+// src/panels/panel-html.ts (typescript)
+
 import * as vscode from "vscode";
-import { resolveFlavorConfig } from "../flavors/config.js";
 import { FLAVOR_INFO, listInstalledFlavors } from "../assets/build-info.js";
-import { buildLocaleDropdownHtml } from "../webview/components/locale-dropdown.js";
 import {
   WORKAREA_BG_BLACK,
   WORKAREA_BG_CHECKERBOARD_DARK_COLOR1,
@@ -13,6 +13,8 @@ import {
   WORKAREA_BG_WHITE,
   ZOOM_PRESETS,
 } from "../constants.js";
+import { resolveFlavorConfig } from "../flavors/config.js";
+import { buildLocaleDropdownHtml } from "../webview/components/locale-dropdown.js";
 
 function getNonce(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -101,11 +103,13 @@ export function buildPanelHtml(options: PanelHtmlOptions): string {
   const currentAspect = getAspectRatio(rw, rh);
   const resolutionTitle = `Native Screen Resolution&#10;${currentAspect} ${screenResolution} = ${currentUiParentWidth}x768 in-game`;
 
+  const DEFAULT_RESOLUTION = "1920x1080";
   const resOpt = (res: string) => {
     const [w, h] = res.split("x").map(Number);
     const gw = Math.round((768 * w) / h);
+    const label = res === DEFAULT_RESOLUTION ? `${res} *` : res;
     return `<div class="dropdown-item${s(screenResolution, res)}" data-value="${res}" title="${res} = ${gw}x768 in-game">
-      <span class="dropdown-item-text">${res}</span>
+      <span class="dropdown-item-text">${label}</span>
     </div>`;
   };
   const resHeader = (text: string) =>
@@ -246,22 +250,22 @@ export function buildPanelHtml(options: PanelHtmlOptions): string {
         <span class="dropdown-trigger-label">${screenResolution}</span>
       </div>
       <div id="resolution-dropdown-menu" class="custom-dropdown-menu hidden">
-        ${resHeader("=16:9=")}
-        ${resOpt("1280x720")}
-        ${resOpt("1920x1080")}
-        ${resOpt("2560x1440")}
+        ${resHeader("=16:9= [ Widescreen ]")}
         ${resOpt("3840x2160")}
-        ${resHeader("=16:10=")}
-        ${resOpt("1440x900")}
-        ${resOpt("1920x1200")}
+        ${resOpt("2560x1440")}
+        ${resOpt("1920x1080")}
+        ${resOpt("1280x720")}
+        ${resHeader("=16:10= [ Wide ]")}
         ${resOpt("2560x1600")}
-        ${resHeader("=21:9=")}
-        ${resOpt("1720x720")}
-        ${resOpt("2580x1080")}
+        ${resOpt("1920x1200")}
+        ${resOpt("1440x900")}
+        ${resHeader("=21:9= [ Ultrawide ]")}
         ${resOpt("3440x1440")}
-        ${resHeader("=4:3=")}
-        ${resOpt("800x600")}
+        ${resOpt("2580x1080")}
+        ${resOpt("1720x720")}
+        ${resHeader("=4:3= [ Standard ]")}
         ${resOpt("1024x768")}
+        ${resOpt("800x600")}
       </div>
     </div>
     ${buildLocaleDropdownHtml(locale)}
