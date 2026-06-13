@@ -20,7 +20,10 @@ const WASM_PATH = path.join(__dirname, "../../node_modules/wasmoon/dist/glue.was
  *
  * tocDir must contain exactly one .toc file.
  */
-export async function runTocFixture(tocDir: string): Promise<FrameIR[]> {
+export async function runTocFixture(
+  tocDir: string,
+  opts?: { errors?: string[] },
+): Promise<FrameIR[]> {
   const tocFile = fs.readdirSync(tocDir).find((f) => f.endsWith(".toc"));
   if (!tocFile) throw new Error(`No .toc file found in ${tocDir}`);
 
@@ -40,7 +43,14 @@ export async function runTocFixture(tocDir: string): Promise<FrameIR[]> {
       sandbox: lua,
       blizzardTemplates: undefined,
       readFile: async (p) => fs.readFileSync(p, "utf-8"),
-      output: { info: () => {}, warn: () => {}, error: console.error },
+      output: {
+        info: () => {},
+        warn: () => {},
+        error: (msg: string) => {
+          if (opts?.errors) opts.errors.push(msg);
+          else console.error(msg);
+        },
+      },
     });
     clock.advance(0.001);
   } finally {

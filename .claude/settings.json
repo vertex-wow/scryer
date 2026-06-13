@@ -94,7 +94,8 @@
       "Read(//**/World of Warcraft/Interface/AddOns/**)",
       "Bash(pnpm list *)",
       "Bash(gh run download *)",
-      "Bash(gh run watch *)"
+      "Bash(gh run watch *)",
+      "Bash(jq *)"
     ],
     "additionalDirectories": [
       "/tmp"

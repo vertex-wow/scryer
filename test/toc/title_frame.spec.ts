@@ -5,14 +5,11 @@
  * loadBlizzardTemplates() in production. The test helpers do not load it, so
  * the template is unresolved and no template children are injected.
  *
- * SetTitle() is not on FrameMT and DefaultPanelTemplate's mixin is absent, so
- * calling it from Lua produces a runtime error that the TOC runner swallows.
- * The frame itself is still created correctly.
- *
- * To add a CASC variant (test/toc-casc/title_frame.spec.ts), the toc-casc
- * helpers would need to also load blizzardTemplates (Blizzard XML templates)
- * so that DefaultPanelTemplate resolves and SetTitle wires up the title
- * FontString. Currently toc-casc helpers only load Blizzard Lua files.
+ * SetTitle() is not on FrameMT and DefaultPanelTemplate's mixin is absent in
+ * this path, so calling it from Lua produces a runtime error that the TOC
+ * runner swallows. This is a limitation of the non-CASC test helper, not
+ * expected production behavior — with Blizzard XML templates loaded the call
+ * succeeds (see test/toc-casc/title_frame.spec.ts).
  *
  * Fixture: test/fixtures/ExampleFrameTitleFrameAddon/
  */
@@ -45,7 +42,8 @@ test("ExampleFrameTitleFrameAddon — frame geometry", async ({ page }) => {
 // ---------------------------------------------------------------------------
 
 test("ExampleFrameTitleFrameAddon — no template content when Blizzard absent", async () => {
-  const frames = await runTocFixture(FIXTURE_DIR);
+  const errors: string[] = [];
+  const frames = await runTocFixture(FIXTURE_DIR, { errors });
 
   const main = frames.find((f) => f.name === "ExampleFrameTitleFrame");
   expect(main).toBeDefined();
@@ -56,4 +54,8 @@ test("ExampleFrameTitleFrameAddon — no template content when Blizzard absent",
   // No inline textures or FontStrings in the XML either
   const layerObjectCount = main!.layers.flatMap((l) => l.objects).length;
   expect(layerObjectCount).toBe(0);
+
+  // SetTitle() is absent without DefaultPanelTemplate's mixin — assert the
+  // Lua error is emitted so we notice if this path silently changes.
+  expect(errors.some((e) => e.includes("SetTitle"))).toBe(true);
 });
