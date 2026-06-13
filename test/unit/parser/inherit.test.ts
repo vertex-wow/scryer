@@ -274,7 +274,7 @@ describe("resolveInheritance — anonymous frames do not trigger cycle detection
     </Frames>
   </Frame>
 </Ui>`;
-    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     singleDoc(xml);
     expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining("Circular"));
     warnSpy.mockRestore();

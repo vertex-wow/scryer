@@ -6,7 +6,7 @@
     "composite": true,
     "declaration": true,
     "noEmit": false,
-    "types": ["jest", "node"]
+    "types": ["node", "vitest/globals"]
   },
   "include": ["test", "src/types"],
   "references": [{ "path": "./tsconfig.src.json" }]

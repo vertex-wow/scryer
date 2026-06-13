@@ -1,0 +1,9 @@
+# pnpm-workspace.yaml (yaml)
+
+# when vite-tsconfig-paths > 6.1.1 try removing this
+peerDependencyRules:
+  allowedVersions:
+    typescript: "6.x"
+
+# 7 days in minutes
+minimumReleaseAge: 10080

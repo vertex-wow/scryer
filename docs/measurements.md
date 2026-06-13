@@ -11,6 +11,8 @@
 7. [Tooling Inventory](#7-tooling-inventory)
 8. [Long-Term Roadmap](#8-long-term-roadmap)
 9. [References](#9-references)
+10. [Jest Test Suite Timing](#10-jest-test-suite-timing)
+11. [Vitest vs Jest — `test:unit` timing comparison](#11-vitest-vs-jest--testunit-timing-comparison)
 
 ---
 
@@ -728,6 +730,116 @@ Benchmark each option before/after with `pnpm bench` + `bench-diff.mjs`. A 10× 
 ### CI integration
 
 Trigger condition: when the team grows beyond a single developer, or when a performance regression reaches production. At that point, add `github-action-benchmark` to the CI pipeline using the `bench-diff.mjs` exit code as the gate. The baseline would be stored as a CI artifact from the last known-good build on main.
+
+---
+
+## 10. Jest Test Suite Timing
+
+**Measured (2026-06-13, AMD Ryzen 5 3600X 12-core, 16 GB RAM, Node v24.16.0, WSL2)**
+
+10 consecutive runs of each Jest suite (`pnpm test:unit`, `pnpm test:casc`, `pnpm test:net`) with `--silent`. Playwright suites (`test:webview`, `test:xml`, `test:toc`, and their `-casc` variants) excluded — these are reported separately.
+
+### Raw timings (wall clock, `time` bash builtin)
+
+**`pnpm test:unit`** (`test/unit/**/*.test.ts`)
+
+| Run | Wall clock |
+| --- | ---------- |
+| 1   | 24.661 s   |
+| 2   | 27.129 s   |
+| 3   | 25.666 s   |
+| 4   | 25.499 s   |
+| 5   | 28.334 s   |
+| 6   | 24.704 s   |
+| 7   | 27.752 s   |
+| 8   | 26.280 s   |
+| 9   | 25.721 s   |
+| 10  | 25.946 s   |
+
+**`pnpm test:casc`** (`test/unit-casc/**/*.test.ts`)
+
+| Run | Wall clock |
+| --- | ---------- |
+| 1   | 3.520 s    |
+| 2   | 3.291 s    |
+| 3   | 3.148 s    |
+| 4   | 3.313 s    |
+| 5   | 3.320 s    |
+| 6   | 3.450 s    |
+| 7   | 3.244 s    |
+| 8   | 3.503 s    |
+| 9   | 3.222 s    |
+| 10  | 3.338 s    |
+
+**`pnpm test:net`** (`test/net/**/*.test.ts`)
+
+| Run | Wall clock |
+| --- | ---------- |
+| 1   | 15.653 s   |
+| 2   | 15.257 s   |
+| 3   | 18.688 s   |
+| 4   | 14.660 s   |
+| 5   | 15.559 s   |
+| 6   | 18.313 s   |
+| 7   | 14.500 s   |
+| 8   | 13.286 s   |
+| 9   | 13.659 s   |
+| 10  | 13.109 s   |
+
+### Summary statistics
+
+| Suite       | Runner         | Mean    | Median  | Min     | Max     | Stddev | CV    |
+| ----------- | -------------- | ------- | ------- | ------- | ------- | ------ | ----- |
+| `test:unit` | Jest (removed) | 26.17 s | 25.83 s | 24.66 s | 28.33 s | 1.16 s | 4.4%  |
+| `test:casc` | Jest           | 3.34 s  | 3.32 s  | 3.15 s  | 3.52 s  | 0.12 s | 3.5%  |
+| `test:net`  | Jest           | 15.27 s | 14.96 s | 13.11 s | 18.69 s | 1.83 s | 11.9% |
+
+### Notes
+
+- `test:unit` CV of 4.4% is within acceptable range for a suite that spawns Jest with ts-jest transforms and a `vscode` mock. Dominated by Jest startup + ts-jest transpilation, not test logic.
+- `test:casc` is the fastest and tightest (CV 3.5%). It runs a single BLP-decode test against a pre-extracted local fixture — no subprocess, no network.
+- `test:net` has the highest variance (CV 11.9%, max spread 5.6 s). Runs 3 and 6 spike to ~18 s while the bottom three cluster around 13–14 s. The suite spawns the `scryer-asset-server` binary and performs real CDN/CASC network calls; OS scheduler noise and WSL2 TCP jitter both contribute. This CV exceeds the 5% macro-benchmark caution threshold — treat net timings as order-of-magnitude guidance only.
+- Combined Jest wall clock (all three suites sequential): ~44 s mean.
+
+---
+
+## 11. Vitest vs Jest — `test:unit` timing comparison
+
+**Measured (2026-06-13, same machine and conditions as §10)**
+
+`test:unit` was migrated from Jest + ts-jest to Vitest (`vitest run --config vitest.unit.config.ts`). All 412 tests pass under both runners. 10 runs each, stdout suppressed (`1>/dev/null`), wall clock via bash `time`.
+
+**Vitest `test:unit` (10 runs):**
+
+| Run | Wall clock |
+| --- | ---------- |
+| 1   | 14.816 s   |
+| 2   | 15.760 s   |
+| 3   | 16.317 s   |
+| 4   | 15.639 s   |
+| 5   | 15.948 s   |
+| 6   | 16.077 s   |
+| 7   | 15.279 s   |
+| 8   | 17.279 s   |
+| 9   | 15.072 s   |
+| 10  | 15.148 s   |
+
+| Runner | Mean    | Median  | Min     | Max     | Stddev | CV   | vs Jest   |
+| ------ | ------- | ------- | ------- | ------- | ------ | ---- | --------- |
+| Jest   | 26.17 s | 25.83 s | 24.66 s | 28.33 s | 1.16 s | 4.4% | —         |
+| Vitest | 15.73 s | 15.70 s | 14.82 s | 17.28 s | 0.69 s | 4.4% | **1.66×** |
+
+**Speedup: ~1.7×.**
+
+### Why Vitest is faster
+
+- **esbuild vs ts-jest.** Vite uses esbuild for TypeScript transpilation, which is significantly faster than ts-jest's TypeScript compiler. The `node_modules/.vite` cache only stores a 16 KB `results.json` (test outcome metadata) — compiled source is **not** cached between `vitest run` invocations. Every run re-transpiles from source, so the speedup is purely compiler throughput.
+- **Jest's 26 s is essentially all runner overhead**, not test logic. The 412 tests themselves complete in milliseconds; the wall clock is dominated by Jest startup, ts-jest transpilation, and module loading.
+
+### Notes
+
+- Both runners show CV ≈ 4.4%, indicating similar run-to-run stability.
+- **`test:casc` and `test:net` are not ported to Vitest.** Those suites spawn native binaries (the asset server); the dominant cost is binary startup and I/O, not the JS runner. Switching would not yield a meaningful improvement there.
 
 ---
 
