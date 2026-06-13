@@ -81,6 +81,10 @@ async function renderFrames(page: Page, frames: Record<string, unknown>[]): Prom
     { frames, viewport: VIEWPORT, flavorConfig: FLAVOR_CONFIG, toolbarState: TOOLBAR_STATE },
   );
   await expect(page.locator("#debug")).toContainText("rendered", { timeout: 2000 });
+  // Hide toolbar so it doesn't overlay the #viewport element screenshot.
+  // #status-bar is fixed at top:0 with z-index 10001 and bleeds into the
+  // viewport screenshot because #viewport also starts at top:0.
+  await page.locator("#status-bar").evaluate((el) => ((el as HTMLElement).style.display = "none"));
 }
 
 // ---------------------------------------------------------------------------

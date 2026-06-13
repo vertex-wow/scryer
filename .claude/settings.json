@@ -92,7 +92,9 @@
       "Bash(gh issue list *)",
       "Bash(find * | head *)",
       "Read(//**/World of Warcraft/Interface/AddOns/**)",
-      "Bash(pnpm list *)"
+      "Bash(pnpm list *)",
+      "Bash(gh run download *)",
+      "Bash(gh run watch *)"
     ],
     "additionalDirectories": [
       "/tmp"
