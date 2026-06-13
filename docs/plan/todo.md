@@ -20,28 +20,6 @@ Completed items are in [todo-archive.md](todo-archive.md).
 
 ---
 
-## Local texture overrides (`assets/` directory convention)
-
-**Problem:** Users without a WoW install (or with a Steam install that has no CDN fallback) see placeholder tiles for all CASC-sourced textures. Addon developers also can't easily supply prototype or brand-specific textures for preview without a game installation. There is no mechanism to override a CASC texture with a local file.
-
-**Plan:**
-
-Convention: if `<addonDir>/assets/<interface/path>.png` exists, serve it instead of going to CASC. The path mirrors the CASC interface path, lowercased, with the extension replaced by `.png`. Example:
-
-- CASC request: `interface/framegeneral/uiframemetal2x.blp`
-- Override check: `<addonDir>/assets/interface/framegeneral/uiframemetal2x.png`
-
-Implementation:
-
-1. In `live-panel.ts`, when handling a `requestAsset` message, check `<addonDir>/assets/<normalised-path>.png` using `vscode.workspace.fs` before dispatching to the asset server.
-2. If found, read the PNG and respond immediately with a `data:image/png;base64,...` URI — no CASC round-trip.
-3. For the test harness: add `injectLocalAssets(page, assetsDir)` to `test/toc-casc/helpers.ts` using the same basename convention, so pixel-assertion tests can use committed fixture textures instead of CASC.
-4. Document the convention in `docs/configuration.md` (one paragraph — it's a developer-facing feature, not advanced chrome).
-
-**Effort:** S — live-panel change is ~20 lines; test helper is another ~20; docs is a paragraph.
-
----
-
 ## TGA texture decode (deferred from M3)
 
 **Problem:** TGA (Targa) textures are used by many addon-bundled images. M3 logs a warning and shows a labeled placeholder for `.tga` files; it does not decode them.

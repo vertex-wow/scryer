@@ -4,6 +4,20 @@ Completed items moved from [todo.md](todo.md). Historical record of what was bui
 
 ---
 
+## Local texture overrides (`assets/` directory convention) {#local-texture-overrides-assets-directory-convention}
+
+**Completed: 2026-06-13**
+
+**Problem:** Users without a WoW install (or with a Steam install that has no CDN fallback) see placeholder tiles for all CASC-sourced textures. Addon developers also can't easily supply prototype or brand-specific textures for preview without a game installation. There is no mechanism to override a CASC texture with a local file.
+
+**What was built:**
+
+- `resolveLocalOverride` in `src/panels/live-panel.ts`: before any CASC round-trip, checks `<addonDir>/assets/<normalised-path>.png` (lowercased, extension replaced) using `vscode.workspace.fs`. If found, returns a webview URI directly.
+- Feature gated behind `toolbar.getSetting("localTextureOverrides")` (defaults to enabled).
+- `injectLocalAssets(page, addonDir)` added to `test/toc-casc/helpers.ts` for pixel-assertion tests to use committed fixture PNGs instead of CASC.
+
+---
+
 ## Listfile binary parse cache {#listfile-binary-parse-cache}
 
 **Completed: 2026-06-11**
