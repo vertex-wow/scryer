@@ -109,6 +109,35 @@ test("DialogBorderTemplateAddon — top-row NineSlice seam alignment", async ({ 
 // The corners' decorative interior artwork is excluded from the scan window.
 //
 // One render, one screenshot, all seam checks.
+//
+// Known failures and root causes
+// ─────────────────────────────────────────────────────────────────────────
+//
+// [FIXED] top-left-V, bot-left-V — V-seam air gap
+//   LeftEdge started at exactly seamY with no upward extension, leaving the
+//   corner's semi-transparent bottom row (y = seamY − 1) uncoated. Fix:
+//   seamBleedV = 1 in renderer.ts extends V-only tiles 1 px up and 1 px down,
+//   analogous to the existing H-tile seamBleed. V tiles are y-uniform (same
+//   color per column regardless of y row), so the overlap rows are invisible.
+//
+// [OPEN] top-left-H, bot-right-H — H-seam stripe row offset
+//   DiamondMetal physical atlas y-coordinates are not multiples of the atlas
+//   scale divisor (4). CornerTopLeft is at physical y = 521 → logical 130.25;
+//   EdgeTop is at physical y = 131 → logical 32.75. Math.round(-130.25) = −130
+//   (physical row 520) vs Math.round(-32.75) = −33 (physical row 132) — a net
+//   2-physical-pixel bgPosY mismatch. The fixture stripe period is 4 physical
+//   pixels (2 px black + 2 px magenta), so a 2 px offset = half-period =
+//   inverted stripe colors at the seam. Fixing requires either fractional
+//   bgPosY (which would need the "integer bgPosY" invariant revisited) or a
+//   rounding strategy that preserves relative atlas position across pieces.
+//
+// [OPEN] top-right-V, bot-right-V — V-seam stripe column offset
+//   Same root cause as the H-seam failures but in the X axis. RightEdge
+//   crop.x = 32.75 → bgPosX = Math.round(-32.75 * scaleX) = −33 (shows
+//   physical col 132); CornerTopRight crop.x = 0.25 → bgPosX = 0 (shows col
+//   0, not col 1). Net 2-column mismatch → inverted stripe columns at the
+//   right-side vertical seams.
+// ─────────────────────────────────────────────────────────────────────────
 // ---------------------------------------------------------------------------
 
 test("DialogBorderTemplateAddon — border stripes continuous across all corner/edge seams", async ({

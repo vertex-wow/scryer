@@ -88,12 +88,20 @@ function renderTexture(tex: TextureIR, rect: Rect, config: ResolvedFlavorConfig)
     // prevent the 1-device-pixel transparent gap that appears at corner/edge element
     // boundaries under fractional DPR × panZoom. These tiles are x-uniform (pure
     // y-gradient), so the overlap columns are visually identical to the main content.
+    //
+    // Seam bleed for v-only tiles (LeftEdge, RightEdge): same principle in the
+    // orthogonal axis — extend 1 CSS px top and bottom. These tiles are y-uniform
+    // (pure x-gradient), so the overlap rows are visually identical to the main
+    // content. bgPosY stays 0 (crop.y = 0 for all DiamondMetal vertical atlas
+    // entries), so atlas content begins at element y=0, covering the corner's
+    // semi-transparent bottom row instead of leaving it uncoated.
     const ra = tex.resolvedAtlas;
     const seamBleed = ra && (tex.horizTile ?? ra.tilesH) && !(tex.vertTile ?? ra.tilesV) ? 1 : 0;
+    const seamBleedV = ra && (tex.vertTile ?? ra.tilesV) && !(tex.horizTile ?? ra.tilesH) ? 1 : 0;
     el.style.left = `${Math.round(rect.left) - seamBleed}px`;
-    el.style.top = `${Math.round(rect.top)}px`;
+    el.style.top = `${Math.round(rect.top) - seamBleedV}px`;
     el.style.width = `${Math.round(rect.width) + 2 * seamBleed}px`;
-    el.style.height = `${Math.round(rect.height)}px`;
+    el.style.height = `${Math.round(rect.height) + 2 * seamBleedV}px`;
   } else if (tex.useAtlasSize && tex.resolvedAtlas) {
     el.style.left = `${Math.round(rect.left)}px`;
     el.style.top = `${Math.round(rect.top)}px`;
