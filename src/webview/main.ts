@@ -899,11 +899,28 @@ function applyAsset(rawPath: string, uri: string): void {
       // DO NOT add `+ seamBleed` to bgPosX. That shifts content right by 1px,
       // making element x=0 transparent and re-introducing the mixed-element
       // device pixel at the TopLeft/TopEdge seam under fractional uiScale.
-      // DO NOT use a non-integer bgPosY (remove the Math.round). A fractional
-      // bgPosY diverges across Chromium repeat paths, misaligning horizontal
-      // border rows between corner and edge pieces at non-integer uiScale.
+      //
+      // Use exact fractional bgPos values — do NOT wrap in Math.round. Atlas
+      // physical coords are not always multiples of the scale divisor, so
+      // crop.x / crop.y are fractional in logical CSS units. At the atlas's
+      // CSS-to-physical scale ratio (e.g. 4× for DiamondMetal), a fractional
+      // CSS value lands on an exact integer physical pixel — bilinear sampling
+      // at an integer coordinate produces no blending. Math.round loses this
+      // sub-pixel alignment, snapping adjacent pieces in opposite directions
+      // and producing a visible phase shift at corner/edge seams.
+      // All atlas-backed pieces use background-repeat: no-repeat (below), so
+      // the old repeat-path integer constraint no longer applies.
+      //
+      // Known trade-off: pieces with crop.x or crop.y = 0.25 (DiamondMetal
+      // corners, LeftEdge, EdgeBottom — physical col/row 1 in the atlas) now
+      // show atlas content starting from physical col/row 1. In true-color WoW
+      // textures the atlas sheet has a 1px black outer border at physical
+      // col/row 0 (atlas padding outside the sprite UV bounds); that pixel is
+      // no longer shown. Math.round(−0.25) = 0 accidentally displayed it.
+      // The stripe-alignment benefit across all seams outweighs this 1px loss.
+      //
       // See docs/troubleshooting/nineslice_dpr_border_misalignment.md.
-      el.style.backgroundPosition = `${Math.round(-crop.x * scaleX)}px ${Math.round(-crop.y * scaleY)}px`;
+      el.style.backgroundPosition = `${-crop.x * scaleX}px ${-crop.y * scaleY}px`;
       // DO NOT change h-only tiles to repeat-x. Chromium's repeat path runs a
       // tile-fit phase-snap on ALL axes (including the non-repeating Y axis),
       // shifting the edge piece's Y origin relative to no-repeat corner pieces.

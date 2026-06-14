@@ -119,3 +119,90 @@ understanding why they exist.
 | H-only tiles `bgPosX = 0`                                           | "H-only NineSlice tiles bgPosX is 0"  | `bgPosX = +seamBleed` leaves element x=0 transparent → mixed-element device pixel at junction |
 | TopEdge left = TopLeftCorner right − 1 (1px overlap)                | "title bar seam alignment"            | seamBleed extends element left by 1px so edge content covers the fractional boundary          |
 | `bgSizeW >= elemW` for h-only tiles                                 | "horizontal-only tiles use no-repeat" | Integer bgW prevents 1-device-px background underfill at element right edge                   |
+
+---
+
+## Root cause 5 — fractional atlas coordinates cause stripe phase mismatch (DialogBorderTemplate)
+
+**Affected template:** `DialogBorderTemplate` (DiamondMetal atlas, atlas scale divisor = 4).
+
+DiamondMetal physical atlas coordinates are **not** multiples of the scale divisor (4):
+
+| Piece          | Physical origin     | Logical CSS origin |
+| -------------- | ------------------- | ------------------ |
+| CornerTopLeft  | x=1, y=521          | x=0.25, y=130.25   |
+| CornerTopRight | x=1, y=651          | x=0.25, y=162.75   |
+| CornerBotLeft  | x=1, y=261          | x=0.25, y=65.25    |
+| CornerBotRight | x=1, y=391          | x=0.25, y=97.75    |
+| EdgeTop        | x=0, y=131          | x=0, y=32.75       |
+| EdgeBottom     | x=0, y=1            | x=0, y=0.25        |
+| LeftEdge       | x=1, y=0 (vert.png) | x=0.25, y=0        |
+| RightEdge      | x=131, y=0 (vert.)  | x=32.75, y=0       |
+
+`Math.round()` snapped adjacent bgPos values in **opposite** directions:
+
+```
+Math.round(−130.25) = −130  →  physical row 520  (off by −1)
+Math.round(−32.75)  = −33   →  physical row 132  (off by +1)
+Net mismatch = 2 physical pixels = visible stripe row offset at every H-seam.
+
+Math.round(−0.25)   = 0     →  physical col 0    (off by −1)
+Math.round(−32.75)  = −33   →  physical col 132  (off by +1)
+Net mismatch = 2 physical pixels = visible stripe column offset at every V-seam.
+```
+
+**Fix 7** (commit after 294a7c1): Remove `Math.round` from `backgroundPosition` in
+`applyAsset()` (main.ts). Exact fractional CSS values land on integer physical pixels at
+the atlas scale: `−130.25 CSS px × 4 = physical row 521` exactly. No bilinear blending
+at an integer coordinate. Adjacent pieces sharing the same atlas texture stripe now
+reference the same physical row/column.
+
+This is safe because all atlas-backed NineSlice pieces already use `background-repeat:
+no-repeat` (established by Fix 4). The `repeat-x` tile-fit path requires integer bgPos
+on the tiling axis; `no-repeat` has no such constraint.
+
+Guarded by: `test/toc-casc/dialog_border.spec.ts` — "border stripes continuous across all
+corner/edge seams".
+
+---
+
+## Root cause 6 — V-tile air gap at corner/edge boundary (seamBleedV)
+
+After Fix 7, vertical seams (LeftEdge/RightEdge top and bottom) exposed a 1-device-pixel
+transparent row between the corner's lower extent and the V-tile's upper extent. Mirror
+image of the H-tile gap addressed by Fix 5, but in the orthogonal axis.
+
+Under uiScale = 1080/768 = 1.40625 the device-pixel grid does not align with CSS pixel
+boundaries. The CSS row at `seamY` corresponds to device pixels `[seamY×1.40625,
+(seamY+1)×1.40625)`. If neither the corner element's bottom nor the edge element's top
+reaches that device row, it renders transparent.
+
+**Fix (seamBleedV in renderer.ts, commit 294a7c1)**: Extend V-only atlas tiles 1 CSS px
+above and below at layout time (`el.style.top -= 1`, `el.style.height += 2`). V tiles are
+y-uniform (same x-gradient column regardless of y row), so the overlap rows show identical
+content. `bgPosY` is unchanged (crop.y = 0 for DiamondMetal vertical atlas entries), so
+atlas content begins at element y=0, covering the corner's semi-transparent bottom row.
+
+Guarded by: `test/toc-casc/dialog_border.spec.ts` — pixel continuity checks for top-left-V
+and bot-left-V seams.
+
+---
+
+## Observation — outer 1px atlas border no longer shown after Fix 7
+
+Pieces with `crop.x = 0.25` or `crop.y = 0.25` (corners, LeftEdge, EdgeBottom) have their
+atlas origin at physical col/row 1. With exact fractional bgPos (`−0.25 CSS px`), the browser
+renders atlas content from physical col/row 1 onward.
+
+In **true-color WoW textures** the atlas sheet has a 1px black outer border at physical
+col/row 0. This is atlas padding that exists outside the sprite's declared UV bounds —
+WoW's GPU renderer at native DPR does not show it. Old `Math.round(−0.25) = 0` accidentally
+displayed this border; exact `−0.25` does not.
+
+This affects only the diagonal-stripe border pattern (pieces at atlas col/row 1). The flat-color
+fixture used by the automated tests has no atlas-padding pixel and is not affected.
+
+**Not fixed.** Fixing it would require special-casing pieces whose fractional crop offset
+rounds toward the atlas sheet edge, and would reintroduce the stripe phase mismatch. The
+outer border is a minor cosmetic loss in true-color textures; the seam alignment improvement
+is more visible and correctness-critical.
