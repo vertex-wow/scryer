@@ -24,6 +24,7 @@ import {
 import {
   clearFlavorCache,
   flavorSubdir,
+  flavorTocFamily,
   InstalledFlavor,
   listInstalledFlavors,
   readBuildStamp,
@@ -612,7 +613,12 @@ export class AssetService {
   blizzardAddonLuaFiles(addonName: string, onMissing?: (relPath: string) => void): string[] {
     if (!this.opts.sourceDir) return [];
     const addonsDir = resolveAddonsDir(this.opts.sourceDir);
-    return blizzardAddonLuaFiles(addonsDir, addonName, onMissing);
+    return blizzardAddonLuaFiles(
+      addonsDir,
+      addonName,
+      onMissing,
+      flavorTocFamily(this.opts.flavor),
+    );
   }
 
   /**

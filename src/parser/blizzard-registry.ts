@@ -96,6 +96,7 @@ export function blizzardAddonLuaFiles(
   addonsDir: string,
   addonName: string,
   onMissing?: (relPath: string) => void,
+  tocFamily?: string,
 ): string[] {
   const tocPath = findTocPath(resolveCI(addonsDir, addonName), addonName);
   if (!tocPath) return [];
@@ -109,7 +110,8 @@ export function blizzardAddonLuaFiles(
   const toc = parseToc(content);
   const result: string[] = [];
   for (const f of toc.files.filter((f) => f.type === "lua")) {
-    const p = resolveCI(addonDir, f.path);
+    const resolved = tocFamily ? f.path.replace(/\[Family\]/gi, tocFamily) : f.path;
+    const p = resolveCI(addonDir, resolved);
     try {
       fs.accessSync(p, fs.constants.R_OK);
       result.push(p);

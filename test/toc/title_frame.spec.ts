@@ -1,5 +1,5 @@
 /**
- * TOC live view test — ExampleFrameTitleFrameAddon (non-CASC)
+ * TOC live view test — TitleFrameAddon (non-CASC)
  *
  * Guard path: DefaultPanelTemplate is an XML-only Blizzard template loaded via
  * loadBlizzardTemplates() in production. The test helpers do not load it, so
@@ -11,20 +11,20 @@
  * expected production behavior — with Blizzard XML templates loaded the call
  * succeeds (see test/toc-casc/title_frame.spec.ts).
  *
- * Fixture: test/fixtures/ExampleFrameTitleFrameAddon/
+ * Fixture: test/fixtures/TitleFrameAddon/
  */
 
 import { test, expect } from "@playwright/test";
 import { resolve } from "path";
 import { runTocFixture, renderTocFixture, queryRendered, VIEWPORT } from "./helpers";
 
-const FIXTURE_DIR = resolve(__dirname, "../fixtures/ExampleFrameTitleFrameAddon");
+const FIXTURE_DIR = resolve(__dirname, "../fixtures/TitleFrameAddon");
 
 // ---------------------------------------------------------------------------
 // Frame geometry
 // ---------------------------------------------------------------------------
 
-test("ExampleFrameTitleFrameAddon — frame geometry", async ({ page }) => {
+test("TitleFrameAddon — frame geometry", async ({ page }) => {
   await renderTocFixture(page, FIXTURE_DIR);
 
   const rendered = await queryRendered(page);
@@ -41,7 +41,7 @@ test("ExampleFrameTitleFrameAddon — frame geometry", async ({ page }) => {
 // Guard path: DefaultPanelTemplate unresolved — no children, no layer objects
 // ---------------------------------------------------------------------------
 
-test("ExampleFrameTitleFrameAddon — no template content when Blizzard absent", async () => {
+test("TitleFrameAddon — no template content when Blizzard absent", async () => {
   const errors: string[] = [];
   const frames = await runTocFixture(FIXTURE_DIR, { errors });
 

@@ -663,10 +663,21 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
 
     -- Enum and Constants are populated by the C layer before any addon Lua loads.
     -- Recursive proxy so any depth of indexing returns a consistent sub-table.
+    -- Arithmetic metamethods treat any unknown proxy as 0, so Enum.Foo.NumValues - 1
+    -- produces -1 (empty for-loop) rather than crashing.
     local function _deep_proxy()
-      return setmetatable({}, { __index = function(t, k)
+      local mt = {}
+      mt.__index = function(t, k)
         local v = _deep_proxy(); rawset(t, k, v); return v
-      end })
+      end
+      local function _n(x) return type(x) == "number" and x or 0 end
+      mt.__add = function(a, b) return _n(a) + _n(b) end
+      mt.__sub = function(a, b) return _n(a) - _n(b) end
+      mt.__mul = function(a, b) return _n(a) * _n(b) end
+      mt.__div = function(a, b) local bn = _n(b); return bn ~= 0 and _n(a) / bn or 0 end
+      mt.__unm = function(a) return 0 end
+      mt.__mod = function(a, b) local bn = _n(b); return bn ~= 0 and _n(a) % bn or 0 end
+      return setmetatable({}, mt)
     end
     Enum = _deep_proxy()
     Constants = _deep_proxy()

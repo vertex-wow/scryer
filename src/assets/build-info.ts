@@ -1,11 +1,11 @@
 import * as fs from "fs";
 import * as path from "path";
 
-/** Maps scryer flavor names to their .build.info product key and WoW install subdirectory. */
-export const FLAVOR_INFO: Record<string, { product: string; subdir: string }> = {
-  retail: { product: "wow", subdir: "_retail_" },
-  classic: { product: "wow_classic", subdir: "_classic_" },
-  classic_era: { product: "wow_classic_era", subdir: "_classic_era_" },
+/** Maps scryer flavor names to their .build.info product key, WoW install subdirectory, and TOC [Family] token. */
+export const FLAVOR_INFO: Record<string, { product: string; subdir: string; tocFamily: string }> = {
+  retail: { product: "wow", subdir: "_retail_", tocFamily: "Mainline" },
+  classic: { product: "wow_classic", subdir: "_classic_", tocFamily: "Classic" },
+  classic_era: { product: "wow_classic_era", subdir: "_classic_era_", tocFamily: "Classic" },
 };
 
 /** Reverse map: .build.info product key → scryer flavor name */
@@ -44,6 +44,10 @@ export function flavorSubdir(flavor: string): string {
 
 export function flavorProduct(flavor: string): string {
   return FLAVOR_INFO[flavor]?.product ?? "wow";
+}
+
+export function flavorTocFamily(flavor: string): string {
+  return FLAVOR_INFO[flavor]?.tocFamily ?? "Mainline";
 }
 
 /**

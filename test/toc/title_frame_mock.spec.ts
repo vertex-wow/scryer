@@ -1,5 +1,5 @@
 /**
- * TOC live view test — ExampleFrameTitleFrameMockAddon (non-CASC, mock template)
+ * TOC live view test — TitleFrameMockAddon (non-CASC, mock template)
  *
  * Runs without CASC assets. A minimal MockDefaultPanel.xml is loaded before the
  * real frame XML so DefaultPanelTemplate resolves against the mock definition.
@@ -12,20 +12,20 @@
  * the CASC variant (test/toc-casc/title_frame.spec.ts) point to the real
  * Blizzard template structure diverging from the mock.
  *
- * Fixture: test/fixtures/ExampleFrameTitleFrameMockAddon/
+ * Fixture: test/fixtures/TitleFrameMockAddon/
  */
 
 import { test, expect } from "@playwright/test";
 import { resolve } from "path";
 import { runTocFixture, renderTocFixture, queryRendered, VIEWPORT } from "./helpers";
 
-const FIXTURE_DIR = resolve(__dirname, "../fixtures/ExampleFrameTitleFrameMockAddon");
+const FIXTURE_DIR = resolve(__dirname, "../fixtures/TitleFrameMockAddon");
 
 // ---------------------------------------------------------------------------
 // Frame geometry
 // ---------------------------------------------------------------------------
 
-test("ExampleFrameTitleFrameMockAddon — frame geometry", async ({ page }) => {
+test("TitleFrameMockAddon — frame geometry", async ({ page }) => {
   await renderTocFixture(page, FIXTURE_DIR);
 
   const rendered = await queryRendered(page);
@@ -42,7 +42,7 @@ test("ExampleFrameTitleFrameMockAddon — frame geometry", async ({ page }) => {
 // Mock DefaultPanelTemplate resolved — TitleText FontString created
 // ---------------------------------------------------------------------------
 
-test("ExampleFrameTitleFrameMockAddon — $parentTitleText FontString created", async ({ page }) => {
+test("TitleFrameMockAddon — $parentTitleText FontString created", async ({ page }) => {
   await renderTocFixture(page, FIXTURE_DIR);
 
   const rendered = await queryRendered(page);
@@ -56,9 +56,7 @@ test("ExampleFrameTitleFrameMockAddon — $parentTitleText FontString created", 
 // SetTitle() wired up — title text reaches the FontString
 // ---------------------------------------------------------------------------
 
-test("ExampleFrameTitleFrameMockAddon — SetTitle sets TitleText FontString text", async ({
-  page,
-}) => {
+test("TitleFrameMockAddon — SetTitle sets TitleText FontString text", async ({ page }) => {
   await renderTocFixture(page, FIXTURE_DIR);
 
   const rendered = await queryRendered(page);

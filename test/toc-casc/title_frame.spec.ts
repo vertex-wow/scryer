@@ -1,5 +1,5 @@
 /**
- * TOC live view test — ExampleFrameTitleFrameAddon (CASC)
+ * TOC live view test — TitleFrameAddon (CASC)
  *
  * Requires scryer.cacheDir in dev/settings.local.json with
  * Interface/AddOns/Blizzard_SharedXML/ present. Errors as misconfigured otherwise.
@@ -12,7 +12,7 @@
  * Complements test/toc/title_frame.spec.ts (guard path — template unresolved,
  * SetTitle error swallowed) by covering the resolved-template path separately.
  *
- * Fixture: test/fixtures/ExampleFrameTitleFrameAddon/
+ * Fixture: test/fixtures/TitleFrameAddon/
  */
 
 import { test, expect } from "@playwright/test";
@@ -29,13 +29,13 @@ import {
   sampleAtWowCoord,
 } from "./helpers";
 
-const FIXTURE_DIR = resolve(__dirname, "../fixtures/ExampleFrameTitleFrameAddon");
+const FIXTURE_DIR = resolve(__dirname, "../fixtures/TitleFrameAddon");
 
 // ---------------------------------------------------------------------------
 // Frame geometry
 // ---------------------------------------------------------------------------
 
-test("ExampleFrameTitleFrameAddon CASC — frame geometry", async ({ page }) => {
+test("TitleFrameAddon CASC — frame geometry", async ({ page }) => {
   const addonsDir = getBlizzardAddonsDir();
 
   await renderTocFixtureWithBlizzard(page, FIXTURE_DIR, addonsDir!);
@@ -54,7 +54,7 @@ test("ExampleFrameTitleFrameAddon CASC — frame geometry", async ({ page }) => 
 // DefaultPanelTemplate resolved — children injected from template hierarchy
 // ---------------------------------------------------------------------------
 
-test("ExampleFrameTitleFrameAddon CASC — DefaultPanelTemplate injects children", async () => {
+test("TitleFrameAddon CASC — DefaultPanelTemplate injects children", async () => {
   const addonsDir = getBlizzardAddonsDir();
 
   const frames = await runTocFixtureWithBlizzard(FIXTURE_DIR, addonsDir!);
@@ -70,7 +70,7 @@ test("ExampleFrameTitleFrameAddon CASC — DefaultPanelTemplate injects children
 // SetTitle() wired up — title text "Example Title Frame" appears in DOM
 // ---------------------------------------------------------------------------
 
-test("ExampleFrameTitleFrameAddon CASC — SetTitle sets title FontString text", async ({ page }) => {
+test("TitleFrameAddon CASC — SetTitle sets title FontString text", async ({ page }) => {
   const addonsDir = getBlizzardAddonsDir();
 
   await renderTocFixtureWithBlizzard(page, FIXTURE_DIR, addonsDir!);
@@ -92,7 +92,7 @@ test("ExampleFrameTitleFrameAddon CASC — SetTitle sets title FontString text",
 // all four boundary-point coordinates (x seam, top-y, bottom-y).
 // ---------------------------------------------------------------------------
 
-test("ExampleFrameTitleFrameAddon CASC — title bar seam alignment", async ({ page }) => {
+test("TitleFrameAddon CASC — title bar seam alignment", async ({ page }) => {
   const addonsDir = getBlizzardAddonsDir();
 
   await renderTocFixtureWithBlizzard(page, FIXTURE_DIR, addonsDir!);
@@ -149,7 +149,7 @@ test("ExampleFrameTitleFrameAddon CASC — title bar seam alignment", async ({ p
 // below will fail for the wrong reason. This test makes the failure mode explicit.
 // ---------------------------------------------------------------------------
 
-test("ExampleFrameTitleFrameAddon CASC — top-row NineSlice textures have background-image applied", async ({
+test("TitleFrameAddon CASC — top-row NineSlice textures have background-image applied", async ({
   page,
 }) => {
   const addonsDir = getBlizzardAddonsDir();
@@ -233,7 +233,7 @@ const near = (a: number, b: number) => Math.abs(a - b) <= TOL;
 // Pair with "bottom border bright row aligns" below, which covers the y-axis
 // misalignment bug (corner and middle rendering bright row at different y).
 // ---------------------------------------------------------------------------
-test("ExampleFrameTitleFrameAddon CASC — no dim seam between TopLeftCorner and TopEdge at (384-394,257)", async ({
+test("TitleFrameAddon CASC — no dim seam between TopLeftCorner and TopEdge at (384-394,257)", async ({
   page,
 }) => {
   const addonsDir = getBlizzardAddonsDir();
@@ -259,7 +259,7 @@ test("ExampleFrameTitleFrameAddon CASC — no dim seam between TopLeftCorner and
 // TODO: replace with a custom-texture version using the swap fixture (ExampleFrameTitleFrameSwap__Vertex).
 // Pixel assertions against CASC textures are fragile — composite values change whenever the rock
 // background or atlas sprites change. Known solid-color textures make these assertions exact.
-test("ExampleFrameTitleFrameAddon CASC — title bar top highlight pixel color at (384,257) and (394,257)", async ({
+test("TitleFrameAddon CASC — title bar top highlight pixel color at (384,257) and (394,257)", async ({
   page,
 }) => {
   const addonsDir = getBlizzardAddonsDir();
@@ -286,7 +286,7 @@ test("ExampleFrameTitleFrameAddon CASC — title bar top highlight pixel color a
 // TODO: replace with a custom-texture version using the swap fixture (ExampleFrameTitleFrameSwap__Vertex).
 // Pixel assertions against CASC textures are fragile — composite values change whenever the rock
 // background or atlas sprites change. Known solid-color textures make these assertions exact.
-test("ExampleFrameTitleFrameAddon CASC — title bar bottom highlight pixel color at (394,276) and (404,276)", async ({
+test("TitleFrameAddon CASC — title bar bottom highlight pixel color at (394,276) and (404,276)", async ({
   page,
 }) => {
   const addonsDir = getBlizzardAddonsDir();
@@ -319,7 +319,7 @@ test("ExampleFrameTitleFrameAddon CASC — title bar bottom highlight pixel colo
 // title bar border visually aligned.
 // ---------------------------------------------------------------------------
 
-test("ExampleFrameTitleFrameAddon CASC — top-row NineSlice background-position-y is integer", async ({
+test("TitleFrameAddon CASC — top-row NineSlice background-position-y is integer", async ({
   page,
 }) => {
   const addonsDir = getBlizzardAddonsDir();
@@ -375,14 +375,14 @@ test("ExampleFrameTitleFrameAddon CASC — top-row NineSlice background-position
 // y positions due to background-position-y rounding. Pair with the "no dim seam"
 // test above, which covers the x-axis air gap that appeared after the y fix.
 //
-// Uses local PNG overrides from ExampleFrameTitleFrameAddon/assets/ so the
+// Uses local PNG overrides from TitleFrameAddon/assets/ so the
 // test does not depend on CASC-extracted BLPs. sampleAtWowCoord returns raw
 // atlas brightness, avoiding composited-over-dark-rock ambiguity.
 //
 // Scans y=248-280 at corner x=384 (14 px inside TopLeftCorner) and middle
 // x=402 (13 px into TopEdge). Both columns must find a bright row at same y.
 // ---------------------------------------------------------------------------
-test("ExampleFrameTitleFrameAddon local texture swap — bottom border bright row aligns between corner and middle", async ({
+test("TitleFrameAddon local texture swap — bottom border bright row aligns between corner and middle", async ({
   page,
 }) => {
   const addonsDir = getBlizzardAddonsDir();
@@ -420,7 +420,7 @@ test("ExampleFrameTitleFrameAddon local texture swap — bottom border bright ro
 // that appears at non-integer uiScale (e.g. 1.875× at 3440×1440).
 // If bgPosX were +1, element x=0 would be transparent and the seam would leak through.
 // ---------------------------------------------------------------------------
-test("ExampleFrameTitleFrameAddon CASC — H-only NineSlice tiles bgPosX is 0", async ({ page }) => {
+test("TitleFrameAddon CASC — H-only NineSlice tiles bgPosX is 0", async ({ page }) => {
   const addonsDir = getBlizzardAddonsDir();
   const assetsDir = getExtractedAssetsDir();
 
@@ -449,7 +449,7 @@ test("ExampleFrameTitleFrameAddon CASC — H-only NineSlice tiles bgPosX is 0", 
   }
 });
 
-test("ExampleFrameTitleFrameAddon CASC — horizontal-only NineSlice tiles use no-repeat (stretch-to-fill)", async ({
+test("TitleFrameAddon CASC — horizontal-only NineSlice tiles use no-repeat (stretch-to-fill)", async ({
   page,
 }) => {
   const addonsDir = getBlizzardAddonsDir();

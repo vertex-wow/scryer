@@ -1,0 +1,6 @@
+## Interface: 110205, 110207, 120000
+## Title: ExampleFrameModalDialog
+## Notes: Cookbook recipe — modal dialog frame with slash command /ev4 toggle.
+## Version: 1.0.0
+
+ExampleFrameModalDialog.xml
