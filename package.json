@@ -405,6 +405,7 @@
     "gen-globalstrings": "node dev/bench.build.mjs && node dist/gen-globalstrings.js",
     "gen-api-stubs": "node dev/bench.build.mjs && node dist/gen-api-stubs.js && pnpm run lint:fix",
     "png-to-blp": "node dev/bench.build.mjs && node dist/png-to-blp.js",
+    "scan-corpus": "node dev/bench.build.mjs && node dist/scan-corpus.js",
     "package": "pnpm run build && vsce package --no-dependencies",
     "publish": "pnpm run build && vsce publish --no-dependencies",
     "prepare": "husky"

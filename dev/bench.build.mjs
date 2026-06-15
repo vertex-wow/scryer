@@ -38,4 +38,9 @@ await Promise.all([
     entryPoints: ["dev/png-to-blp.ts"],
     outfile: "dist/png-to-blp.js",
   }),
+  esbuild.build({
+    ...shared,
+    entryPoints: ["dev/scan-corpus.ts"],
+    outfile: "dist/scan-corpus.js",
+  }),
 ]);

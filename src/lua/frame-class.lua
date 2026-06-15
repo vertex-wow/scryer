@@ -199,6 +199,7 @@ do
   function TextureMT:Hide()                    _tex_hide(self.__id)                             end
   function TextureMT:IsShown()         return _tex_is_shown(self.__id)                          end
   function TextureMT:IsVisible()       return _tex_is_shown(self.__id)                          end
+  function TextureMT:SetShown(v)       if v then self:Show() else self:Hide() end                end
   function TextureMT:SetWidth(w)               _tex_set_size(self.__id, w, nil)                 end
   function TextureMT:SetHeight(h)              _tex_set_size(self.__id, nil, h)                 end
   function TextureMT:SetSize(w,h)              _tex_set_size(self.__id, w, h)                   end
@@ -219,10 +220,15 @@ do
   function TextureMT:SetDrawLayer(layer, subLevel) _tex_set_draw_layer(self.__id, layer, subLevel) end
   function TextureMT:SetHorizTile(v)               _tex_set_horiz_tile(self.__id, v)               end
   function TextureMT:SetVertTile(v)                _tex_set_vert_tile(self.__id, v)                 end
-  function TextureMT:SetTexelSnappingBias() end
-  function TextureMT:SetSnapToPixelGrid()   end
+  function TextureMT:SetTexelSnappingBias()  end
+  function TextureMT:SetSnapToPixelGrid()    end
+  function TextureMT:GetDrawLayer()   return "ARTWORK", 0 end
+  function TextureMT:SetMask(file)           end
+  function TextureMT:SetTextureSamplingMode() end
   function TextureMT:GetWidth()        return _tex_get_width(self.__id)  end
   function TextureMT:GetHeight()       return _tex_get_height(self.__id) end
+  function TextureMT:GetPoint(n)    return nil end
+  function TextureMT:GetNumPoints() return 0 end
 
   -- ── FontString metatable ────────────────────────────────────────────────────
   local FontStringMT = {}
@@ -248,6 +254,7 @@ do
   function FontStringMT:Hide()                 _fs_hide(self.__id)                             end
   function FontStringMT:IsShown()      return _fs_is_shown(self.__id)                          end
   function FontStringMT:IsVisible()    return _fs_is_shown(self.__id)                          end
+  function FontStringMT:SetShown(v)    if v then self:Show() else self:Hide() end               end
   function FontStringMT:SetWidth(w)            _fs_set_size(self.__id, w, nil)                 end
   function FontStringMT:SetHeight(h)           _fs_set_size(self.__id, nil, h)                 end
   function FontStringMT:SetSize(w,h)           _fs_set_size(self.__id, w, h)                   end
@@ -282,6 +289,9 @@ do
   end
   function FontStringMT:GetHeight()       return 0   end
   function FontStringMT:IsTruncated()    return false end
+  function FontStringMT:SetFormattedText(fmt, ...) self:SetText(string.format(fmt, ...)) end
+  function FontStringMT:GetPoint(n)    return nil end
+  function FontStringMT:GetNumPoints() return 0 end
 
   -- ── Frame metatable ─────────────────────────────────────────────────────────
   local FrameMT = {}
@@ -336,6 +346,7 @@ do
   end
   function FrameMT:IsShown()      return _frame_is_shown(self.__id)                        end
   function FrameMT:IsVisible()    return _frame_is_shown(self.__id)                        end
+  function FrameMT:SetShown(v)    if v then self:Show() else self:Hide() end               end
   function FrameMT:SetAlpha(a)           _frame_set_alpha(self.__id, a)                    end
   function FrameMT:GetAlpha()     return _frame_get_alpha(self.__id)                       end
   function FrameMT:SetScale(s)           _frame_set_scale(self.__id, s)                    end
@@ -425,6 +436,9 @@ do
     if name then _G[name] = fs end
     return fs
   end
+  function FrameMT:CreateAnimationGroup()
+    return setmetatable({ _playing = false, _done = false }, AnimationGroupMT)
+  end
   function FrameMT:CreateLine()   return nil end
   -- Layout / interaction stubs
   function FrameMT:Raise()                   end
@@ -445,10 +459,14 @@ do
   function FrameMT:SetResizeBounds()         end
   function FrameMT:SetMinResize()            end
   function FrameMT:SetMaxResize()            end
-  function FrameMT:IsMouseOver()    return false end
-  function FrameMT:IsDragging()     return false end
-  function FrameMT:IsMouseEnabled() return false end
+  function FrameMT:IsMouseOver()       return false end
+  function FrameMT:IsDragging()        return false end
+  function FrameMT:IsMouseEnabled()    return false end
   function FrameMT:IsKeyboardEnabled() return false end
+  function FrameMT:IsMouseMotionFocus() return false end
+  function FrameMT:GetPoint(n)         return nil end
+  function FrameMT:GetNumPoints()      return 0 end
+  function FrameMT:SetDrawLayer()      end
   function FrameMT:GetChildren()
     local n = _frame_child_count(self.__id)
     local out = {}
@@ -488,6 +506,7 @@ do
   function ButtonMT:Enable()             _btn_enable(self.__id)                             end
   function ButtonMT:Disable()            _btn_disable(self.__id)                            end
   function ButtonMT:IsEnabled()  return _btn_is_enabled(self.__id)                          end
+  function ButtonMT:SetEnabled(v) if v then self:Enable() else self:Disable() end           end
   function ButtonMT:Click()
     _fire_script(self, "OnClick", "LeftButton", false)
   end
@@ -499,6 +518,17 @@ do
   function ButtonMT:IsObjectType(t)
     return t=="Button" or t=="Frame" or t=="Region" or t=="ScriptObject"
   end
+  function ButtonMT:SetFormattedText(fmt, ...) self:SetText(string.format(fmt, ...)) end
+  function ButtonMT:RegisterForClicks()            end
+  function ButtonMT:SetMotionScriptsWhileDisabled() end
+  function ButtonMT:SetNormalAtlas()               end
+  function ButtonMT:SetPushedAtlas()               end
+  function ButtonMT:SetHighlightAtlas()            end
+  function ButtonMT:SetDisabledAtlas()             end
+  function ButtonMT:SetNormalColor()               end
+  function ButtonMT:SetPushedColor()               end
+  function ButtonMT:SetHighlightColor()            end
+  function ButtonMT:SetDisabledColor()             end
 
   -- ── CheckButton metatable (inherits ButtonMT) ────────────────────────────────
   local CheckButtonMT = setmetatable({}, { __index = ButtonMT })
@@ -543,6 +573,7 @@ do
   function ScrollFrameMT:GetHorizontalScroll() return 0 end
   function ScrollFrameMT:GetVerticalScroll()   return 0 end
   function ScrollFrameMT:GetScrollRange()      return 0 end
+  function ScrollFrameMT:UpdateScrollChildRect() end
   function ScrollFrameMT:GetObjectType()       return "ScrollFrame" end
 
   -- ── Slider metatable (inherits FrameMT) ──────────────────────────────────────
@@ -566,17 +597,29 @@ do
 
   function EditBoxMT:SetText(t)          _btn_set_text(self.__id, t) end
   function EditBoxMT:GetText()    return _btn_get_text(self.__id)    end
-  function EditBoxMT:SetMaxLetters()     end
-  function EditBoxMT:SetAutoFocus()      end
-  function EditBoxMT:SetFontObject()     end
-  function EditBoxMT:SetMultiLine()      end
-  function EditBoxMT:SetNumeric()        end
-  function EditBoxMT:GetNumber()  return 0 end
-  function EditBoxMT:ClearFocus()        end
-  function EditBoxMT:HasFocus()   return false end
-  function EditBoxMT:SetCursorPosition() end
-  function EditBoxMT:HighlightText()     end
-  function EditBoxMT:GetObjectType()     return "EditBox" end
+  function EditBoxMT:SetMaxLetters()          end
+  function EditBoxMT:SetAutoFocus()           end
+  function EditBoxMT:SetFontObject()          end
+  function EditBoxMT:SetMultiLine()           end
+  function EditBoxMT:SetNumeric()             end
+  function EditBoxMT:GetNumber()      return 0 end
+  function EditBoxMT:ClearFocus()             end
+  function EditBoxMT:SetFocus()               end
+  function EditBoxMT:HasFocus()       return false end
+  function EditBoxMT:SetCursorPosition()      end
+  function EditBoxMT:GetCursorPosition() return 0 end
+  function EditBoxMT:GetNumLetters()  return string.len(self:GetText() or "") end
+  function EditBoxMT:HighlightText()          end
+  function EditBoxMT:SetTextInsets()          end
+  function EditBoxMT:SetPassFlag()            end
+  function EditBoxMT:SetPlaceholderText()     end
+  function EditBoxMT:SetMaxBytes()            end
+  function EditBoxMT:SetAltArrowKeyMode()     end
+  function EditBoxMT:SetCountInvisibleLetters() end
+  function EditBoxMT:Insert(text)
+    self:SetText((self:GetText() or "") .. (text or ""))
+  end
+  function EditBoxMT:GetObjectType()  return "EditBox" end
 
   -- ── GameTooltip metatable (inherits FrameMT) ─────────────────────────────────
   local GameTooltipMT = setmetatable({}, { __index = FrameMT })
@@ -589,9 +632,86 @@ do
   function GameTooltipMT:ClearLines()           end
   function GameTooltipMT:NumLines()    return 0 end
   function GameTooltipMT:IsOwned()     return false end
+  function GameTooltipMT:SetFormattedText(fmt, ...) self:SetText(string.format(fmt, ...)) end
   function GameTooltipMT:GetObjectType() return "GameTooltip" end
 
+  -- ── Animation metatable ──────────────────────────────────────────────────────
+  -- Animations don't actually run in preview — state is tracked but time-based
+  -- progress always returns 0. Enough surface to avoid nil-call errors.
+  local AnimationMT = {}
+  AnimationMT.__index = AnimationMT
+
+  function AnimationMT:SetDuration(t)        self._duration = t or 0                              end
+  function AnimationMT:GetDuration()  return self._duration or 0                                  end
+  function AnimationMT:SetOrder(n)           self._order = n                                      end
+  function AnimationMT:GetOrder()     return self._order or 0                                     end
+  function AnimationMT:SetSmoothing()                                                              end
+  function AnimationMT:SetTarget(t)          self._target = t                                     end
+  function AnimationMT:SetFromAlpha(a)       self._fromAlpha = a                                  end
+  function AnimationMT:SetToAlpha(a)         self._toAlpha = a                                    end
+  function AnimationMT:SetOffset(x, y)       self._ox = x; self._oy = y                          end
+  function AnimationMT:GetProgress()  return 0                                                    end
+  function AnimationMT:SetStartDelay()                                                             end
+  function AnimationMT:SetEndDelay()                                                               end
+  function AnimationMT:SetScript(e, fn)
+    if not self._scripts then self._scripts = {} end
+    self._scripts[e] = fn
+  end
+  function AnimationMT:GetScript(e)   return self._scripts and self._scripts[e]                   end
+
+  -- ── AnimationGroup metatable ──────────────────────────────────────────────────
+  local AnimationGroupMT = {}
+  AnimationGroupMT.__index = AnimationGroupMT
+
+  function AnimationGroupMT:Play()
+    self._playing = true; self._done = false
+    local fn = self._scripts and self._scripts["OnPlay"]
+    if fn then pcall(fn, self) end
+  end
+  function AnimationGroupMT:Stop()
+    self._playing = false
+    local fn = self._scripts and self._scripts["OnStop"]
+    if fn then pcall(fn, self) end
+  end
+  function AnimationGroupMT:Pause()          self._playing = false                                end
+  function AnimationGroupMT:Restart()        self:Stop(); self:Play()                             end
+  function AnimationGroupMT:IsPlaying()      return self._playing == true                         end
+  function AnimationGroupMT:IsDone()         return self._done == true                            end
+  function AnimationGroupMT:IsPaused()       return false                                         end
+  function AnimationGroupMT:SetLooping(t)    self._looping = t                                    end
+  function AnimationGroupMT:GetLooping()     return self._looping or "NONE"                       end
+  function AnimationGroupMT:GetDuration()
+    local total = 0
+    for _, a in ipairs(self._anims or {}) do total = total + (a._duration or 0) end
+    return total
+  end
+  function AnimationGroupMT:GetProgress()    return 0                                             end
+  function AnimationGroupMT:SetScript(e, fn)
+    if not self._scripts then self._scripts = {} end
+    self._scripts[e] = fn
+  end
+  function AnimationGroupMT:GetScript(e)     return self._scripts and self._scripts[e]            end
+  function AnimationGroupMT:HookScript(e, fn)
+    if not self._scripts then self._scripts = {} end
+    local prev = self._scripts[e]
+    if prev then
+      self._scripts[e] = function(...) prev(...); fn(...) end
+    else
+      self._scripts[e] = fn
+    end
+  end
+  function AnimationGroupMT:CreateAnimation(animType)
+    local anim = setmetatable({ _group = self, _type = animType }, AnimationMT)
+    if not self._anims then self._anims = {} end
+    table.insert(self._anims, anim)
+    return anim
+  end
+  function AnimationGroupMT:GetAnimations()  return table.unpack(self._anims or {})               end
+
   -- ── Frame type → metatable map ───────────────────────────────────────────────
+  -- Keyed by canonical Title Case. _resolveMT handles case variants ("BUTTON",
+  -- "button", etc.) and unknown subtypes that inherit from a known base
+  -- (e.g. "ItemButton" → ButtonMT, "EventFrame" → FrameMT).
   local _mtByType = {
     Frame        = FrameMT,
     Button       = ButtonMT,
@@ -602,6 +722,15 @@ do
     EditBox      = EditBoxMT,
     GameTooltip  = GameTooltipMT,
   }
+
+  -- Build a lowercase alias map for case-insensitive lookup.
+  local _mtByTypeLower = {}
+  for k, v in pairs(_mtByType) do _mtByTypeLower[k:lower()] = v end
+
+  local function _resolveMT(ft)
+    if not ft then return FrameMT end
+    return _mtByType[ft] or _mtByTypeLower[ft:lower()] or FrameMT
+  end
 
   -- ── Bootstrap UIParent and WorldFrame Lua tables ─────────────────────────────
   UIParent   = setmetatable({ __id = _ui_parent_id   }, FrameMT)
@@ -621,7 +750,7 @@ do
     end
     local fid = _frame_new(frameType, name, parentId, template)
     if fid == nil then return nil end
-    local mt = _mtByType[frameType] or FrameMT
+    local mt = _resolveMT(frameType)
     local frame = setmetatable({ __id = fid }, mt)
     _refs[fid] = frame
     if type(name) == "string" and #name > 0 then _G[name] = frame end

@@ -690,6 +690,41 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     -- SlashCmdList is a C-layer-seeded global; addons append to it.
     if SlashCmdList == nil then SlashCmdList = {} end
 
+    -- Key modifier state — no keyboard in preview.
+    function IsModifiedClick() return false end
+
+    -- UI panel management — panel tracking not meaningful in a static preview.
+    function ShowUIPanel() end
+    function HideUIPanel() end
+    function CloseWindows() end
+
+    -- Static popup dialogs — no popup UI exists in preview.
+    function StaticPopup_Show()             return nil end
+    function StaticPopup_Hide()             end
+    function StaticPopup_FindVisible()      return nil end
+    function StaticPopup_HideAll()          end
+    function StaticPopup_Visible()          return nil end
+    function StaticPopupSpecial_Hide()      end
+
+    -- Lazy addon loader — treat all addons as loaded in preview.
+    function UIParentLoadAddOn(name) return IsAddOnLoaded(name) end
+
+    -- GameTooltip_Hide is defined in Blizzard_GameTooltip (not loaded as Lua).
+    -- GameTooltip is created after frame-class.lua; global lookup resolves at call time.
+    function GameTooltip_Hide()
+      if GameTooltip then GameTooltip:Hide() end
+    end
+
+    -- BreakUpLargeNumbers inserts locale-style thousands separators.
+    -- The generated stub returns "" which makes UI labels go blank.
+    function BreakUpLargeNumbers(n)
+      n = n or 0
+      local neg = n < 0
+      local s = tostring(math.floor(math.abs(n)))
+      local result = s:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+      return neg and ("-" .. result) or result
+    end
+
   `);
 
   // ── Priority globals ─────────────────────────────────────────────────────
