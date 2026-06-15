@@ -982,6 +982,13 @@ Mined all 315 Blizzard addons in `_reference/wow-ui-source` via `dev/scan-corpus
 - `FrameMT:GetScaledRect`, `GetEffectiveAlpha`; `FrameMT:RegisterUnitEvent`; `_resolveMT` "button$" subtype inference
 - Earlier rounds: `SetShown` on all metatables, `AnimationMT`/`AnimationGroupMT`, `GetPoint`/`GetNumPoints`, `IsMouseMotionFocus`, `SetDrawLayer`/`GetDrawLayer`, atlas button setters, `EditBoxMT` methods, `ScrollFrameMT:UpdateScrollChildRect`, case-insensitive frame type resolution, `GetRegions`/`GetNumRegions`, `IsProtected`, `GetFrameType`, `GetOrderIndex`/`SetOrderIndex`, and more
 
+**Round 6 — getter/setter symmetry and scroll range (2026-06-15):**
+
+- FrameMT getters for existing setters: `IsMovable`, `IsResizable`, `IsUserPlaced`, `GetHitRectInsets`, `GetClampRectInsets`, `IsMouseWheelEnabled`, `GetPropagateKeyboardInput`, `GetNormalFontObject`, `GetHighlightFontObject`, `GetDisabledFontObject`; new no-ops: `DisableMouse`, `SetMouseClickEnabled`, `SetMouseMotionEnabled`, `SetClampRectInsets`, `SetPropagateKeyboardInput`, `StartSizing`
+- ScrollFrameMT: `GetVerticalScrollRange`, `GetHorizontalScrollRange`, `GetMaxScrollRange` → 0
+- EditBoxMT: `IsMultiLine` → false; `GetMaxLetters` → 0
+- ButtonMT: `GetMotionScriptsWhileDisabled` → false
+
 **Top-level crash audit of loaded Blizzard files:** all SharedXMLBase, Blizzard*Colors, and SharedXML top-level calls verified — only `SharedConstants.lua` (`SetGamepadBindingStrings`) and `Localization.lua` needed stubs; all other top-level calls resolve through loaded mixins or the C*\* proxy.
 
 ---

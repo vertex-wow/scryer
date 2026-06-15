@@ -277,9 +277,15 @@ do
   function FontStringMT:GetMaxLines()             return 0 end
   function FontStringMT:SetMaxLines()             end
   function FontStringMT:SetWordWrap()             end
+  function FontStringMT:GetWordWrap()    return false end
   function FontStringMT:SetNonSpaceWrap()         end
+  function FontStringMT:GetNonSpaceWrap() return false end
   function FontStringMT:SetShadowColor()          end
+  function FontStringMT:GetShadowColor() return 0, 0, 0, 1 end
   function FontStringMT:SetShadowOffset()         end
+  function FontStringMT:GetShadowOffset() return 1, -1 end
+  function FontStringMT:SetSpacing(s)    self._spacing = s end
+  function FontStringMT:GetSpacing()     return self._spacing or 0 end
   function FontStringMT:SetFontObject()           end
   function FontStringMT:GetFontObject()   return nil end
   function FontStringMT:GetWidth()
@@ -452,25 +458,38 @@ do
   function FrameMT:Lower()                   end
   function FrameMT:SetToplevel()             end
   function FrameMT:SetClampedToScreen()      end
-  function FrameMT:SetMovable()              end
-  function FrameMT:SetResizable()            end
-  function FrameMT:EnableMouse()             end
-  function FrameMT:EnableMouseWheel()        end
-  function FrameMT:EnableKeyboard()          end
-  function FrameMT:SetKeyboardEnabled()      end
-  function FrameMT:StartMoving()             end
-  function FrameMT:StopMovingOrSizing()      end
-  function FrameMT:SetUserPlaced()           end
-  function FrameMT:RegisterForDrag()         end
-  function FrameMT:SetHitRectInsets()        end
-  function FrameMT:SetResizeBounds()         end
-  function FrameMT:SetMinResize()            end
-  function FrameMT:SetMaxResize()            end
-  function FrameMT:IsMouseOver()       return false end
-  function FrameMT:IsDragging()        return false end
-  function FrameMT:IsMouseEnabled()    return false end
-  function FrameMT:IsKeyboardEnabled() return false end
-  function FrameMT:IsMouseMotionFocus() return false end
+  function FrameMT:SetMovable()                  end
+  function FrameMT:IsMovable()           return false end
+  function FrameMT:SetResizable()                end
+  function FrameMT:IsResizable()         return false end
+  function FrameMT:EnableMouse()                 end
+  function FrameMT:DisableMouse()                end
+  function FrameMT:SetMouseClickEnabled()        end
+  function FrameMT:SetMouseMotionEnabled()       end
+  function FrameMT:EnableMouseWheel()            end
+  function FrameMT:IsMouseWheelEnabled() return false end
+  function FrameMT:EnableKeyboard()              end
+  function FrameMT:SetKeyboardEnabled()          end
+  function FrameMT:SetPropagateKeyboardInput()   end
+  function FrameMT:GetPropagateKeyboardInput() return false end
+  function FrameMT:StartMoving()                 end
+  function FrameMT:StartSizing()                 end
+  function FrameMT:StopMovingOrSizing()          end
+  function FrameMT:SetUserPlaced()               end
+  function FrameMT:IsUserPlaced()        return false end
+  function FrameMT:RegisterForDrag()             end
+  function FrameMT:SetHitRectInsets()            end
+  function FrameMT:GetHitRectInsets()  return 0, 0, 0, 0 end
+  function FrameMT:SetClampRectInsets()          end
+  function FrameMT:GetClampRectInsets() return 0, 0, 0, 0 end
+  function FrameMT:SetResizeBounds()             end
+  function FrameMT:SetMinResize()                end
+  function FrameMT:SetMaxResize()                end
+  function FrameMT:IsMouseOver()         return false end
+  function FrameMT:IsDragging()          return false end
+  function FrameMT:IsMouseEnabled()      return false end
+  function FrameMT:IsKeyboardEnabled()   return false end
+  function FrameMT:IsMouseMotionFocus()  return false end
   function FrameMT:GetPoint(n)         return nil end
   function FrameMT:GetNumPoints()      return 0 end
   function FrameMT:SetDrawLayer()      end
@@ -487,9 +506,12 @@ do
   function FrameMT:IsForbidden()      return false end
   function FrameMT:SetFontObject()    end
   function FrameMT:GetFontObject()    return nil end
-  function FrameMT:SetNormalFontObject() end
-  function FrameMT:SetHighlightFontObject() end
-  function FrameMT:SetDisabledFontObject() end
+  function FrameMT:SetNormalFontObject()       end
+  function FrameMT:GetNormalFontObject()    return nil end
+  function FrameMT:SetHighlightFontObject()    end
+  function FrameMT:GetHighlightFontObject() return nil end
+  function FrameMT:SetDisabledFontObject()     end
+  function FrameMT:GetDisabledFontObject()  return nil end
   function FrameMT:GetRegions()       return end  -- vararg; {frame:GetRegions()} → {}
   function FrameMT:GetNumRegions()    return 0 end
   function FrameMT:IsProtected()      return false end
@@ -539,7 +561,8 @@ do
   end
   function ButtonMT:SetFormattedText(fmt, ...) self:SetText(string.format(fmt, ...)) end
   function ButtonMT:RegisterForClicks()            end
-  function ButtonMT:SetMotionScriptsWhileDisabled() end
+  function ButtonMT:SetMotionScriptsWhileDisabled()        end
+  function ButtonMT:GetMotionScriptsWhileDisabled() return false end
   function ButtonMT:SetNormalAtlas()               end
   function ButtonMT:SetPushedAtlas()               end
   function ButtonMT:SetHighlightAtlas()            end
@@ -574,6 +597,7 @@ do
   end
   function StatusBarMT:GetStatusBarTexture() return nil end
   function StatusBarMT:SetStatusBarColor(r,g,b,a) _sb_set_color(self.__id, r,g,b,a) end
+  function StatusBarMT:GetStatusBarColor()   return 1, 1, 1, 1 end
   function StatusBarMT:SetOrientation(o)      _sb_set_orientation(self.__id, o)                     end
   function StatusBarMT:GetOrientation()        return "HORIZONTAL"                                   end
   function StatusBarMT:GetObjectType()         return "StatusBar"                                    end
@@ -587,12 +611,15 @@ do
 
   function ScrollFrameMT:SetScrollChild()      end
   function ScrollFrameMT:GetScrollChild()      return nil end
-  function ScrollFrameMT:SetHorizontalScroll() end
-  function ScrollFrameMT:SetVerticalScroll()   end
-  function ScrollFrameMT:GetHorizontalScroll() return 0 end
-  function ScrollFrameMT:GetVerticalScroll()   return 0 end
-  function ScrollFrameMT:GetScrollRange()      return 0 end
-  function ScrollFrameMT:UpdateScrollChildRect() end
+  function ScrollFrameMT:SetHorizontalScroll()           end
+  function ScrollFrameMT:SetVerticalScroll()             end
+  function ScrollFrameMT:GetHorizontalScroll()  return 0 end
+  function ScrollFrameMT:GetVerticalScroll()    return 0 end
+  function ScrollFrameMT:GetScrollRange()       return 0 end
+  function ScrollFrameMT:GetHorizontalScrollRange() return 0 end
+  function ScrollFrameMT:GetVerticalScrollRange()   return 0 end
+  function ScrollFrameMT:GetMaxScrollRange()        return 0 end
+  function ScrollFrameMT:UpdateScrollChildRect()         end
   function ScrollFrameMT:GetObjectType()       return "ScrollFrame" end
 
   -- ── Slider metatable (inherits FrameMT) ──────────────────────────────────────
@@ -617,9 +644,11 @@ do
   function EditBoxMT:SetText(t)          _btn_set_text(self.__id, t) end
   function EditBoxMT:GetText()    return _btn_get_text(self.__id)    end
   function EditBoxMT:SetMaxLetters()          end
+  function EditBoxMT:GetMaxLetters()  return 0 end
   function EditBoxMT:SetAutoFocus()           end
   function EditBoxMT:SetFontObject()          end
   function EditBoxMT:SetMultiLine()           end
+  function EditBoxMT:IsMultiLine()    return false end
   function EditBoxMT:SetNumeric()             end
   function EditBoxMT:GetNumber()      return 0 end
   function EditBoxMT:ClearFocus()             end
