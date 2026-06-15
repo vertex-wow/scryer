@@ -703,6 +703,11 @@ window.addEventListener("resize", () => {
 // Asset helpers
 // ---------------------------------------------------------------------------
 
+/** Immediately re-apply cached asset URIs to new DOM elements, preventing placeholder flash on re-render. */
+function applyResolvedAssets(): void {
+  for (const [path, uri] of resolvedAssets) applyAsset(path, uri);
+}
+
 /** After a render, collect all unique [data-asset-path] and [data-mask-file] values and request each. */
 function requestRenderedAssets(): void {
   const seen = new Set<string>();
@@ -736,6 +741,7 @@ function applyDefaultFont(uri: string): void {
 
 const imageCache = new Map<string, Promise<HTMLImageElement>>();
 const spriteDataUrlCache = new Map<string, string>();
+const resolvedAssets = new Map<string, string>(); // path → URI; re-applied instantly on re-render to skip placeholder flash
 
 function loadImage(uri: string): Promise<HTMLImageElement> {
   if (!imageCache.has(uri)) {
@@ -793,6 +799,7 @@ function extractSpriteDataUrl(
 
 /** Apply a resolved asset URI to all texture elements sharing that path. */
 function applyAsset(rawPath: string, uri: string): void {
+  resolvedAssets.set(rawPath, uri);
   const selector = `[data-asset-path="${rawPath.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"]`;
   const els = Array.from(viewport!.querySelectorAll<HTMLElement>(selector));
   let didUpgrade = false;
@@ -1209,6 +1216,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         else if (msg.warnings > 0)
           renderSuffix = ` — ${msg.warnings} warning${msg.warnings === 1 ? "" : "s"}`;
         dbgRender(renderBase, renderSuffix);
+        applyResolvedAssets();
         requestRenderedAssets();
         document.body.classList.remove("loading-initial");
         syncLoadingState();
