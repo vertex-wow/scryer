@@ -1,0 +1,5 @@
+## Interface: 110002
+## Title: API Stubs Addon
+## Version: 1.0
+
+ApiStubsAddon.lua
