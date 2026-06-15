@@ -278,5 +278,23 @@ export function frameNodeToIR(
     interactive: interactive || undefined,
     runtimeId: interactive ? node.id : undefined,
     useParentLevel: node.attributes.get("__scryer_useParentLevel") === true ? true : undefined,
+    ...statusBarIR(node),
+  };
+}
+
+function statusBarIR(
+  node: FrameNode,
+): Pick<
+  FrameIR,
+  "statusBarFill" | "statusBarFillColor" | "statusBarFillPath" | "statusBarOrientation"
+> {
+  if (node.frameType !== "StatusBar") return {};
+  const range = node.statusBarMaxValue - node.statusBarMinValue;
+  const fill = range === 0 ? 0 : (node.statusBarValue - node.statusBarMinValue) / range;
+  return {
+    statusBarFill: Math.max(0, Math.min(1, fill)),
+    statusBarFillColor: node.statusBarColor,
+    statusBarFillPath: node.statusBarTexturePath,
+    statusBarOrientation: node.statusBarOrientation,
   };
 }

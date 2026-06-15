@@ -323,6 +323,39 @@ function renderFrame(
     el.appendChild(stateEl);
   }
 
+  // StatusBar fill bar — rendered above layers, below children.
+  if (frame.kind === "StatusBar" && frame.statusBarFill !== undefined) {
+    const pct = frame.statusBarFill * 100;
+    const vertical = frame.statusBarOrientation === "VERTICAL";
+    const fillEl = document.createElement("div");
+    fillEl.dataset.layer = "statusbar-fill";
+    fillEl.style.position = "absolute";
+    fillEl.style.pointerEvents = "none";
+    fillEl.style.zIndex = String(layerZ("ARTWORK", 0)); // sits in the ARTWORK band
+    if (vertical) {
+      fillEl.style.left = "0";
+      fillEl.style.right = "0";
+      fillEl.style.bottom = "0";
+      fillEl.style.height = `${pct}%`;
+    } else {
+      fillEl.style.top = "0";
+      fillEl.style.bottom = "0";
+      fillEl.style.left = "0";
+      fillEl.style.width = `${pct}%`;
+    }
+    if (frame.statusBarFillPath) {
+      fillEl.style.backgroundImage = `url("${frame.statusBarFillPath}")`;
+      fillEl.style.backgroundSize = vertical ? "100% auto" : "auto 100%";
+      fillEl.style.backgroundRepeat = "repeat";
+    } else {
+      const c = frame.statusBarFillColor;
+      fillEl.style.backgroundColor = c
+        ? `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},${c.a})`
+        : "rgba(0,120,220,0.85)";
+    }
+    el.appendChild(fillEl);
+  }
+
   // Recursively render children
   for (const child of frame.children) {
     const childRect = rectMap.get(child) ?? frameRect;

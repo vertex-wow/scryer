@@ -1286,3 +1286,22 @@ PathResolver::new(tvfs, hash_to_fdid, listfile)
 - Before: 25–29 s (listfile download + 2.17 M row CSV parse)
 - After (retail): ~200 ms (TVFS parse only; no network I/O)
 - After (Classic): unchanged (listfile still downloaded; TVFS absent)
+
+---
+
+## StatusBar fill texture rendering (deferred from M7) {#statusbar-fill-texture-rendering-deferred-from-m7}
+
+**Completed:** 2026-06-15
+
+**Problem:** `StatusBar` frames created via `CreateFrame("StatusBar", ...)` rendered as plain frames — no fill bar was visible. `SetValue(75)` / `SetMinMaxValues(0, 100)` set internal state but produced no visual output.
+
+### What was built
+
+- **`src/parser/ir.ts`** — added four optional fields to `FrameIR`: `statusBarFill` (fraction [0,1]), `statusBarFillColor`, `statusBarFillPath`, `statusBarOrientation`.
+- **`src/lua/frame-model.ts`** — `statusBarIR()` helper computes the fill fraction from `statusBarValue`, `statusBarMinValue`, `statusBarMaxValue` and returns the four IR fields. Spread into `frameNodeToIR()` return.
+- **`src/webview/renderer.ts`** — `renderFrame()` inserts an absolute-positioned `div[data-layer="statusbar-fill"]` when `frame.statusBarFill !== undefined`. Horizontal fill uses `width: N%`; vertical fill uses `height: N%` anchored to the bottom edge. Color applied as `rgba()`; texture path applied as `background-image`. Z-index uses `layerZ("ARTWORK", 0)` (= 48) to place the fill inside the ARTWORK draw band.
+- **`test/xml/statusbar_fill.spec.ts`** — 5 Playwright tests covering horizontal fill width, vertical fill height + bottom anchor, fill color, no-fill-div when `statusBarFill` is undefined, and default blue fallback color.
+
+### Approach note
+
+Fill is serialized as a CSS percentage at render time (post-layout), not as a synthesised texture node. This avoids requiring a concrete pixel width at serialization time and allows the fill to adapt to any frame size without an extra pass.

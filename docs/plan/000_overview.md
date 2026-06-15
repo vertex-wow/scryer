@@ -188,7 +188,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="todo-archive.md#parentkey--parentarray-wiring-for-runtime-frames-deferred-from-m7">parentKey / parentArray wiring</a>, <a href="todo-archive.md#template-application-in-runtime-createframe-deferred-from-m7">Template application in runtime CreateFrame</a>, <a href="todo-archive.md#texture-tiling-on-dynamically-created-textures-nineslice-stub-follow-up">Texture tiling on dynamic textures</a>, <a href="todo-archive.md#setdrawlayer-on-dynamically-created-textures-nineslice-stub-follow-up">SetDrawLayer on dynamic textures</a>, <a href="todo-archive.md#texture-to-texture-setpoint-anchor-resolution">Texture-to-texture SetPoint anchors</a>, <a href="todo-archive.md#cross-layer-nineslice-layout">Cross-layer NineSlice layout</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#parentkey--parentarray-wiring-for-runtime-frames-deferred-from-m7">parentKey / parentArray wiring</a>, <a href="todo-archive.md#template-application-in-runtime-createframe-deferred-from-m7">Template application in runtime CreateFrame</a>, <a href="todo-archive.md#texture-tiling-on-dynamically-created-textures-nineslice-stub-follow-up">Texture tiling on dynamic textures</a>, <a href="todo-archive.md#setdrawlayer-on-dynamically-created-textures-nineslice-stub-follow-up">SetDrawLayer on dynamic textures</a>, <a href="todo-archive.md#texture-to-texture-setpoint-anchor-resolution">Texture-to-texture SetPoint anchors</a>, <a href="todo-archive.md#cross-layer-nineslice-layout">Cross-layer NineSlice layout</a>, <a href="todo-archive.md#statusbar-fill-texture-rendering-deferred-from-m7">StatusBar fill texture rendering</a></td>
 </tr>
 <tr>
   <td>↳</td>
@@ -196,14 +196,6 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
   <td>📋 Pending</td>
   <td>Incremental frame-tree diffs to webview; full re-render used in M7</td>
   <td>S–M</td>
-  <td>—</td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td><a href="todo.md#statusbar-fill-texture-rendering-deferred-from-m7">StatusBar fill texture rendering</a></td>
-  <td>📋 Pending</td>
-  <td>Synthesise fill bar from value/min/max at serialization; apply color/texture</td>
-  <td>S</td>
   <td>—</td>
 </tr>
 <tr>

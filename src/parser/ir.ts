@@ -110,6 +110,14 @@ export interface FrameIR extends LayoutFrameBase {
   interactive?: boolean;
   /** Live-panel runtime ID used to route webview frameEvent messages back to Lua. */
   runtimeId?: number;
+  /** StatusBar fill fraction [0,1] for rendering a proportional fill bar. */
+  statusBarFill?: number;
+  /** Fill color override for StatusBar (when no texture is set). */
+  statusBarFillColor?: { r: number; g: number; b: number; a: number };
+  /** Fill texture path for StatusBar. */
+  statusBarFillPath?: string;
+  /** "HORIZONTAL" or "VERTICAL" fill direction. Default HORIZONTAL. */
+  statusBarOrientation?: string;
 }
 
 export type RenderObjectIR = TextureIR | FontStringIR;

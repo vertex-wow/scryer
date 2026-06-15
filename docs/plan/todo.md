@@ -301,17 +301,3 @@ WoW's anchor system is constraint-based — a frame's position is determined by 
 **Effort:** L — the drag affordance and anchor inversion for simple cases are S; handling the full variety of anchor configurations (CENTER, relative-to-sibling, two-axis independence) is M; safe source-file write-back is M. Total L.
 
 ---
-
-## StatusBar fill texture rendering (deferred from M7)
-
-**Status:** 📋 Pending
-
-**Problem:** `StatusBar` frames created via `CreateFrame("StatusBar", ...)` render as plain frames — no fill bar is visible. `SetValue(75)` / `SetMinMaxValues(0, 100)` sets internal state but produces no visual output.
-
-**Plan:** In `frameNodeToIR` (or `statusBarNodeToIR`), when `statusBarValue` is set and the frame has an explicit width, synthesise a fill texture in the ARTWORK layer with width proportional to `(value - min) / (max - min)`. Apply `statusBarColor` or `statusBarTexturePath` as the fill appearance. For the case where width is not yet known at serialization time, add a `data-*` attribute to the rendered DOM element and let the webview apply the fill percentage via CSS after layout.
-
-**Effort:** S — the serialization-time approach is straightforward; the post-layout percentage approach requires a small webview-side addition.
-
-**Depends on:** M7 (done).
-
----
