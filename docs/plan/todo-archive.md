@@ -954,11 +954,35 @@ Added `__scryer_tex_set_draw_layer(id, layer, subLevel)` host binding in `create
 
 ---
 
-## Full Blizzard_SharedXML Lua corpus loading
+## Full Blizzard_SharedXML Lua corpus loading {#full-blizzard_sharedxml-lua-corpus-loading}
 
 **Status: ✅ Complete (2026-05-30)**
 
 Added `blizzardAddonLuaFiles(addonsDir, addonName)` to `blizzard-registry.ts` — parses the addon's `_Mainline.toc` and returns all Lua file paths in TOC order. In `live-panel.ts`, replaced the hardcoded two-file list with a TOC-driven loop over `Blizzard_SharedXML`. Files that error at runtime are silently skipped.
+
+---
+
+## Corpus-driven API gap analysis (Phase 2) {#corpus-driven-api-gap-analysis-phase-2}
+
+**Status: ✅ Complete (2026-06-15)**
+
+Mined all 315 Blizzard addons in `_reference/wow-ui-source` via `dev/scan-corpus.ts` (output: `.plan/api-corpus/corpus.json`, 59.9 MB). Systematically audited the top-frequency API calls and closed crash vectors in `src/lua/wow-api.ts` and `src/lua/frame-class.lua` across five rounds:
+
+**wow-api.ts additions (globals):**
+
+- `PlaySound`, `PlaySoundFile`, `StopSound`, `MuteSoundFile`, `UnmuteSoundFile` — audio no-ops (PlaySound was the #1 missing global at 1506 calls)
+- `IsInGroup` → false; `IsInRaid` → false; `IsInActiveWorldPVP` → false
+- `C_XMLUtil.GetTemplateInfo` override — returns `{ height=22, width=40 }` to prevent division-by-nil crash in `UIPanelButtonHeightScaledMixin:OnLoad`
+- Earlier rounds: `IsModifiedClick`, `ShowUIPanel`, `HideUIPanel`, `CloseWindows`, `StaticPopup_*`, `UIParentLoadAddOn`, `GameTooltip_Hide`, `BreakUpLargeNumbers`, `GetFontStringMetatable`, `Kiosk`, `SetGamepadBindingStrings`, key binding stubs, `UI_LOCALE` constant
+
+**frame-class.lua additions:**
+
+- `ModelMT` — new metatable inheriting `FrameMT`; covers the full `SimpleModel` + `CharacterModelBase` API (~60 methods: `SetAnimation`, `SetUnit`, `SetDisplayInfo`, `SetPosition`, `GetPosition`, `ClearModel`, `SetModel`, `FreezeAnimation`, `PlayAnimKit`, `SetPortraitZoom`, `SetRotation`, etc.). Registered for: `Model`, `SimpleModel`, `PlayerModel`, `DressUpModel`, `CinematicModel`, `TabardModel`. `_resolveMT` infers `"model$"` suffix.
+- `GameTooltipMT` overhaul — `SetOwner` stores owner; `GetOwner`/`IsOwned` added; fixes crash in `SharedUIPanelTemplates.lua` tooltip check
+- `FrameMT:GetScaledRect`, `GetEffectiveAlpha`; `FrameMT:RegisterUnitEvent`; `_resolveMT` "button$" subtype inference
+- Earlier rounds: `SetShown` on all metatables, `AnimationMT`/`AnimationGroupMT`, `GetPoint`/`GetNumPoints`, `IsMouseMotionFocus`, `SetDrawLayer`/`GetDrawLayer`, atlas button setters, `EditBoxMT` methods, `ScrollFrameMT:UpdateScrollChildRect`, case-insensitive frame type resolution, `GetRegions`/`GetNumRegions`, `IsProtected`, `GetFrameType`, `GetOrderIndex`/`SetOrderIndex`, and more
+
+**Top-level crash audit of loaded Blizzard files:** all SharedXMLBase, Blizzard*Colors, and SharedXML top-level calls verified — only `SharedConstants.lua` (`SetGamepadBindingStrings`) and `Localization.lua` needed stubs; all other top-level calls resolve through loaded mixins or the C*\* proxy.
 
 ---
 

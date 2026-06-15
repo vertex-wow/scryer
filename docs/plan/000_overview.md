@@ -232,7 +232,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="todo-archive.md#lua-sandbox-execution-timeout-deferred-from-m6">Lua sandbox execution timeout</a>, <a href="todo-archive.md#full-blizzard_sharedxml-lua-corpus-loading">Full Blizzard_SharedXML Lua corpus loading</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#lua-sandbox-execution-timeout-deferred-from-m6">Lua sandbox execution timeout</a>, <a href="todo-archive.md#full-blizzard_sharedxml-lua-corpus-loading">Full Blizzard_SharedXML Lua corpus loading</a>, <a href="todo-archive.md#corpus-driven-api-gap-analysis-phase-2">Corpus-driven API gap analysis (Phase 2)</a></td>
 </tr>
 <tr>
   <td>↳</td>
