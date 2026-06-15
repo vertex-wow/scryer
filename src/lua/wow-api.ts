@@ -763,10 +763,125 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
       return neg and ("-" .. result) or result
     end
 
+    -- Key modifier state — no keyboard in preview.
+    function IsShiftKeyDown()   return false end
+    function IsControlKeyDown() return false end
+    function IsAltKeyDown()     return false end
+    function IsMetaKeyDown()    return false end
+
+    -- Combat state — always false in a static preview.
+    function InCombatLockdown() return false end
+
+    -- Unit queries — return plausible preview values so top-level init code
+    -- that captures player info at load time doesn't crash or produce nils.
+    function UnitName(unit)
+      if unit == "player" then return "Preview", "Preview" end
+      return nil, nil
+    end
+    function UnitGUID(unit)
+      if unit == "player" then return "Player-1234-ABCDEF" end
+      return nil
+    end
+    function UnitClass(unit)
+      if unit == "player" then return "Warrior", "WARRIOR", 1 end
+      return nil, nil, nil
+    end
+    function UnitExists(unit)         return unit == "player" end
+    function UnitIsUnit(a, b)         return a == b end
+    function UnitFactionGroup(unit)   return "Alliance", "Alliance" end
+    function UnitAffectingCombat()    return false end
+    function UnitHealth()             return 100 end
+    function UnitHealthMax()          return 100 end
+    function UnitPower()              return 100 end
+    function UnitPowerMax()           return 100 end
+    function UnitIsDeadOrGhost()      return false end
+    function UnitIsPlayer()           return false end
+    function UnitIsFriend()           return false end
+    function UnitIsEnemy()            return false end
+    function UnitLevel()              return 80 end
+    function UnitRealm()              return nil end   -- removed; use UnitFullName
+    function UnitFullName(unit)
+      if unit == "player" then return "Preview", "Preview" end
+      return nil, nil
+    end
+
+    -- Game state queries — safe defaults for preview context.
+    function GetBuildInfo()      return "11.2.0", "12345", "Jun 01 2025", 110200 end
+    function GetRealmName()      return "Preview" end
+    function GetServerTime()      return __scryer_server_time() end
+    function GetTimePreciseSec()  return GetTime() end
+    function GetNumGroupMembers() return 0 end
+    function GetNumSubgroupMembers() return 0 end
+    function IsInInstance()      return false, "none" end
+    function GetZoneText()       return "" end
+    function GetSubZoneText()    return "" end
+    function GetMinimapZoneText() return "" end
+    function GetRealZoneText()   return "" end
+    function GetInstanceInfo()   return nil end
+    function IsPlayerInWorld()   return true end
+    function UnitOnTaxi()        return false end
+
+    -- Cursor management — no real cursor in preview.
+    function ClearCursor() end
+    function GetCursorPosition() return 0, 0 end
+    function GetCursorInfo() return nil end
+    function DropCursorItem() end
+    function DeleteCursorItem() end
+
+    -- Misc C-layer globals used by 3rd party addon init code.
+    function GetAchievementCriteriaInfo() return nil end
+    function GetAchievementInfo()         return nil end
+    function GetSpellInfo()               return nil end
+    function GetSpellBookItemName()       return nil end
+    function UnitBuff()                   return nil end
+    function UnitDebuff()                 return nil end
+    function UnitAura()                   return nil end
+    -- Removed APIs (deprecated and removed in current retail patch).
+    -- Stub as nil-returning to prevent "attempt to call nil" crashes without
+    -- implying they worked; addons calling these are already broken in live WoW.
+    function GetTalentInfo()              return nil end
+    function GetNumTalents()              return nil end
+    function GetSpecialization()          return nil end   -- removed; use C_SpecializationInfo.GetSpecialization
+    function GetNumSpecializations()      return 4 end     -- valid; returns count for current class
+
+    -- MenuUtil / Menu — stubs so addons that register menus at top level don't crash.
+    -- Real menu rendering is not supported in the preview.
+    if MenuUtil == nil then
+      MenuUtil = {
+        CreateContextMenu      = function() return {} end,
+        CreateRadioMenu        = function() return {} end,
+        CreateCheckboxContextMenu = function() return {} end,
+        CreateRootMenuDescription = function() return {} end,
+        HookTooltipScripts     = function() end,
+        GetElementText         = function() return "" end,
+        ShowTooltip            = function() end,
+        HideTooltip            = function() end,
+      }
+    end
+    if Menu == nil then
+      Menu = {
+        ModifyMenu    = function() end,
+        GetManager    = function() return {} end,
+        GetOpenMenuTags = function() return {} end,
+        PrintOpenMenuTags = function() end,
+      }
+    end
+
+    -- AuraUtil — ForEachAura iterates unit auras; no auras in preview.
+    if AuraUtil == nil then
+      AuraUtil = {
+        ForEachAura           = function() end,
+        FindAura              = function() return nil end,
+        FindAuraByName        = function() return nil end,
+        FindPlayerAuraBySpellID = function() return nil end,
+      }
+    end
+
   `);
 
   // ── Priority globals ─────────────────────────────────────────────────────
   lua.global.set("GetTime", () => clock.now());
+  lua.global.set("__scryer_server_time", () => Math.floor(Date.now() / 1000));
   lua.global.set("date", wowDate);
 
   const printFn = (...args: unknown[]) =>
