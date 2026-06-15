@@ -95,7 +95,8 @@
       "Bash(pnpm list *)",
       "Bash(gh run download *)",
       "Bash(gh run watch *)",
-      "Bash(jq *)"
+      "Bash(jq *)",
+      "Bash(pnpm test:ts)"
     ],
     "additionalDirectories": [
       "/tmp"

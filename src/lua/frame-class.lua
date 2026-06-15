@@ -328,6 +328,8 @@ do
   end
   function FrameMT:GetSize()      return _frame_get_width(self.__id) or 0, _frame_get_height(self.__id) or 0 end
   function FrameMT:GetRect()      return 0, 0, _frame_get_width(self.__id) or 0, _frame_get_height(self.__id) or 0 end
+  function FrameMT:GetScaledRect() return 0, 0, _frame_get_width(self.__id) or 0, _frame_get_height(self.__id) or 0 end
+  function FrameMT:GetEffectiveAlpha() return _frame_get_alpha(self.__id) end
   function FrameMT:GetLeft()      return 0   end
   function FrameMT:GetRight()     return _frame_get_width(self.__id)  or 0 end
   function FrameMT:GetTop()       return _frame_get_height(self.__id) or 0 end
@@ -638,17 +640,124 @@ do
   end
   function EditBoxMT:GetObjectType()  return "EditBox" end
 
+  -- ── Model metatable (inherits FrameMT) ──────────────────────────────────────
+  -- Covers SimpleModel, PlayerModel, DressUpModel, CinematicModel. No 3-D
+  -- rendering — all methods are no-ops or return safe defaults. Surfaces both
+  -- the SimpleModel API and CharacterModelBase API in a single metatable.
+  local ModelMT = setmetatable({}, { __index = FrameMT })
+  ModelMT.__index = ModelMT
+
+  -- SimpleModel API
+  function ModelMT:AdvanceTime()                          end
+  function ModelMT:ClearFog()                             end
+  function ModelMT:ClearModel()                           end
+  function ModelMT:ClearTransform()                       end
+  function ModelMT:GetCameraDistance()           return 0 end
+  function ModelMT:GetCameraFacing()             return 0 end
+  function ModelMT:GetCameraPosition()    return 0, 0, 0  end
+  function ModelMT:GetCameraRoll()               return 0 end
+  function ModelMT:GetCameraTarget()      return 0, 0, 0  end
+  function ModelMT:GetDesaturation()             return 0 end
+  function ModelMT:GetFacing()                   return 0 end
+  function ModelMT:GetFogColor()       return 0, 0, 0, 0  end
+  function ModelMT:GetFogFar()                   return 0 end
+  function ModelMT:GetFogNear()                  return 0 end
+  function ModelMT:GetLight()          return false, false, 0, 0, 0, 0, 0, 0, 0, 0, 0 end
+  function ModelMT:GetModelAlpha()               return 1 end
+  function ModelMT:GetModelDrawLayer() return "BACKGROUND", 0 end
+  function ModelMT:GetModelFileID()              return 0 end
+  function ModelMT:GetModelScale()               return 1 end
+  function ModelMT:GetPaused()               return false end
+  function ModelMT:GetPitch()                    return 0 end
+  function ModelMT:GetPosition()          return 0, 0, 0  end
+  function ModelMT:GetRoll()                     return 0 end
+  function ModelMT:GetShadowEffect()             return 0 end
+  function ModelMT:GetViewInsets()     return 0, 0, 0, 0  end
+  function ModelMT:GetViewTranslation()        return 0, 0 end
+  function ModelMT:GetWorldScale()               return 1 end
+  function ModelMT:HasAttachmentPoints()     return false  end
+  function ModelMT:HasCustomCamera()         return false  end
+  function ModelMT:IsUsingModelCenterToTransform() return false end
+  function ModelMT:MakeCurrentCameraCustom()              end
+  function ModelMT:ReplaceIconTexture()                   end
+  function ModelMT:SetCamera()                            end
+  function ModelMT:SetCameraDistance()                    end
+  function ModelMT:SetCameraFacing()                      end
+  function ModelMT:SetCameraPosition()                    end
+  function ModelMT:SetCameraRoll()                        end
+  function ModelMT:SetCameraTarget()                      end
+  function ModelMT:SetCustomCamera()                      end
+  function ModelMT:SetDesaturation()                      end
+  function ModelMT:SetFacing()                            end
+  function ModelMT:SetFogColor()                          end
+  function ModelMT:SetFogFar()                            end
+  function ModelMT:SetFogNear()                           end
+  function ModelMT:SetGlow()                              end
+  function ModelMT:SetGradientMask()                      end
+  function ModelMT:SetLight()                             end
+  function ModelMT:SetModel()                             end
+  function ModelMT:SetModelAlpha()                        end
+  function ModelMT:SetModelDrawLayer()                    end
+  function ModelMT:SetModelScale()                        end
+  function ModelMT:SetParticlesEnabled()                  end
+  function ModelMT:SetPaused()                            end
+  function ModelMT:SetPitch()                             end
+  function ModelMT:SetPosition()                          end
+  function ModelMT:SetRoll()                              end
+  function ModelMT:SetSequence()                          end
+  function ModelMT:SetSequenceTime()                      end
+  function ModelMT:SetShadowEffect()                      end
+  function ModelMT:SetTransform()                         end
+  function ModelMT:SetUseGBuffer()                        end
+  function ModelMT:SetViewInsets()                        end
+  function ModelMT:SetViewTranslation()                   end
+  function ModelMT:TransformCameraSpaceToModelSpace() return 0, 0, 0 end
+  function ModelMT:UseModelCenterToTransform()            end
+
+  -- CharacterModelBase extensions (PlayerModel, DressUpModel, CinematicModel)
+  function ModelMT:ApplySpellVisualKit()                  end
+  function ModelMT:CanSetUnit()              return false  end
+  function ModelMT:FreezeAnimation()                      end
+  function ModelMT:GetDisplayInfo()          return 0      end
+  function ModelMT:GetDoBlend()          return false      end
+  function ModelMT:GetKeepModelOnHide()  return false      end
+  function ModelMT:HasAnimation()        return false      end
+  function ModelMT:PlayAnimKit()                          end
+  function ModelMT:RefreshCamera()                        end
+  function ModelMT:RefreshUnit()                          end
+  function ModelMT:SetAnimation()                         end
+  function ModelMT:SetBarberShopAlternateForm()           end
+  function ModelMT:SetCamDistanceScale()                  end
+  function ModelMT:SetCreature()                          end
+  function ModelMT:SetDisplayInfo()                       end
+  function ModelMT:SetDoBlend()                           end
+  function ModelMT:SetItem()                              end
+  function ModelMT:SetItemAppearance()                    end
+  function ModelMT:SetKeepModelOnHide()                   end
+  function ModelMT:SetPortraitZoom()                      end
+  function ModelMT:SetRotation()                          end
+  function ModelMT:SetUnit()                              end
+  function ModelMT:StopAnimKit()                          end
+  function ModelMT:ZeroCachedCenterXY()                   end
+  function ModelMT:GetObjectType() return "PlayerModel"   end
+
   -- ── GameTooltip metatable (inherits FrameMT) ─────────────────────────────────
   local GameTooltipMT = setmetatable({}, { __index = FrameMT })
   GameTooltipMT.__index = GameTooltipMT
 
-  function GameTooltipMT:SetOwner()             end
+  function GameTooltipMT:SetOwner(owner, ...) self._owner = owner end
+  function GameTooltipMT:GetOwner()    return self._owner end
+  function GameTooltipMT:IsOwned()     return self._owner ~= nil end
   function GameTooltipMT:AddLine()              end
   function GameTooltipMT:AddDoubleLine()        end
+  function GameTooltipMT:AppendText()           end
   function GameTooltipMT:SetText()              end
   function GameTooltipMT:ClearLines()           end
   function GameTooltipMT:NumLines()    return 0 end
-  function GameTooltipMT:IsOwned()     return false end
+  function GameTooltipMT:SetHyperlink()         end
+  function GameTooltipMT:SetSpellByID()         end
+  function GameTooltipMT:SetAnchorType()        end
+  function GameTooltipMT:GetAnchorType() return "ANCHOR_RIGHT" end
   function GameTooltipMT:SetFormattedText(fmt, ...) self:SetText(string.format(fmt, ...)) end
   function GameTooltipMT:GetObjectType() return "GameTooltip" end
 
@@ -730,14 +839,20 @@ do
   -- "button", etc.) and unknown subtypes that inherit from a known base
   -- (e.g. "ItemButton" → ButtonMT, "EventFrame" → FrameMT).
   local _mtByType = {
-    Frame        = FrameMT,
-    Button       = ButtonMT,
-    CheckButton  = CheckButtonMT,
-    StatusBar    = StatusBarMT,
-    ScrollFrame  = ScrollFrameMT,
-    Slider       = SliderMT,
-    EditBox      = EditBoxMT,
-    GameTooltip  = GameTooltipMT,
+    Frame          = FrameMT,
+    Button         = ButtonMT,
+    CheckButton    = CheckButtonMT,
+    StatusBar      = StatusBarMT,
+    ScrollFrame    = ScrollFrameMT,
+    Slider         = SliderMT,
+    EditBox        = EditBoxMT,
+    GameTooltip    = GameTooltipMT,
+    Model          = ModelMT,
+    SimpleModel    = ModelMT,
+    PlayerModel    = ModelMT,
+    DressUpModel   = ModelMT,
+    CinematicModel = ModelMT,
+    TabardModel    = ModelMT,
   }
 
   -- Build a lowercase alias map for case-insensitive lookup.
@@ -746,7 +861,14 @@ do
 
   local function _resolveMT(ft)
     if not ft then return FrameMT end
-    return _mtByType[ft] or _mtByTypeLower[ft:lower()] or FrameMT
+    local mt = _mtByType[ft] or _mtByTypeLower[ft:lower()]
+    if mt then return mt end
+    -- Subtype inference: types ending in "Button" → ButtonMT; ending in "Model"
+    -- (e.g. PetBattleModel, TabardModel subclasses) → ModelMT; else → FrameMT.
+    local lower = ft:lower()
+    if lower:find("button$") then return ButtonMT end
+    if lower:find("model$")  then return ModelMT  end
+    return FrameMT
   end
 
   -- ── Bootstrap UIParent and WorldFrame Lua tables ─────────────────────────────
