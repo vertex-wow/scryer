@@ -567,7 +567,13 @@ export class ScryerLivePanel {
       const { frames: blizzardTemplates, textures: blizzardTextureTemplates } =
         this.assets.loadBlizzardTemplates();
 
-      await registerFrameModel(sandbox, registry, blizzardTemplates, blizzardTextureTemplates);
+      await registerFrameModel(
+        sandbox,
+        registry,
+        blizzardTemplates,
+        blizzardTextureTemplates,
+        atlasManifest ?? undefined,
+      );
 
       // Load Blizzard Lua in dependency order before running the user's addon.
       // SharedXMLBase → Blizzard_Colors (needed by SharedColorConstants.lua) → SharedXML.

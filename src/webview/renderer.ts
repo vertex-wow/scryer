@@ -271,8 +271,10 @@ function renderFrame(
     { epsilon: config.layoutEpsilon, maxIterations: config.layoutMaxIterations },
   );
 
-  // Render layers (back → front)
+  // Render layers (back → front), skipping HIGHLIGHT (hover-only in WoW — always showing
+  // it causes ghosting on button templates that use ADD-blend hover textures).
   for (const layer of frame.layers) {
+    if (layer.level === "HIGHLIGHT") continue;
     const layerEl = document.createElement("div");
     layerEl.dataset.layer = layer.level;
     layerEl.style.cssText = `position:absolute;inset:0;z-index:${layerZ(layer.level, layer.subLevel)};pointer-events:none;`;

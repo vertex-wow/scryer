@@ -170,11 +170,25 @@ export async function runTocFixtureWithBlizzard(
     SHARED_ADDON_NAMES,
   );
 
+  // Load the atlas manifest before sandbox setup so SetAtlas(name, true) can
+  // store the logical pixel size on the texture node — enabling GetWidth()/GetHeight()
+  // to return the atlas dimensions during Lua execution (e.g. PanelTemplates_TabResize).
+  const manifestPath = assetsDir
+    ? path.join(assetsDir, "..", "derived", "atlas-manifest.json")
+    : null;
+  const atlasManifest = manifestPath ? loadAtlasManifest(manifestPath) : null;
+
   const registry = new FrameRegistry(1024, 768);
   const clock = new VirtualClock();
   const lua = await createSandbox(WASM_PATH);
   await registerWowApi(lua, { clock });
-  await registerFrameModel(lua, registry, blizzardTemplates, blizzardTextureTemplates);
+  await registerFrameModel(
+    lua,
+    registry,
+    blizzardTemplates,
+    blizzardTextureTemplates,
+    atlasManifest ?? undefined,
+  );
 
   try {
     // Load Blizzard Lua in dependency order before running the user's addon.
@@ -207,13 +221,9 @@ export async function runTocFixtureWithBlizzard(
 
   const frames = registry.serialize();
 
-  // Resolve atlas names if a manifest is available (<cacheDir>/<flavor>/derived/atlas-manifest.json).
-  // assetsDir is <cacheDir>/<flavor>/source, so the manifest is one sibling dir up.
-  if (assetsDir) {
-    const manifestPath = path.join(assetsDir, "..", "derived", "atlas-manifest.json");
-    const manifest = loadAtlasManifest(manifestPath);
-    if (manifest) resolveAtlasNames(frames, manifest);
-  }
+  // Populate resolvedAtlas on serialized FrameIRs so the webview renderer can
+  // render atlas textures without a separate asset-server round-trip.
+  if (atlasManifest) resolveAtlasNames(frames, atlasManifest);
 
   return frames;
 }

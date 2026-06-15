@@ -1,0 +1,6 @@
+## Interface: 110205, 110207, 120000
+## Title: BottomTabs Test Fixture
+
+BottomTabsAddon.lua
+BottomTabsAddon.xml
+harness.lua

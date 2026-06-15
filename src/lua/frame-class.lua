@@ -61,6 +61,8 @@ do
   local _tex_set_texcoord        = __scryer_tex_set_texcoord
   local _tex_set_vertex_color    = __scryer_tex_set_vertex_color
   local _tex_set_color_tex       = __scryer_tex_set_color_texture
+  local _tex_get_width           = __scryer_tex_get_width
+  local _tex_get_height          = __scryer_tex_get_height
   local _tex_set_horiz_tile      = __scryer_tex_set_horiz_tile
   local _tex_set_vert_tile       = __scryer_tex_set_vert_tile
   local _tex_set_draw_layer      = __scryer_tex_set_draw_layer
@@ -68,6 +70,10 @@ do
   local _tex_set_mask_file        = __scryer_tex_set_mask_file
   local _tex_set_alpha           = __scryer_tex_set_alpha
   local _tex_get_alpha           = __scryer_tex_get_alpha
+  -- Captured before the cleanup section nils all __scryer_* globals.
+  -- __SetParentKey below exposes this via a method so generated XML code can
+  -- call it after frame-class.lua has run (the global itself is nil by then).
+  local _tex_set_parent_key      = __scryer_tex_set_parent_key
   local _tex_show                = __scryer_tex_show
   local _tex_hide                = __scryer_tex_hide
   local _tex_is_shown            = __scryer_tex_is_shown
@@ -199,6 +205,10 @@ do
   function TextureMT:SetPoint(p,rTo,rP,x,y)   _tex_set_point(self.__id, p, _relTo(rTo), rP, x, y) end
   function TextureMT:ClearAllPoints()          _tex_clear_points(self.__id)                     end
   function TextureMT:SetAllPoints(rTo)         _tex_set_all_points(self.__id, _relTo(rTo))      end
+  -- Called from xml-importer / createframe generated code to register a
+  -- texture's parentKey in the registry so the layout solver can resolve
+  -- $parent.ChildKey anchor references across sibling textures in the same frame.
+  function TextureMT:__SetParentKey(key)       _tex_set_parent_key(self.__id, key)              end
   function TextureMT:GetObjectType()   return "Texture"                                         end
   function TextureMT:IsObjectType(t)   return t=="Texture" or t=="Region" or t=="LayeredRegion" end
   -- Stubs: visual effects not yet modelled
@@ -211,8 +221,8 @@ do
   function TextureMT:SetVertTile(v)                _tex_set_vert_tile(self.__id, v)                 end
   function TextureMT:SetTexelSnappingBias() end
   function TextureMT:SetSnapToPixelGrid()   end
-  function TextureMT:GetWidth()        return 0 end
-  function TextureMT:GetHeight()       return 0 end
+  function TextureMT:GetWidth()        return _tex_get_width(self.__id)  end
+  function TextureMT:GetHeight()       return _tex_get_height(self.__id) end
 
   -- ── FontString metatable ────────────────────────────────────────────────────
   local FontStringMT = {}
@@ -271,6 +281,7 @@ do
     return self:GetStringWidth()
   end
   function FontStringMT:GetHeight()       return 0   end
+  function FontStringMT:IsTruncated()    return false end
 
   -- ── Frame metatable ─────────────────────────────────────────────────────────
   local FrameMT = {}
@@ -740,6 +751,8 @@ do
   __scryer_tex_set_texcoord        = nil
   __scryer_tex_set_vertex_color    = nil
   __scryer_tex_set_color_texture   = nil
+  __scryer_tex_get_width           = nil
+  __scryer_tex_get_height          = nil
   __scryer_tex_set_horiz_tile      = nil
   __scryer_tex_set_vert_tile       = nil
   __scryer_tex_set_draw_layer      = nil

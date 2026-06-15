@@ -112,6 +112,8 @@ function generateTextureCode(
     const { left, right, top, bottom } = tex.texCoords;
     lines.push(`  ${v}:SetTexCoord(${left}, ${right}, ${top}, ${bottom})`);
   }
+  if (tex.horizTile) lines.push(`  ${v}:SetHorizTile(true)`);
+  if (tex.vertTile) lines.push(`  ${v}:SetVertTile(true)`);
   if (tex.hidden) lines.push(`  ${v}:Hide()`);
   if (tex.alpha !== undefined) lines.push(`  ${v}:SetAlpha(${tex.alpha})`);
   if (tex.size?.x !== undefined || tex.size?.y !== undefined)
@@ -120,9 +122,7 @@ function generateTextureCode(
   if (tex.maskFile) lines.push(`  ${v}:__SetMaskFile(${JSON.stringify(tex.maskFile)})`);
   if (tex.parentKey) {
     lines.push(`  ${parentVar}.${tex.parentKey} = ${v}`);
-    lines.push(
-      `  if __scryer_tex_set_parent_key then __scryer_tex_set_parent_key(${v}.__id, ${JSON.stringify(tex.parentKey)}) end`,
-    );
+    lines.push(`  ${v}:__SetParentKey(${JSON.stringify(tex.parentKey)})`);
   }
   if (tex.parentArray) {
     lines.push(`  ${parentVar}.${tex.parentArray} = ${parentVar}.${tex.parentArray} or {}`);

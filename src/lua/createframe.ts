@@ -4,6 +4,7 @@ import { FrameRegistry } from "./frame-registry.js";
 import type { TextureNode, FontStringNode, AnchorDef } from "./frame-model.js";
 import { resolveInheritance } from "../parser/inherit.js";
 import type { FrameIR, ScriptIR, TextureIR, FontStringIR, UiDocument } from "../parser/ir.js";
+import type { AtlasManifest } from "../assets/atlas-manifest.js";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -159,9 +160,7 @@ function generateTemplateBody(
         if (tex.maskFile) lines.push(`  ${v}:__SetMaskFile(${JSON.stringify(tex.maskFile)})`);
         if (tex.parentKey) {
           lines.push(`  ${selfVar}.${tex.parentKey} = ${v}`);
-          lines.push(
-            `  if __scryer_tex_set_parent_key then __scryer_tex_set_parent_key(${v}.__id, ${JSON.stringify(tex.parentKey)}) end`,
-          );
+          lines.push(`  ${v}:__SetParentKey(${JSON.stringify(tex.parentKey)})`);
         }
         if (tex.parentArray) {
           lines.push(`  ${selfVar}.${tex.parentArray} = ${selfVar}.${tex.parentArray} or {}`);
@@ -230,11 +229,30 @@ function generateTemplateBody(
  *
  * Must be called after registerWowApi().
  */
+function lookupAtlasSize(
+  name: string,
+  manifest: AtlasManifest,
+): { w: number; h: number } | undefined {
+  const origLower = name.toLowerCase();
+  const stripped = name.replace(/^[_!]+/, "");
+  const strippedLower = stripped.toLowerCase();
+  let entry =
+    manifest[name] ?? manifest[origLower] ?? manifest[stripped] ?? manifest[strippedLower];
+  let d = 1;
+  if (!entry) {
+    entry = manifest[origLower + "-2x"] ?? manifest[strippedLower + "-2x"];
+    if (entry) d = entry.logicalW > 0 ? entry.width / entry.logicalW : 2;
+  }
+  if (!entry) return undefined;
+  return { w: entry.width / d, h: entry.height / d };
+}
+
 export async function registerFrameModel(
   lua: LuaEngine,
   registry: FrameRegistry,
   blizzardTemplates?: Map<string, FrameIR>,
   blizzardTextureTemplates?: Map<string, TextureIR>,
+  atlasManifest?: AtlasManifest,
 ): Promise<void> {
   // ── UIParent / WorldFrame IDs ──────────────────────────────────────────────
   // Expose as globals so frame-class.lua can capture them as upvalues.
@@ -693,9 +711,21 @@ export async function registerFrameModel(
       if (!t) return;
       t.atlas = typeof atlas === "string" ? atlas : undefined;
       t.useAtlasSize = useAtlasSize === true;
+      if (t.useAtlasSize && t.atlas && atlasManifest) {
+        const sz = lookupAtlasSize(t.atlas, atlasManifest);
+        if (sz) t.size = { x: sz.w, y: sz.h };
+      }
       registry.markDirty();
     },
   );
+
+  lua.global.set("__scryer_tex_get_width", (id: unknown): number => {
+    return tex(id)?.size?.x ?? 0;
+  });
+
+  lua.global.set("__scryer_tex_get_height", (id: unknown): number => {
+    return tex(id)?.size?.y ?? 0;
+  });
 
   lua.global.set(
     "__scryer_tex_set_texcoord",
