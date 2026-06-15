@@ -687,6 +687,20 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     function UnitSex() return 2 end
     function GetLocale() return "${opts.locale ?? "enUS"}" end
 
+    -- C-layer locale constant used by LocalizationMachinery.lua at top level.
+    UI_LOCALE = "${opts.locale ?? "enUS"}"
+
+    -- C-layer gamepad binding registry — called ~80 times at SharedConstants.lua top level.
+    function SetGamepadBindingStrings() end
+
+    -- Key binding C-layer helpers used in top-level SharedConstants / other setup.
+    function SetBinding() end
+    function SetBindingItem() end
+    function SetBindingSpell() end
+    function SetBindingClick() end
+    function GetBinding() end
+    function GetBindingKey() end
+
     -- SlashCmdList is a C-layer-seeded global; addons append to it.
     if SlashCmdList == nil then SlashCmdList = {} end
 
@@ -714,6 +728,10 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     function GameTooltip_Hide()
       if GameTooltip then GameTooltip:Hide() end
     end
+
+    -- Kiosk is a C-layer global (show-floor kiosk mode). HelpTip.lua in SharedXML
+    -- calls Kiosk.IsEnabled() inside a method body, so the table must exist.
+    if Kiosk == nil then Kiosk = { IsEnabled = function() return false end } end
 
     -- BreakUpLargeNumbers inserts locale-style thousands separators.
     -- The generated stub returns "" which makes UI labels go blank.

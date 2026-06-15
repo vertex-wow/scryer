@@ -293,6 +293,10 @@ do
   function FontStringMT:GetPoint(n)    return nil end
   function FontStringMT:GetNumPoints() return 0 end
 
+  -- C-layer API: returns the FontString metatable so mixins (ShrinkUntilTruncate,
+  -- AutoScaling) can call base methods via GetFontStringMetatable().__index.SetText.
+  function GetFontStringMetatable() return FontStringMT end
+
   -- ── Frame metatable ─────────────────────────────────────────────────────────
   local FrameMT = {}
   FrameMT.__index = FrameMT
@@ -483,6 +487,18 @@ do
   function FrameMT:SetNormalFontObject() end
   function FrameMT:SetHighlightFontObject() end
   function FrameMT:SetDisabledFontObject() end
+  function FrameMT:GetRegions()       return end  -- vararg; {frame:GetRegions()} → {}
+  function FrameMT:GetNumRegions()    return 0 end
+  function FrameMT:IsProtected()      return false end
+  function FrameMT:GetOrderIndex()    return 0 end
+  function FrameMT:SetOrderIndex()    end
+  function FrameMT:GetFrameType()     return "Frame" end
+  function FrameMT:RaiseFrameLevel()  end
+  function FrameMT:LowerFrameLevel()  end
+  function FrameMT:SetIgnoreParentAlpha() end
+  function FrameMT:SetIgnoreParentScale() end
+  function FrameMT:SetClampedToScreen() end
+  function FrameMT:InCombatLockdown() return false end
 
   -- ── Button metatable (inherits FrameMT) ─────────────────────────────────────
   local ButtonMT = setmetatable({}, { __index = FrameMT })
