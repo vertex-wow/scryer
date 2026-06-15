@@ -683,6 +683,17 @@ export class AssetService {
   }
 
   /**
+   * Read raw bytes for an arbitrary CASC path from the asset server.
+   * Retail-only — returns null for Classic/ClassicEra or when the server is unavailable.
+   * Intended for reading game DB files (e.g. DB2) in-memory without writing to disk.
+   */
+  async readCascFile(path: string): Promise<Buffer | null> {
+    const cdnFallback =
+      vscode.workspace.getConfiguration("scryer").get<string>("cdnFallback") ?? "ask";
+    return readAssetBytes(path, this.makeCoreOpts(cdnFallback === "cdn"));
+  }
+
+  /**
    * Build the set of URI roots that the webview must be allowed to load from.
    * cacheRoot covers all flavor subtrees (source/ and derived/textures/).
    * installFlavorDir is the loose-file root for Classic installations.

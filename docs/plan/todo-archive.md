@@ -1289,6 +1289,26 @@ PathResolver::new(tvfs, hash_to_fdid, listfile)
 
 ---
 
+## DB2 file reading support {#db2-file-reading-support}
+
+**Completed:** 2026-06-15  
+**Milestone:** M15 CASC Asset Service
+
+### Problem
+
+The Rust server's `readFile` protocol method and `AssetClient.readFileBytes` could already read arbitrary CASC paths in-memory (added in "Direct byte streaming over stdio"). However, `AssetService` — the extension-host facade — had no public API to expose this capability to higher-level consumers (atlas generation, dev tools). Without a public entry point, code that needed to read game DB files (e.g. DB2 tables for atlas manifests) could not reach the server.
+
+### What was built
+
+- **`src/assets/index.ts`: `AssetService.readCascFile(path)`** — public async method that reads raw bytes for any CASC path from the asset server via `readAssetBytes`. Retail-only: returns `null` for Classic/ClassicEra or when the server is unavailable. Reads `scryer.cdnFallback` preference to decide whether CDN fallback is permitted.
+- **`test/unit/assets/extract-core.test.ts`** — 6 unit tests covering: non-retail short-circuit (classic + classic_era return null without starting a server), retail hit (returns buffer), retail miss (null), server error (null), and `cdnEnabled` forwarded from opts. Uses `vi.hoisted` + `vi.mock` to stub `AssetClient`.
+
+### Unblocked
+
+`AssetService.readCascFile("dbfilesclient/uitextureatlas.db2")` is now the intended entry point for the "Atlas manifest from DB2" follow-up task, replacing the planned `dev/extract.sh --type atlas` disk-extraction approach.
+
+---
+
 ## StatusBar fill texture rendering (deferred from M7) {#statusbar-fill-texture-rendering-deferred-from-m7}
 
 **Completed:** 2026-06-15

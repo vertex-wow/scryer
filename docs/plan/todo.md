@@ -79,19 +79,19 @@ See [measurements.md Q1b](../measurements.md#q1b-how-fast-can-we-pre-filter-list
 
 **Rough plan:**
 
-1. **Extract the DB2 files** — extend `dev/extract.sh --type atlas` (or the on-demand extractor) to pull `dbfilesclient/uitextureatlas.db2` and `dbfilesclient/uitextureatlasmember.db2` from CASC via rustydemon-cli, writing them to `<sourceDir>/dbfilesclient/`.
+1. **Read the DB2 files in-memory** — call `AssetService.readCascFile("dbfilesclient/uitextureatlas.db2")` and `readCascFile("dbfilesclient/uitextureatlasmember.db2")`. No disk extraction step needed: the asset server returns raw bytes directly. ~~rustydemon-cli~~ no longer involved.
 
-2. **Parse the DB2 binary format** — write a minimal WDC4 parser in `dev/parse-db2.mjs` (or inline in `gen-atlas.mjs`) covering only the two table schemas needed. The WDC4 format is documented; the field layouts for these two tables are fixed and small. Key reference: `_reference/wow.export/src/js/db/WDCReader.js`. The main complexity is bitpacked fields and the string table; both tables use simple non-packed integer and string fields so a hand-rolled subset parser is feasible without pulling in the full WDCReader infrastructure.
+2. **Parse the DB2 binary format** — write a minimal WDC4 parser in `src/assets/db2-parser.ts` (or inline in a new `gen-atlas-db2.ts`) covering only the two table schemas needed. The WDC4 format is documented; the field layouts for these two tables are fixed and small. Key reference: `_reference/wow.export/src/js/db/WDCReader.js`. The main complexity is bitpacked fields and the string table; both tables use simple non-packed integer and string fields so a hand-rolled subset parser is feasible without pulling in the full WDCReader infrastructure.
 
    Alternatively, use an npm DB2 parser such as `@wowserhq/db2` if one becomes available with a compatible license.
 
 3. **FileDataID → path join** — unchanged: still uses the community listfile (now at `<cacheRoot>/downloads/listfile.csv`) to resolve FileDataIDs to `Interface/...` paths.
 
-4. **Wire into `ensureAtlasManifest()`** — `AssetService.ensureAtlasManifest()` currently calls `shellGenAtlas` which spawns `gen-atlas.mjs`. After this change, `gen-atlas.mjs` falls back to the wago.tools download only when the DB2 files are absent (first run before any extraction), and prefers the local files when they exist.
+4. **Wire into `ensureAtlasManifest()`** — replace the `shellGenAtlas` spawn path (which calls `gen-atlas.mjs` → wago.tools) with an in-process DB2 parse call. Fall back to the wago.tools download only when `installDir` is not configured or `readCascFile` returns null.
 
-**Depends on:** Having a WoW install configured (`scryer.installDir`) so the DB2 files can be extracted. Falls back to wago.tools download if not.
+**Depends on:** `AssetService.readCascFile` (complete). Having a WoW install configured (`scryer.installDir`) so the server can reach CASC. Falls back to wago.tools download if not.
 
-**Effort:** M (WDC4 parser for two specific schemas: S; DB2 extraction plumbing + fallback logic: S; testing across retail/classic builds: S).
+**Effort:** M (WDC4 parser for two specific schemas: S; wire into ensureAtlasManifest + fallback logic: S; testing across retail/classic builds: S).
 
 ---
 

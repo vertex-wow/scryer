@@ -392,15 +392,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="todo-archive.md#eliminate-listfile-dependency-tvfs-root-direct">Eliminate listfile dependency (TVFS/root direct)</a>, <a href="todo-archive.md#cdn-client-startup-caching">CDN client startup caching</a>, <a href="todo-archive.md#disk-cached-lookup-tables">Disk-cached lookup tables</a>, <a href="todo-archive.md#listfile-lazy-load-tvfs-first">Listfile lazy-load with TVFS-first resolution</a>, <a href="todo-archive.md#direct-byte-streaming-over-stdio">Direct byte streaming over stdio</a></td>
-</tr>
-<tr>
-  <td>↳</td>
-  <td>DB2 file reading support</td>
-  <td>📋 Pending</td>
-  <td>Expose <code>readFile</code> method for arbitrary CASC paths; unblocks Atlas from DB2</td>
-  <td>S</td>
-  <td>—</td>
+  <td colspan="5">✅ <a href="todo-archive.md#eliminate-listfile-dependency-tvfs-root-direct">Eliminate listfile dependency (TVFS/root direct)</a>, <a href="todo-archive.md#cdn-client-startup-caching">CDN client startup caching</a>, <a href="todo-archive.md#disk-cached-lookup-tables">Disk-cached lookup tables</a>, <a href="todo-archive.md#listfile-lazy-load-tvfs-first">Listfile lazy-load with TVFS-first resolution</a>, <a href="todo-archive.md#direct-byte-streaming-over-stdio">Direct byte streaming over stdio</a>, <a href="todo-archive.md#db2-file-reading-support">DB2 file reading support</a></td>
 </tr>
 <tr>
   <td>↳</td>
