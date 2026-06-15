@@ -531,6 +531,10 @@ export interface WowApiOptions {
   flavor?: "retail" | "classic" | "classic_era";
   /** Receives output from Lua print() and DEFAULT_CHAT_FRAME:AddMessage(). */
   print?: (msg: string) => void;
+  /** Receives warnings for unimplemented C_* API calls. Deduplicated per sandbox. */
+  warn?: (msg: string) => void;
+  /** Receives debug messages for C_* API calls that hit a generated stub. Deduplicated per sandbox. */
+  debug?: (msg: string) => void;
   /** Returns true if the named addon is considered loaded. Defaults to always-true. */
   isAddonLoaded?: (name: string) => boolean;
   /** Returns TOC metadata for a loaded addon. Defaults to null. */
@@ -565,11 +569,30 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
   const { clock, print = console.log } = opts;
 
   // ── C_* namespace stubs ──────────────────────────────────────────────────
-  // Empty tables with __index returning a stub that explicitly returns nil,
-  // so any call to any C_Namespace.Fn() returns nil without raising an error.
+  // Warn (once per method) when addon code calls a C_* method that has no
+  // explicit stub. Known stubs (_nil/_tbl/etc.) are set directly on the
+  // namespace table by registerStubs and never trigger __index.
+  const warnedApis = new Set<string>();
+  const warnFn = opts.warn ?? ((msg) => console.warn(msg));
+  lua.global.set("__scryer_warn", (msg: string) => {
+    if (!warnedApis.has(msg)) {
+      warnedApis.add(msg);
+      warnFn(msg);
+    }
+  });
+
+  const debuggedApis = new Set<string>();
+  const debugFn = opts.debug ?? ((msg) => console.debug(msg));
+  lua.global.set("__scryer_debug", (msg: string) => {
+    if (!debuggedApis.has(msg)) {
+      debuggedApis.add(msg);
+      debugFn(msg);
+    }
+  });
+
   const namespaceLua = C_NAMESPACES.map(
     (ns) =>
-      `${ns} = setmetatable({}, { __index = function() return function() return nil end end })`,
+      `${ns} = setmetatable({}, { __index = function(_, k) if __scryer_warn then __scryer_warn("[API] ${ns}." .. tostring(k) .. " not implemented") end return function() return nil end end })`,
   ).join("\n");
   await lua.doString(namespaceLua);
 

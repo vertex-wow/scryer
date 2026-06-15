@@ -82,6 +82,10 @@ const WASM_PATH = path.join(PROJECT_ROOT, "node_modules/wasmoon/dist/glue.wasm")
 const API_DOC_GLOB = "interface/addons/blizzard_apidocumentationgenerated/**";
 const API_DOC_SUBPATH = path.join("interface", "addons", "blizzard_apidocumentationgenerated");
 
+// Bump when changing code generation format — invalidates all cached gen-hashes,
+// forcing a full stub regeneration on the next gen-api-stubs run.
+const STUB_FORMAT_V = "v2";
+
 const FLAVOR_SUBDIR: Record<string, string> = {
   classic: "_classic_",
   classic_era: "_classic_era_",
@@ -573,12 +577,12 @@ function generateStubContent(
     // C_* or other namespaced APIs — guard in case namespace wasn't pre-created
     luaLines.push(`if ${ns} == nil then ${ns} = {} end`);
     for (const fn of fns) {
-      luaLines.push(`${ns}.${fn.Name} = ${stubRef(fn, structs)}`);
+      luaLines.push(`${ns}.${fn.Name} = ${stubRef(fn, structs)}("${ns}.${fn.Name}")`);
     }
   } else {
     // Global functions — set directly
     for (const fn of fns) {
-      luaLines.push(`${fn.Name} = ${stubRef(fn, structs)}`);
+      luaLines.push(`${fn.Name} = ${stubRef(fn, structs)}("${fn.Name}")`);
     }
   }
 
@@ -694,13 +698,17 @@ function generateIndex(stubsRoot: string): string {
 
   // Build combined Lua strings per flavor
   lines.push("// Prelude defines _nil/_tbl/_num/_bool/_str helpers used by all stubs");
-  lines.push(
-    'const _pre = "local _nil = function() end\\n' +
-      "local _tbl = function() return {} end\\n" +
-      "local _num = function() return 0 end\\n" +
-      "local _bool = function() return false end\\n" +
-      "local _str = function() return '' end\\n\";",
-  );
+  // Each helper is a factory: _nil("NS.Fn") returns a closure that calls __scryer_debug
+  // (if registered) before returning the stub value. Deduplicated on the JS side.
+  const preludeLuaLines = [
+    "local function _nil(n) return function() if __scryer_debug then __scryer_debug('[STUB] '..n) end end end",
+    "local function _tbl(n) return function() if __scryer_debug then __scryer_debug('[STUB] '..n) end return {} end end",
+    "local function _num(n) return function() if __scryer_debug then __scryer_debug('[STUB] '..n) end return 0 end end",
+    "local function _bool(n) return function() if __scryer_debug then __scryer_debug('[STUB] '..n) end return false end end",
+    "local function _str(n) return function() if __scryer_debug then __scryer_debug('[STUB] '..n) end return '' end end",
+  ];
+  const escapedPre = preludeLuaLines.join("\\n") + "\\n";
+  lines.push(`const _pre = "${escapedPre}";`);
   lines.push("");
 
   const enumPrefix = hasEnum ? '_Enum + "\\n" + ' : "";
@@ -809,7 +817,11 @@ async function run(): Promise<void> {
 
   for (const [luaFile, modules] of fileModules) {
     const luaBytes = await fs.promises.readFile(path.join(srcDir, luaFile));
-    const genHash = crypto.createHash("sha256").update(luaBytes).digest("hex");
+    const genHash = crypto
+      .createHash("sha256")
+      .update(STUB_FORMAT_V + "|")
+      .update(luaBytes)
+      .digest("hex");
 
     for (const mod of modules) {
       const fns = toArr(mod.Functions).filter((f) => f.Name);

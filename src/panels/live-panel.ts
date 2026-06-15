@@ -579,6 +579,8 @@ export class ScryerLivePanel {
         flavor: flavor as "retail" | "classic" | "classic_era",
         locale,
         print: (msg) => this.output.info(`[Lua] ${msg}`),
+        warn: (msg) => this.output.warn(msg),
+        debug: (msg) => this.output.debug(msg),
         isAddonLoaded: () => true,
         getAddonMetadata: (name, key) => {
           if (
