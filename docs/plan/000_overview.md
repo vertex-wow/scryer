@@ -296,7 +296,7 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
-  <td colspan="5">✅ <a href="todo-archive.md#featuresmd--rendering-features-table-per-flavor">features.md — rendering features per flavor</a></td>
+  <td colspan="5">✅ <a href="todo-archive.md#featuresmd--rendering-features-table-per-flavor">features.md — rendering features per flavor</a>, <a href="todo-archive.md#m10-target-status-bar-item">Target status bar item</a>, <a href="todo-archive.md#m10-toc-interface-version-validation">TOC interface version validation</a>, <a href="todo-archive.md#m10-per-workspace-scryer-target-json">Per-workspace .scryer/target.json</a></td>
 </tr>
 </tbody>
 </table>

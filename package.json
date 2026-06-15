@@ -53,7 +53,7 @@
       },
       {
         "command": "scryer.selectFlavor",
-        "title": "Select Flavor",
+        "title": "Select WoW Target",
         "category": "Scryer"
       },
       {

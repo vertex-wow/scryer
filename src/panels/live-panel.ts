@@ -30,6 +30,7 @@ import { runTocAddon } from "../lua/toc-runner.js";
 import { registerWowApi, VirtualClock } from "../lua/wow-api.js";
 import type { FrameIR, TextureIR } from "../parser/ir.js";
 import { parseToc } from "../parser/toc.js";
+import { getEffectiveTarget } from "../target.js";
 import type { HostMessage, Viewport, WebviewMessage } from "../protocol.js";
 import { layoutAll } from "../webview/layout.js";
 
@@ -40,6 +41,15 @@ function stripWowColorCodes(s: string): string {
 
 const RENDER_DEBOUNCE_MS = 400;
 const EXTRACT_DEBOUNCE_MS = 300;
+
+// Interface version ranges per M10 target.  A TOC is considered compatible if
+// any of its ## Interface: values falls within the target's range.
+const TARGET_VERSION_RANGES: Record<string, readonly [number, number]> = {
+  mainline: [100000, 999999],
+  mists: [50000, 59999],
+  bcc: [20000, 29999],
+  classic_era: [10000, 19999],
+};
 
 // ---------------------------------------------------------------------------
 
@@ -250,6 +260,23 @@ export class ScryerLivePanel {
     } catch {
       // Non-fatal — panel title stays as filename
     }
+  }
+
+  private warnOnTargetMismatch(interfaceVersions: number[]): void {
+    if (interfaceVersions.length === 0) return;
+    const { flavor: target } = getEffectiveTarget();
+    const range = TARGET_VERSION_RANGES[target];
+    if (!range) return;
+    const [min, max] = range;
+    if (interfaceVersions.some((v) => v >= min && v <= max)) return;
+    void vscode.window
+      .showWarningMessage(
+        `Scryer: TOC interface ${interfaceVersions.join(", ")} doesn't match target "${target}" (expected ${min}–${max}).`,
+        "Switch Target",
+      )
+      .then((pick) => {
+        if (pick === "Switch Target") void vscode.commands.executeCommand("scryer.selectFlavor");
+      });
   }
 
   // ── Session lifecycle ────────────────────────────────────────────────────────
@@ -529,6 +556,7 @@ export class ScryerLivePanel {
       // Read the TOC file
       const tocContent = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf-8");
       const toc = parseToc(tocContent, uri.fsPath);
+      this.warnOnTargetMismatch(toc.interfaceVersions);
 
       // Build a fresh sandbox + registry
       const wasmPath = vscode.Uri.joinPath(this.context.extensionUri, "dist", "glue.wasm").fsPath;

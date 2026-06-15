@@ -1,7 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { FLAVOR_INFO, listInstalledFlavors } from "./assets/build-info.js";
+import { listInstalledFlavors } from "./assets/build-info.js";
+import { getEffectiveTarget, TARGET_FILE } from "./target.js";
 import { AssetService } from "./assets/index.js";
 import { isSvgConverterAvailable, pngToTga, resolveFlipTool, svgToPng } from "./assets/svg.js";
 import { ScryerLivePanel } from "./panels/live-panel.js";
@@ -100,10 +101,38 @@ export function activate(context: vscode.ExtensionContext): void {
   logAssetParams(assets);
   void Promise.resolve().then(() => maybeShowSetupNotice(assets));
 
+  // ── Target flavor status bar item (M10) ─────────────────────────────────
+  const targetStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 2);
+  targetStatusBar.command = "scryer.selectFlavor";
+  targetStatusBar.tooltip = "WoW version target — click to change";
+  context.subscriptions.push(targetStatusBar);
+  function updateTargetStatusBar(): void {
+    const { flavor, fromFile } = getEffectiveTarget();
+    targetStatusBar.text = `⚔ ${flavor}`;
+    targetStatusBar.tooltip = fromFile
+      ? `WoW target: ${flavor} (from ${TARGET_FILE}) — click to change`
+      : `WoW target: ${flavor} — click to change`;
+    targetStatusBar.show();
+  }
+  updateTargetStatusBar();
+
+  // Watch .scryer/target.json so the status bar refreshes without reloading VS Code.
+  const wsFolder = vscode.workspace.workspaceFolders?.[0];
+  if (wsFolder) {
+    const targetWatcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(wsFolder, TARGET_FILE),
+    );
+    targetWatcher.onDidCreate(updateTargetStatusBar);
+    targetWatcher.onDidChange(updateTargetStatusBar);
+    targetWatcher.onDidDelete(updateTargetStatusBar);
+    context.subscriptions.push(targetWatcher);
+  }
+
   // Re-create AssetService and re-run startup checks when relevant settings change.
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (
+        e.affectsConfiguration("scryer.defaultTarget") ||
         e.affectsConfiguration("scryer.flavor") ||
         e.affectsConfiguration("scryer.installDir") ||
         e.affectsConfiguration("scryer.cacheLocation") ||
@@ -116,27 +145,45 @@ export function activate(context: vscode.ExtensionContext): void {
         assets.checkBuildVersion();
         assets.detectAndLogFlavors();
         logAssetParams(assets);
+        updateTargetStatusBar();
       }
     }),
   );
 
+  const TARGET_CHOICES: Array<{ id: string; detail: string }> = [
+    { id: "mainline", detail: "Mainline (The War Within)" },
+    { id: "mists", detail: "Mists of Pandaria Classic" },
+    { id: "bcc", detail: "Burning Crusade Classic" },
+    { id: "classic_era", detail: "Classic Era" },
+  ];
+  const EXTRACTION_TO_TARGET: Record<string, string> = {
+    retail: "mainline",
+    classic: "mists",
+    classic_era: "classic_era",
+  };
   const selectFlavorCmd = vscode.commands.registerCommand("scryer.selectFlavor", async () => {
     const installDir = vscode.workspace.getConfiguration("scryer").get<string>("installDir") ?? "";
     const installed = installDir ? listInstalledFlavors(installDir) : [];
-    const items =
-      installed.length > 0
-        ? installed.map(({ flavor, version }) => ({ label: flavor, description: version }))
-        : Object.keys(FLAVOR_INFO).map((f) => ({ label: f, description: "" }));
-
-    const current = vscode.workspace.getConfiguration("scryer").get<string>("flavor") ?? "retail";
+    const installedVersions = new Map(
+      installed.map(({ flavor, version }) => [EXTRACTION_TO_TARGET[flavor] ?? flavor, version]),
+    );
+    const current =
+      vscode.workspace.getConfiguration("scryer").get<string>("defaultTarget") ?? "mainline";
+    const items = TARGET_CHOICES.map(({ id, detail }) => ({
+      label: id,
+      description: installedVersions.has(id)
+        ? `${detail}  —  ${installedVersions.get(id)}`
+        : detail,
+      picked: id === current,
+    }));
     const picked = await vscode.window.showQuickPick(items, {
-      title: "Scryer: Select WoW Flavor",
+      title: "Scryer: Select WoW Target",
       placeHolder: `Current: ${current}`,
     });
     if (picked) {
       await vscode.workspace
         .getConfiguration("scryer")
-        .update("flavor", picked.label, vscode.ConfigurationTarget.Workspace);
+        .update("defaultTarget", picked.label, vscode.ConfigurationTarget.Workspace);
     }
   });
   context.subscriptions.push(selectFlavorCmd);

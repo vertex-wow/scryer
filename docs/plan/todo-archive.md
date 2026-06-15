@@ -4,6 +4,45 @@ Completed items moved from [todo.md](todo.md). Historical record of what was bui
 
 ---
 
+## M10 — Per-workspace .scryer/target.json {#m10-per-workspace-scryer-target-json}
+
+**Completed: 2026-06-15**
+
+**What was built:**
+
+- Added `src/target.ts` with `WorkspaceTarget` interface, `readWorkspaceTarget()` (reads `.scryer/target.json` from the first workspace folder), and `getEffectiveTarget()` (returns active flavor + source flag — file or setting).
+- `getEffectiveTarget()` priority: `.scryer/target.json` > `scryer.defaultTarget` setting > `"mainline"`.
+- `extension.ts` now calls `getEffectiveTarget()` in `updateTargetStatusBar()` — the status bar tooltip distinguishes file-sourced targets (`from .scryer/target.json`) from setting-sourced ones.
+- A `vscode.workspace.createFileSystemWatcher` on `.scryer/target.json` in the workspace root refreshes the status bar live when the file is created, changed, or deleted.
+- `live-panel.ts` `warnOnTargetMismatch()` now calls `getEffectiveTarget()` so it validates against the file-sourced flavor when present.
+
+---
+
+## M10 — TOC interface version validation {#m10-toc-interface-version-validation}
+
+**Completed: 2026-06-15**
+
+**What was built:**
+
+- Added `TARGET_VERSION_RANGES` constant to `src/panels/live-panel.ts` mapping each `scryer.defaultTarget` value (`mainline`/`mists`/`bcc`/`classic_era`) to its expected `## Interface:` numeric range.
+- Added `warnOnTargetMismatch(interfaceVersions)` private method to `ScryerLivePanel`. Called after `parseToc` in `runAndRender`. If the TOC declares no interface versions that fall within the active target's range, shows a VS Code warning notification with a "Switch Target" button that runs `scryer.selectFlavor`.
+- Non-blocking: the warning fires as a `void` promise; the sandbox continues loading.
+
+---
+
+## M10 — Target status bar item {#m10-target-status-bar-item}
+
+**Completed: 2026-06-15**
+
+**What was built:**
+
+- Added a persistent status bar item (right-side, priority 2) to `src/extension.ts` showing the current `scryer.defaultTarget` value (e.g. `⚔ mainline`). Clicking it opens a quick-pick to select a new target.
+- Updated `scryer.selectFlavor` command (renamed title → "Select WoW Target") to read/write `scryer.defaultTarget` instead of `scryer.flavor`. The picker now shows all four ketho-named targets (`mainline`, `mists`, `bcc`, `classic_era`) with user-friendly detail labels and annotates which ones have an installed WoW client (from `.build.info`).
+- Config change handler now also reacts to `scryer.defaultTarget` and calls `updateTargetStatusBar()` to keep the status bar in sync.
+- Removed the now-unused `FLAVOR_INFO` import from `extension.ts`.
+
+---
+
 ## Fix resolution dropdown picker {#fix-resolution-dropdown-picker}
 
 **Completed: 2026-06-13**
