@@ -157,18 +157,21 @@ test("DialogBorderTemplateAddon — top-row NineSlice seam alignment", async ({ 
 //   REVERTING causes the right-side V-seam stripe columns to misalign.
 //
 // ─────────────────────────────────────────────────────────────────────────
-// Known observation — outer 1px atlas border (not tested, just documented)
+// Known observation — outer black border is sub-pixel at default scale
 // ─────────────────────────────────────────────────────────────────────────
 //
-//   Pieces with crop.x = 0.25 or crop.y = 0.25 (all four corners, LeftEdge,
-//   EdgeBottom) have their atlas origin at physical col/row 1. Exact bgPos
-//   −0.25 shows atlas content from physical col/row 1 onward. In true-color
-//   WoW textures the atlas sheet has a 1px black outer border at physical
-//   col/row 0 (atlas padding that bleeds outside the sprite UV bounds), so
-//   that pixel is no longer rendered. Old Math.round(−0.25) = 0 accidentally
-//   showed it. This is only observable with real WoW atlas textures — the
-//   flat-color test fixture has no atlas-padding border. The stripe-alignment
-//   benefit across all 8 seams is accepted over losing this 1px outer border.
+//   Physical col/row 0 of the DiamondMetal atlas is TRANSPARENT in both the
+//   fixture and real CASC textures — there is no border content there. The
+//   outer black border lives at physical row ~155 for vertical-axis pieces
+//   (24 physical rows = 6 logical units inside the crop, not at the crop
+//   boundary). bgPos is correct; no renderer fix is needed.
+//
+//   At default uiScale=1.40625 and div=4, 1 physical row = 0.352 CSS px
+//   (sub-pixel). With nearest-neighbor sampling the single black row often
+//   falls between sampled positions and is invisible. Making the surrounding
+//   anti-aliased approach rows (~144–154) fully opaque ensures nearest-
+//   neighbor catches several of them, producing ~4 visible CSS px of border.
+//   This is a texture/DPR visibility concern, not a renderer bug.
 // ─────────────────────────────────────────────────────────────────────────
 // ---------------------------------------------------------------------------
 

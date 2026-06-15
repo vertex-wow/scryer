@@ -188,21 +188,25 @@ and bot-left-V seams.
 
 ---
 
-## Observation — outer 1px atlas border no longer shown after Fix 7
+## Observation — outer black border is sub-pixel at default scale (not a renderer bug)
 
-Pieces with `crop.x = 0.25` or `crop.y = 0.25` (corners, LeftEdge, EdgeBottom) have their
-atlas origin at physical col/row 1. With exact fractional bgPos (`−0.25 CSS px`), the browser
-renders atlas content from physical col/row 1 onward.
+Investigation against the real CASC DiamondMetal texture confirmed:
 
-In **true-color WoW textures** the atlas sheet has a 1px black outer border at physical
-col/row 0. This is atlas padding that exists outside the sprite's declared UV bounds —
-WoW's GPU renderer at native DPR does not show it. Old `Math.round(−0.25) = 0` accidentally
-displayed this border; exact `−0.25` does not.
+- Physical col/row 0 of the atlas sheet is **transparent** for all pieces (corners, LeftEdge,
+  EdgeTop, EdgeBottom, RightEdge). There is no meaningful black border at the atlas crop
+  boundary. The `−0.25 CSS px` fractional bgPos for pieces with `crop.x/y = 0.25` correctly
+  clips only this transparent padding — no content is lost.
+- The outer black border lives at **physical row 155** for vertical-axis pieces (EdgeTop etc.),
+  24 physical rows = 6 logical units inside the element from its CSS top. Bordered by an
+  anti-aliased approach at rows 144–154 (alpha 2–128 in the real CASC texture).
+- At default uiScale = 1080/768 = 1.40625 and div = 4, one physical row = 0.352 CSS px
+  (sub-pixel). With nearest-neighbor sampling (`image-rendering: pixelated`) the single
+  black row at y=155 often falls between sampled positions and is invisible.
 
-This affects only the diagonal-stripe border pattern (pieces at atlas col/row 1). The flat-color
-fixture used by the automated tests has no atlas-padding pixel and is not affected.
+**bgPos is correct.** Fix 7 (removing `Math.round`) did not cause the outer border to
+disappear — there was never meaningful content at physical col/row 0.
 
-**Not fixed.** Fixing it would require special-casing pieces whose fractional crop offset
-rounds toward the atlas sheet edge, and would reintroduce the stripe phase mismatch. The
-outer border is a minor cosmetic loss in true-color textures; the seam alignment improvement
-is more visible and correctness-critical.
+**Visibility fix (no renderer change needed).** Making the anti-aliased approach rows
+(144–154) fully opaque in the real CASC textures ensures nearest-neighbor sampling picks up
+rows 145, 148, 151, 154 as solid black, producing ~4 visible CSS pixels of outer border.
+This fix lives in the texture, not the renderer.
