@@ -733,6 +733,26 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
     -- calls Kiosk.IsEnabled() inside a method body, so the table must exist.
     if Kiosk == nil then Kiosk = { IsEnabled = function() return false end } end
 
+    -- C_XMLUtil.GetTemplateInfo is called by UIPanelButtonHeightScaledMixin:OnLoad to
+    -- compute a scale ratio (self:GetHeight() / templateInfo.height). The auto-generated
+    -- stub returns {} which makes height nil and crashes at division. Return a table with
+    -- non-zero defaults so the ratio computes to ~1.0 for standard button sizes.
+    if C_XMLUtil then
+      C_XMLUtil.GetTemplateInfo = function() return { height = 22, width = 40 } end
+    end
+
+    -- Audio is not available in a static preview.
+    function PlaySound() end
+    function PlaySoundFile() end
+    function StopSound() end
+    function MuteSoundFile() end
+    function UnmuteSoundFile() end
+
+    -- Group membership — no group context in preview.
+    function IsInGroup()          return false end
+    function IsInRaid()           return false end
+    function IsInActiveWorldPVP() return false end
+
     -- BreakUpLargeNumbers inserts locale-style thousands separators.
     -- The generated stub returns "" which makes UI labels go blank.
     function BreakUpLargeNumbers(n)
