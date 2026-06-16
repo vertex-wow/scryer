@@ -1388,3 +1388,19 @@ This made the rock.blp outlier (DXT1, 1024×1024, 513 KB compressed) a ~4 s sync
 | vertex-icon.blp (256×256 DXT1) | 154.0       | 3.1               | **49×** |
 
 Extrapolated for rock.blp (1024×1024 DXT1, ~4 000 ms → ~80 ms): the outlier that forced lazy preload now fits comfortably in eager. See [measurements.md Q5c](../measurements.md#q5c-typed-array-decoder).
+
+---
+
+## CASC-direct Rust BLP decode {#casc-direct-rust-blp-decode}
+
+**Status: ❌ Cancelled — benchmarked, JS wins at every encoding type and size**
+
+**Finding (2026-06-16):** Q5d benchmarked three paths: JS typed-array in-process, Data-IPC (BLP bytes sent to Rust over pipe), and CASC-IPC (only RGBA returned — the architecture this item proposed). JS wins all three. CASC-IPC is 1.9–27× slower than JS depending on texture encoding. There is no crossover point.
+
+The fundamental constraint: any IPC path must move `4 × width × height` RGBA bytes across a pipe. For a 1024×1024 texture that is 4 MB; at pipe+base64 overhead this costs 15–25 ms before Rust does any work. The JS typed-array decoder handles the same texture in 7–28 ms in-process.
+
+The original estimate ("~20–30 ms CASC-IPC vs ~80 ms JS for rock.blp cold path") was made before the CASC-IPC column of the Q5d table was filled in. Actual CASC-IPC measurements for comparable textures show JS still wins by 2–12× on DXT and 12–27× on rawBGRA.
+
+The full Rust BLP implementation (`blp_decode.rs`, `DecodeBlp`/`ReadAndDecodeBlp` server methods, client wrappers, `bench-rust-blp-decoder.ts`) was committed at `e328d60` as a reference, then fully reverted at `c076818`. Nothing remains in the codebase.
+
+**See:** [measurements.md Q5d](../measurements.md#q5d-rust-blp-via-ipc) for the full benchmark data and analysis.
