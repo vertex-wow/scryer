@@ -408,12 +408,14 @@ function renderFrame(
  * Render a list of resolved FrameIRs into a container div sized to the viewport.
  * All layout is computed here (no DOM measurements needed for M2).
  * Pass onFrameEvent to receive click/enter/leave events from interactive frames.
+ * Set respectTopLevelHidden to honor the hidden flag on root-level frames (live update mode).
  */
 export function renderFrames(
   frames: FrameIR[],
   viewport: Viewport,
   config: ResolvedFlavorConfig,
   onFrameEvent?: FrameEventCallback,
+  opts?: { respectTopLevelHidden?: boolean },
 ): HTMLElement {
   const container = document.createElement("div");
   container.id = "wow-viewport";
@@ -451,10 +453,20 @@ export function renderFrames(
     maxIterations: config.layoutMaxIterations,
   });
 
+  const isTopLevelVisible = !opts?.respectTopLevelHidden;
   for (const frame of renderable) {
     const rect = rectMap.get(frame) ?? viewportRect;
     logicalParent.appendChild(
-      renderFrame(frame, rect, viewportRect, rectMap, viewportRect, config, onFrameEvent, true),
+      renderFrame(
+        frame,
+        rect,
+        viewportRect,
+        rectMap,
+        viewportRect,
+        config,
+        onFrameEvent,
+        isTopLevelVisible,
+      ),
     );
   }
 

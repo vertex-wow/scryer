@@ -1202,6 +1202,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
               extra,
             });
           },
+          { respectTopLevelHidden: (msg as { liveUpdate?: boolean }).liveUpdate ?? false },
         );
         viewport!.appendChild(root);
         currentWowViewport = document.getElementById("wow-viewport");

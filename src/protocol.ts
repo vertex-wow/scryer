@@ -47,6 +47,8 @@ export type HostMessage =
       customBackgroundUri?: string;
       customBackgroundIsFolder?: boolean;
       toolbarState: ToolbarState;
+      /** When true, the renderer respects hidden state on top-level frames (live Lua updates). */
+      liveUpdate?: boolean;
     }
   | { type: "assetResolved"; path: string; uri: string }
   | { type: "assetFailed"; path: string }

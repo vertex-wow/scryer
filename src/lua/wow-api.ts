@@ -732,7 +732,7 @@ export async function registerWowApi(lua: LuaEngine, opts: WowApiOptions): Promi
 
     -- UI panel management — panel tracking not meaningful in a static preview.
     function ShowUIPanel() end
-    function HideUIPanel() end
+    function HideUIPanel(frame) if frame then frame:Hide() end end
     function CloseWindows() end
 
     -- Static popup dialogs — no popup UI exists in preview.

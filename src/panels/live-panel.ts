@@ -322,6 +322,9 @@ export class ScryerLivePanel {
         break;
 
       case "frameEvent": {
+        this.output.debug(
+          `[Live] frameEvent: ${msg.event} on frameId=${msg.frameId}${!this.session ? " (NO SESSION)" : ""}`,
+        );
         if (!this.session) break;
         await this.session.engine.dispatchFrameEvent(msg.frameId, msg.event, msg.extra ?? []);
         break;
@@ -462,13 +465,14 @@ export class ScryerLivePanel {
     };
 
     const msg: HostMessage = {
-      type: "render",
+      type: "reload",
       frames,
       viewport,
       warnings: 0,
       extractionPending: false,
       pendingFiles: 0,
       flavorConfig,
+      liveUpdate: true,
       toolbarState: {
         flavor: this.toolbar.getSetting<string>("flavor") ?? "retail",
         locale: this.toolbar.getSetting<string>("locale") ?? "enUS",
@@ -483,6 +487,10 @@ export class ScryerLivePanel {
       customBackgroundUri: this.customBackgroundUri,
       customBackgroundIsFolder: this.customBackgroundIsFolder,
     };
+    this.output.debug(
+      `[Live] sendFrames: ${frames.length} root frame(s) — ` +
+        frames.map((f) => `${f.name ?? "(anon)"}(hidden=${f.hidden ?? false})`).join(", "),
+    );
     void this.panel.webview.postMessage(msg);
 
     for (const rawPath of collectTexturePaths(frames)) {
