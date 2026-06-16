@@ -4,6 +4,25 @@ Completed items moved from [todo.md](todo.md). Historical record of what was bui
 
 ---
 
+## TGA texture decode (deferred from M3) {#tga-texture-decode-deferred-from-m3}
+
+**Completed: 2026-06-16**
+
+**What was built:** Pure in-house JS TGA decoder (`src/assets/tga-decode.ts`) covering image type 2 (uncompressed) and type 10 (RLE), 24 bpp (BGR) and 32 bpp (BGRA), with correct origin-bit handling (bit 5 of byte 17: 0 = bottom-to-top, flip applied; 1 = top-to-bottom, no flip). `src/assets/tga.ts` wraps it with `pngjs` into `tgaToPng` / `tgaToPngBuffer`, matching the BLP file module pattern. `src/assets/index.ts` now decodes and caches TGA files instead of warning and returning null. No npm dependency added.
+
+**Benchmark** (`dev/bench-tga-decoder.ts`, best-of-11, Ryzen 5 3600X, WSL2):
+
+| Fixture                        | t_decode | t_encode | total    |
+| ------------------------------ | -------- | -------- | -------- |
+| 64×64 24bpp uncompressed       | 0.03 ms  | 0.42 ms  | 0.45 ms  |
+| 256×256 24bpp uncompressed     | 0.33 ms  | 3.85 ms  | 4.17 ms  |
+| 256×512 32bpp RLE (worst-case) | 0.74 ms  | 8.18 ms  | 8.92 ms  |
+| 512×512 24bpp uncompressed     | 1.36 ms  | 15.68 ms | 17.60 ms |
+
+TGA decode is fast (< 2 ms for 512×512). PNG encode dominates, same as BLP. All 37 addon-bundled TGAs in the sample workspace fit the eager-preload tier. Full analysis in `docs/measurements.md` Q8.
+
+---
+
 ## M3 — Direct proprietary texture serving in the webview (BLP/TGA decode bypass) {#direct-proprietary-texture-serving-in-the-webview-blptga-decode-bypass}
 
 **Completed: 2026-06-16 (research only)**

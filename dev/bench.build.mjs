@@ -43,4 +43,9 @@ await Promise.all([
     entryPoints: ["dev/scan-corpus.ts"],
     outfile: "dist/scan-corpus.js",
   }),
+  esbuild.build({
+    ...shared,
+    entryPoints: ["dev/bench-tga-decoder.ts"],
+    outfile: "dist/bench-tga.js",
+  }),
 ]);

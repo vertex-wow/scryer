@@ -6,22 +6,6 @@ Completed items are in [todo-archive.md](todo-archive.md).
 
 ---
 
-## TGA texture decode (deferred from M3)
-
-**Problem:** TGA (Targa) textures are used by many addon-bundled images. M3 logs a warning and shows a labeled placeholder for `.tga` files; it does not decode them.
-
-**Plan:**
-
-1. Pick a pure-JS TGA decoder (e.g. `tga-js` on npm, or a small custom reader — the format is simple: uncompressed or RLE-compressed, fixed header).
-2. Decode TGA → RGBA buffer, then encode to PNG via `pngjs` (same pipeline as BLP).
-3. **Critical:** respect the TGA image-origin descriptor byte (bit 5 of byte 17). If set, the image data is top-to-bottom; if clear, it is bottom-to-top. `dev/assets.sh` stores TGAs with the flip applied and the bit set correctly — the decoder must read it to avoid upside-down textures.
-4. Cache in `<cacheRoot>/derived/textures/` using the same SHA1 key scheme as BLP.
-5. Add tests against a small known-good TGA fixture (bottom-to-top + top-to-bottom variants).
-
-**Effort:** S — ~2–4 hours once a TGA library is selected.
-
----
-
 ## Listfile fast index (in-process / post-rustydemon era)
 
 **Status: 📋 Pending**

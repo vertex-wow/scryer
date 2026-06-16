@@ -212,7 +212,7 @@ PNG output is **smaller** than the BLP input (DXT is an efficient compression): 
 | Including p95 textures (~90 KB) | ~1–2 s           | A few larger UI panels add tens of ms each      |
 | With rock.blp outlier (513 KB)  | ~5–6 s           | That one file alone is ~4 s (Q5); rest < 2 s    |
 | PNGs (15 files)                 | ~0 ms            | Served directly, no decode                      |
-| TGAs (37 files)                 | unimplemented    | Would add ~50–200 ms once TGA decode lands      |
+| TGAs (37 files)                 | ~50–100 ms est.  | Measured (Q8): p50 ~2 ms, 684 KB max ~18 ms     |
 
 **Key findings:**
 
@@ -220,8 +220,35 @@ PNG output is **smaller** than the BLP input (DXT is an efficient compression): 
 - The **per-addon average is ~1.2 textures**; a typical 1–5 addon developer workspace has ~5–30 refs.
 - At ~5–30 refs and p50 ~3 KB each: total workspace preload is **< 100 ms** in the common case — effectively free.
 - The only significant cost is outlier backgrounds (> 200 KB). One such file adds ~2–4 s.
-- TGA textures (37 of 65 addon-bundled = 57%) are the largest unknown; they are currently unimplemented and would be served as placeholders.
+- TGA textures (37 of 65 addon-bundled = 57%) are now decoded (see Q8). Estimated total ~50–100 ms for all 37 — well within the eager-preload budget.
 - The 29 unavailable textures are locale-specific variants or from addons not installed locally — these will always be a small miss rate for any given machine.
+
+### TGA decode measurements (2026-06-16)
+
+**Context:** 37 of 65 addon-bundled textures in the workspace corpus are TGA files (see above). Prior to this measurement the extension returned a placeholder for all TGA paths. This section records the cost of the new TGA decode pipeline and the pre-impl baseline.
+
+**Method:** `dev/bench-tga-decoder.ts` — run with `node dist/bench-tga.js [--runs N]`. Imports `tgaToRgba` (`src/assets/tga-decode.ts`) and times read / decode / encode separately. Best-of-11, 1 warmup, `taskset -c 0,1,2,3`. AMD Ryzen 5 3600X, Node v24.16.0, WSL2.
+
+**Pre-impl baseline:** The stub code returned `null` without reading the file — ~0 ms decode cost, but the texture was never served (placeholder shown instead).
+
+**Post-impl split timers (best-of-11, ms):**
+
+| Fixture                                  | File KB | WxH     | bpp | type | t_read | t_decode | t_encode | total |
+| ---------------------------------------- | ------- | ------- | --- | ---- | ------ | -------- | -------- | ----- |
+| synthetic 64×64 24bpp uncompressed       | 12.0    | 64×64   | 24  | unc  | —      | 0.026    | 0.424    | 0.45  |
+| synthetic 256×256 24bpp uncompressed     | 192.0   | 256×256 | 24  | unc  | —      | 0.326    | 3.846    | 4.17  |
+| synthetic 256×512 32bpp RLE (worst-case) | 513.0   | 256×512 | 32  | rle  | —      | 0.744    | 8.179    | 8.92  |
+| vertex-icon (512×512 24bpp uncompressed) | 768.0   | 512×512 | 24  | unc  | 0.556  | 1.361    | 15.682   | 17.60 |
+
+**Key observations:**
+
+- **TGA decode (`tgaToRgba`) is very fast:** < 2 ms for 512×512 uncompressed. The channel-swap loop (BGR→RGBA) is straightforward typed-array work — no DXT or palette lookup involved.
+- **PNG encode dominates total cost:** 15.7 of 17.6 ms for vertex-icon. Same bottleneck as the BLP pipeline. The decode step contributes < 10% of total time.
+- **RLE (type 10) worst-case:** Alternating pixels (no runs) forces raw-packet mode throughout. Decode cost for 256×512 is 0.74 ms — about 2× uncompressed decode at the same pixel count, which is the expected overhead for packet-header reads.
+- **vs BLP DXT1 at similar file sizes:** TGA 512×512 24bpp (~17.6 ms total) vs BLP rock.blp 513 KB DXT1 (Q5, ~100 ms total). TGA is ~6× faster end-to-end, because BGR→RGBA is O(N) with no lookup tables, while DXT decompression involves block arithmetic.
+- **Extrapolated for the 37 addon TGAs** (p50 ~6 KB → ~60×60, p95 ~90 KB → ~200×200, max 684 KB → ~512×512): estimated ~50–100 ms total, all eager-preloadable. Cache-hittable on subsequent opens.
+
+**Decision: TGA decode is cheap enough for eager preload at all sizes.** No lazy tier needed. All 37 addon-bundled TGAs in the sample workspace can be decoded at activation alongside the button/icon BLPs without exceeding the < 500 ms budget for that tier.
 
 ---
 

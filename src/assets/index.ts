@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { blpToPng } from "./blp.js";
+import { tgaToPng } from "./tga.js";
 import { cacheKey, getCachedPath, writeCached } from "./cache.js";
 import {
   extractBlizzardShared,
@@ -260,10 +261,16 @@ export class AssetService {
     }
 
     if (found.kind === "tga") {
-      this.opts.output.warn(
-        `TGA not yet supported: ${rawPath} — pre-convert to PNG with an image editor or extraction tool.`,
-      );
-      return null;
+      const key = cacheKey(found.absPath);
+      const cached = getCachedPath(this.opts.texturesConvDir, key);
+      if (cached) return cached;
+      try {
+        const pngBytes = tgaToPng(found.absPath);
+        return writeCached(this.opts.texturesConvDir, key, pngBytes);
+      } catch (err) {
+        this.opts.output.warn(`TGA decode failed for ${rawPath}: ${String(err)}`);
+        return null;
+      }
     }
 
     // BLP — decode and cache
