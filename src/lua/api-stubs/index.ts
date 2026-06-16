@@ -386,7 +386,7 @@ import { _ZoneScript as _r_ZoneScript } from "./retail/_ZoneScript.js";
 
 // Prelude defines _nil/_tbl/_num/_bool/_str helpers used by all stubs
 const _pre =
-  "local _nil = function() end\nlocal _tbl = function() return {} end\nlocal _num = function() return 0 end\nlocal _bool = function() return false end\nlocal _str = function() return '' end\n";
+  "local function _nil(n) return function() if __scryer_debug then __scryer_debug('[STUB] '..n) end end end\nlocal function _tbl(n) return function() if __scryer_debug then __scryer_debug('[STUB] '..n) end return {} end end\nlocal function _num(n) return function() if __scryer_debug then __scryer_debug('[STUB] '..n) end return 0 end end\nlocal function _bool(n) return function() if __scryer_debug then __scryer_debug('[STUB] '..n) end return false end end\nlocal function _str(n) return function() if __scryer_debug then __scryer_debug('[STUB] '..n) end return '' end end\n";
 
 const _retailLua =
   _pre +

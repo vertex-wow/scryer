@@ -262,6 +262,7 @@ async function extractApiDocs(): Promise<string> {
       assetServerPath,
       assetServerIdleTimeout,
       listfileDir,
+      cdnEnabled: true,
       log: (_level, msg) => console.log(msg),
     };
     console.log(`Extracting Blizzard_APIDocumentationGenerated (retail) → ${tempDir}`);
