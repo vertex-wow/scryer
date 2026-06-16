@@ -1,22 +1,35 @@
 import * as fs from "fs";
 import BLPFile from "js-blp";
 import { PNG } from "pngjs";
+import { blpToRgba } from "./blp-decode";
 
 const BLP2_MAGIC = 0x32504c42; // 'BLP2' LE
 const BLP_HEADER_SIZE = 148; // 4+4+1+1+1+1+4+4+64+64
+
+function encodeRgbaToPng(rgba: Buffer, width: number, height: number): Buffer {
+  const png = new PNG({ width, height });
+  png.data = rgba;
+  return PNG.sync.write(png);
+}
+
+function decodeBlp(buf: Buffer): { rgba: Buffer; width: number; height: number } {
+  try {
+    return blpToRgba(buf);
+  } catch {
+    // Fallback to js-blp for encoding=1 (palette) and any other unsupported variant
+    const blp = new BLPFile(buf);
+    const pixels = blp.getPixels(0);
+    return { rgba: pixels.raw as Buffer, width: blp.width, height: blp.height };
+  }
+}
 
 /**
  * Decode BLP bytes to a PNG-encoded Buffer.
  * Throws if the bytes are not a valid BLP or the variant is unsupported.
  */
 export function blpToPngBuffer(buf: Buffer): Buffer {
-  const blp = new BLPFile(buf);
-  const pixels = blp.getPixels(0);
-  const rgba = pixels.raw;
-
-  const png = new PNG({ width: blp.width, height: blp.height });
-  png.data = rgba;
-  return PNG.sync.write(png);
+  const { rgba, width, height } = decodeBlp(buf);
+  return encodeRgbaToPng(rgba, width, height);
 }
 
 /**
@@ -24,14 +37,9 @@ export function blpToPngBuffer(buf: Buffer): Buffer {
  * Throws if the file is not a valid BLP or the variant is unsupported.
  */
 export function blpToPng(absPath: string): Buffer {
-  const raw = fs.readFileSync(absPath);
-  const blp = new BLPFile(raw);
-  const pixels = blp.getPixels(0);
-  const rgba = pixels.raw; // Buffer: width * height * 4 RGBA bytes
-
-  const png = new PNG({ width: blp.width, height: blp.height });
-  png.data = rgba;
-  return PNG.sync.write(png);
+  const buf = fs.readFileSync(absPath);
+  const { rgba, width, height } = decodeBlp(buf);
+  return encodeRgbaToPng(rgba, width, height);
 }
 
 /**

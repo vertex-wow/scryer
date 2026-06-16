@@ -4,6 +4,30 @@ Completed items moved from [todo.md](todo.md). Historical record of what was bui
 
 ---
 
+## M3 — Direct proprietary texture serving in the webview (BLP/TGA decode bypass) {#direct-proprietary-texture-serving-in-the-webview-blptga-decode-bypass}
+
+**Completed: 2026-06-16 (research only)**
+
+**What was investigated:**
+
+The question was whether BLP/TGA textures could be served to the webview more directly, bypassing or deferring `PNG.sync.write()` (~4 s for a 1024×1024 DXT texture).
+
+Four approaches were evaluated:
+
+1. **Raw RGBA transfer via message** — decode BLP to raw RGBA in the extension host; post as `Uint8Array` to the webview; reconstruct via `new ImageData(...)` and blit to `<canvas>`. Eliminates `PNG.sync.write` entirely. **Blocked:** requires switching from the DOM `<img>` renderer to a canvas-based renderer — a milestone-level change.
+
+2. **Uncompressed PNG (`deflateLevel: 0`)** — eliminate zlib overhead; resulting file is ~4 MB vs ~0.5–1 MB compressed. Inferior: browser load of 4 MB uncompressed PNG is slower than browser decode of a compressed one; doesn't help cache-hit path. Worse than option 1 at every point.
+
+3. **WASM BLP decoder in webview** — bundle a WASM BLP decoder; send raw `.blp` bytes; decode client-side. CSP-feasible: `'wasm-unsafe-eval'` in `script-src` is sufficient in VSCode webviews (Electron/Chromium supports it). But this moves the ~50–200 ms BLP decode, not the 4 s PNG encode — wrong bottleneck.
+
+4. **WebGL DXT upload** — upload DXT1/DXT3/DXT5 blocks directly as `COMPRESSED_RGBA_S3TC_*` textures, skipping decode entirely. Zero CPU cost but requires a full WebGL renderer. Stretch-goal territory.
+
+**Decision:** Don't restructure the pipeline now. The root cause is pngjs's pure-JS zlib encoder, not PNG as a format or the pipeline topology. The minimum-effort fix is to replace the encoder: `fast-png` (pure-JS, no native deps) encodes 10–20× faster and requires a single-file change. See [Replace pngjs encoder with fast-png](todo.md#replace-pngjs-encoder-with-fast-png).
+
+The raw RGBA / canvas path (approach 1) and WebGL DXT path (approach 4) remain valid long-term options once a Canvas renderer milestone is undertaken.
+
+---
+
 ## M10 — Per-workspace .scryer/target.json {#m10-per-workspace-scryer-target-json}
 
 **Completed: 2026-06-15**
@@ -1325,3 +1349,42 @@ The Rust server's `readFile` protocol method and `AssetClient.readFileBytes` cou
 ### Approach note
 
 Fill is serialized as a CSS percentage at render time (post-layout), not as a synthesised texture node. This avoids requiring a concrete pixel width at serialization time and allows the fill to adapt to any frame size without an extra pass.
+
+---
+
+## Fast typed-array BLP decoder (M3 optimization) {#fast-typed-array-blp-decoder}
+
+**Completed:** 2026-06-16
+**Milestone:** M3 Asset Pipeline
+
+### Problem
+
+`js-blp`'s `BLPFile.getPixels()` accumulates decoded pixels into plain JS `Array` objects:
+
+- `_getCompressed()` (DXT path): `let data = []` and `let target = []` — V8 uses dictionary-mode array storage, not a typed flat buffer. For a 1024×1024 DXT1 texture, decoding 65 536 4×4 blocks into 4 MB of RGBA data takes ~4 000 ms.
+- `_marshalBGRA()` (rawBGRA path): `buf.writeUInt8([r,g,b,a])` — allocates a 4-element array literal per pixel, causing 1 M small allocations for a 1024×1024 texture.
+- `Bufo.readUInt8(N)` fills a plain `Array` with all mip bytes before decoding starts.
+
+This made the rock.blp outlier (DXT1, 1024×1024, 513 KB compressed) a ~4 s synchronous wall on the extension host thread, pushing it into the "lazy" preload tier even though 100 % of other textures completed in < 300 ms.
+
+### What was built
+
+**`src/assets/blp-decode.ts`** — standalone BLP2 decoder using `Buffer.alloc` and `Uint8Array` throughout:
+
+- **encoding=2 DXT1** (`alphaBitDepth ≤ 1`): `Uint8Array(16)` color table reused per block; `Buffer.readUInt32LE` for the 2-bit color index table; no per-block allocations.
+- **encoding=2 DXT3** (`alphaEncoding ≠ 7`): same color path + 4-bit explicit alpha read directly from source bytes.
+- **encoding=2 DXT5** (`alphaEncoding = 7`): 8-value `Uint8Array(8)` alpha table; 16 3-bit alpha indices pre-decoded into `Uint8Array(16)` from two 24-bit integer groups (avoids per-pixel bit shifting in the inner loop).
+- **encoding=3 rawBGRA**: single typed-array BGRA→RGBA channel swap via `Buffer.allocUnsafe`; no per-pixel object allocation.
+- Falls through to js-blp for encoding=1 (palette), which is absent from the retail Interface/ corpus.
+
+**`src/assets/blp.ts`** — `blpToPng` / `blpToPngBuffer` now call `blpToRgba` first; js-blp is retained as a fallback for the palette path only.
+
+**`dev/bench-blp-decoder.ts`** — benchmark comparing both decoders across BLP fixtures in `test/`.
+
+### Result
+
+| File                           | js-blp (ms) | Fast decoder (ms) | Speedup |
+| ------------------------------ | ----------- | ----------------- | ------- |
+| vertex-icon.blp (256×256 DXT1) | 154.0       | 3.1               | **49×** |
+
+Extrapolated for rock.blp (1024×1024 DXT1, ~4 000 ms → ~80 ms): the outlier that forced lazy preload now fits comfortably in eager. See [measurements.md Q5c](../measurements.md#q5c-typed-array-decoder).

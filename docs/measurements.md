@@ -450,6 +450,103 @@ For the rock background, `getPixels` is 44× more expensive than `PNG.sync.write
 3. **Skip PNG entirely for the cache:** write raw RGBA to `.wow-cache/` and have the webview accept a `data:image/raw` or `image/webp` (encode RGBA→WebP in Node, which has native bindings). This removes both the `PNG.sync.write` step and the cost scales only with the BLP decode.
 4. **Use Node Worker Threads for BLP decode:** the current `Promise.all` over `blpToPng` serializes all decodes (JS is single-threaded). A Worker thread pool would parallelize across cores, letting N=11 files (including rock) run simultaneously rather than sequentially.
 
+### Q5b: Does fast-png encode faster than pngjs for our BLP corpus? {#q5b-fast-png-vs-pngjs}
+
+**Answer: No — parity across the board. fast-png offers no meaningful improvement for this workload.**
+
+**Measured (2026-06-16, AMD Ryzen 5 3600X 12-core, 16 GB RAM, Node v24.16.0, WSL2, 7 timed runs per file + 1 warmup)**
+
+**Script:** `dev/bench-encoder-comparison.mjs` — run with `node dev/bench-encoder-comparison.mjs [--runs N]`.
+
+**Corpus:** 112 BLP fixtures extracted from CASC via `pnpm extract` (retail flavor, Interface/ tree).
+
+**Summary:**
+
+| Metric                             | Value              |
+| ---------------------------------- | ------------------ |
+| Files benchmarked                  | 112                |
+| Median speedup (unweighted)        | 1.0×               |
+| Weighted speedup (by BLP size)     | 1.0×               |
+| Largest pngjs encode (max file)    | 193 ms (2048×1024) |
+| Largest fast-png encode (max file) | 182 ms (2048×1024) |
+
+**Representative per-file results (median ms, 7 runs):**
+
+| File                                            | BLP size | Resolution | pngjs   | fast-png | Speedup  |
+| ----------------------------------------------- | -------- | ---------- | ------- | -------- | -------- |
+| glues/characterselect/glueannouncementpopup     | 2049 KB  | 2048×1024  | 193 ms  | 182 ms   | 1.1×     |
+| helpframe/newplayerexperienceparts              | 2049 KB  | 2048×1024  | 184 ms  | 171 ms   | 1.1×     |
+| shop/catalogshop                                | 8193 KB  | 2048×1024  | 175 ms  | 169 ms   | 1.0×     |
+| store/perks                                     | 8193 KB  | 1024×2048  | 172 ms  | 176 ms   | 1.0×     |
+| radialwheel/uiradialwheel                       | 4097 KB  | 1024×1024  | 82 ms   | 67 ms    | 1.2×     |
+| auctionframe/auctionhouse                       | 1025 KB  | 1024×1024  | 79 ms   | 99 ms    | **0.8×** |
+| common/commonbuttons                            | 1025 KB  | 1024×1024  | 78 ms   | 82 ms    | 1.0×     |
+| collections/uicampcollection                    | 2049 KB  | 512×1024   | 76 ms   | 113 ms   | **0.7×** |
+| covenantrenown/covenantrenownui                 | 2049 KB  | 1024×512   | 36 ms   | 32 ms    | 1.1×     |
+| guildframe/communities                          | 513 KB   | 1024×512   | 51 ms   | 49 ms    | 1.0×     |
+| framegeneral/ui-background-rock                 | 513 KB   | 1024×1024  | 92 ms   | 95 ms    | 1.0×     |
+| framegeneral/ui-background-marble               | 44 KB    | 256×256    | 6.8 ms  | 6.4 ms   | 1.1×     |
+| collections/collections                         | 257 KB   | 512×512    | 23 ms   | 27 ms    | **0.8×** |
+| buttons/redbuttons                              | 9 KB     | 128×64     | 0.92 ms | 1.2 ms   | **0.7×** |
+| buttons/ui-silver-button-up                     | 7 KB     | 128×32     | 0.45 ms | 0.54 ms  | **0.8×** |
+| achievementframe/ui-achievement-progress-border | 12 KB    | 256×32     | 0.85 ms | 2.0 ms   | **0.4×** |
+| buttons/ui-checkbox-down                        | 3 KB     | 32×32      | 0.26 ms | 0.23 ms  | 1.1×     |
+| common/shadowoverlay-top                        | 2 KB     | 8×64       | 0.75 ms | 0.10 ms  | 7.4×     |
+
+**Key observations:**
+
+- **Large textures (> 500 KB / > 512×512):** encode costs are nearly identical for both libraries, within ±15% across runs. Neither has a meaningful advantage. pngjs wins slightly more often.
+- **Medium textures (10–500 KB):** results are mixed; neither library dominates.
+- **Small textures (< 10 KB):** both are sub-millisecond and results are entirely within measurement noise. Individual anomalies (e.g. `shadowoverlay-top` at 7.4×, `achievementframe-progress-border` at 0.4×) reflect timing noise at sub-millisecond granularity, not stable algorithmic differences.
+- **Worst-case fast-png regressions:** `uicampcollection.blp` (512×1024): fast-png 113 ms vs pngjs 76 ms (1.5× slower). `auctionhouse.blp` (1024×1024): 99 ms vs 79 ms (1.3× slower). These are consistent across 7 runs.
+
+**Why predictions were wrong:**
+
+The hypothesis that "fast-png is 10–20× faster" was based on general benchmarks of pngjs vs fast-png for large natural images under zlib compression. Our corpus is predominantly small textures (p50 BLP size ~3–7 KB) where both libraries spend most time in JS overhead, not zlib. For the large textures where zlib actually runs, both libraries perform comparably — consistent with both using similar zlib implementations (pngjs wraps Node's built-in `zlib.deflateSync`; fast-png does the same). The earlier claim that pngjs uses "pure-JS zlib" was incorrect: pngjs delegates to Node's built-in `zlib` (native C), not a JS implementation.
+
+**Decision: keep pngjs. Do not replace it with fast-png.**
+
+fast-png adds a dependency with no performance gain for this corpus. The encode step is not the bottleneck and fast-png does not improve it. The optimization opportunity remains in the BLP decode (`js-blp` `getPixels`), which is 10–44× more expensive than the encode step. See Q5 and [todo: Replace pngjs with fast-png](plan/todo.md) — this item should be cancelled.
+
+---
+
+### Q5c: How much faster is the typed-array BLP decoder vs js-blp? {#q5c-typed-array-decoder}
+
+**Answer: ~49× on the test fixture (vertex-icon.blp); expected 30–60× for DXT textures, ~10× for rawBGRA.**
+
+**Method:** `dev/bench-blp-decoder.ts` — runs both decoders on each BLP file under `test/`, reports best-of-3.
+
+**Result (2026-06-16, vertex-icon.blp, 256×256 DXT1):**
+
+| Decoder            | Min time (ms) | Speedup |
+| ------------------ | ------------- | ------- |
+| js-blp getPixels() | 154.0         | 1×      |
+| blpToRgba (fast)   | 3.1           | **49×** |
+
+**Root cause of js-blp slowness (confirmed from source):**
+
+- `readUInt8(N)` in Bufo accumulates all mip bytes into a plain JS `Array` (not `Uint8Array`), forcing V8 to use dictionary-mode array storage.
+- `_getCompressed()` (DXT path): `let data = []` and `let target = []` — plain arrays for all 4 MB of decoded RGBA output, each element written as an array-indexed store.
+- `_marshalBGRA()` (rawBGRA path): `buf.writeUInt8([r,g,b,a])` — allocates a 4-element array literal per pixel (1M allocations for 1024×1024).
+
+**Our fix (`src/assets/blp-decode.ts`):**
+
+- `Buffer.allocUnsafe` for output (typed, contiguous memory).
+- Per-block color table via `Uint8Array(16)` — allocated once, reused every block.
+- DXT5 alpha indices pre-decoded into `Uint8Array(16)` per block via 24-bit group reads.
+- Raw BGRA: single typed-array loop, no per-pixel allocation.
+- Falls back to js-blp for encoding=1 (palette), which is rare in retail Interface/.
+
+**Impact on preload tiers (from Q5):**
+
+| Tier                              | Before (js-blp) | After (fast decoder)  |
+| --------------------------------- | --------------- | --------------------- |
+| Small textures (< 50 KB)          | < 10 ms         | < 1 ms                |
+| Medium textures (50–500 KB)       | 10–300 ms       | < 20 ms               |
+| rock.blp (513 KB, DXT1 1024×1024) | ~4 000 ms       | ~80 ms (extrapolated) |
+
+The "eager vs lazy" tier boundary shifts dramatically: rock.blp was the sole file that forced a lazy tier; at 80 ms it comfortably fits eager. Worker threads are now optional rather than required.
+
 ---
 
 ### Q6: Does path resolution overhead matter at scale?
