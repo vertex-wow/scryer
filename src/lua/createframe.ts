@@ -222,6 +222,16 @@ function generateTemplateBody(
     if (nt.atlas) lines.push(`${selfVar}:SetNormalAtlas(${JSON.stringify(nt.atlas)})`);
     else if (nt.file) lines.push(`${selfVar}:SetNormalTexture(${JSON.stringify(nt.file)})`);
   }
+  if (tpl.pushedTexture) {
+    const pt = tpl.pushedTexture;
+    if (pt.atlas) lines.push(`${selfVar}:SetPushedAtlas(${JSON.stringify(pt.atlas)})`);
+    else if (pt.file) lines.push(`${selfVar}:SetPushedTexture(${JSON.stringify(pt.file)})`);
+  }
+  if (tpl.highlightTexture) {
+    const ht = tpl.highlightTexture;
+    if (ht.atlas) lines.push(`${selfVar}:SetHighlightAtlas(${JSON.stringify(ht.atlas)})`);
+    else if (ht.file) lines.push(`${selfVar}:SetHighlightTexture(${JSON.stringify(ht.file)})`);
+  }
 
   return lines.join("\n");
 }
@@ -615,6 +625,34 @@ export async function registerFrameModel(
     const node = registry.getFrame(toNum(id)!);
     if (!node || typeof atlas !== "string") return;
     node.normalTexture = { atlas };
+    registry.markDirty();
+  });
+
+  lua.global.set("__scryer_btn_set_pushed_texture", (id: unknown, path: unknown): void => {
+    const node = registry.getFrame(toNum(id)!);
+    if (!node || typeof path !== "string") return;
+    node.pushedTexture = { file: path };
+    registry.markDirty();
+  });
+
+  lua.global.set("__scryer_btn_set_pushed_atlas", (id: unknown, atlas: unknown): void => {
+    const node = registry.getFrame(toNum(id)!);
+    if (!node || typeof atlas !== "string") return;
+    node.pushedTexture = { atlas };
+    registry.markDirty();
+  });
+
+  lua.global.set("__scryer_btn_set_highlight_texture", (id: unknown, path: unknown): void => {
+    const node = registry.getFrame(toNum(id)!);
+    if (!node || typeof path !== "string") return;
+    node.highlightTexture = { file: path };
+    registry.markDirty();
+  });
+
+  lua.global.set("__scryer_btn_set_highlight_atlas", (id: unknown, atlas: unknown): void => {
+    const node = registry.getFrame(toNum(id)!);
+    if (!node || typeof atlas !== "string") return;
+    node.highlightTexture = { atlas };
     registry.markDirty();
   });
 

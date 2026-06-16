@@ -87,6 +87,8 @@ export interface FrameNode {
   enabled: boolean;
   // Button state textures (set via SetNormalTexture/SetNormalAtlas etc.)
   normalTexture?: { file?: string; atlas?: string };
+  pushedTexture?: { file?: string; atlas?: string };
+  highlightTexture?: { file?: string; atlas?: string };
   // StatusBar
   statusBarMinValue: number;
   statusBarMaxValue: number;
@@ -294,6 +296,8 @@ export function frameNodeToIR(
     scripts: [],
     buttonText: node.buttonText,
     normalTexture: node.normalTexture ? stateTexIR(node.normalTexture) : undefined,
+    pushedTexture: node.pushedTexture ? stateTexIR(node.pushedTexture) : undefined,
+    highlightTexture: node.highlightTexture ? stateTexIR(node.highlightTexture) : undefined,
     interactive: interactive || undefined,
     runtimeId: interactive ? node.id : undefined,
     useParentLevel: node.attributes.get("__scryer_useParentLevel") === true ? true : undefined,

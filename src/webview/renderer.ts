@@ -300,13 +300,10 @@ function renderFrame(
     el.appendChild(layerEl);
   }
 
-  // Button state textures (rendered in BORDER layer equivalent)
-  const stateTextures = [
-    frame.normalTexture,
-    frame.pushedTexture,
-    frame.disabledTexture,
-    frame.highlightTexture,
-  ].filter(Boolean) as TextureIR[];
+  // Button state textures: normalTexture is the default visible state.
+  // pushedTexture is rendered separately below and swapped in via CSS :active.
+  // highlightTexture is rendered separately below with CSS :hover.
+  const stateTextures = [frame.normalTexture].filter(Boolean) as TextureIR[];
   if (stateTextures.length > 0) {
     const stateEl = document.createElement("div");
     stateEl.dataset.layer = "state-textures";
@@ -321,6 +318,42 @@ function renderFrame(
       );
     }
     el.appendChild(stateEl);
+  }
+
+  // pushedTexture: hidden by default; CSS swaps it in (and hides normalTexture) on :active.
+  if (frame.pushedTexture && (frame.pushedTexture.resolvedAtlas || frame.pushedTexture.file)) {
+    const pushedEl = document.createElement("div");
+    pushedEl.dataset.layer = "pushed-texture";
+    pushedEl.style.cssText = "position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0;";
+    pushedEl.appendChild(
+      renderTexture(
+        frame.pushedTexture,
+        { left: 0, top: 0, width: frameRect.width, height: frameRect.height },
+        config,
+      ),
+    );
+    el.appendChild(pushedEl);
+  }
+
+  // highlightTexture: approximates WoW's ADD blend with mix-blend-mode:screen.
+  // Hidden by default; CSS makes it visible on button hover.
+  // Skip entirely if the texture has no resolved asset — no placeholder flash.
+  if (
+    frame.highlightTexture &&
+    (frame.highlightTexture.resolvedAtlas || frame.highlightTexture.file)
+  ) {
+    const hlEl = document.createElement("div");
+    hlEl.dataset.layer = "highlight-texture";
+    hlEl.style.cssText =
+      "position:absolute;inset:0;z-index:2;pointer-events:none;mix-blend-mode:screen;opacity:0;";
+    hlEl.appendChild(
+      renderTexture(
+        frame.highlightTexture,
+        { left: 0, top: 0, width: frameRect.width, height: frameRect.height },
+        config,
+      ),
+    );
+    el.appendChild(hlEl);
   }
 
   // StatusBar fill bar — rendered above layers, below children.

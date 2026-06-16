@@ -22,6 +22,17 @@ declare function acquireVsCodeApi(): {
 
 const vscode = acquireVsCodeApi();
 
+// Button interactive texture states via CSS, matching WoW hover/press behaviour.
+const buttonStateStyle = document.createElement("style");
+buttonStateStyle.textContent = [
+  // Highlight (ADD blend) appears on hover.
+  `[data-kind="Button"]:hover [data-layer="highlight-texture"] { opacity: 1 !important; }`,
+  // On press: hide normal, show pushed.
+  `[data-kind="Button"]:active [data-layer="state-textures"] { opacity: 0 !important; }`,
+  `[data-kind="Button"]:active [data-layer="pushed-texture"] { opacity: 1 !important; }`,
+].join("\n");
+document.head.appendChild(buttonStateStyle);
+
 const viewport = document.getElementById("viewport");
 const debug = document.getElementById("debug");
 if (!viewport) throw new Error("Missing #viewport element");

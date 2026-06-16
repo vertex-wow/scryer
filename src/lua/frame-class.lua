@@ -44,8 +44,12 @@ do
   local _btn_set_text            = __scryer_btn_set_text
   local _btn_get_text            = __scryer_btn_get_text
   local _btn_set_normal_tex      = __scryer_btn_set_normal_texture
-  local _btn_set_normal_atlas    = __scryer_btn_set_normal_atlas
-  local _btn_enable              = __scryer_btn_enable
+  local _btn_set_normal_atlas      = __scryer_btn_set_normal_atlas
+  local _btn_set_pushed_tex        = __scryer_btn_set_pushed_texture
+  local _btn_set_pushed_atlas      = __scryer_btn_set_pushed_atlas
+  local _btn_set_highlight_tex     = __scryer_btn_set_highlight_texture
+  local _btn_set_highlight_atlas   = __scryer_btn_set_highlight_atlas
+  local _btn_enable                = __scryer_btn_enable
   local _btn_disable             = __scryer_btn_disable
   local _btn_is_enabled          = __scryer_btn_is_enabled
   local _sb_set_minmax           = __scryer_sb_set_minmax
@@ -539,9 +543,13 @@ do
     if type(v) == "string" then _btn_set_normal_tex(self.__id, v) end
   end
   function ButtonMT:GetNormalTexture()   return nil end
-  function ButtonMT:SetPushedTexture()   end
+  function ButtonMT:SetPushedTexture(v)
+    if type(v) == "string" then _btn_set_pushed_tex(self.__id, v) end
+  end
   function ButtonMT:GetPushedTexture()   return nil end
-  function ButtonMT:SetHighlightTexture() end
+  function ButtonMT:SetHighlightTexture(v)
+    if type(v) == "string" then _btn_set_highlight_tex(self.__id, v) end
+  end
   function ButtonMT:GetHighlightTexture() return nil end
   function ButtonMT:SetDisabledTexture() end
   function ButtonMT:GetDisabledTexture() return nil end
@@ -567,8 +575,12 @@ do
   function ButtonMT:SetNormalAtlas(atlas, ...)
     if type(atlas) == "string" then _btn_set_normal_atlas(self.__id, atlas) end
   end
-  function ButtonMT:SetPushedAtlas()               end
-  function ButtonMT:SetHighlightAtlas()            end
+  function ButtonMT:SetPushedAtlas(atlas, ...)
+    if type(atlas) == "string" then _btn_set_pushed_atlas(self.__id, atlas) end
+  end
+  function ButtonMT:SetHighlightAtlas(atlas, ...)
+    if type(atlas) == "string" then _btn_set_highlight_atlas(self.__id, atlas) end
+  end
   function ButtonMT:SetDisabledAtlas()             end
   function ButtonMT:SetNormalColor()               end
   function ButtonMT:SetPushedColor()               end
@@ -1034,8 +1046,12 @@ do
   __scryer_btn_set_text            = nil
   __scryer_btn_get_text            = nil
   __scryer_btn_set_normal_texture  = nil
-  __scryer_btn_set_normal_atlas    = nil
-  __scryer_btn_enable              = nil
+  __scryer_btn_set_normal_atlas      = nil
+  __scryer_btn_set_pushed_texture    = nil
+  __scryer_btn_set_pushed_atlas      = nil
+  __scryer_btn_set_highlight_texture = nil
+  __scryer_btn_set_highlight_atlas   = nil
+  __scryer_btn_enable                = nil
   __scryer_btn_disable             = nil
   __scryer_btn_is_enabled          = nil
   __scryer_sb_set_minmax           = nil
