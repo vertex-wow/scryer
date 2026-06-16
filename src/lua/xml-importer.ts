@@ -188,6 +188,28 @@ function generateFrameCode(
   if (frame.frameLevel !== undefined) lines.push(`  ${v}:SetFrameLevel(${frame.frameLevel})`);
   if (frame.useParentLevel) lines.push(`  ${v}:SetAttribute("__scryer_useParentLevel", true)`);
 
+  // Button state textures (from template inheritance — normalTexture, pushedTexture, etc.)
+  if (frame.normalTexture) {
+    const nt = frame.normalTexture;
+    if (nt.atlas) lines.push(`  ${v}:SetNormalAtlas(${JSON.stringify(nt.atlas)})`);
+    else if (nt.file) lines.push(`  ${v}:SetNormalTexture(${JSON.stringify(nt.file)})`);
+  }
+  if (frame.pushedTexture) {
+    const pt = frame.pushedTexture;
+    if (pt.atlas) lines.push(`  ${v}:SetPushedAtlas(${JSON.stringify(pt.atlas)})`);
+    else if (pt.file) lines.push(`  ${v}:SetPushedTexture(${JSON.stringify(pt.file)})`);
+  }
+  if (frame.highlightTexture) {
+    const ht = frame.highlightTexture;
+    if (ht.atlas) lines.push(`  ${v}:SetHighlightAtlas(${JSON.stringify(ht.atlas)})`);
+    else if (ht.file) lines.push(`  ${v}:SetHighlightTexture(${JSON.stringify(ht.file)})`);
+  }
+  if (frame.disabledTexture) {
+    const dt = frame.disabledTexture;
+    if (dt.atlas) lines.push(`  ${v}:SetDisabledAtlas(${JSON.stringify(dt.atlas)})`);
+    else if (dt.file) lines.push(`  ${v}:SetDisabledTexture(${JSON.stringify(dt.file)})`);
+  }
+
   // Anchors (indented lines need the prefix handled carefully — emit as top-level within if block)
   const anchorLines: string[] = [];
   emitAnchorCode(v, frame, parentExpr, anchorLines);

@@ -124,6 +124,9 @@ function generateTemplateBody(
   if (tpl.size?.x !== undefined || tpl.size?.y !== undefined) {
     lines.push(`${selfVar}:SetSize(${tpl.size?.x ?? 0}, ${tpl.size?.y ?? 0})`);
   }
+  if (tpl.frameLevel !== undefined) {
+    lines.push(`${selfVar}:SetFrameLevel(${tpl.frameLevel})`);
+  }
 
   emitTplAnchor(selfVar, tpl, lines);
 
