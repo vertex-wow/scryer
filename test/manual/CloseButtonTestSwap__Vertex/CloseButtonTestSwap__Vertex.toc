@@ -1,0 +1,6 @@
+## Interface: 110205, 110207, 120000
+## Title: CloseButtonTest by Vertex
+## Notes: Minimal fixture — just a plain frame with a UIPanelCloseButtonDefaultAnchors close button.
+
+CloseButtonTest.xml
+_harness.lua
