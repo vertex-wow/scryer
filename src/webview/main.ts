@@ -3,7 +3,6 @@ import { renderFrames } from "./renderer.js";
 import { initRulers, setRulersVisible, updateRulers } from "./components/ruler.js";
 import type { CanvasMode } from "../constants.js";
 import {
-  ZOOM_PRESETS,
   DEFAULT_CANVAS_MODE,
   WORKAREA_BG_BLACK,
   WORKAREA_BG_WHITE,
@@ -1051,14 +1050,14 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         if (trigger) trigger.textContent = label;
       });
 
-      updateDropdown("resolution-dropdown-menu", msg.toolbarState.screenResolution, (label) => {
+      updateDropdown("resolution-dropdown-menu", msg.toolbarState.screenResolution, (_label) => {
         const trigger = document.querySelector(
           "#resolution-dropdown-trigger .dropdown-trigger-label",
         );
         if (trigger) trigger.textContent = msg.toolbarState.screenResolution;
       });
 
-      updateDropdown("locale-dropdown-menu", msg.toolbarState.locale, (label) => {
+      updateDropdown("locale-dropdown-menu", msg.toolbarState.locale, (_label) => {
         const trigger = document.getElementById("locale-dropdown-trigger");
         if (trigger) {
           const loc = msg.toolbarState.locale;

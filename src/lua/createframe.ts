@@ -736,9 +736,9 @@ export async function registerFrameModel(
       LLx: unknown,
       LLy: unknown,
       URx: unknown,
-      URy: unknown,
-      LRx: unknown,
-      LRy: unknown,
+      _URy: unknown,
+      _LRx: unknown,
+      _LRy: unknown,
     ): void => {
       const t = tex(id);
       if (!t) return;

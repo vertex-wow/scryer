@@ -3,22 +3,10 @@ import { buildPanelHtml } from "./panel-html.js";
 import { PanelToolbar } from "./panel-toolbar.js";
 import * as vscode from "vscode";
 import { resolveAtlasNames } from "../assets/atlas-manifest.js";
-import { FLAVOR_INFO, listInstalledFlavors } from "../assets/build-info.js";
 import { isExtracting } from "../assets/extractor.js";
 import { AssetService } from "../assets/index.js";
 import type { CanvasMode } from "../constants.js";
-import {
-  DEFAULT_CANVAS_MODE,
-  WORKAREA_BG_BLACK,
-  WORKAREA_BG_CHECKERBOARD_DARK_COLOR1,
-  WORKAREA_BG_CHECKERBOARD_DARK_COLOR2,
-  WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR1,
-  WORKAREA_BG_CHECKERBOARD_LIGHT_COLOR2,
-  WORKAREA_BG_GRAY,
-  WORKAREA_BG_MAGENTA,
-  WORKAREA_BG_WHITE,
-  ZOOM_PRESETS,
-} from "../constants.js";
+import { DEFAULT_CANVAS_MODE } from "../constants.js";
 import { resolveFlavorConfig } from "../flavors/config.js";
 import { collectTexturePaths } from "../parser/collect-textures.js";
 import { parseXmlFile } from "../parser/index.js";
