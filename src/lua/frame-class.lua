@@ -44,6 +44,7 @@ do
   local _btn_set_text            = __scryer_btn_set_text
   local _btn_get_text            = __scryer_btn_get_text
   local _btn_set_normal_tex      = __scryer_btn_set_normal_texture
+  local _btn_set_normal_atlas    = __scryer_btn_set_normal_atlas
   local _btn_enable              = __scryer_btn_enable
   local _btn_disable             = __scryer_btn_disable
   local _btn_is_enabled          = __scryer_btn_is_enabled
@@ -563,7 +564,9 @@ do
   function ButtonMT:RegisterForClicks()            end
   function ButtonMT:SetMotionScriptsWhileDisabled()        end
   function ButtonMT:GetMotionScriptsWhileDisabled() return false end
-  function ButtonMT:SetNormalAtlas()               end
+  function ButtonMT:SetNormalAtlas(atlas, ...)
+    if type(atlas) == "string" then _btn_set_normal_atlas(self.__id, atlas) end
+  end
   function ButtonMT:SetPushedAtlas()               end
   function ButtonMT:SetHighlightAtlas()            end
   function ButtonMT:SetDisabledAtlas()             end
@@ -1031,6 +1034,7 @@ do
   __scryer_btn_set_text            = nil
   __scryer_btn_get_text            = nil
   __scryer_btn_set_normal_texture  = nil
+  __scryer_btn_set_normal_atlas    = nil
   __scryer_btn_enable              = nil
   __scryer_btn_disable             = nil
   __scryer_btn_is_enabled          = nil

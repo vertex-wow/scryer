@@ -85,6 +85,8 @@ export interface FrameNode {
   // Button / EditBox shared text field
   buttonText?: string;
   enabled: boolean;
+  // Button state textures (set via SetNormalTexture/SetNormalAtlas etc.)
+  normalTexture?: { file?: string; atlas?: string };
   // StatusBar
   statusBarMinValue: number;
   statusBarMaxValue: number;
@@ -121,6 +123,22 @@ export function makeTextureNode(id: number, layer: string, subLevel: number): Te
 
 export function makeFontStringNode(id: number, layer: string): FontStringNode {
   return { id, layer, subLevel: 0, shown: true, alpha: 1, anchors: [] };
+}
+
+// ─── IR helpers ───────────────────────────────────────────────────────────────
+
+function stateTexIR(info: { file?: string; atlas?: string }): TextureIR {
+  return {
+    kind: "Texture",
+    inherits: [],
+    mixin: [],
+    virtual: false,
+    anchors: [],
+    keyValues: [],
+    sourceFile: "__runtime__",
+    file: info.file,
+    atlas: info.atlas,
+  };
 }
 
 // ─── IR serialization ─────────────────────────────────────────────────────────
@@ -275,6 +293,7 @@ export function frameNodeToIR(
     children,
     scripts: [],
     buttonText: node.buttonText,
+    normalTexture: node.normalTexture ? stateTexIR(node.normalTexture) : undefined,
     interactive: interactive || undefined,
     runtimeId: interactive ? node.id : undefined,
     useParentLevel: node.attributes.get("__scryer_useParentLevel") === true ? true : undefined,

@@ -217,6 +217,12 @@ function generateTemplateBody(
     );
   }
 
+  if (tpl.normalTexture) {
+    const nt = tpl.normalTexture;
+    if (nt.atlas) lines.push(`${selfVar}:SetNormalAtlas(${JSON.stringify(nt.atlas)})`);
+    else if (nt.file) lines.push(`${selfVar}:SetNormalTexture(${JSON.stringify(nt.file)})`);
+  }
+
   return lines.join("\n");
 }
 
@@ -599,16 +605,16 @@ export async function registerFrameModel(
   });
 
   lua.global.set("__scryer_btn_set_normal_texture", (id: unknown, path: unknown): void => {
-    // Store as a texture node in ARTWORK layer — simple representation for M7
     const node = registry.getFrame(toNum(id)!);
     if (!node || typeof path !== "string") return;
-    const existing = node.textures.find((t) => t.name === "__normalTex__");
-    if (existing) {
-      existing.file = path;
-    } else {
-      const tex = registry.createTexture(toNum(id)!, "__normalTex__", "ARTWORK", 0);
-      if (tex) tex.file = path;
-    }
+    node.normalTexture = { file: path };
+    registry.markDirty();
+  });
+
+  lua.global.set("__scryer_btn_set_normal_atlas", (id: unknown, atlas: unknown): void => {
+    const node = registry.getFrame(toNum(id)!);
+    if (!node || typeof atlas !== "string") return;
+    node.normalTexture = { atlas };
     registry.markDirty();
   });
 
