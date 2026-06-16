@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use base64::prelude::*;
 use casc_lib::extract::{CascStorage, ExtractionConfig, OpenConfig, extract_all, read_file_bytes};
+use crate::blp_decode;
 
 #[derive(Deserialize, Debug)]
 #[serde(tag = "method", rename_all = "camelCase")]
@@ -19,6 +20,19 @@ enum RequestPayload {
     Status,
     Shutdown,
     ReadFile {
+        path: String,
+        #[serde(rename = "cdnEnabled", default)]
+        cdn_enabled: bool,
+    },
+    /// Decode a BLP2 image from base64-encoded bytes.
+    /// Does not require CASC storage — pure compute.
+    DecodeBlp {
+        /// Base64-encoded raw BLP2 file bytes.
+        data: String,
+    },
+    /// Read a BLP2 from CASC storage and decode it to RGBA in one server-side step.
+    /// Avoids uploading BLP bytes over IPC — only the RGBA response crosses the pipe.
+    ReadAndDecodeBlp {
         path: String,
         #[serde(rename = "cdnEnabled", default)]
         cdn_enabled: bool,
@@ -62,6 +76,30 @@ enum ServerResponse {
         ok: bool,
         #[serde(skip_serializing_if = "Option::is_none")]
         data: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+    },
+    DecodeBlp {
+        id: u64,
+        ok: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        rgba: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        width: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        height: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+    },
+    ReadAndDecodeBlp {
+        id: u64,
+        ok: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        rgba: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        width: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        height: Option<u32>,
         #[serde(skip_serializing_if = "Option::is_none")]
         error: Option<String>,
     },
@@ -252,6 +290,150 @@ pub fn run_server(
                     }
                 };
 
+                serde_json::to_writer(&mut stdout, &res).unwrap();
+                stdout.write_all(b"\n").unwrap();
+                stdout.flush().unwrap();
+                in_flight.store(false, Ordering::Relaxed);
+            }
+            RequestPayload::DecodeBlp { data } => {
+                tracing::debug!("DecodeBlp request: {} base64 chars", data.len());
+                let res = match BASE64_STANDARD.decode(&data) {
+                    Err(e) => ServerResponse::DecodeBlp {
+                        id: req.id,
+                        ok: false,
+                        rgba: None,
+                        width: None,
+                        height: None,
+                        error: Some(format!("base64 decode failed: {e}")),
+                    },
+                    Ok(blp_bytes) => match blp_decode::decode(&blp_bytes) {
+                        Ok((rgba_bytes, w, h)) => {
+                            tracing::debug!(
+                                "DecodeBlp ok: {}×{} ({} bytes RGBA)",
+                                w,
+                                h,
+                                rgba_bytes.len()
+                            );
+                            ServerResponse::DecodeBlp {
+                                id: req.id,
+                                ok: true,
+                                rgba: Some(BASE64_STANDARD.encode(&rgba_bytes)),
+                                width: Some(w),
+                                height: Some(h),
+                                error: None,
+                            }
+                        }
+                        Err(e) => ServerResponse::DecodeBlp {
+                            id: req.id,
+                            ok: false,
+                            rgba: None,
+                            width: None,
+                            height: None,
+                            error: Some(e),
+                        },
+                    },
+                };
+                serde_json::to_writer(&mut stdout, &res).unwrap();
+                stdout.write_all(b"\n").unwrap();
+                stdout.flush().unwrap();
+                in_flight.store(false, Ordering::Relaxed);
+            }
+            RequestPayload::ReadAndDecodeBlp { path, cdn_enabled } => {
+                tracing::debug!("ReadAndDecodeBlp request: {}", path);
+
+                if cdn_enabled != current_cdn_enabled && storage.is_some() {
+                    tracing::info!(
+                        "CDN setting changed ({} → {}) — reinitializing storage",
+                        current_cdn_enabled,
+                        cdn_enabled
+                    );
+                    storage = None;
+                }
+                current_cdn_enabled = cdn_enabled;
+
+                if storage.is_none() {
+                    tracing::info!("Initializing CASC storage...");
+                    let open_start = Instant::now();
+                    let open_config = OpenConfig {
+                        install_dir: wow_dir.clone(),
+                        product: Some("wow".into()),
+                        keyfile: None,
+                        listfile: listfile.clone(),
+                        output_dir: Some(out_dir.clone()),
+                        cdn_cache_dir: if cdn_enabled {
+                            Some(out_dir.join(".casc-cdn-cache"))
+                        } else {
+                            None
+                        },
+                    };
+                    match CascStorage::open(&open_config) {
+                        Ok(s) => {
+                            let elapsed = open_start.elapsed();
+                            let info = s.info();
+                            tracing::info!(
+                                "CASC storage ready in {:.2}s",
+                                elapsed.as_secs_f64(),
+                            );
+                            build_hash = info.version.clone();
+                            storage = Some(s);
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to initialize CASC storage: {}", e);
+                            let res = ServerResponse::Error {
+                                id: req.id,
+                                ok: false,
+                                error: format!("Failed to initialize CASC storage: {}", e),
+                            };
+                            serde_json::to_writer(&mut stdout, &res).unwrap();
+                            stdout.write_all(b"\n").unwrap();
+                            stdout.flush().unwrap();
+                            in_flight.store(false, Ordering::Relaxed);
+                            continue;
+                        }
+                    }
+                }
+
+                let store = storage.as_ref().unwrap();
+                let res = match read_file_bytes(store, &path, 0x2) {
+                    Err(e) => {
+                        tracing::debug!("ReadAndDecodeBlp CASC miss: {} — {}", path, e);
+                        ServerResponse::ReadAndDecodeBlp {
+                            id: req.id,
+                            ok: false,
+                            rgba: None,
+                            width: None,
+                            height: None,
+                            error: Some(format!("CASC read failed: {e}")),
+                        }
+                    }
+                    Ok(bytes) => match blp_decode::decode(&bytes) {
+                        Ok((rgba_bytes, w, h)) => {
+                            tracing::debug!(
+                                "ReadAndDecodeBlp ok: {} → {}×{} ({} bytes RGBA)",
+                                path,
+                                w,
+                                h,
+                                rgba_bytes.len()
+                            );
+                            ServerResponse::ReadAndDecodeBlp {
+                                id: req.id,
+                                ok: true,
+                                rgba: Some(BASE64_STANDARD.encode(&rgba_bytes)),
+                                width: Some(w),
+                                height: Some(h),
+                                error: None,
+                            }
+                        }
+                        Err(e) => ServerResponse::ReadAndDecodeBlp {
+                            id: req.id,
+                            ok: false,
+                            rgba: None,
+                            width: None,
+                            height: None,
+                            error: Some(format!("BLP decode failed: {e}")),
+                        },
+                    },
+                };
                 serde_json::to_writer(&mut stdout, &res).unwrap();
                 stdout.write_all(b"\n").unwrap();
                 stdout.flush().unwrap();

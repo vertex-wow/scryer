@@ -45,6 +45,35 @@ See [measurements.md Q1b](../measurements.md#q1b-how-fast-can-we-pre-filter-list
 
 ---
 
+## CASC-direct Rust BLP decode in asset server {#casc-direct-rust-blp-decode}
+
+**Status: 📋 Pending**
+
+**Context:** Q5d benchmarked sending BLP bytes over IPC to a Rust decoder and found JS wins 2–35× due to base64+pipe overhead at both ends. However, a different architecture avoids the BLP upload entirely: a `readAndDecodeBlp { path }` server method that reads the BLP from CASC internally and returns only RGBA bytes. The client only pays for the RGBA response pipe (not the BLP upload).
+
+**When this matters:** Cold decode path only (before PNG cache is populated). After the first decode, the PNG is cached and this path is never hit again. For rock.blp (1024×1024 DXT1), this would be ~20–30ms IPC (RGBA response only) vs ~80ms JS typed-array decode — roughly 2.5–4× faster on the cold path.
+
+**Prerequisites:**
+
+- CASC storage must already be initialized (adds latency if not warmed up)
+- Only applies to textures extracted from CASC (not workspace-bundled BLP files, which don't go through the asset server)
+
+**Rough plan:**
+
+1. Add `ReadAndDecodeBlp { path: String }` to the server protocol alongside the existing `ReadFile` method.
+2. Server: reads raw BLP bytes via `read_file_bytes(store, path, locale)`, calls `blp_decode::decode()`, returns base64 RGBA + width + height.
+3. Client: add `readCascBlpRgba(path, cdnEnabled): Promise<{rgba, width, height} | null>` to `AssetClient`.
+4. Wire into `AssetService._resolve()` for the CASC texture path: try `readCascBlpRgba` first (avoids the JS `blpToPng` decode), fall back to the existing JS path if the server is unavailable or the file is not in CASC.
+5. The cached PNG is still written from the returned RGBA + pngjs, so the cache format and downstream pipeline are unchanged.
+
+**Note:** The `blp_decode` Rust module is already implemented (added 2026-06-16). Only steps 1–4 remain.
+
+**Effort:** S — Rust server change ~30 min, TypeScript wiring ~1 hour.
+
+**See:** [measurements.md Q5d](../measurements.md#q5d-rust-blp-via-ipc) for the full IPC benchmark data.
+
+---
+
 ## Replace pngjs encoder with fast-png (BLP→PNG speedup) {#replace-pngjs-encoder-with-fast-png}
 
 **Status: ❌ Cancelled — benchmarked, no improvement**

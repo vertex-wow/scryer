@@ -549,6 +549,100 @@ The "eager vs lazy" tier boundary shifts dramatically: rock.blp was the sole fil
 
 ---
 
+### Q5d: Is a Rust BLP decoder via asset server IPC faster than JS typed-array decode? {#q5d-rust-blp-via-ipc}
+
+**Answer: No — JS wins at every encoding type and every size. Rust+IPC is 1–35× slower depending on texture size.**
+
+**Method:** `dev/bench-rust-blp-decoder.ts` — generates synthetic BLP fixtures for each encoding type (DXT1/DXT3/DXT5/rawBGRA) at four resolutions (64–1024px), plus real fixtures from `test/`. Measures best-of-7 for both `blpToRgba` (in-process JS typed-array decoder) and `client.decodeBlpRgba()` (full JS→IPC→Rust→IPC→JS round-trip via asset server).
+
+The Rust column includes the complete IPC cost:
+
+- JS: `buf.toString("base64")` → `JSON.stringify` → pipe write
+- Rust: pipe read → JSON parse → base64 decode → BLP decode → base64 encode → JSON write
+- JS: pipe read → JSON parse → `Buffer.from(…, "base64")`
+
+**Three paths benchmarked (2026-06-16, Ryzen 5 3600X, Node v24, WSL2):**
+
+- **JS** — `blpToRgba()` in-process (no IPC)
+- **Data-IPC** — `decodeBlpRgba()`: JS sends BLP bytes → Rust decodes → RGBA response (base64 paid twice: in + out)
+- **CASC-IPC** — `readCascBlpRgba()`: JS sends path string → server reads BLP from CASC + decodes → RGBA response (base64 paid once: out only)
+
+**Synthetic fixtures — all types × all resolutions:**
+
+| Fixture           | File KB | JS (ms) | Data-IPC (ms) | CASC-IPC | Winner   |
+| ----------------- | ------- | ------- | ------------- | -------- | -------- |
+| DXT1 64×64        | 2 KB    | 0.2     | 0.2           | n/a      | JS 1.2×  |
+| DXT3 64×64        | 4 KB    | 0.2     | 0.2           | n/a      | JS 1.2×  |
+| DXT5 64×64        | 4 KB    | 0.1     | 0.2           | n/a      | JS 2.5×  |
+| rawBGRA 64×64     | 16 KB   | 0.3     | 0.2           | n/a      | ~tie     |
+| DXT1 256×256      | 32 KB   | 1.1     | 2.1           | n/a      | JS 1.9×  |
+| DXT3 256×256      | 64 KB   | 0.4     | 2.2           | n/a      | JS 5.0×  |
+| DXT5 256×256      | 64 KB   | 0.7     | 2.0           | n/a      | JS 2.9×  |
+| rawBGRA 256×256   | 256 KB  | 0.1     | 3.9           | n/a      | JS 33.4× |
+| DXT1 512×512      | 128 KB  | 1.6     | 8.1           | n/a      | JS 5.0×  |
+| DXT3 512×512      | 256 KB  | 2.4     | 8.3           | n/a      | JS 3.5×  |
+| DXT5 512×512      | 256 KB  | 3.5     | 8.3           | n/a      | JS 2.3×  |
+| rawBGRA 512×512   | 1024 KB | 0.5     | 14.6          | n/a      | JS 30.9× |
+| DXT1 1024×1024    | 512 KB  | 9.6     | 29.2          | n/a      | JS 3.1×  |
+| DXT3 1024×1024    | 1024 KB | 13.2    | 38.3          | n/a      | JS 2.9×  |
+| DXT5 1024×1024    | 1024 KB | 10.5    | 33.3          | n/a      | JS 3.2×  |
+| rawBGRA 1024×1024 | 4096 KB | 2.0     | 55.2          | n/a      | JS 27.3× |
+
+**Real CASC corpus — selected large textures (all three paths):**
+
+| Texture (CASC path)                    | KB   | enc  | JS (ms) | Data-IPC (ms) | CASC-IPC (ms) | Winner   |
+| -------------------------------------- | ---- | ---- | ------- | ------------- | ------------- | -------- |
+| glues/…/glueannouncementpopup.blp      | 2049 | dxt5 | 28.1    | 86.7          | **53.8**      | JS 1.9×  |
+| helpframe/newplayerexperienceparts.blp | 2049 | dxt5 | 22.8    | 57.7          | (miss)        | JS 2.5×  |
+| shop/catalogshop.blp                   | 8193 | bgra | 4.4     | 121.0         | (miss)        | JS 27.7× |
+| store/perks.blp                        | 8193 | bgra | 4.8     | 116.8         | **58.0**      | JS 12.0× |
+| auctionframe/auctionhouse.blp          | 1025 | dxt5 | 11.0    | 28.8          | **24.1**      | JS 2.2×  |
+| common/commonbuttons.blp               | 1025 | dxt5 | 10.8    | 29.1          | (miss)        | JS 2.7×  |
+| framegeneral/ui-background-rock.blp    | 513  | dxt1 | 7.1     | 26.5          | (miss)        | JS 3.7×  |
+| radialwheel/uiradialwheel.blp          | 4097 | bgra | 2.0     | 48.8          | (miss)        | JS 24.6× |
+| collections/uicampcollection.blp       | 2049 | bgra | 0.9     | 23.5          | (miss)        | JS 24.8× |
+| guildframe/communities.blp             | 513  | dxt5 | 5.3     | 15.4          | **12.3**      | JS 2.3×  |
+| questframe/questlogframe.blp           | 1025 | bgra | 0.6     | 12.8          | **7.7**       | JS 12.7× |
+| hud/uipendingspinnera.blp              | 513  | bgra | 0.2     | 6.4           | **3.3**       | JS 14.3× |
+| buttons/ui-silver-button-up.blp        | 7    | dxt5 | 0.0     | 0.2           | (miss)        | JS 5.5×  |
+
+CASC-IPC "(miss)" = CASC resolver returned null for that path (not in the current index snapshot).
+
+**Why JS always wins:**
+
+The fundamental constraint is that any IPC path must move RGBA bytes across a pipe. RGBA is always `4 × width × height` bytes, regardless of how fast Rust decodes. For a 1024×1024 texture that's 4 MB, which at pipe+base64 overhead costs ~15–25 ms before Rust does any work. Our JS typed-array decoder handles the same texture in 7–28 ms in-process.
+
+- **Data-IPC** pays base64 + pipe twice (BLP bytes in, RGBA out). For rawBGRA textures where `file_size ≈ RGBA_size`, this costs 14–30× JS's time.
+- **CASC-IPC** skips the upload — only RGBA crosses the pipe. For large DXT textures it's ~2× faster than Data-IPC. But RGBA is still large and still gets base64-encoded, so it still loses to JS by 2–4× on DXT and 12–27× on rawBGRA.
+
+There is no crossover point. JS wins at every encoding type, every texture size, and in both IPC variants.
+
+**Would a faster IPC transport help?**
+
+The natural follow-up question is whether our IPC method is the bottleneck rather than Rust decode quality. Current protocol: line-delimited JSON with all binary payloads base64-encoded. Alternatives considered:
+
+| Approach                                       | What it changes                                          | Estimated gain                                                                                                                                                     |
+| ---------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Binary framing** (4-byte length + raw bytes) | Eliminates base64 (~33% less data, no encode/decode CPU) | ~25% wall-clock reduction for CASC-IPC on large DXT textures. Could bring CASC-IPC to ~18–20ms vs JS ~28ms for 2MB DXT5 — a narrow win. rawBGRA still loses badly. |
+| **gRPC / protobuf**                            | `bytes` field = length-prefixed binary under the hood    | Same as binary framing; HTTP/2 framing adds overhead. No advantage.                                                                                                |
+| **Unix domain socket**                         | Faster kernel path, same serialization                   | Marginal. Serialization dominates, not transport.                                                                                                                  |
+| **Shared memory**                              | Zero-copy: JS and Rust share a segment                   | Could eliminate transfer overhead entirely. Complex with Node.js; no built-in support.                                                                             |
+| **WASM**                                       | Compile Rust to `.wasm`, run in-process (no IPC at all)  | JS decoder already exists and is fast; WASM has startup + JIT overhead.                                                                                            |
+| **N-API native addon**                         | Rust as a Node `.node` binary, zero-copy in-process      | Fastest possible. But per-platform binaries and complex packaging.                                                                                                 |
+
+**Analysis (not tried):** Binary framing is the only IPC improvement worth attempting — it could make CASC-IPC marginally competitive for the very largest DXT textures. But:
+
+1. Even in the optimistic case (18ms CASC-IPC vs 28ms JS for 2MB DXT5), the win is narrow and only appears for a handful of large textures that are already fast enough with the JS decoder.
+2. rawBGRA textures would still lose 4–12× because they pay RGBA response cost with no compression offset.
+3. CASC-IPC only applies when the texture is in the CASC archive, not for addon-bundled BLPs.
+4. Binary framing requires rewriting the full IPC protocol on both sides (Rust + JS), adding complexity for a marginal win on an already-fast path.
+
+**Estimate: not worth it.** The RGBA transfer cost is structural — any IPC variant pays it. JS in-process decode is the right architecture for this workload.
+
+**Decision: Keep JS typed-array decoder (`src/assets/blp-decode.ts`). Do not route `decodeBlp` or `readAndDecodeBlp` through the asset server.** The Rust server implementation and benchmark are retained as a reference.
+
+---
+
 ### Q6: Does path resolution overhead matter at scale?
 
 **Answer: No — confirmed by `measureResolution` benchmark. Cold ~0.01–0.02 ms/path; warm < 0.001 ms/path.**

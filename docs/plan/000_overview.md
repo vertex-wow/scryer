@@ -76,6 +76,14 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
+  <td><a href="todo.md#casc-direct-rust-blp-decode">CASC-direct Rust BLP decode</a></td>
+  <td>📋 Pending</td>
+  <td>Asset server reads BLP from CASC + decodes in Rust, returning RGBA; skips the JS decode cold path</td>
+  <td>S</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>↳</td>
   <td><a href="todo.md#tga-texture-decode-deferred-from-m3">TGA texture decode</a></td>
   <td>📋 Pending</td>
   <td>Decode <code>.tga</code> textures via pure-JS decoder</td>
