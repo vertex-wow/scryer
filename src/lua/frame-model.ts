@@ -265,6 +265,7 @@ export function frameNodeToIR(
     (node.scripts.get("OnClick")?.length ?? 0) > 0 ||
     (node.scripts.get("OnEnter")?.length ?? 0) > 0 ||
     (node.scripts.get("OnLeave")?.length ?? 0) > 0;
+  const draggable = (node.scripts.get("OnDragStart")?.length ?? 0) > 0;
 
   return {
     kind: FRAME_KIND_MAP[node.frameType] ?? "Frame",
@@ -299,7 +300,8 @@ export function frameNodeToIR(
     pushedTexture: node.pushedTexture ? stateTexIR(node.pushedTexture) : undefined,
     highlightTexture: node.highlightTexture ? stateTexIR(node.highlightTexture) : undefined,
     interactive: interactive || undefined,
-    runtimeId: interactive ? node.id : undefined,
+    draggable: draggable || undefined,
+    runtimeId: interactive || draggable ? node.id : undefined,
     useParentLevel: node.attributes.get("__scryer_useParentLevel") === true ? true : undefined,
     ...statusBarIR(node),
   };

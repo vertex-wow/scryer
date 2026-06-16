@@ -248,6 +248,41 @@ function renderFrame(
     });
   }
 
+  // Attach drag listeners for movable frames (those with OnDragStart handlers).
+  if (frame.draggable && frame.runtimeId !== undefined && onFrameEvent) {
+    const rId = frame.runtimeId;
+    el.style.cursor = "grab";
+    el.addEventListener("mousedown", (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      if (document.body.classList.contains("mode-grab")) return;
+      e.stopPropagation();
+      e.preventDefault();
+      // Ratio of screen px to element-local CSS px, accounting for panZoom + frameScale + uiScale.
+      const screenToLocal = el.offsetWidth / el.getBoundingClientRect().width;
+      let prevX = e.clientX;
+      let prevY = e.clientY;
+      let tx = 0;
+      let ty = 0;
+      el.style.cursor = "grabbing";
+      onFrameEvent(rId, "OnDragStart", ["LeftButton"]);
+      const onMove = (me: MouseEvent) => {
+        tx += (me.clientX - prevX) * screenToLocal;
+        ty += (me.clientY - prevY) * screenToLocal;
+        prevX = me.clientX;
+        prevY = me.clientY;
+        el.style.transform = `translate(${tx}px,${ty}px)`;
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        el.style.cursor = "grab";
+        onFrameEvent(rId, "OnDragStop", []);
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  }
+
   // Inject atlas size for useAtlasSize textures across all layers before layout.
   // This mirrors WoW: SetAtlas(name, true) sets the initial size; opposing anchors
   // may then override on the constrained axis.

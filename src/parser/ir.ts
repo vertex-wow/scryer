@@ -108,6 +108,8 @@ export interface FrameIR extends LayoutFrameBase {
   disabledFont?: string;
   /** Set by live-panel runtime: frame has OnClick/OnEnter/OnLeave handlers. */
   interactive?: boolean;
+  /** Set by live-panel runtime: frame has OnDragStart handler (SetMovable+RegisterForDrag). */
+  draggable?: boolean;
   /** Live-panel runtime ID used to route webview frameEvent messages back to Lua. */
   runtimeId?: number;
   /** StatusBar fill fraction [0,1] for rendering a proportional fill bar. */
