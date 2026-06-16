@@ -1,5 +1,4 @@
 import * as fs from "fs";
-import BLPFile from "js-blp";
 import { PNG } from "pngjs";
 import { blpToRgba } from "./blp-decode";
 
@@ -12,23 +11,12 @@ function encodeRgbaToPng(rgba: Buffer, width: number, height: number): Buffer {
   return PNG.sync.write(png);
 }
 
-function decodeBlp(buf: Buffer): { rgba: Buffer; width: number; height: number } {
-  try {
-    return blpToRgba(buf);
-  } catch {
-    // Fallback to js-blp for encoding=1 (palette) and any other unsupported variant
-    const blp = new BLPFile(buf);
-    const pixels = blp.getPixels(0);
-    return { rgba: pixels.raw as Buffer, width: blp.width, height: blp.height };
-  }
-}
-
 /**
  * Decode BLP bytes to a PNG-encoded Buffer.
  * Throws if the bytes are not a valid BLP or the variant is unsupported.
  */
 export function blpToPngBuffer(buf: Buffer): Buffer {
-  const { rgba, width, height } = decodeBlp(buf);
+  const { rgba, width, height } = blpToRgba(buf);
   return encodeRgbaToPng(rgba, width, height);
 }
 
@@ -38,14 +26,14 @@ export function blpToPngBuffer(buf: Buffer): Buffer {
  */
 export function blpToPng(absPath: string): Buffer {
   const buf = fs.readFileSync(absPath);
-  const { rgba, width, height } = decodeBlp(buf);
+  const { rgba, width, height } = blpToRgba(buf);
   return encodeRgbaToPng(rgba, width, height);
 }
 
 /**
  * Encode a PNG file as a BLP2 raw-BGRA file (encoding=3, single mip).
- * Readable by js-blp and the WoW client. Intended for dev tooling and test
- * fixtures — raw BGRA is uncompressed and large, not suitable for shipping.
+ * Readable by the WoW client. Intended for dev tooling and test fixtures —
+ * raw BGRA is uncompressed and large, not suitable for shipping.
  */
 export function pngToBlp(pngPath: string, blpPath: string): void {
   const { width, height, data } = PNG.sync.read(fs.readFileSync(pngPath));
@@ -60,7 +48,7 @@ export function pngToBlp(pngPath: string, blpPath: string): void {
 
   const header = Buffer.alloc(BLP_HEADER_SIZE, 0);
   header.writeUInt32LE(BLP2_MAGIC, 0);
-  header.writeUInt32LE(1, 4); // type=1 (required by js-blp)
+  header.writeUInt32LE(1, 4); // BLP type=1
   header.writeUInt8(3, 8); // encoding=3 (raw BGRA)
   header.writeUInt8(8, 9); // alphaDepth=8
   header.writeUInt32LE(width, 12);

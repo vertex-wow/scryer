@@ -432,7 +432,6 @@
   },
   "dependencies": {
     "fast-xml-parser": "^5.8.0",
-    "js-blp": "^1.0.5",
     "pngjs": "^7.0.0",
     "wasmoon": "^1.16.0"
   },

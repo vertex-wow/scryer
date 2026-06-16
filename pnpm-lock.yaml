@@ -11,9 +11,6 @@ importers:
       fast-xml-parser:
         specifier: ^5.8.0
         version: 5.8.0
-      js-blp:
-        specifier: ^1.0.5
-        version: 1.0.5
       pngjs:
         specifier: ^7.0.0
         version: 7.0.0
@@ -859,9 +856,6 @@ packages:
   buffer@5.7.1:
     resolution: {integrity: sha512-EHcyIPBQ4BSGlvjB16k5KgAJ27CIsHY/2JBmCRReo48y9rQ3MaUzWX3KVlBa4U7MyX02HdVj0K7C3WaB3ju7FQ==}
 
-  bufo@1.1.6:
-    resolution: {integrity: sha512-BsM41wm2LeFdCLAQ4UOJgfs+oUXysbDTspKtJ2YrJTJO3Q62jc9AIVQF7SDajhFELWbNqUAoj37iv1U6aQtcOA==}
-
   bundle-name@4.1.0:
     resolution: {integrity: sha512-tjwM5exMg6BGRI+kNmTntNsvdZS1X8BFYS6tnJ2hdH0kVxM6/eVZ2xy+FqStSWvYmtfFMDLIxurorHwDKfDz5Q==}
     engines: {node: '>=18'}
@@ -1366,9 +1360,6 @@ packages:
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
-
-  js-blp@1.0.5:
-    resolution: {integrity: sha512-rdvzYxoxShD3pcEUSyWo8hKYuVAzHuW9x1xfwj+9n+pb0M+9o2gofR6YgjEymPzilhH+M94XU0MrwcivyUVfdQ==}
 
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
@@ -3102,8 +3093,6 @@ snapshots:
       ieee754: 1.2.1
     optional: true
 
-  bufo@1.1.6: {}
-
   bundle-name@4.1.0:
     dependencies:
       run-applescript: 7.1.0
@@ -3650,10 +3639,6 @@ snapshots:
       textextensions: 6.11.0
 
   jiti@2.7.0: {}
-
-  js-blp@1.0.5:
-    dependencies:
-      bufo: 1.1.6
 
   js-tokens@10.0.0: {}
 

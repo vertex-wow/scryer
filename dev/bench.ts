@@ -26,8 +26,8 @@ import * as os from "os";
 import * as path from "path";
 
 // Pure-Node asset modules — no vscode dependency
-import BLPFile from "js-blp";
 import { PNG } from "pngjs";
+import { blpToRgba } from "../src/assets/blp-decode.js";
 import { cacheKey, getCachedPath, writeCached } from "../src/assets/cache.js";
 import { blpToPng } from "../src/assets/blp.js";
 import { clearResolutionMemo, resolveTexturePath } from "../src/assets/resolver.js";
@@ -187,12 +187,8 @@ function measureFileSplit(absPath: string): PerFileResult {
   const t_read_ms = +(performance.now() - t0).toFixed(3);
 
   t0 = performance.now();
-  const blp = new BLPFile(raw);
-  const pixels = blp.getPixels(0);
-  const rgba: Buffer = pixels.raw;
+  const { rgba, width, height } = blpToRgba(raw);
   const t_decode_ms = +(performance.now() - t0).toFixed(3);
-
-  const { width, height } = blp;
 
   t0 = performance.now();
   const png = new PNG({ width, height });

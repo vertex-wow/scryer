@@ -8,8 +8,8 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import BLPFile from "js-blp";
 import { PNG } from "pngjs";
+import { blpToRgba } from "../src/assets/blp-decode.js";
 
 const SAMPLE_SIZE = 200;
 const arg = process.argv[2] ?? path.join(__dirname, "..", ".wow-cache", "interface");
@@ -54,11 +54,10 @@ for (const f of sample) {
     totalRawBytes += raw.length;
 
     const t0 = performance.now();
-    const blp = new BLPFile(raw);
-    const rgba: Buffer = blp.getPixels(0).raw;
+    const { rgba, width, height } = blpToRgba(raw);
     const t1 = performance.now();
 
-    const png = new PNG({ width: blp.width, height: blp.height, filterType: -1 });
+    const png = new PNG({ width, height, filterType: -1 });
     png.data = rgba;
     const pngBuf = PNG.sync.write(png);
     const t2 = performance.now();

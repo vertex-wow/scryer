@@ -1,23 +1,35 @@
 /**
- * Fast BLP2 decoder using typed arrays throughout.
- *
- * js-blp (the npm package) accumulates decoded pixels into plain JS Arrays, which
- * triggers repeated array-growth and GC pressure. For a 1024×1024 DXT1 texture that
- * produces 4 MB of RGBA output, this costs ~4 s on a modern CPU.
- *
- * This module replaces the hot decode paths with Buffer.alloc + Uint8Array operations
- * that V8 can JIT-compile to near-native speed.
+ * BLP2 decoder using typed arrays throughout.
  *
  * Supported encodings (covering the entire retail Interface/ corpus):
+ *   encoding=1                      → palette (BGRA lookup + packed alpha)
  *   encoding=2 + alphaBitDepth=0   → DXT1 (no alpha)
  *   encoding=2 + alphaEncoding=7   → DXT5 (interpolated alpha)
  *   encoding=2 + alphaEncoding≠7   → DXT3 (explicit alpha)
  *   encoding=3                      → raw BGRA (direct channel swap)
  *
- * Encoding=1 (palette) is not implemented here; call through to js-blp for that path.
+ * Derived in part from js-blp (https://github.com/Kruithne/js-blp) by Kruithne, MIT.
+ * See NOTICE for the full attribution.
  */
 
 const BLP2_MAGIC = 0x32504c42; // 'BLP2' little-endian
+
+function paletteAlpha(raw: Buffer, index: number, alphaDepth: number, pixelCount: number): number {
+  switch (alphaDepth) {
+    case 1: {
+      const byte = raw[pixelCount + (index >> 3)];
+      return (byte & (0x01 << (index & 7))) === 0 ? 0x00 : 0xff;
+    }
+    case 4: {
+      const byte = raw[pixelCount + (index >> 1)];
+      return index % 2 === 0 ? (byte & 0x0f) << 4 : byte & 0xf0;
+    }
+    case 8:
+      return raw[pixelCount + index];
+    default:
+      return 0xff;
+  }
+}
 
 /** Decode a BLP2 buffer to raw RGBA bytes + dimensions. Throws on unsupported formats. */
 export function blpToRgba(buf: Buffer): { rgba: Buffer; width: number; height: number } {
@@ -163,5 +175,19 @@ export function blpToRgba(buf: Buffer): { rgba: Buffer; width: number; height: n
     return { rgba, width, height };
   }
 
-  throw new Error(`BLP encoding ${encoding} not supported by fast decoder`);
+  if (encoding === 1) {
+    // Palette: 256 BGRA entries starting at byte 148 (immediately after the fixed header).
+    const PALETTE_START = 148;
+    const rgba = Buffer.alloc(pixelCount * 4);
+    for (let i = 0; i < pixelCount; i++) {
+      const po = PALETTE_START + raw[i] * 4;
+      rgba[i * 4] = buf[po + 2]; // R (palette is BGRA)
+      rgba[i * 4 + 1] = buf[po + 1]; // G
+      rgba[i * 4 + 2] = buf[po]; // B
+      rgba[i * 4 + 3] = paletteAlpha(raw, i, alphaDepth, pixelCount);
+    }
+    return { rgba, width, height };
+  }
+
+  throw new Error(`BLP encoding ${encoding} not supported`);
 }
