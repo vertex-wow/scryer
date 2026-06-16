@@ -315,36 +315,6 @@ export class AssetClient {
     return Buffer.from(res.data, "base64");
   }
 
-  public async decodeBlpRgba(
-    blpData: Buffer,
-  ): Promise<{ rgba: Buffer; width: number; height: number } | null> {
-    const res = await this.request<{
-      ok: boolean;
-      rgba?: string;
-      width?: number;
-      height?: number;
-      error?: string;
-    }>("decodeBlp", { data: blpData.toString("base64") });
-    if (!res.ok || !res.rgba || res.width == null || res.height == null) return null;
-    return { rgba: Buffer.from(res.rgba, "base64"), width: res.width, height: res.height };
-  }
-
-  /** Read a BLP from CASC storage and decode it server-side. Only the RGBA response crosses the pipe. */
-  public async readCascBlpRgba(
-    path: string,
-    cdnEnabled = false,
-  ): Promise<{ rgba: Buffer; width: number; height: number } | null> {
-    const res = await this.request<{
-      ok: boolean;
-      rgba?: string;
-      width?: number;
-      height?: number;
-      error?: string;
-    }>("readAndDecodeBlp", { path, cdnEnabled });
-    if (!res.ok || !res.rgba || res.width == null || res.height == null) return null;
-    return { rgba: Buffer.from(res.rgba, "base64"), width: res.width, height: res.height };
-  }
-
   public async status(): Promise<AssetStatus> {
     const res = await this.request<AssetStatus>("status");
     return {

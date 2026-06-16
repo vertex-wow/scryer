@@ -639,7 +639,7 @@ The natural follow-up question is whether our IPC method is the bottleneck rathe
 
 **Estimate: not worth it.** The RGBA transfer cost is structural — any IPC variant pays it. JS in-process decode is the right architecture for this workload.
 
-**Decision: Keep JS typed-array decoder (`src/assets/blp-decode.ts`). Do not route `decodeBlp` or `readAndDecodeBlp` through the asset server.** The Rust server implementation and benchmark are retained as a reference.
+**Decision: Keep JS typed-array decoder (`src/assets/blp-decode.ts`). Do not route `decodeBlp` or `readAndDecodeBlp` through the asset server.** The full Rust implementation (blp_decode.rs, DecodeBlp/ReadAndDecodeBlp server methods, client wrappers, and bench-rust-blp-decoder.ts) was committed as a reference at `e328d60` and then reverted.
 
 ---
 

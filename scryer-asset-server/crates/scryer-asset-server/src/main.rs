@@ -1,4 +1,3 @@
-mod blp_decode;
 mod server;
 
 use clap::{Parser, Subcommand};
