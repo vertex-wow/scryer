@@ -5,6 +5,7 @@ export class PanelToolbar {
   public ephemeralSettings: Record<string, unknown> = {};
   public eyedropperActive = false;
   public lastEyedropperText: string | undefined;
+  private lastCursorPos: { x: number; y: number } | undefined;
 
   constructor(
     private readonly panel: vscode.WebviewPanel,
@@ -28,9 +29,9 @@ export class PanelToolbar {
       this.statusBar.text = `🔬 ${this.lastEyedropperText}`;
       this.statusBar.tooltip = "Eyedropper — Ctrl+C in preview to copy";
     } else {
-      const show = this.getSetting<boolean>("showRuler") ?? true;
-      this.statusBar.text = `📏 ${show ? "ON" : "OFF"}`;
-      this.statusBar.tooltip = "Toggle pixel ruler overlay";
+      const pos = this.lastCursorPos ? ` ${this.lastCursorPos.x}, ${this.lastCursorPos.y}` : "";
+      this.statusBar.text = `$(target)${pos}`;
+      this.statusBar.tooltip = undefined;
     }
   }
 
@@ -83,6 +84,18 @@ export class PanelToolbar {
 
       case "eyedropperCopy": {
         void vscode.env.clipboard.writeText(msg.text);
+        return false;
+      }
+
+      case "cursorMove": {
+        this.lastCursorPos = { x: msg.x, y: msg.y };
+        if (!this.eyedropperActive) this.updateStatusBar();
+        return false;
+      }
+
+      case "cursorLeave": {
+        this.lastCursorPos = undefined;
+        if (!this.eyedropperActive) this.updateStatusBar();
         return false;
       }
     }

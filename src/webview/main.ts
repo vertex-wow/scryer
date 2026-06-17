@@ -346,6 +346,10 @@ document.getElementById("local-tx-toggle")?.addEventListener("change", (e) => {
 interactBtn?.addEventListener("click", () => setMode("interact"));
 grabBtn?.addEventListener("click", () => setMode("grab"));
 
+document.getElementById("reload-btn")?.addEventListener("click", () => {
+  vscode.postMessage({ type: "reloadAddon" });
+});
+
 document.getElementById("recenter-btn")?.addEventListener("click", () => {
   if (currentConfig) centerOnContent(currentConfig);
 });
@@ -379,6 +383,51 @@ setupDropdown("bg-dropdown", "bg-dropdown-menu", (value) => {
 });
 
 setupLocaleDropdown();
+
+setupDropdown("slash-dropdown", "slash-dropdown-menu", (key) => {
+  vscode.postMessage({ type: "runSlashCommand", key, args: "" });
+});
+
+// ---------------------------------------------------------------------------
+// Slash-command args modal
+// ---------------------------------------------------------------------------
+
+function openSlashArgsModal(key: string, cmdDisplay: string): void {
+  const modal = document.getElementById("slash-args-modal");
+  const cmdEl = document.getElementById("slash-args-cmd");
+  const input = document.getElementById("slash-args-input") as HTMLInputElement | null;
+  if (!modal || !cmdEl || !input) return;
+  cmdEl.textContent = cmdDisplay;
+  input.value = "";
+  modal.dataset.key = key;
+  modal.classList.add("open");
+  input.focus();
+}
+
+function closeSlashArgsModal(): void {
+  document.getElementById("slash-args-modal")?.classList.remove("open");
+}
+
+document.getElementById("slash-args-backdrop")?.addEventListener("click", closeSlashArgsModal);
+document.getElementById("slash-args-cancel")?.addEventListener("click", closeSlashArgsModal);
+
+document.getElementById("slash-args-run")?.addEventListener("click", () => {
+  const modal = document.getElementById("slash-args-modal");
+  const input = document.getElementById("slash-args-input") as HTMLInputElement | null;
+  if (!modal || !input) return;
+  const key = modal.dataset.key ?? "";
+  const args = input.value;
+  closeSlashArgsModal();
+  vscode.postMessage({ type: "runSlashCommand", key, args });
+});
+
+document.getElementById("slash-args-input")?.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (e.key === "Enter") {
+    document.getElementById("slash-args-run")?.click();
+  } else if (e.key === "Escape") {
+    closeSlashArgsModal();
+  }
+});
 
 document.addEventListener("localeChange", (e) => {
   vscode.postMessage({ type: "settingChange", key: "locale", value: (e as CustomEvent).detail });
@@ -567,16 +616,25 @@ function formatEyedropperColor(
 }
 
 window.addEventListener("mousemove", (e: MouseEvent) => {
-  if (eyedropperState !== "sampling") return;
-  const pixel = sampleAtPoint(e.clientX, e.clientY);
-  if (!pixel) return;
-  const [r, g, b, a] = pixel;
-  // Convert viewport client coords → WoW logical pixel coords
+  // Always track WoW logical cursor position for the status bar.
   const x = Math.round((e.clientX - panX) / panZoom / currentScale / currentUiScale);
   const y = Math.round((e.clientY - panY) / panZoom / currentScale / currentUiScale);
-  eyedropperText = formatEyedropperColor(r, g, b, a, x, y);
-  if (debug) debug.textContent = eyedropperText;
-  vscode.postMessage({ type: "eyedropperSample", r, g, b, a, x, y });
+
+  if (eyedropperState === "sampling") {
+    const pixel = sampleAtPoint(e.clientX, e.clientY);
+    if (pixel) {
+      const [r, g, b, a] = pixel;
+      eyedropperText = formatEyedropperColor(r, g, b, a, x, y);
+      if (debug) debug.textContent = eyedropperText;
+      vscode.postMessage({ type: "eyedropperSample", r, g, b, a, x, y });
+    }
+  } else {
+    vscode.postMessage({ type: "cursorMove", x, y });
+  }
+});
+
+document.addEventListener("mouseleave", () => {
+  vscode.postMessage({ type: "cursorLeave" });
 });
 
 document.body.addEventListener("click", (e: MouseEvent) => {
@@ -1289,6 +1347,49 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
 
     case "recenterCanvas": {
       if (currentConfig) centerOnContent(currentConfig);
+      break;
+    }
+
+    case "setSlashCommands": {
+      const slashDropdown = document.getElementById("slash-dropdown");
+      const slashMenu = document.getElementById("slash-dropdown-menu");
+      if (!slashDropdown || !slashMenu) break;
+      slashMenu.innerHTML = "";
+      if (msg.commands.length > 0) {
+        for (const entry of msg.commands) {
+          const item = document.createElement("div");
+          item.className = "dropdown-item";
+          item.setAttribute("data-value", entry.key);
+          const text = document.createElement("span");
+          text.className = "dropdown-item-text";
+          text.textContent = entry.commands[0] ?? entry.key;
+          item.appendChild(text);
+          if (entry.commands.length > 1) {
+            const aliases = document.createElement("span");
+            aliases.style.cssText = "opacity:0.45;font-size:0.85em;margin-left:6px";
+            aliases.textContent = entry.commands.slice(1).join(", ");
+            item.appendChild(aliases);
+          }
+          const kbBtn = document.createElement("button");
+          kbBtn.className = "slash-kb-btn";
+          kbBtn.textContent = "⌨️";
+          kbBtn.title = `Run ${entry.commands[0] ?? entry.key} with arguments`;
+          const cmdDisplay = entry.commands[0] ?? entry.key;
+          const capturedKey = entry.key;
+          kbBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            slashMenu.classList.add("hidden");
+            openSlashArgsModal(capturedKey, cmdDisplay);
+          });
+          item.appendChild(kbBtn);
+          slashMenu.appendChild(item);
+        }
+        slashDropdown.classList.remove("empty");
+        slashDropdown.title = "Run slash command";
+      } else {
+        slashDropdown.classList.add("empty");
+        slashDropdown.title = "No slash commands detected.";
+      }
       break;
     }
   }

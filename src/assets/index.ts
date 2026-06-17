@@ -93,6 +93,8 @@ export class AssetService {
   private blizzardFilesPromise: Promise<boolean> | null = null;
   /** True once blizzardFilesPromise has settled — tells the panel it can skip pending state. */
   private blizzardFilesSettled = false;
+  /** Memoized promise for the live-panel critical Lua extraction pass. */
+  private blizzardLuaCriticalPromise: Promise<boolean> | null = null;
   /** Set once the atlas manifest generation pass has run (or been skipped). Cleared by invalidate(). */
   private atlasManifestEnsured = false;
   /** Paths for which a one-shot extraction has already been attempted this session. */
@@ -130,6 +132,7 @@ export class AssetService {
     this.blizzardFilesPromise = null;
     this.blizzardFilesSettled = false;
     this.atlasManifestEnsured = false;
+    this.blizzardLuaCriticalPromise = null;
     clearRegistryCache(this.opts.registryDir);
   }
 
@@ -489,10 +492,16 @@ export class AssetService {
     });
     if (allPresent) return false;
 
+    // Memoize: only attempt extraction once per session (same pattern as ensureBlizzardFiles).
+    // Without this guard, every runAndRender call re-triggers extraction when critical files
+    // remain missing (e.g. CDN-only stubs that can't be downloaded).
+    if (this.blizzardLuaCriticalPromise) return this.blizzardLuaCriticalPromise;
     const cfg = vscode.workspace.getConfiguration("scryer");
     const cdnEnabled = (cfg.get<string>("cdnFallback") ?? "ask") === "cdn";
-    const result = await extractCriticalBlizzardFiles(this.makeExtractorOpts(cdnEnabled));
-    return (result?.exported ?? 0) > 0;
+    this.blizzardLuaCriticalPromise = extractCriticalBlizzardFiles(
+      this.makeExtractorOpts(cdnEnabled),
+    ).then((result) => (result?.exported ?? 0) > 0);
+    return this.blizzardLuaCriticalPromise;
   }
 
   /**

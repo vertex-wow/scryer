@@ -96,6 +96,20 @@ export class EventEngine {
     this.flushDirty();
   }
 
+  async runSlashCommand(key: string, args: string): Promise<void> {
+    const lua = `if type(SlashCmdList) == "table" and type(SlashCmdList[${JSON.stringify(key)}]) == "function" then SlashCmdList[${JSON.stringify(key)}](${JSON.stringify(args)}, nil) end`;
+    try {
+      await doStringWithTimeout(this.sandbox, lua, this.config.sandboxTimeout);
+    } catch (e) {
+      if (isLuaTimeout(e)) {
+        this.callbacks.output.warn(`[Live] /${key} timeout`);
+      } else {
+        this.callbacks.output.warn(`[Live] /${key} error: ${e}`);
+      }
+    }
+    this.flushDirty();
+  }
+
   private flushDirty(): void {
     if (!this.registry.isDirty()) return;
     this.registry.clearDirty();

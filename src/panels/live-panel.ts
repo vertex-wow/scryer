@@ -19,7 +19,7 @@ import { registerWowApi, VirtualClock } from "../lua/wow-api.js";
 import type { FrameIR, TextureIR } from "../parser/ir.js";
 import { parseToc } from "../parser/toc.js";
 import { getEffectiveTarget } from "../target.js";
-import type { HostMessage, Viewport, WebviewMessage } from "../protocol.js";
+import type { HostMessage, SlashCommandEntry, Viewport, WebviewMessage } from "../protocol.js";
 import { layoutAll } from "../webview/layout.js";
 
 /** Strip WoW color codes like |cAARRGGBBtext|r from a string. */
@@ -135,8 +135,6 @@ export class ScryerLivePanel {
     this.assets = assets;
 
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 90);
-    this.statusBar.command = "scryer.toggleRuler";
-    this.statusBar.tooltip = "Toggle pixel ruler overlay";
     this.statusBar.show();
     this.toolbar = new PanelToolbar(this.panel, this.statusBar);
     this.toolbar.updateStatusBar();
@@ -329,6 +327,17 @@ export class ScryerLivePanel {
         await this.session.engine.dispatchFrameEvent(msg.frameId, msg.event, msg.extra ?? []);
         break;
       }
+
+      case "runSlashCommand": {
+        if (!this.session) break;
+        this.output.debug(`[Live] runSlashCommand: ${msg.key} args="${msg.args}"`);
+        await this.session.engine.runSlashCommand(msg.key, msg.args);
+        break;
+      }
+
+      case "reloadAddon":
+        void this.runAndRender(uri);
+        break;
     }
   }
 
@@ -498,6 +507,41 @@ export class ScryerLivePanel {
     }
   }
 
+  private async collectSlashCommands(sandbox: LuaEngine): Promise<SlashCommandEntry[]> {
+    try {
+      const result = await sandbox.doString(`
+        local parts = {}
+        if type(SlashCmdList) == "table" then
+          for k, _ in pairs(SlashCmdList) do
+            local cmds = {}
+            local i = 1
+            while _G["SLASH_" .. k .. i] ~= nil do
+              table.insert(cmds, _G["SLASH_" .. k .. i])
+              i = i + 1
+            end
+            if #cmds > 0 then
+              local ek = k:gsub('\\\\', '\\\\\\\\'):gsub('"', '\\\\"')
+              local cmd_parts = {}
+              for _, c in ipairs(cmds) do
+                table.insert(cmd_parts, '"' .. c:gsub('\\\\', '\\\\\\\\'):gsub('"', '\\\\"') .. '"')
+              end
+              table.insert(parts, '{"key":"' .. ek .. '","commands":[' .. table.concat(cmd_parts, ',') .. ']}')
+            end
+          end
+        end
+        return '[' .. table.concat(parts, ',') .. ']'
+      `);
+      if (typeof result === "string") {
+        const parsed = JSON.parse(result) as SlashCommandEntry[];
+        parsed.sort((a, b) => (a.commands[0] ?? "").localeCompare(b.commands[0] ?? ""));
+        return parsed;
+      }
+    } catch {
+      // Non-fatal — slash command toolbar just stays empty
+    }
+    return [];
+  }
+
   // ── Main run-and-render cycle ────────────────────────────────────────────────
 
   async runAndRender(uri: vscode.Uri): Promise<void> {
@@ -509,6 +553,7 @@ export class ScryerLivePanel {
 
     // Tear down any existing session first
     this.stopSession();
+    void this.panel.webview.postMessage({ type: "setSlashCommands", commands: [] } as HostMessage);
 
     const cfg = vscode.workspace.getConfiguration("scryer");
     const flavor = this.toolbar.getSetting<string>("flavor") ?? "retail";
@@ -695,6 +740,13 @@ TROUBLESHOOTING:
           }
         }
       }
+
+      // Collect and send registered slash commands
+      const slashCommands = await this.collectSlashCommands(sandbox);
+      void this.panel.webview.postMessage({
+        type: "setSlashCommands",
+        commands: slashCommands,
+      } as HostMessage);
 
       // Serialize the initial frame tree
       registry.clearDirty();

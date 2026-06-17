@@ -187,11 +187,31 @@ export function buildPanelHtml(options: PanelHtmlOptions): string {
     .loading-spinner{width:28px;height:28px;border:2px solid rgba(255,255,255,0.12);border-top-color:rgba(255,255,255,0.55);border-radius:50%;animation:scryer-spin 0.75s linear infinite}
     @keyframes scryer-spin{to{transform:rotate(360deg)}}
     .loading-label{color:rgba(255,255,255,0.35);font:${c.statusTextFont}}
+    #slash-dropdown.empty{opacity:0.35;filter:grayscale(1);pointer-events:none}
+    #slash-dropdown.empty .custom-dropdown-trigger{cursor:default}
+    .slash-kb-btn{cursor:pointer;opacity:0.45;margin-left:auto;padding:0 8px;align-self:stretch;display:flex;align-items:center;flex-shrink:0;font-size:13px;line-height:1;border:none;border-left:1px solid var(--vscode-dropdown-border);background:none;color:inherit}
+    .slash-kb-btn:hover{opacity:1;background:rgba(255,255,255,0.07)}
+    #slash-args-modal{display:none;position:fixed;inset:0;z-index:10003;align-items:center;justify-content:center}
+    #slash-args-modal.open{display:flex}
+    #slash-args-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.55)}
+    #slash-args-dialog{position:relative;background:var(--vscode-dropdown-background);border:1px solid var(--vscode-dropdown-border);color:var(--vscode-dropdown-foreground);padding:16px 18px;min-width:340px;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.5)}
+    #slash-args-title{font:${c.toolbarFont};opacity:0.7}
+    #slash-args-row{display:flex;align-items:center;gap:8px}
+    #slash-args-cmd{font-family:monospace;font-size:13px;white-space:nowrap;flex-shrink:0}
+    #slash-args-input{flex:1;background:var(--vscode-input-background);color:var(--vscode-input-foreground);border:1px solid var(--vscode-input-border,rgba(255,255,255,0.2));padding:4px 8px;font:${c.toolbarFont};outline:none;min-width:0}
+    #slash-args-input:focus{border-color:var(--vscode-focusBorder,#007fd4)}
+    #slash-args-buttons{display:flex;justify-content:flex-end;gap:8px}
+    #slash-args-cancel,#slash-args-run{padding:4px 14px;border:1px solid transparent;cursor:pointer;font:${c.toolbarFont}}
+    #slash-args-cancel{background:var(--vscode-button-secondaryBackground,rgba(255,255,255,0.1));color:var(--vscode-button-secondaryForeground,inherit)}
+    #slash-args-cancel:hover{background:var(--vscode-button-secondaryHoverBackground,rgba(255,255,255,0.18))}
+    #slash-args-run{background:var(--vscode-button-background,#0e639c);color:var(--vscode-button-foreground,#fff)}
+    #slash-args-run:hover{background:var(--vscode-button-hoverBackground,#1177bb)}
   </style>
 </head>
 <body class="loading-initial">
   <div id="status-bar">
     <button id="ruler-toggle" class="toolbar-btn" title="Toggle pixel ruler (R)"><span class="ruler-icon">📏</span></button>
+    <button id="reload-btn" class="toolbar-btn" title="Reload addon and re-render">↻</button>
     <button id="interact-toggle" class="toolbar-btn" title="Interact — normal mouse cursor (I)"><svg width="10" height="13" viewBox="0 0 10 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><polygon points="0,0 0,10 2.5,7.5 4.5,12.5 6,12 4,7 7.5,7"/></svg></button>
     <button id="grab-toggle" class="toolbar-btn" title="Grab — pan and zoom (H) (drag · middle-drag · space-drag · ctrl+scroll · ctrl+0 fit · ctrl+shift+0 reset)"><svg width="12" height="13" viewBox="0 0 12 13" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="2" width="2" height="6" rx="1"/><rect x="4" y="0" width="2" height="8" rx="1"/><rect x="7" y="0" width="2" height="8" rx="1"/><rect x="10" y="2" width="2" height="6" rx="1"/><rect x="0" y="7" width="12" height="6" rx="2"/></svg></button>
     <button id="recenter-btn" class="toolbar-btn" title="Re-center canvas (C)"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="2.8"/><line x1="6.5" y1="0.5" x2="6.5" y2="3.7"/><line x1="6.5" y1="9.3" x2="6.5" y2="12.5"/><line x1="0.5" y1="6.5" x2="3.7" y2="6.5"/><line x1="9.3" y1="6.5" x2="12.5" y2="6.5"/></svg></button>
@@ -284,12 +304,32 @@ ${ZOOM_PRESETS.map(
 ).join("\n")}
       </div>
     </div>
+    <div id="slash-dropdown" class="custom-dropdown empty" title="No slash commands detected.">
+      <div id="slash-dropdown-trigger" class="custom-dropdown-trigger">
+        <span class="dropdown-trigger-label">⚡</span>
+      </div>
+      <div id="slash-dropdown-menu" class="custom-dropdown-menu hidden"></div>
+    </div>
     <span id="debug">script not yet loaded</span>
   </div>
   <div id="viewport"></div>
   <div id="loading-overlay">
     <div class="loading-spinner"></div>
     <div id="loading-label" class="loading-label">Loading…</div>
+  </div>
+  <div id="slash-args-modal">
+    <div id="slash-args-backdrop"></div>
+    <div id="slash-args-dialog">
+      <div id="slash-args-title">Run command with arguments:</div>
+      <div id="slash-args-row">
+        <span id="slash-args-cmd"></span>
+        <input id="slash-args-input" type="text" placeholder="Arguments…" autocomplete="off" spellcheck="false">
+      </div>
+      <div id="slash-args-buttons">
+        <button id="slash-args-cancel">Cancel</button>
+        <button id="slash-args-run">Run</button>
+      </div>
+    </div>
   </div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>

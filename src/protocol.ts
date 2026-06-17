@@ -4,6 +4,11 @@ import type { CanvasMode } from "./constants.js";
 
 export type { ResolvedFlavorConfig };
 
+export interface SlashCommandEntry {
+  key: string;
+  commands: string[];
+}
+
 export interface Viewport {
   w: number;
   h: number;
@@ -57,7 +62,8 @@ export type HostMessage =
   | { type: "setStatus"; state: "idle" | "extracting" | "buildingAtlas" }
   | { type: "setEyedropper"; active: boolean }
   | { type: "setCanvasMode"; mode: CanvasMode }
-  | { type: "recenterCanvas" };
+  | { type: "recenterCanvas" }
+  | { type: "setSlashCommands"; commands: SlashCommandEntry[] };
 
 // Webview → extension host
 export type WebviewMessage =
@@ -82,7 +88,11 @@ export type WebviewMessage =
         | "localTextureOverrides";
       value: string | boolean;
     }
+  | { type: "reloadAddon" }
+  | { type: "cursorMove"; x: number; y: number }
+  | { type: "cursorLeave" }
   | { type: "eyedropperOn" }
   | { type: "eyedropperOff" }
   | { type: "eyedropperSample"; r: number; g: number; b: number; a: number; x: number; y: number }
-  | { type: "eyedropperCopy"; text: string };
+  | { type: "eyedropperCopy"; text: string }
+  | { type: "runSlashCommand"; key: string; args: string };

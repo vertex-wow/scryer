@@ -91,8 +91,6 @@ export class ScryerPanel {
     this.assets = assets;
 
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 90);
-    this.statusBar.command = "scryer.toggleRuler";
-    this.statusBar.tooltip = "Toggle pixel ruler overlay";
     this.statusBar.show();
     this.toolbar = new PanelToolbar(this.panel, this.statusBar);
     this.toolbar.updateStatusBar();
@@ -293,6 +291,10 @@ export class ScryerPanel {
 
       case "dbg":
         this.output.trace(`status: ${msg.text ?? ""}`);
+        break;
+
+      case "reloadAddon":
+        void this.renderFile(uri);
         break;
     }
   }
