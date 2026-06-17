@@ -261,8 +261,10 @@ function renderFrame(
       const screenToLocal = el.offsetWidth / el.getBoundingClientRect().width;
       let prevX = e.clientX;
       let prevY = e.clientY;
-      let tx = 0;
-      let ty = 0;
+      // Seed tx/ty from any prior drag so subsequent drags accumulate instead of resetting.
+      const prevTransform = el.style.transform.match(/translate\(([^,]+)px,\s*([^p]+)px\)/);
+      let tx = prevTransform ? parseFloat(prevTransform[1]) : 0;
+      let ty = prevTransform ? parseFloat(prevTransform[2]) : 0;
       el.style.cursor = "grabbing";
       onFrameEvent(rId, "OnDragStart", ["LeftButton"]);
       const onMove = (me: MouseEvent) => {

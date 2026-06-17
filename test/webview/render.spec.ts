@@ -375,3 +375,70 @@ test("eyedropper: setEyedropper activates and mousemove sends eyedropperSample",
   expect((sample as { r: number }).r).toBeGreaterThan(200);
   expect((sample as { g: number }).g).toBeLessThan(50);
 });
+
+// ---------------------------------------------------------------------------
+// Drag
+// ---------------------------------------------------------------------------
+
+const DRAG_FRAME = makeFrame({
+  name: "DragFrame",
+  size: { x: 200, y: 200 },
+  anchors: [{ point: "CENTER" }],
+  draggable: true,
+  runtimeId: 1,
+  layers: [
+    {
+      level: "BACKGROUND",
+      subLevel: 0,
+      objects: [makeTexture({ name: "DragBg", color: { r: 0, g: 0.5, b: 1, a: 1 } })],
+    },
+  ],
+});
+
+// Drag the element by (dx, dy) screen pixels, starting from its current visual center.
+async function dragBy(
+  page: Parameters<typeof renderFrames>[0],
+  el: ReturnType<typeof page.locator>,
+  dx: number,
+  dy: number,
+) {
+  const box = await el.boundingBox();
+  if (!box) throw new Error("element not found");
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + dx, cy + dy, { steps: 3 });
+  await page.mouse.up();
+}
+
+test("drag: frame screen position shifts by drag delta after single drag", async ({ page }) => {
+  await renderFrames(page, [DRAG_FRAME]);
+  const el = page.locator('[data-name="DragFrame"]');
+
+  const before = await el.boundingBox();
+  await dragBy(page, el, 80, 40);
+  const after = await el.boundingBox();
+
+  // screenToLocal in the renderer is offsetWidth / getBoundingClientRect().width.
+  // The resulting CSS-px translation, when converted back to screen px, equals dx exactly.
+  expect(after!.x - before!.x).toBeCloseTo(80, 0);
+  expect(after!.y - before!.y).toBeCloseTo(40, 0);
+});
+
+test("drag: second drag accumulates onto first drag position", async ({ page }) => {
+  await renderFrames(page, [DRAG_FRAME]);
+  const el = page.locator('[data-name="DragFrame"]');
+
+  const origin = await el.boundingBox();
+  await dragBy(page, el, 80, 40);
+  // Re-query bounding box after first drag so second drag starts at the visual position.
+  await dragBy(page, el, 20, 10);
+  const final = await el.boundingBox();
+
+  // Total displacement must equal the sum of both drags.
+  // Bug: tx/ty reset to 0 on each mousedown, so second drag snaps frame back to
+  // just (20, 10) from its original position instead of accumulating.
+  expect(final!.x - origin!.x).toBeCloseTo(100, 0);
+  expect(final!.y - origin!.y).toBeCloseTo(50, 0);
+});

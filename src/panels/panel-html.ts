@@ -187,8 +187,9 @@ export function buildPanelHtml(options: PanelHtmlOptions): string {
     .loading-spinner{width:28px;height:28px;border:2px solid rgba(255,255,255,0.12);border-top-color:rgba(255,255,255,0.55);border-radius:50%;animation:scryer-spin 0.75s linear infinite}
     @keyframes scryer-spin{to{transform:rotate(360deg)}}
     .loading-label{color:rgba(255,255,255,0.35);font:${c.statusTextFont}}
-    #slash-dropdown.empty{opacity:0.35;filter:grayscale(1);pointer-events:none}
-    #slash-dropdown.empty .custom-dropdown-trigger{cursor:default}
+    #slash-dropdown.empty{opacity:0.35;filter:grayscale(1);cursor:default}
+    #slash-dropdown.empty:hover{background:none;opacity:0.35}
+    #slash-dropdown.empty .custom-dropdown-trigger{pointer-events:none}
     .slash-kb-btn{cursor:pointer;opacity:0.45;margin-left:auto;padding:0 8px;align-self:stretch;display:flex;align-items:center;flex-shrink:0;font-size:13px;line-height:1;border:none;border-left:1px solid var(--vscode-dropdown-border);background:none;color:inherit}
     .slash-kb-btn:hover{opacity:1;background:rgba(255,255,255,0.07)}
     #slash-args-modal{display:none;position:fixed;inset:0;z-index:10003;align-items:center;justify-content:center}
