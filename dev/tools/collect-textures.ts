@@ -25,9 +25,9 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { collectAddonTexturePaths } from "../src/parser/addon-textures.js";
+import { collectAddonTexturePaths } from "../../src/parser/addon-textures.js";
 
-const REPO_ROOT = path.join(__dirname, "..");
+const REPO_ROOT = path.join(__dirname, "../..");
 
 const [, , rawAddonsDir, ...argAddonNames] = process.argv;
 

@@ -100,7 +100,10 @@
       "Bash(pnpm vitest *)",
       "Bash(pnpm install *)",
       "Bash(cargo doc *)",
-      "Bash(wait)"
+      "Bash(wait)",
+      "Bash(pnpm rebuild *)",
+      "Bash(node-gyp --version)",
+      "Bash(node-gyp list *)"
     ],
     "additionalDirectories": [
       "/tmp"

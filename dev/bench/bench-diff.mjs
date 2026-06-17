@@ -2,7 +2,7 @@
  * Scryer benchmark baseline comparison.
  *
  * Usage:
- *   node dev/bench-diff.mjs dev/bench-baseline.json dev/bench-results.json
+ *   node dev/bench/bench-diff.mjs dev/bench/bench-baseline.json dev/bench/bench-results.json
  *
  * Compares two bench-results.json files produced by pnpm bench.
  *

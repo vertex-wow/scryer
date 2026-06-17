@@ -1,3 +1,5 @@
+# .gitignore (Git — Ignore List)
+
 _reference/
 _live/
 dev/config.local.sh
@@ -13,9 +15,9 @@ dev/listfile.csv
 dist/
 
 # Benchmark results (machine-specific timing data)
-dev/bench-results.json
-dev/bench-baseline.json
-dev/bench-casc-results.json
+dev/bench/bench-results.json
+dev/bench/bench-baseline.json
+dev/bench/bench-casc-results.json
 
 # Scryer asset cache (on-demand BLP→PNG conversions)
 .scryer-cache/
@@ -90,3 +92,6 @@ test-results/
 # AI
 !.claude/
 .claude/settings.local.json
+
+
+external/

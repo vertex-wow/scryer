@@ -8,7 +8,7 @@
 import * as fs from "fs";
 import * as path from "path";
 
-const PROJECT_ROOT = path.join(__dirname, "..");
+const PROJECT_ROOT = path.join(__dirname, "../..");
 const DEFAULT_REF_DIR = path.join(PROJECT_ROOT, "_live", "Addons");
 const DEFAULT_OUT = path.join(PROJECT_ROOT, ".plan", "api-corpus", "custom-counts.json");
 

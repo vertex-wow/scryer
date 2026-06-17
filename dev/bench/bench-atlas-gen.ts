@@ -22,15 +22,15 @@ import * as os from "os";
 import * as path from "path";
 import { performance } from "perf_hooks";
 
-import { generateAtlasManifest } from "../src/assets/atlas-gen.js";
-import { generateAtlasManifestFromDb2 } from "../src/assets/atlas-gen-db2.js";
+import { generateAtlasManifest } from "../../src/assets/atlas-gen.js";
+import { generateAtlasManifestFromDb2 } from "../../src/assets/atlas-gen-db2.js";
 import {
   readAssetBytes,
   shutdownAssetClient,
   type ExtractCoreOptions,
-} from "../src/assets/extract-core.js";
+} from "../../src/assets/extract-core.js";
 
-const REPO_ROOT = path.join(__dirname, "..");
+const REPO_ROOT = path.join(__dirname, "../..");
 const CSV_CACHE = path.join(os.tmpdir(), "scryer-bench-atlas-csvs");
 const OUT_DIR = path.join(os.tmpdir(), "scryer-bench-atlas-out");
 

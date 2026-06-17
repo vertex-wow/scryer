@@ -31,7 +31,7 @@ import os from "os";
 // ── config ────────────────────────────────────────────────────────────────────
 
 const __filename = fileURLToPath(import.meta.url);
-const PROJECT_ROOT = path.join(path.dirname(__filename), "..");
+const PROJECT_ROOT = path.join(path.dirname(__filename), "../..");
 
 function loadDevConfig() {
   const p = path.join(PROJECT_ROOT, "dev", "settings.local.json");

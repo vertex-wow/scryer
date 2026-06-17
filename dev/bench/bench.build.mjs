@@ -12,13 +12,17 @@ const shared = {
 };
 
 await Promise.all([
-  esbuild.build({ ...shared, entryPoints: ["dev/bench.ts"], outfile: "dist/bench.js" }),
+  esbuild.build({ ...shared, entryPoints: ["dev/bench/bench.ts"], outfile: "dist/bench.js" }),
   esbuild.build({
     ...shared,
-    entryPoints: ["dev/collect-textures.ts"],
+    entryPoints: ["dev/tools/collect-textures.ts"],
     outfile: "dist/collect-textures.js",
   }),
-  esbuild.build({ ...shared, entryPoints: ["dev/conv-time.ts"], outfile: "dist/conv-time.js" }),
+  esbuild.build({
+    ...shared,
+    entryPoints: ["dev/tools/conv-time.ts"],
+    outfile: "dist/conv-time.js",
+  }),
   esbuild.build({ ...shared, entryPoints: ["dev/gen-atlas.ts"], outfile: "dist/gen-atlas.js" }),
   esbuild.build({ ...shared, entryPoints: ["dev/extract.ts"], outfile: "dist/extract.js" }),
   esbuild.build({ ...shared, entryPoints: ["dev/links.ts"], outfile: "dist/links.js" }),
@@ -35,22 +39,22 @@ await Promise.all([
   }),
   esbuild.build({
     ...shared,
-    entryPoints: ["dev/png-to-blp.ts"],
+    entryPoints: ["dev/tools/png-to-blp.ts"],
     outfile: "dist/png-to-blp.js",
   }),
   esbuild.build({
     ...shared,
-    entryPoints: ["dev/scan-corpus.ts"],
+    entryPoints: ["dev/tools/scan-corpus.ts"],
     outfile: "dist/scan-corpus.js",
   }),
   esbuild.build({
     ...shared,
-    entryPoints: ["dev/bench-tga-decoder.ts"],
+    entryPoints: ["dev/bench/bench-tga-decoder.ts"],
     outfile: "dist/bench-tga.js",
   }),
   esbuild.build({
     ...shared,
-    entryPoints: ["dev/bench-atlas-gen.ts"],
+    entryPoints: ["dev/bench/bench-atlas-gen.ts"],
     outfile: "dist/bench-atlas-gen.js",
   }),
 ]);

@@ -1,7 +1,7 @@
 import * as fs from "fs";
-import { readAssetBytes, shutdownAssetClient } from "../src/assets/extract-core.js";
+import { readAssetBytes, shutdownAssetClient } from "../../src/assets/extract-core.js";
 
-const REPO_ROOT = __dirname + "/..";
+const REPO_ROOT = __dirname + "/../..";
 const cfg = JSON.parse(fs.readFileSync(REPO_ROOT + "/dev/settings.local.json", "utf8")) as Record<
   string,
   string

@@ -9,10 +9,10 @@
 import * as fs from "fs";
 import * as path from "path";
 import { PNG } from "pngjs";
-import { blpToRgba } from "../src/assets/blp-decode.js";
+import { blpToRgba } from "../../src/assets/blp-decode.js";
 
 const SAMPLE_SIZE = 200;
-const arg = process.argv[2] ?? path.join(__dirname, "..", ".wow-cache", "interface");
+const arg = process.argv[2] ?? path.join(__dirname, "../..", ".wow-cache", "interface");
 
 function walk(dir: string): string[] {
   let results: string[] = [];

@@ -15,8 +15,8 @@
  * N is clamped to available fixtures (no cycling). Run dev/extract.sh retail --type all
  * for a larger corpus that lets high-N values run uncapped.
  *
- * Results: printed table to stdout + dev/bench-results.json (gitignored).
- * Compare two runs: node dev/bench-diff.mjs dev/bench-baseline.json dev/bench-results.json
+ * Results: printed table to stdout + dev/bench/bench-results.json (gitignored).
+ * Compare two runs: node dev/bench/bench-diff.mjs dev/bench/bench-baseline.json dev/bench/bench-results.json
  */
 
 import * as cp from "child_process";
@@ -27,15 +27,15 @@ import * as path from "path";
 
 // Pure-Node asset modules — no vscode dependency
 import { PNG } from "pngjs";
-import { blpToRgba } from "../src/assets/blp-decode.js";
-import { cacheKey, getCachedPath, writeCached } from "../src/assets/cache.js";
-import { blpToPng } from "../src/assets/blp.js";
-import { clearResolutionMemo, resolveTexturePath } from "../src/assets/resolver.js";
+import { blpToRgba } from "../../src/assets/blp-decode.js";
+import { cacheKey, getCachedPath, writeCached } from "../../src/assets/cache.js";
+import { blpToPng } from "../../src/assets/blp.js";
+import { clearResolutionMemo, resolveTexturePath } from "../../src/assets/resolver.js";
 
-const REPO_ROOT = path.join(__dirname, "..");
+const REPO_ROOT = path.join(__dirname, "../..");
 const WOW_ASSETS = path.join(REPO_ROOT, ".wow-cache");
 const BENCH_CACHE = path.join(os.tmpdir(), "scryer-bench-cache");
-const RESULTS_FILE = path.join(REPO_ROOT, "dev", "bench-results.json");
+const RESULTS_FILE = path.join(REPO_ROOT, "dev", "bench", "bench-results.json");
 
 const NS = [1, 2, 5, 10, 50, 100];
 const RUNS = 5; // outer reruns per N value
@@ -550,9 +550,11 @@ async function main(): Promise<void> {
 
   fs.writeFileSync(RESULTS_FILE, JSON.stringify(output, null, 2) + "\n");
   console.log(`\nResults saved to ${path.relative(REPO_ROOT, RESULTS_FILE)}`);
-  console.log("To capture as baseline: cp dev/bench-results.json dev/bench-baseline.json");
   console.log(
-    "To compare against baseline: node dev/bench-diff.mjs dev/bench-baseline.json dev/bench-results.json",
+    "To capture as baseline: cp dev/bench/bench-results.json dev/bench/bench-baseline.json",
+  );
+  console.log(
+    "To compare against baseline: node dev/bench/bench-diff.mjs dev/bench/bench-baseline.json dev/bench/bench-results.json",
   );
 }
 

@@ -18,9 +18,9 @@ import * as fs from "fs";
 import * as path from "path";
 import { performance } from "perf_hooks";
 import { PNG } from "pngjs";
-import { tgaToRgba } from "../src/assets/tga-decode.js";
+import { tgaToRgba } from "../../src/assets/tga-decode.js";
 
-const REPO_ROOT = path.join(__dirname, "..");
+const REPO_ROOT = path.join(__dirname, "../..");
 const FIXTURE_DIR = path.join(REPO_ROOT, "test", "fixtures", "assets");
 
 const RUNS_DEFAULT = 7;

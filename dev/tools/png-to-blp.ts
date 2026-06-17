@@ -10,7 +10,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { pngToBlp } from "../src/assets/blp.js";
+import { pngToBlp } from "../../src/assets/blp.js";
 
 const [, , inputArg, outputArg] = process.argv;
 
