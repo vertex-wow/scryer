@@ -1,3 +1,4 @@
+mod listfile_index;
 mod server;
 
 use clap::{Parser, Subcommand};

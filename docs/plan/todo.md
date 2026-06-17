@@ -6,29 +6,6 @@ Completed items are in [todo-archive.md](todo-archive.md).
 
 ---
 
-## Listfile fast index (in-process / post-rustydemon era)
-
-**Status: 📋 Pending**
-
-**Prerequisite:** [M15 — CASC Asset Service](015_casc_asset_service.md) (or at minimum, a Node.js-native extraction path that doesn't call `rustydemon-cli`).
-
-**Problem:** Once `rustydemon-cli` is gone, the community listfile is only needed by `atlas-gen.ts` (FileDataID → `Interface/` path join for the atlas manifest). That consumer reads the entire CSV as a full linear scan — currently ~837 ms in-process for 169 K pre-filtered rows, or several seconds for the full 2.17 M row file. This is acceptable today (atlas gen runs rarely), but becomes a regression if the manifest needs regenerating after every game patch.
-
-**Goal:** Convert the CSV to a binary index on first use — either SQLite or a lightweight flat binary format — so that FileDataID lookups are sub-millisecond point queries rather than a full scan.
-
-**Options to evaluate:**
-
-1. **SQLite** (`better-sqlite3` or the built-in `node:sqlite` module added in Node 22.5) — `SELECT path FROM listfile WHERE id = ?` is sub-millisecond after the first open. Widely understood, easy to inspect. Adds a native or pure-JS dependency.
-2. **Flat binary hash map** — sorted `(u32 id, u32 offset)` index + packed string table. Pure JS, zero deps, ~5–10 ms read overhead. More implementation work than SQLite.
-
-**Scope note:** The listfile becomes fully unnecessary once [Atlas manifest from DB2](#atlas-manifest-from-db2-replace-wagotools) lands (DB2 files carry FileDataIDs natively). If that item lands before this one, skip this entirely.
-
-See [measurements.md Q1b](../measurements.md#q1b-how-fast-can-we-pre-filter-listfilecsv-to-interface-only-entries) for the full benchmark that covers SQLite virtual table extensions (sqlite-xsv, sqlean vsv), INSERT+SELECT approaches (node:sqlite, better-sqlite3, @libsql/client), and the baseline Node.js stream approach — these are the starting points for evaluating the write-once/point-lookup pattern.
-
-**Effort:** S (SQLite); M (custom binary format).
-
----
-
 ## Replace pngjs encoder with fast-png (BLP→PNG speedup) {#replace-pngjs-encoder-with-fast-png}
 
 **Status: ❌ Cancelled — benchmarked, no improvement**

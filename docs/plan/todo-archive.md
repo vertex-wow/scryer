@@ -4,6 +4,59 @@ Completed items moved from [todo.md](todo.md). Historical record of what was bui
 
 ---
 
+## Listfile fast index {#listfile-fast-index}
+
+**Completed:** 2026-06-17
+**Milestone:** M3 Asset Pipeline (cross-cutting)
+
+### Problem
+
+`atlas-gen.ts` and `atlas-gen-db2.ts` loaded the full community listfile CSV (2.17 M rows,
+~837 ms pre-filtered) as a linear scan on every atlas manifest generation. Acceptable when
+the manifest is generated rarely, but a regression candidate once the DB2 path lands and
+manifests may need regenerating per patch.
+
+### What was built
+
+**`scryer-asset-server/crates/scryer-asset-server/src/listfile_index.rs`** — Rust write client.
+
+- `db_path(out_dir) -> PathBuf` — canonical path `.casc-meta/listfile.db`.
+- `build_if_stale(lf, csv_path, db_path) -> Result<bool>` — builds (or skips) the SQLite
+  index from the in-memory `Listfile`. Schema: `listfile(id INTEGER PRIMARY KEY, path TEXT NOT NULL COLLATE NOCASE)`. Writes to `.db.tmp` then renames atomically. Uses a single
+  transaction for bulk insert via `rusqlite` (`bundled` feature — already in Cargo.toml).
+
+**`server.rs`** — `ensure_listfile_index(out_dir)` called after every CASC storage init
+(ReadFile and Extract handlers). Calls `load_or_refresh` (idempotent — uses the cached CSV
+if fresh) then `build_if_stale`. Errors are logged and swallowed so a missing index never
+blocks extraction.
+
+**`src/assets/listfile-index.ts`** — Node read-only client.
+
+- `ListfileIndex.open(dbPath)` — opens the DB with `node:sqlite` `DatabaseSync` in
+  read-only mode. Returns `null` if absent.
+- `lookupPath(fdid)` — `SELECT path FROM listfile WHERE id = ?` — sub-millisecond via
+  prepared statement.
+- `lookupFdid(path)` — `SELECT id FROM listfile WHERE path = ?` (COLLATE NOCASE).
+- `close()` — closes the DB handle.
+
+**`src/assets/atlas-gen.ts`** and **`src/assets/atlas-gen-db2.ts`** — `loadListfile` replaced
+by `openListfile` which tries `<listfilePath>.replace('.csv', '.db')` first. If the SQLite
+index exists, all FDID lookups are prepared-statement point queries; if absent, falls back to
+the original CSV scan. `close()` called at end of manifest generation.
+
+### Key decisions
+
+- Rust owns the write path completely (download + parse + SQLite build). Node is read-only.
+  Minimizes IPC — Node never needs to send listfile data to Rust or vice versa.
+- `rusqlite` stays in `scryer-asset-server` only (not `casc-lib`) — bundled SQLite is a
+  large dependency and the library doesn't need it.
+- `node:sqlite` (built-in since Node 22.5) chosen over `better-sqlite3` per ADR 014 —
+  no new production dependency, identical lookup latency (0.011 ms/query).
+- CSV fallback retained in both atlas-gen files so atlas generation still works before
+  the server has been run (fresh install with no DB yet).
+
+---
+
 ## TGA texture decode (deferred from M3) {#tga-texture-decode-deferred-from-m3}
 
 **Completed: 2026-06-16**

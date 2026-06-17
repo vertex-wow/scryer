@@ -14,6 +14,7 @@ import * as fs from "fs";
 import * as http from "http";
 import * as https from "https";
 import * as path from "path";
+import { ListfileIndex } from "./listfile-index.js";
 
 export interface AtlasGenOptions {
   /** Absolute path where atlas-manifest.json should be written. */
@@ -117,7 +118,23 @@ function parseCsv(text: string): Record<string, string>[] {
 // Listfile loader
 // ---------------------------------------------------------------------------
 
-function loadListfile(listfilePath: string, log?: (msg: string) => void): Map<number, string> {
+interface ListfileLookup {
+  get(fdid: number): string | undefined;
+  close(): void;
+}
+
+/** Try to open the SQLite index alongside listfilePath; fall back to CSV scan. */
+function openListfile(listfilePath: string, log?: (msg: string) => void): ListfileLookup {
+  const dbPath = listfilePath.replace(/\.csv$/i, ".db");
+  const idx = ListfileIndex.open(dbPath);
+  if (idx) {
+    log?.(`Listfile: using SQLite index`);
+    return {
+      get: (fdid) => idx.lookupPath(fdid) ?? undefined,
+      close: () => idx.close(),
+    };
+  }
+
   if (!fs.existsSync(listfilePath)) {
     throw new Error(`Listfile not found: ${listfilePath}`);
   }
@@ -135,7 +152,7 @@ function loadListfile(listfilePath: string, log?: (msg: string) => void): Map<nu
     if (!isNaN(id) && p) map.set(id, p);
   }
   log?.(`  ${map.size.toLocaleString()} entries`);
-  return map;
+  return { get: (fdid) => map.get(fdid), close: () => {} };
 }
 
 // ---------------------------------------------------------------------------
@@ -180,7 +197,7 @@ async function getCsv(
 export async function generateAtlasManifest(opts: AtlasGenOptions): Promise<void> {
   const log = opts.log ?? console.log;
 
-  const listfile = loadListfile(opts.listfile, log);
+  const listfile = openListfile(opts.listfile, log);
 
   const csvUrls = opts.csvUrls ?? [];
   const atlasCsv = await getCsv(opts.atlasCsv, "UiTextureAtlas", opts.build, csvUrls, log);
@@ -302,4 +319,5 @@ export async function generateAtlasManifest(opts: AtlasGenOptions): Promise<void
   fs.mkdirSync(path.dirname(opts.out), { recursive: true });
   fs.writeFileSync(opts.out, JSON.stringify(manifest, null, 2), "utf-8");
   log(`\nWrote: ${opts.out}`);
+  listfile.close();
 }

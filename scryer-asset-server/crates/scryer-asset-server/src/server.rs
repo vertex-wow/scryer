@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 use base64::prelude::*;
 use casc_lib::error::CascError;
 use casc_lib::extract::{CascStorage, ExtractionConfig, OpenConfig, extract_all, read_file_bytes};
+use casc_lib::listfile::downloader::{cache_path as listfile_csv_path, load_or_refresh};
+
+use crate::listfile_index;
 
 #[derive(Deserialize, Debug)]
 #[serde(tag = "method", rename_all = "camelCase")]
@@ -113,6 +116,31 @@ fn write_decrypt_fail_stamp(out_dir: &std::path::Path, path: &str, build_key: &s
     }
     let _ = std::fs::write(&stamp_path, format!("{}\n{}\n", build_key, key_name));
     tracing::debug!("decryption failure stamp written: {} (key={})", path, key_name);
+}
+
+/// Ensure the SQLite listfile index is up to date.
+///
+/// Checks file mtimes first — if the DB is newer than the CSV no work is done.
+/// Only calls `load_or_refresh` (which deserializes 2 M entries) when the DB
+/// is actually stale or missing. Errors are logged and swallowed so a missing
+/// index never blocks requests.
+fn ensure_listfile_index(out_dir: &std::path::Path) {
+    let csv = listfile_csv_path(out_dir);
+    let db = listfile_index::db_path(out_dir);
+
+    if !listfile_index::is_stale(&db, &csv) {
+        tracing::debug!("listfile: SQLite index is fresh — skipping rebuild");
+        return;
+    }
+
+    match load_or_refresh(out_dir) {
+        Ok(lf) => {
+            if let Err(e) = listfile_index::build_if_stale(&lf, &csv, &db) {
+                tracing::warn!("listfile: failed to build SQLite index: {}", e);
+            }
+        }
+        Err(e) => tracing::warn!("listfile: unavailable, skipping SQLite index build: {}", e),
+    }
 }
 
 pub fn run_server(
@@ -260,6 +288,7 @@ pub fn run_server(
                             build_hash = info.version.clone();
                             build_key = info.build_key.clone();
                             storage = Some(s);
+                            ensure_listfile_index(&out_dir);
                         }
                         Err(e) => {
                             tracing::error!("Failed to initialize CASC storage: {}", e);
@@ -396,6 +425,7 @@ pub fn run_server(
                             build_hash = info.version.clone();
                             build_key = info.build_key.clone();
                             storage = Some(s);
+                            ensure_listfile_index(&out_dir);
                         }
                         Err(e) => {
                             tracing::error!("Failed to initialize CASC storage: {}", e);
