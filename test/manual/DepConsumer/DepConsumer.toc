@@ -1,0 +1,7 @@
+## Interface: 110002
+## Title: DepConsumer — Requires DepLib
+## Version: 1.0
+## RequiredDeps: DepLib
+
+DepConsumer.xml
+DepConsumer.lua

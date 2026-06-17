@@ -1,0 +1,6 @@
+## Interface: 110002
+## Title: DepLib — Example Library
+## Version: 1.0
+
+DepLib.xml
+DepLib.lua

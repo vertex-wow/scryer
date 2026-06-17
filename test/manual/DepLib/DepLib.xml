@@ -1,0 +1,72 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Frame name="DepLibFrame" parent="UIParent" movable="true" enableMouse="true" clampedToScreen="true">
+    <Size>
+      <AbsDimension x="220" y="90"/>
+    </Size>
+    <Anchors>
+      <Anchor point="TOPLEFT">
+        <Offset>
+          <AbsDimension x="40" y="-40"/>
+        </Offset>
+      </Anchor>
+    </Anchors>
+    <Scripts>
+      <OnLoad>
+        self:RegisterForDrag("LeftButton")
+      </OnLoad>
+      <OnDragStart>
+        self:StartMoving()
+      </OnDragStart>
+      <OnDragStop>
+        self:StopMovingOrSizing()
+      </OnDragStop>
+    </Scripts>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture name="DepLibFrameBg">
+          <Color r="0.05" g="0.08" b="0.20" a="0.92"/>
+        </Texture>
+      </Layer>
+      <Layer level="OVERLAY">
+        <FontString name="DepLibFrameTitle" inherits="GameFontNormalSmall" text="DepLib"
+            justifyH="LEFT">
+          <Anchors>
+            <Anchor point="TOPLEFT">
+              <Offset><AbsDimension x="10" y="-8"/></Offset>
+            </Anchor>
+          </Anchors>
+        </FontString>
+        <FontString name="DepLibFrameStatus" inherits="GameFontHighlightSmall"
+            text="(waiting for init)" justifyH="LEFT">
+          <Anchors>
+            <Anchor point="TOPLEFT">
+              <Offset><AbsDimension x="10" y="-30"/></Offset>
+            </Anchor>
+          </Anchors>
+        </FontString>
+        <FontString name="DepLibFrameHint" inherits="GameFontDisableSmall"
+            text="drag to move" justifyH="LEFT">
+          <Anchors>
+            <Anchor point="BOTTOMLEFT">
+              <Offset><AbsDimension x="10" y="8"/></Offset>
+            </Anchor>
+          </Anchors>
+        </FontString>
+      </Layer>
+    </Layers>
+    <Frames>
+      <Button name="DepLibFrameClose" inherits="UIPanelCloseButton">
+        <Anchors>
+          <Anchor point="TOPRIGHT">
+            <Offset><AbsDimension x="2" y="2"/></Offset>
+          </Anchor>
+        </Anchors>
+        <Scripts>
+          <OnClick>
+            DepLibFrame:Hide()
+          </OnClick>
+        </Scripts>
+      </Button>
+    </Frames>
+  </Frame>
+</Ui>

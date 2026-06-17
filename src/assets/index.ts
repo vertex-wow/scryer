@@ -113,6 +113,11 @@ export class AssetService {
   get cacheRoot(): string {
     return this.opts.cacheRoot;
   }
+  /** Path to the live WoW flavor's Interface/AddOns directory, or empty string if not configured. */
+  get liveAddonsDir(): string {
+    if (!this.opts.installFlavorDir) return "";
+    return resolveAddonsDir(this.opts.installFlavorDir);
+  }
 
   /** True if <sourceDir>/Interface/ exists on disk (Blizzard assets have been extracted). */
   async hasExtractedAssets(): Promise<boolean> {

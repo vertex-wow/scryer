@@ -136,6 +136,40 @@ describe("parseToc", () => {
   test("sourceFile defaults to empty string", () => {
     expect(parseToc("## Interface: 120000\n").sourceFile).toBe("");
   });
+
+  test("parses RequiredDeps as array", () => {
+    const toc = parseToc("## Interface: 120000\n## RequiredDeps: LibStub, CallbackHandler-1.0\n");
+    expect(toc.requiredDeps).toEqual(["LibStub", "CallbackHandler-1.0"]);
+  });
+
+  test("parses Dependencies as requiredDeps (alias)", () => {
+    const toc = parseToc("## Interface: 120000\n## Dependencies: LibStub\n");
+    expect(toc.requiredDeps).toEqual(["LibStub"]);
+  });
+
+  test("merges RequiredDeps and Dependencies, deduplicating", () => {
+    const toc = parseToc(
+      "## Interface: 120000\n## RequiredDeps: LibStub\n## Dependencies: LibStub, AceAddon-3.0\n",
+    );
+    expect(toc.requiredDeps).toEqual(["LibStub", "AceAddon-3.0"]);
+  });
+
+  test("parses OptionalDeps as array", () => {
+    const toc = parseToc("## Interface: 120000\n## OptionalDeps: Ace3\n");
+    expect(toc.optionalDeps).toEqual(["Ace3"]);
+  });
+
+  test("requiredDeps and optionalDeps are empty arrays when absent", () => {
+    const toc = parseToc("## Interface: 120000\n");
+    expect(toc.requiredDeps).toEqual([]);
+    expect(toc.optionalDeps).toEqual([]);
+  });
+
+  test("dep directive keys are case-insensitive", () => {
+    const toc = parseToc("## interface: 120000\n## requireddeps: LibStub\n## optionaldeps: Ace3\n");
+    expect(toc.requiredDeps).toEqual(["LibStub"]);
+    expect(toc.optionalDeps).toEqual(["Ace3"]);
+  });
 });
 
 describeIfLive("parseToc — real fixtures (requires _live/)", () => {

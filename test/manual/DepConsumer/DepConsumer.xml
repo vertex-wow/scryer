@@ -1,0 +1,80 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Frame name="DepConsumerFrame" parent="UIParent" movable="true" enableMouse="true" clampedToScreen="true">
+    <Size>
+      <AbsDimension x="280" y="110"/>
+    </Size>
+    <Anchors>
+      <Anchor point="CENTER">
+        <Offset>
+          <AbsDimension x="80" y="0"/>
+        </Offset>
+      </Anchor>
+    </Anchors>
+    <Scripts>
+      <OnLoad>
+        self:RegisterForDrag("LeftButton")
+      </OnLoad>
+      <OnDragStart>
+        self:StartMoving()
+      </OnDragStart>
+      <OnDragStop>
+        self:StopMovingOrSizing()
+      </OnDragStop>
+    </Scripts>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture name="DepConsumerFrameBg">
+          <Color r="0.05" g="0.18" b="0.08" a="0.92"/>
+        </Texture>
+      </Layer>
+      <Layer level="OVERLAY">
+        <FontString name="DepConsumerFrameTitle" inherits="GameFontNormalSmall"
+            text="DepConsumer" justifyH="LEFT">
+          <Anchors>
+            <Anchor point="TOPLEFT">
+              <Offset><AbsDimension x="10" y="-8"/></Offset>
+            </Anchor>
+          </Anchors>
+        </FontString>
+        <FontString name="DepConsumerFrameLabel" inherits="GameFontHighlightSmall"
+            text="DepLib message:" justifyH="LEFT">
+          <Anchors>
+            <Anchor point="TOPLEFT">
+              <Offset><AbsDimension x="10" y="-30"/></Offset>
+            </Anchor>
+          </Anchors>
+        </FontString>
+        <FontString name="DepConsumerFrameMessage" inherits="GameFontHighlight"
+            text="(not loaded yet)" justifyH="LEFT">
+          <Anchors>
+            <Anchor point="TOPLEFT">
+              <Offset><AbsDimension x="10" y="-48"/></Offset>
+            </Anchor>
+          </Anchors>
+        </FontString>
+        <FontString name="DepConsumerFrameHint" inherits="GameFontDisableSmall"
+            text="drag to move" justifyH="LEFT">
+          <Anchors>
+            <Anchor point="BOTTOMLEFT">
+              <Offset><AbsDimension x="10" y="8"/></Offset>
+            </Anchor>
+          </Anchors>
+        </FontString>
+      </Layer>
+    </Layers>
+    <Frames>
+      <Button name="DepConsumerFrameClose" inherits="UIPanelCloseButton">
+        <Anchors>
+          <Anchor point="TOPRIGHT">
+            <Offset><AbsDimension x="2" y="2"/></Offset>
+          </Anchor>
+        </Anchors>
+        <Scripts>
+          <OnClick>
+            DepConsumerFrame:Hide()
+          </OnClick>
+        </Scripts>
+      </Button>
+    </Frames>
+  </Frame>
+</Ui>

@@ -4,6 +4,10 @@ export interface TocFile {
   version?: string;
   savedVariables: string[];
   savedVariablesPerChar: string[];
+  /** Addon names from ## RequiredDeps / ## Dependencies — must be loaded first. */
+  requiredDeps: string[];
+  /** Addon names from ## OptionalDeps — informational only; not auto-loaded. */
+  optionalDeps: string[];
   files: { path: string; type: "lua" | "xml" }[];
   rawMeta: Record<string, string>;
   sourceFile: string;
@@ -63,12 +67,25 @@ export function parseToc(content: string, sourceFile = ""): TocFile {
     .map((v) => v.trim())
     .filter(Boolean);
 
+  const parseDeps = (key: string): string[] =>
+    (get(key) ?? "")
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+
+  // Both ## RequiredDeps and ## Dependencies are hard-dependency directives; merge and deduplicate.
+  const requiredRaw = [...parseDeps("RequiredDeps"), ...parseDeps("Dependencies")];
+  const seen = new Set<string>();
+  const requiredDeps = requiredRaw.filter((d) => !seen.has(d) && seen.add(d));
+
   return {
     interfaceVersions,
     title: get("Title") ?? "",
     version: get("Version"),
     savedVariables,
     savedVariablesPerChar,
+    requiredDeps,
+    optionalDeps: parseDeps("OptionalDeps"),
     files,
     rawMeta,
     sourceFile,

@@ -14,10 +14,12 @@ import { registerFrameModel } from "../lua/createframe.js";
 import { EventEngine } from "../lua/event-engine.js";
 import { FrameRegistry } from "../lua/frame-registry.js";
 import { createSandbox } from "../lua/sandbox.js";
+import { resolveAddonGraph } from "../lua/addon-graph.js";
 import { runTocAddon } from "../lua/toc-runner.js";
 import { registerWowApi, VirtualClock } from "../lua/wow-api.js";
 import type { FrameIR, TextureIR } from "../parser/ir.js";
-import { parseToc } from "../parser/toc.js";
+import { parseToc, type TocFile } from "../parser/toc.js";
+import { flavorTocFamily } from "../assets/build-info.js";
 import { getEffectiveTarget } from "../target.js";
 import type { HostMessage, SlashCommandEntry, Viewport, WebviewMessage } from "../protocol.js";
 import { layoutAll } from "../webview/layout.js";
@@ -599,6 +601,44 @@ export class ScryerLivePanel {
       const toc = parseToc(tocContent, uri.fsPath);
       this.warnOnTargetMismatch(toc.interfaceVersions);
 
+      // Resolve required addon dependencies before building the sandbox so that
+      // getAddonMetadata can answer queries about dep addons during registration.
+      const mainAddonName = path
+        .basename(toc.sourceFile, path.extname(toc.sourceFile))
+        .replace(/_Mainline$|_Classic$|_Vanilla$|_BCC$|_WOTLKC$/i, "");
+      const parentDir = path.dirname(addonDir); // Interface/AddOns/
+      const liveAddonsDir = this.assets.liveAddonsDir;
+      const depSearchPaths = [parentDir, liveAddonsDir].filter(
+        (p, i, arr) => p && arr.indexOf(p) === i,
+      );
+      const depGraph = await resolveAddonGraph({
+        mainToc: toc,
+        mainAddonName,
+        searchPaths: depSearchPaths,
+        tocFamily: flavorTocFamily(flavor),
+        readFile: async (absPath) =>
+          Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(absPath))).toString(
+            "utf-8",
+          ),
+      });
+      if (depGraph.cycles.length > 0) {
+        this.output.warn(
+          `[Live] Circular addon dependencies detected: ${depGraph.cycles.map((c) => c.join(" → ")).join("; ")}`,
+        );
+      }
+      if (depGraph.missing.length > 0) {
+        this.output.warn(
+          `[Live] Required addon dependencies not found: ${depGraph.missing.join(", ")} — some features may not work`,
+        );
+      }
+
+      // Build a lookup table of all loaded TOC files keyed by addon name (lowercase)
+      // so getAddonMetadata can answer queries for dep addons as well as the main one.
+      const allTocs = new Map<string, TocFile>(
+        depGraph.loadOrder.map((n) => [n.name.toLowerCase(), n.toc]),
+      );
+      allTocs.set(mainAddonName.toLowerCase(), toc);
+
       // Build a fresh sandbox + registry
       const wasmPath = vscode.Uri.joinPath(this.context.extensionUri, "dist", "glue.wasm").fsPath;
       const registry = new FrameRegistry(flavorConfig.uiParentWidth, flavorConfig.uiParentHeight);
@@ -624,13 +664,8 @@ export class ScryerLivePanel {
         debug: (msg) => this.output.debug(msg),
         isAddonLoaded: () => true,
         getAddonMetadata: (name, key) => {
-          if (
-            name.toLowerCase() ===
-            path.basename(toc.sourceFile, path.extname(toc.sourceFile)).toLowerCase()
-          ) {
-            return toc.rawMeta[key] ?? null;
-          }
-          return null;
+          const t = allTocs.get(name.toLowerCase());
+          return t ? (t.rawMeta[key] ?? null) : null;
         },
         atlasManifest,
       });
@@ -702,6 +737,36 @@ TROUBLESHOOTING:
       // Clear them so the user's addon starts with a clean frame tree.
       registry.clearBlizzardFrames();
 
+      // Shared file reader: prefers open editor content (so unsaved edits are reflected).
+      const readAddonFile = async (absPath: string): Promise<string> => {
+        const docUri = vscode.Uri.file(absPath);
+        const openDoc = vscode.workspace.textDocuments.find(
+          (d) => d.uri.toString() === docUri.toString(),
+        );
+        if (openDoc) return openDoc.getText();
+        return Buffer.from(await vscode.workspace.fs.readFile(docUri)).toString("utf-8");
+      };
+
+      const tocRunnerOutput = {
+        info: (msg: string) => this.output.info(msg),
+        warn: (msg: string) => this.output.warn(msg),
+        error: (msg: string) => this.output.error(msg),
+      };
+
+      // Load required dep addons in topological order before the main addon.
+      for (const depNode of depGraph.loadOrder) {
+        await runTocAddon({
+          toc: depNode.toc,
+          addonDir: depNode.addonDir,
+          sandbox,
+          blizzardTemplates,
+          blizzardTextureTemplates,
+          timeout: flavorConfig.sandboxTimeout,
+          readFile: readAddonFile,
+          output: tocRunnerOutput,
+        });
+      }
+
       await runTocAddon({
         toc,
         addonDir,
@@ -709,19 +774,8 @@ TROUBLESHOOTING:
         blizzardTemplates,
         blizzardTextureTemplates,
         timeout: flavorConfig.sandboxTimeout,
-        readFile: async (absPath) => {
-          const docUri = vscode.Uri.file(absPath);
-          const openDoc = vscode.workspace.textDocuments.find(
-            (d) => d.uri.toString() === docUri.toString(),
-          );
-          if (openDoc) return openDoc.getText();
-          return Buffer.from(await vscode.workspace.fs.readFile(docUri)).toString("utf-8");
-        },
-        output: {
-          info: (msg) => this.output.info(msg),
-          warn: (msg) => this.output.warn(msg),
-          error: (msg) => this.output.error(msg),
-        },
+        readFile: readAddonFile,
+        output: tocRunnerOutput,
       });
 
       // Advance clock one tick to fire any immediate timers
