@@ -19,6 +19,8 @@ import {
   type Flavor,
 } from "./extract-core.js";
 import { generateAtlasManifest } from "./atlas-gen.js";
+import { generateAtlasManifestFromDb2 } from "./atlas-gen-db2.js";
+import { readAssetBytes } from "./extract-core.js";
 import { NotificationQueue } from "../notification-queue.js";
 
 const progressQueue = new NotificationQueue();
@@ -40,6 +42,8 @@ export interface ExtractorOptions {
   logFile?: string;
   /** When true, tell the asset server to attempt CDN fallback for CDN-only stubs. */
   cdnEnabled?: boolean;
+  /** URLs to fetch community TACT keys from, tried in order. */
+  tactKeysUrls?: string[];
   output: vscode.LogOutputChannel;
 }
 
@@ -48,6 +52,10 @@ export interface AtlasGenWrapperOptions {
   manifestPath: string;
   /** Directory containing listfile.csv (e.g. <cacheRoot>/downloads). */
   listfileDir?: string;
+  /** ExtractorOptions to use for the DB2 CASC read path. */
+  extractorOpts?: ExtractorOptions;
+  /** URL templates for CSV downloads, tried in order. `{table}` is replaced with the table name. */
+  atlasCsvUrls?: string[];
   output: vscode.LogOutputChannel;
 }
 
@@ -98,6 +106,7 @@ function makeCoreOpts(opts: ExtractorOptions): ExtractCoreOptions {
     listfileDir: opts.listfileDir || "",
     logFile: opts.logFile,
     cdnEnabled: opts.cdnEnabled,
+    tactKeysUrls: opts.tactKeysUrls,
     log: (level, msg, serverTime) => {
       if (serverTime) {
         const ch = opts.output as { logServer?: (l: string, m: string, t: string) => void };
@@ -219,8 +228,12 @@ export async function extractCriticalBlizzardFiles(
 }
 
 /**
- * Generate the atlas manifest JSON by downloading WoW DB2 table CSV exports from wago.tools
- * and joining them with the community listfile.
+ * Generate the atlas manifest JSON.
+ *
+ * Prefers the DB2 path: reads UiTextureAtlas.db2 + UiTextureAtlasMember.db2 directly
+ * from CASC via the asset server (no outbound HTTP; data matches installed build).
+ * Falls back to downloading CSV exports from wago.tools when the asset server is
+ * unavailable or installDir is not configured.
  *
  * Silently skips when the listfile has not been downloaded yet (extraction not run).
  */
@@ -232,21 +245,48 @@ export async function genAtlas(opts: AtlasGenWrapperOptions): Promise<void> {
   }
 
   safeLog(opts.output, "trace", `notif: Scryer: Generating atlas manifest…`);
-  try {
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: "Scryer: Generating atlas manifest…",
-        cancellable: false,
-      },
-      () =>
-        generateAtlasManifest({
-          out: opts.manifestPath,
-          listfile: listfilePath,
-          log: (msg: string) => safeLog(opts.output, "info", msg),
-        }),
-    );
-  } catch (err) {
-    safeLog(opts.output, "warn", `Atlas manifest generation failed: ${String(err)}`);
+
+  // ── DB2 path (preferred) ──────────────────────────────────────────────────
+  if (opts.extractorOpts?.wowDir) {
+    try {
+      const coreOpts = makeCoreOpts(opts.extractorOpts);
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Scryer: Generating atlas manifest (DB2)…",
+          cancellable: false,
+        },
+        () =>
+          generateAtlasManifestFromDb2({
+            out: opts.manifestPath,
+            listfile: listfilePath,
+            readFile: (p) => readAssetBytes(p, coreOpts),
+            log: (msg: string) => safeLog(opts.output, "info", msg),
+          }),
+      );
+      return;
+    } catch (err) {
+      safeLog(
+        opts.output,
+        "warn",
+        `Atlas manifest DB2 generation failed (${String(err)}); falling back to wago.tools CSV.`,
+      );
+    }
   }
+
+  // ── CSV / wago.tools fallback ─────────────────────────────────────────────
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: "Scryer: Generating atlas manifest…",
+      cancellable: false,
+    },
+    () =>
+      generateAtlasManifest({
+        out: opts.manifestPath,
+        listfile: listfilePath,
+        csvUrls: opts.atlasCsvUrls,
+        log: (msg: string) => safeLog(opts.output, "info", msg),
+      }),
+  );
 }

@@ -37,9 +37,9 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 <tr>
   <td>↳</td>
   <td><a href="todo.md#atlas-manifest-from-db2-replace-wagotools">Atlas manifest from DB2</a></td>
-  <td>📋 Pending</td>
-  <td>Parse UiTextureAtlas DB2 files directly; no outbound HTTP</td>
-  <td>M</td>
+  <td>🚧 Blocked</td>
+  <td>Code complete; blocked on community resource entry 0x0599D267A15C719F being published to wowdev/TACTKeys (retail 12.0.7.68182)</td>
+  <td>XS (run benchmark once unblocked)</td>
   <td>—</td>
 </tr>
 <tr>

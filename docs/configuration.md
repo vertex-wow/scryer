@@ -131,6 +131,36 @@ Optional path to a `blp2png` CLI binary used as a fallback for BLP variants not 
 
 Path to `gm` (GraphicsMagick) or `convert` (ImageMagick) used for PNG→TGA conversion when pre-warming workspace SVGs. Scryer auto-detects `gm` then `convert` from `PATH` when this is empty. Set explicitly if the tool is not on `PATH` or you want to pin a specific binary.
 
+### `scryer.tactKeysUrls`
+
+**Default:** `["https://raw.githubusercontent.com/wowdev/TACTKeys/master/WoW.txt"]`
+
+URLs to fetch the community TACT encryption key list from, tried in order. The first successful response is used and cached locally. Scryer re-downloads when the WoW build changes or the cache is older than 7 days.
+
+Set a custom URL if you maintain a private mirror, or add a fallback:
+
+```jsonc
+"scryer.tactKeysUrls": [
+  "https://your-internal-mirror.example.com/WoW.txt",
+  "https://raw.githubusercontent.com/wowdev/TACTKeys/master/WoW.txt"
+]
+```
+
+### `scryer.atlasCsvUrls`
+
+**Default:** `["https://wago.tools/db2/{table}/csv"]`
+
+URL templates for downloading atlas table CSV exports. `{table}` is replaced with the table name (e.g. `UiTextureAtlas`). URLs are tried in order; if all fail, Scryer shows an error notification.
+
+The DB2 read path (reading atlas data directly from CASC without a network request) is preferred when `scryer.installDir` is configured. These URLs are only used as a fallback.
+
+```jsonc
+"scryer.atlasCsvUrls": [
+  "https://wago.tools/db2/{table}/csv",
+  "https://your-mirror.example.com/db2/{table}/csv"
+]
+```
+
 ---
 
 ## Startup Preloading

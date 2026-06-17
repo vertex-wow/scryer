@@ -190,6 +190,26 @@
           "default": 20,
           "description": "Idle timeout in seconds before the asset server self-exits to free memory."
         },
+        "scryer.tactKeysUrls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "https://raw.githubusercontent.com/wowdev/TACTKeys/master/WoW.txt"
+          ],
+          "description": "URLs to fetch the community TACT key list from, tried in order. The first successful response is used."
+        },
+        "scryer.atlasCsvUrls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "https://wago.tools/db2/{table}/csv"
+          ],
+          "description": "URL templates for downloading atlas CSV data. Use {table} as a placeholder for the table name (e.g. UiTextureAtlas). URLs are tried in order."
+        },
         "scryer.cdnFallback": {
           "type": "string",
           "enum": [

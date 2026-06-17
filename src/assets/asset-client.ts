@@ -50,6 +50,8 @@ export interface AssetClientOptions {
   idleTimeout: number;
   log?: (level: LogLevel, msg: string, serverTime?: string) => void;
   logFile?: string;
+  /** URLs to fetch community TACT keys from, tried in order. */
+  tactKeysUrls?: string[];
 }
 
 interface QueuedJob {
@@ -124,6 +126,9 @@ export class AssetClient {
       "--idle-timeout",
       this.options.idleTimeout.toString(),
     ];
+    if (this.options.tactKeysUrls && this.options.tactKeysUrls.length > 0) {
+      args.push("--tact-keys-urls", ...this.options.tactKeysUrls);
+    }
     if (this.options.logFile) {
       args.unshift("--log-file", this.options.logFile);
     }

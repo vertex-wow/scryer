@@ -137,7 +137,7 @@ fn bootstraps_encoding_file() {
 
     let index = CascIndex::load(&data_dir()).unwrap();
     let store = DataStore::open(&data_dir()).unwrap();
-    let keystore = TactKeyStore::with_known_keys();
+    let keystore = TactKeyStore::new();
 
     // Look up encoding EKey in index
     let ekey_bytes = hex::decode(&config.encoding_ekey).unwrap();
@@ -175,6 +175,7 @@ fn bootstraps_root_file() {
         listfile: None,
         output_dir: Some(std::env::temp_dir().join("casc_integ_root")),
         cdn_cache_dir: None,
+        tact_keys_urls: vec![],
     };
     let storage = CascStorage::open(&open_config).unwrap();
     let info = storage.info();
@@ -202,6 +203,7 @@ fn full_storage_open_and_info() {
         listfile: None,
         output_dir: Some(std::env::temp_dir().join("casc_integ_info")),
         cdn_cache_dir: None,
+        tact_keys_urls: vec![],
     };
     let storage = CascStorage::open(&open_config).unwrap();
     let info = storage.info();
@@ -235,6 +237,7 @@ fn extract_known_small_file() {
         listfile: None,
         output_dir: Some(std::env::temp_dir().join("casc_integ_extract")),
         cdn_cache_dir: None,
+        tact_keys_urls: vec![],
     };
     let storage = CascStorage::open(&open_config).unwrap();
 
@@ -280,6 +283,7 @@ fn extract_single_file_to_disk() {
         listfile: None,
         output_dir: Some(out_dir.clone()),
         cdn_cache_dir: None,
+        tact_keys_urls: vec![],
     };
     let storage = CascStorage::open(&open_config).unwrap();
 
@@ -311,6 +315,7 @@ fn list_files_returns_results() {
         listfile: None,
         output_dir: Some(std::env::temp_dir().join("casc_integ_list")),
         cdn_cache_dir: None,
+        tact_keys_urls: vec![],
     };
     let storage = CascStorage::open(&open_config).unwrap();
 
@@ -339,6 +344,7 @@ fn list_files_with_filter() {
         listfile: None,
         output_dir: Some(std::env::temp_dir().join("casc_integ_filter")),
         cdn_cache_dir: None,
+        tact_keys_urls: vec![],
     };
     let storage = CascStorage::open(&open_config).unwrap();
 
@@ -370,6 +376,7 @@ fn extract_batch_small_subset() {
         listfile: None,
         output_dir: Some(out_dir.clone()),
         cdn_cache_dir: None,
+        tact_keys_urls: vec![],
     };
     let storage = CascStorage::open(&open_config).unwrap();
 
@@ -430,6 +437,7 @@ fn extract_verifies_ckey_md5() {
         listfile: None,
         output_dir: Some(std::env::temp_dir().join("casc_integ_verify")),
         cdn_cache_dir: None,
+        tact_keys_urls: vec![],
     };
     let storage = CascStorage::open(&open_config).unwrap();
 
@@ -489,7 +497,7 @@ fn dump_root_block_headers() {
 
     let index = CascIndex::load(&data_dir()).unwrap();
     let store = DataStore::open(&data_dir()).unwrap();
-    let keystore = TactKeyStore::with_known_keys();
+    let keystore = TactKeyStore::new();
 
     // --- Decode encoding file ---
     let enc_ekey_bytes = hex::decode(&config.encoding_ekey).unwrap();
@@ -1025,6 +1033,7 @@ fn tvfs_loaded_on_retail_install() {
         listfile: None,
         output_dir: None, // no output_dir → would normally trigger download, but TVFS skips it
         cdn_cache_dir: None,
+        tact_keys_urls: vec![],
     };
     let storage = CascStorage::open(&open_config).unwrap();
     let elapsed = start.elapsed();

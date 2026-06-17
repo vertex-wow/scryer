@@ -28,6 +28,12 @@ export interface AtlasGenOptions {
   build?: string;
   /** Log callback. Defaults to console.log. */
   log?: (msg: string) => void;
+  /**
+   * URL templates for CSV downloads, tried in order. Use `{table}` as a
+   * placeholder for the table name (e.g. `UiTextureAtlas`). Defaults to
+   * `["https://wago.tools/db2/{table}/csv"]`.
+   */
+  csvUrls?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -136,10 +142,13 @@ function loadListfile(listfilePath: string, log?: (msg: string) => void): Map<nu
 // CSV acquisition
 // ---------------------------------------------------------------------------
 
+const DEFAULT_CSV_URLS = ["https://wago.tools/db2/{table}/csv"];
+
 async function getCsv(
   localPath: string | undefined,
   tableName: string,
   build: string | undefined,
+  csvUrls: string[],
   log?: (msg: string) => void,
 ): Promise<string> {
   if (localPath) {
@@ -147,10 +156,21 @@ async function getCsv(
     return fs.readFileSync(localPath, "utf-8");
   }
   const buildQuery = build ? `?build=${encodeURIComponent(build)}` : "";
-  const url = `https://wago.tools/db2/${tableName}/csv${buildQuery}`;
-  log?.(`Downloading ${tableName} from wago.tools...`);
-  log?.(`  ${url}`);
-  return fetchText(url);
+  const urls = (csvUrls.length > 0 ? csvUrls : DEFAULT_CSV_URLS).map(
+    (t) => t.replace("{table}", tableName) + buildQuery,
+  );
+  let lastError: unknown;
+  for (const url of urls) {
+    try {
+      log?.(`Downloading ${tableName} CSV...`);
+      log?.(`  ${url}`);
+      return await fetchText(url);
+    } catch (e) {
+      log?.(`  Failed: ${e}`);
+      lastError = e;
+    }
+  }
+  throw new Error(`Failed to download ${tableName} CSV from all URLs. Last error: ${lastError}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -162,8 +182,15 @@ export async function generateAtlasManifest(opts: AtlasGenOptions): Promise<void
 
   const listfile = loadListfile(opts.listfile, log);
 
-  const atlasCsv = await getCsv(opts.atlasCsv, "UiTextureAtlas", opts.build, log);
-  const membersCsv = await getCsv(opts.membersCsv, "UiTextureAtlasMember", opts.build, log);
+  const csvUrls = opts.csvUrls ?? [];
+  const atlasCsv = await getCsv(opts.atlasCsv, "UiTextureAtlas", opts.build, csvUrls, log);
+  const membersCsv = await getCsv(
+    opts.membersCsv,
+    "UiTextureAtlasMember",
+    opts.build,
+    csvUrls,
+    log,
+  );
 
   const atlasRows = parseCsv(atlasCsv);
   log(`  UiTextureAtlas: ${atlasRows.length} rows`);

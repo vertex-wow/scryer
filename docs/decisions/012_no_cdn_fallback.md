@@ -114,8 +114,10 @@ misrepresent what is happening. Scryer surfaces the question; the user makes the
 
 ## What does not change
 
-- Community metadata (listfile, atlas DB2 tables from wago.tools) continues without a
-  consent gate — not Blizzard game content.
+- Community-maintained 3rd-party resources (file-system manifests, game database exports)
+  are fetched automatically using user-configurable URLs — see ADR 013 for the full
+  rationale and transparency model. These are not Blizzard game content and are not
+  covered by this ADR.
 - Files absent from the local encoding table entirely are still reported as unavailable.
 - CDN blobs are cached locally, content-addressed, so each file is fetched at most once.
 - `casc-lib` gains a CDN client component but remains scoped to EKey-addressed blob fetch —

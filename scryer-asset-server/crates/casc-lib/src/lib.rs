@@ -27,6 +27,7 @@
 //!     listfile: None,
 //!     output_dir: None,
 //!     cdn_cache_dir: None,
+//!     tact_keys_urls: vec![],
 //! };
 //! let storage = CascStorage::open(&config)?;
 //! let data = storage.read_by_fdid(136235, LocaleFlags::EN_US)?;

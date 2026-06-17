@@ -48,4 +48,9 @@ await Promise.all([
     entryPoints: ["dev/bench-tga-decoder.ts"],
     outfile: "dist/bench-tga.js",
   }),
+  esbuild.build({
+    ...shared,
+    entryPoints: ["dev/bench-atlas-gen.ts"],
+    outfile: "dist/bench-atlas-gen.js",
+  }),
 ]);

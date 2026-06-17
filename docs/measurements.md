@@ -688,6 +688,38 @@ The `writeCached` implementation calls `fs.mkdirSync(cacheDir, { recursive: true
 
 ---
 
+### Q8: How fast is atlas manifest generation, and is reading from CASC DB2 files faster than the current wago.tools CSV approach? {#q8-atlas-manifest-gen}
+
+**Answer (baseline only — 2026-06-16, retail build 12.0.7.68182, Ryzen 5 3600X, Node v24, WSL2):**
+
+**Scenario A — CSV download + parse + listfile join (current method):**
+
+| Stat    | Value        |
+| ------- | ------------ |
+| Runs    | 3 (1 warmup) |
+| Mean    | **3391 ms**  |
+| Stddev  | ±229 ms      |
+| CV      | 6.7%         |
+| Min     | 3091 ms      |
+| Max     | 3646 ms      |
+| Entries | 16,461       |
+
+CSV is cached on disk after the first download; this measures parse + listfile join only (no network).
+
+**Scenario B — CASC DB2 read + WDC4 parse + listfile join (DB2 method):**
+
+**BLOCKED.** Both `UiTextureAtlas.db2` and `UiTextureAtlasMember.db2` in retail build 12.0.7.68182 require a community resource entry (`0x0599D267A15C719F`) not yet published to wowdev/TACTKeys. The BLTE stream infrastructure (Salsa20/SIGMA_16, block-index IV XOR, community resource auto-download) is implemented and correct — the comparison will be possible once this entry is added to TACTKeys by the community.
+
+**Infrastructure changes made during this benchmark run:**
+
+- Fixed BLTE stream header parsing (removed bogus `key_count` byte, fixed `iv_size` to u8)
+- Fixed Salsa20 to use "expand 16-byte k" (SIGMA_16) instead of the RustCrypto crate's hardcoded SIGMA_32
+- Corrected a 3rd-party resource manifest entry value that was misread during initial implementation
+- Implemented block-index IV XOR (matches wow.export/TACTLib spec)
+- Auto-download community resource manifest (~19,600 entries) into `.casc-meta/tact-keys.txt`, refreshed weekly when CDN is enabled
+
+---
+
 ## 4. The Benchmark Suite
 
 ### `dev/bench.ts` (run via `pnpm bench`)

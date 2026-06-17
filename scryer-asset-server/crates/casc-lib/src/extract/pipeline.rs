@@ -54,6 +54,9 @@ pub struct OpenConfig {
     /// The path is used as a local blob cache (content-addressed by EKey hex).
     /// Has no effect when `.build.info` has no CDN coordinates (Steam installs).
     pub cdn_cache_dir: Option<PathBuf>,
+    /// URLs to fetch the community TACT key list from, tried in order.
+    /// Defaults to the wowdev/TACTKeys primary URL when empty.
+    pub tact_keys_urls: Vec<String>,
 }
 
 /// Extraction configuration.
@@ -82,6 +85,8 @@ pub struct StorageInfo {
     pub product: String,
     /// Client version string (e.g. `"12.0.1.66192"`).
     pub version: String,
+    /// Build config key hash from `.build.info` — unique per game build.
+    pub build_key: String,
     /// Number of entries in the encoding table.
     pub encoding_entries: usize,
     /// Total number of root file entries across all blocks.
@@ -198,7 +203,7 @@ impl CascStorage {
         let data_ecache = DataStore::open_if_exists(&ecache_dir)?;
 
         // 5. Set up keystore
-        let mut keystore = TactKeyStore::with_known_keys();
+        let mut keystore = TactKeyStore::new();
         if let Some(ref keyfile_path) = config.keyfile {
             let custom = TactKeyStore::load_keyfile(keyfile_path)?;
             keystore.merge(&custom);
@@ -209,6 +214,14 @@ impl CascStorage {
             .output_dir
             .clone()
             .unwrap_or_else(|| std::env::temp_dir().join("casc-extractor"));
+
+        // 5b. Auto-download community key list (wowdev/TACTKeys) into the cache dir.
+        //     Runs after output_dir is resolved so the cache ends up next to the listfile.
+        //     Only runs when CDN is enabled — reuses the user's existing network consent.
+        if config.cdn_cache_dir.is_some() {
+            let url_refs: Vec<&str> = config.tact_keys_urls.iter().map(|s| s.as_str()).collect();
+            keystore.load_community_keys(&output_dir, &build_info.build_key, &url_refs);
+        }
         let cache_path = cache::cache_file_path(&output_dir);
 
         // 7. Try fast path: load pre-parsed tables from the disk cache.
@@ -480,6 +493,7 @@ impl CascStorage {
             build_name: self.build_config.build_name.clone(),
             product: self.build_info.product.clone(),
             version: self.build_info.version.clone(),
+            build_key: self.build_info.build_key.clone(),
             encoding_entries: self.encoding.len(),
             root_entries: self.root.len(),
             root_format: root_format.to_string(),
@@ -1230,6 +1244,7 @@ mod tests {
             listfile: None,
             output_dir: None,
             cdn_cache_dir: None,
+            tact_keys_urls: vec![],
         };
         assert_eq!(config.product, Some("wow".into()));
     }
@@ -1240,6 +1255,7 @@ mod tests {
             build_name: "WOW-12345".into(),
             product: "wow".into(),
             version: "12.0.1.66192".into(),
+            build_key: "abcdef1234567890".into(),
             encoding_entries: 100000,
             root_entries: 500000,
             root_format: "MfstV2".into(),
@@ -1459,6 +1475,7 @@ mod tests {
             listfile: None,
             output_dir: Some(std::env::temp_dir().join("casc_test_open")),
             cdn_cache_dir: None,
+            tact_keys_urls: vec![],
         };
         let storage = CascStorage::open(&config).unwrap();
         let info = storage.info();
@@ -1479,6 +1496,7 @@ mod tests {
             listfile: None,
             output_dir: Some(std::env::temp_dir().join("casc_test_read")),
             cdn_cache_dir: None,
+            tact_keys_urls: vec![],
         };
         let storage = CascStorage::open(&config).unwrap();
         // FDID 1 should exist in virtually every WoW build
@@ -1590,6 +1608,7 @@ mod tests {
             listfile: None,
             output_dir: Some(std::env::temp_dir().join("casc_extract_test")),
             cdn_cache_dir: None,
+            tact_keys_urls: vec![],
         };
         let storage = CascStorage::open(&open_config).unwrap();
 

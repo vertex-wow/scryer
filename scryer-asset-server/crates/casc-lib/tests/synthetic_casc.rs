@@ -343,6 +343,7 @@ fn build_fixture(dir: &Path) -> OpenConfig {
         listfile: Some(listfile),
         output_dir: Some(dir.to_path_buf()),
         cdn_cache_dir: None,
+        tact_keys_urls: vec![],
     }
 }
 
@@ -529,6 +530,7 @@ fn synthetic_ecache_fallback() {
         listfile: Some(listfile),
         output_dir: Some(fix.clone()),
         cdn_cache_dir: None,
+        tact_keys_urls: vec![],
     };
 
     let storage = CascStorage::open(&open_cfg).expect("CascStorage::open on ecache fixture");

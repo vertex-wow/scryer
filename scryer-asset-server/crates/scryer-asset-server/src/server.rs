@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use base64::prelude::*;
+use casc_lib::error::CascError;
 use casc_lib::extract::{CascStorage, ExtractionConfig, OpenConfig, extract_all, read_file_bytes};
 
 #[derive(Deserialize, Debug)]
@@ -72,11 +73,54 @@ enum ServerResponse {
     },
 }
 
+// ---------------------------------------------------------------------------
+// Decryption failure stamps
+//
+// When a ReadFile fails with EncryptionKeyMissing, we write a stamp file so
+// subsequent requests skip the CASC read immediately (the same keys will fail
+// again). The stamp is valid while the build key matches and the stamp is less
+// than 7 days old — after that we retry in case the community has published
+// the missing key (which will also have triggered a fresh key download).
+// ---------------------------------------------------------------------------
+
+fn decrypt_fail_stamp_path(out_dir: &std::path::Path, path: &str) -> std::path::PathBuf {
+    let safe_name = path.replace(['/', '\\', '.'], "_");
+    out_dir.join(".casc-meta").join(format!("decrypt-fail-{}.stamp", safe_name))
+}
+
+fn is_decryption_skip(out_dir: &std::path::Path, path: &str, build_key: &str) -> bool {
+    const MAX_AGE_SECS: u64 = 7 * 24 * 60 * 60;
+    let stamp_path = decrypt_fail_stamp_path(out_dir, path);
+    let Ok(content) = std::fs::read_to_string(&stamp_path) else {
+        return false;
+    };
+    let stamp_build = content.lines().next().unwrap_or("").trim();
+    if stamp_build != build_key {
+        return false;
+    }
+    let age = std::fs::metadata(&stamp_path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok())
+        .unwrap_or(Duration::MAX);
+    age.as_secs() < MAX_AGE_SECS
+}
+
+fn write_decrypt_fail_stamp(out_dir: &std::path::Path, path: &str, build_key: &str, key_name: &str) {
+    let stamp_path = decrypt_fail_stamp_path(out_dir, path);
+    if let Some(parent) = stamp_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(&stamp_path, format!("{}\n{}\n", build_key, key_name));
+    tracing::debug!("decryption failure stamp written: {} (key={})", path, key_name);
+}
+
 pub fn run_server(
     wow_dir: PathBuf,
     out_dir: PathBuf,
     listfile: Option<PathBuf>,
     idle_timeout: u64,
+    tact_keys_urls: Vec<String>,
 ) -> casc_lib::error::Result<()> {
     tracing::info!(
         "Starting CASC server. wow_dir: {:?}, out_dir: {:?}, idle_timeout: {}s",
@@ -113,6 +157,7 @@ pub fn run_server(
     // Lazy load storage on first request
     let mut storage: Option<CascStorage> = None;
     let mut build_hash = String::new();
+    let mut build_key = String::new();
     // Track the cdn setting for the current storage instance so we can reinit on change.
     let mut current_cdn_enabled = false;
 
@@ -197,6 +242,7 @@ pub fn run_server(
                         } else {
                             None
                         },
+                        tact_keys_urls: tact_keys_urls.clone(),
                     };
                     match CascStorage::open(&open_config) {
                         Ok(s) => {
@@ -212,6 +258,7 @@ pub fn run_server(
                                 info.tvfs_paths,
                             );
                             build_hash = info.version.clone();
+                            build_key = info.build_key.clone();
                             storage = Some(s);
                         }
                         Err(e) => {
@@ -230,8 +277,28 @@ pub fn run_server(
                     }
                 }
 
+                // Skip immediately if a recent decryption failure stamp exists (only
+                // when CDN/community keys are enabled — otherwise there's no key
+                // refresh mechanism and we'd block reads permanently on CDN-off runs).
+                if cdn_enabled && is_decryption_skip(&out_dir, &path, &build_key) {
+                    tracing::debug!("readFile skipped (decryption failure stamp active): {}", path);
+                    let res = ServerResponse::ReadFile {
+                        id: req.id,
+                        ok: false,
+                        data: None,
+                        error: Some("encryption key missing (cached failure — retry in 7 days or on next build)".into()),
+                    };
+                    serde_json::to_writer(&mut stdout, &res).unwrap();
+                    stdout.write_all(b"\n").unwrap();
+                    stdout.flush().unwrap();
+                    in_flight.store(false, Ordering::Relaxed);
+                    continue;
+                }
+
                 let store = storage.as_ref().unwrap();
-                let res = match read_file_bytes(store, &path, 0x2) {
+                // Use locale 0x0 (NONE = no locale filter) so locale-neutral files
+                // like DB2 tables match regardless of what locale_flags they carry.
+                let res = match read_file_bytes(store, &path, 0x0) {
                     Ok(bytes) => {
                         tracing::debug!("readFile hit: {} ({} bytes)", path, bytes.len());
                         ServerResponse::ReadFile {
@@ -239,6 +306,18 @@ pub fn run_server(
                             ok: true,
                             data: Some(BASE64_STANDARD.encode(&bytes)),
                             error: None,
+                        }
+                    }
+                    Err(CascError::EncryptionKeyMissing(ref key_name)) => {
+                        tracing::debug!("readFile miss (key missing): {} — key={}", path, key_name);
+                        if cdn_enabled {
+                            write_decrypt_fail_stamp(&out_dir, &path, &build_key, key_name);
+                        }
+                        ServerResponse::ReadFile {
+                            id: req.id,
+                            ok: false,
+                            data: None,
+                            error: Some(format!("encryption key missing: {}", key_name)),
                         }
                     }
                     Err(e) => {
@@ -294,6 +373,7 @@ pub fn run_server(
                     } else {
                         None
                     },
+                    tact_keys_urls: tact_keys_urls.clone(),
                 };
 
                 // Initialize storage if not ready
@@ -314,6 +394,7 @@ pub fn run_server(
                                 info.tvfs_paths,
                             );
                             build_hash = info.version.clone();
+                            build_key = info.build_key.clone();
                             storage = Some(s);
                         }
                         Err(e) => {

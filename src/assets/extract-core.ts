@@ -47,6 +47,8 @@ export interface ExtractCoreOptions {
   logFile?: string;
   /** When true, tell the server to attempt CDN fallback for CDN-only stubs. */
   cdnEnabled?: boolean;
+  /** URLs to fetch community TACT keys from, tried in order. */
+  tactKeysUrls?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -332,6 +334,7 @@ function getAssetClient(opts: ExtractCoreOptions): AssetClient {
       idleTimeout: opts.assetServerIdleTimeout,
       log: opts.log,
       logFile: opts.logFile,
+      tactKeysUrls: opts.tactKeysUrls,
     });
   }
   return sharedAssetClient;

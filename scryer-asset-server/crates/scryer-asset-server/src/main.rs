@@ -191,6 +191,10 @@ pub enum Commands {
         /// Idle timeout in seconds before self-exit
         #[arg(long, default_value = "20")]
         idle_timeout: u64,
+
+        /// URLs to fetch community TACT keys from, tried in order
+        #[arg(long, num_args = 0..)]
+        tact_keys_urls: Vec<String>,
     },
 }
 
@@ -320,6 +324,7 @@ fn run(cli: Cli) -> casc_lib::error::Result<()> {
                 listfile: listfile.clone(),
                 output_dir: None,
                 cdn_cache_dir: None,
+                tact_keys_urls: vec![],
             };
             let locale_val = parse_locale(locale);
             cmd_get(&open_config, target, output, locale_val)
@@ -329,7 +334,8 @@ fn run(cli: Cli) -> casc_lib::error::Result<()> {
             out_dir,
             listfile,
             idle_timeout,
-        } => server::run_server(wow_dir, out_dir, listfile, idle_timeout),
+            tact_keys_urls,
+        } => server::run_server(wow_dir, out_dir, listfile, idle_timeout, tact_keys_urls),
     }
 }
 
@@ -341,6 +347,7 @@ fn make_open_config(casc: &CascArgs, output_dir: Option<&Path>) -> OpenConfig {
         listfile: casc.listfile.clone(),
         output_dir: output_dir.map(Path::to_path_buf),
         cdn_cache_dir: None,
+        tact_keys_urls: vec![],
     }
 }
 

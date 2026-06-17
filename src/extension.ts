@@ -138,7 +138,9 @@ export function activate(context: vscode.ExtensionContext): void {
         e.affectsConfiguration("scryer.cacheLocation") ||
         e.affectsConfiguration("scryer.cacheDir") ||
         e.affectsConfiguration("scryer.assetServerPath") ||
-        e.affectsConfiguration("scryer.assetServerIdleTimeout")
+        e.affectsConfiguration("scryer.assetServerIdleTimeout") ||
+        e.affectsConfiguration("scryer.tactKeysUrls") ||
+        e.affectsConfiguration("scryer.atlasCsvUrls")
       ) {
         assets = AssetService.fromConfig(context, output);
         output.setLogFile(path.join(assets.cacheRoot, "logs", "extension.log"));

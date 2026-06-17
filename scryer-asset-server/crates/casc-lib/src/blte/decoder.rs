@@ -44,11 +44,11 @@ pub fn decode_blte_with_keys(data: &[u8], keystore: Option<&TactKeyStore>) -> Re
     let header_size = read_be_u32(&data[4..8]);
 
     if header_size == 0 {
-        // Single-block mode: everything after the 8-byte header is one block
+        // Single-block mode: everything after the 8-byte header is one block (index 0)
         if data.len() <= 8 {
             return Ok(Vec::new());
         }
-        return decode_block_with_keys(&data[8..], keystore);
+        return decode_block_with_keys(&data[8..], keystore, 0);
     }
 
     // Multi-block mode: parse chunk table
@@ -91,16 +91,16 @@ pub fn decode_blte_with_keys(data: &[u8], keystore: Option<&TactKeyStore>) -> Re
         });
     }
 
-    // Decode blocks sequentially
+    // Decode blocks sequentially; block_index is passed for encrypted IV XOR
     let mut data_pos = header_size as usize;
     let mut output = Vec::new();
-    for chunk in &chunks {
+    for (block_index, chunk) in chunks.iter().enumerate() {
         let block_end = data_pos + chunk.compressed_size as usize;
         if data.len() < block_end {
             return Err(CascError::InvalidFormat("BLTE block data truncated".into()));
         }
         let block = &data[data_pos..block_end];
-        let decoded = decode_block_with_keys(block, keystore)?;
+        let decoded = decode_block_with_keys(block, keystore, block_index as u32)?;
         output.extend_from_slice(&decoded);
         data_pos = block_end;
     }
@@ -285,10 +285,9 @@ mod tests {
         data.extend_from_slice(b"BLTE");
         data.extend_from_slice(&0u32.to_be_bytes()); // single block
         data.push(b'E'); // encrypted
-        data.push(1u8); // key_count
         data.push(8u8); // key_name_size
         data.extend_from_slice(&0xDEADu64.to_le_bytes()); // unknown key
-        data.extend_from_slice(&4u32.to_le_bytes()); // iv_size
+        data.push(4u8); // iv_size
         data.extend_from_slice(&[0; 4]); // iv
         data.push(b'S'); // salsa20
         data.extend_from_slice(b"fake_encrypted_data");
@@ -304,34 +303,26 @@ mod tests {
 
     #[test]
     fn blte_encrypted_single_block_round_trip() {
-        let key_name: u64 = 0xFA505078126ACB3E;
-        let ks = TactKeyStore::with_known_keys();
-        let key = ks.get(key_name).unwrap();
+        use crate::blte::encryption::decrypt_salsa20;
+
+        let key_name: u64 = 0xDEADBEEFCAFEBABE;
+        let key_value = [0x42u8; 16];
+        let mut ks = TactKeyStore::new();
+        ks.insert(key_name, key_value);
 
         // Inner content: mode N + "decrypted!"
         let plaintext = b"Ndecrypted!";
         let iv_bytes = [0x10, 0x20, 0x30, 0x40];
 
-        // Encrypt plaintext with Salsa20
+        // Encrypt with our SIGMA_16 Salsa20 so the decryption path round-trips.
         let mut encrypted_payload = plaintext.to_vec();
-        {
-            use salsa20::Salsa20;
-            use salsa20::cipher::{KeyIvInit, StreamCipher};
-            let mut full_key = [0u8; 32];
-            full_key[..16].copy_from_slice(key);
-            full_key[16..].copy_from_slice(key);
-            let mut nonce = [0u8; 8];
-            nonce[..4].copy_from_slice(&iv_bytes);
-            let mut cipher = Salsa20::new(&full_key.into(), &nonce.into());
-            cipher.apply_keystream(&mut encrypted_payload);
-        }
+        decrypt_salsa20(&key_value, &iv_bytes, &mut encrypted_payload);
 
         // Build E-mode encryption header
         let mut e_block = Vec::new();
-        e_block.push(1u8); // key_count
         e_block.push(8u8); // key_name_size
         e_block.extend_from_slice(&key_name.to_le_bytes());
-        e_block.extend_from_slice(&4u32.to_le_bytes()); // iv_size
+        e_block.push(4u8); // iv_size
         e_block.extend_from_slice(&iv_bytes);
         e_block.push(b'S'); // salsa20
         e_block.extend_from_slice(&encrypted_payload);

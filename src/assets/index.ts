@@ -74,6 +74,10 @@ export interface AssetServiceOptions {
   assetServerIdleTimeout: number;
   /** Path to the grep binary. Empty = auto-detect from PATH. */
   grepPath: string;
+  /** URLs to fetch community TACT keys from, tried in order. */
+  tactKeysUrls: string[];
+  /** URL templates for CSV atlas data downloads, tried in order. */
+  atlasCsvUrls: string[];
   output: vscode.LogOutputChannel;
 }
 
@@ -374,11 +378,21 @@ export class AssetService {
       /* channel disposed */
     }
 
-    await genAtlas({
-      manifestPath: this.atlasManifestPath,
-      listfileDir: this.cascMetaDir,
-      output: this.opts.output,
-    });
+    try {
+      await genAtlas({
+        manifestPath: this.atlasManifestPath,
+        listfileDir: this.cascMetaDir,
+        extractorOpts: this.makeExtractorOpts(),
+        atlasCsvUrls: this.opts.atlasCsvUrls,
+        output: this.opts.output,
+      });
+    } catch (err) {
+      this.atlasManifestEnsured = false;
+      void vscode.window.showErrorMessage(
+        `Scryer: Atlas manifest generation failed — ${String(err)}\n\nCheck scryer.atlasCsvUrls or your network connection.`,
+      );
+      return false;
+    }
 
     return fs.existsSync(this.atlasManifestPath);
   }
@@ -399,6 +413,7 @@ export class AssetService {
       logFile: path.join(this.opts.cacheRoot, "logs", "asset-server.log"),
       output: this.opts.output,
       cdnEnabled,
+      tactKeysUrls: this.opts.tactKeysUrls,
     };
   }
 
@@ -413,6 +428,7 @@ export class AssetService {
       listfileDir: e.listfileDir,
       logFile: e.logFile,
       cdnEnabled: e.cdnEnabled,
+      tactKeysUrls: e.tactKeysUrls,
       log: (level: import("./asset-client.js").LogLevel, msg: string, serverTime?: string) => {
         if (serverTime) {
           const ch = this.opts.output as { logServer?: (l: string, m: string, t: string) => void };
@@ -747,6 +763,8 @@ export class AssetService {
     }
     const assetServerIdleTimeout = cfg.get<number>("assetServerIdleTimeout") ?? 20;
     const grepPath = cfg.get<string>("grepPath") ?? "";
+    const tactKeysUrls = cfg.get<string[]>("tactKeysUrls") ?? [];
+    const atlasCsvUrls = cfg.get<string[]>("atlasCsvUrls") ?? [];
 
     const flavorRoot = path.join(cacheRoot, flavor);
     const installFlavorDir = installDir ? path.join(installDir, flavorSubdir(flavor)) : "";
@@ -762,6 +780,8 @@ export class AssetService {
       assetServerPath,
       assetServerIdleTimeout,
       grepPath,
+      tactKeysUrls,
+      atlasCsvUrls,
       output,
     });
   }

@@ -45,27 +45,31 @@ fast-png was never added to package.json (the benchmark confirmed no benefit bef
 
 ## Atlas manifest from DB2 (replace wago.tools)
 
-**Status: 📋 Pending**
+**Status: 🚧 In progress — blocked on community resource availability**
 
 `dev/gen-atlas.mjs` currently generates the atlas manifest by downloading `UiTextureAtlas` and `UiTextureAtlasMember` CSV table exports from wago.tools. This works but has two problems: it makes an outbound HTTP request to a third-party service at extension startup (whenever the manifest is absent), and it silently produces a stale manifest when the user is offline or when wago.tools lags behind a patch.
 
 **Goal:** Replace the CSV download with direct parsing of the DB2 binary files extracted from the user's WoW installation. No outbound HTTP. The manifest is generated from the same build as the user's game data.
 
-**Rough plan:**
+**Progress:**
 
-1. **Read the DB2 files in-memory** — call `AssetService.readCascFile("dbfilesclient/uitextureatlas.db2")` and `readCascFile("dbfilesclient/uitextureatlasmember.db2")`. No disk extraction step needed: the asset server returns raw bytes directly. ~~rustydemon-cli~~ no longer involved.
+All code is written and wired in. The DB2 parser (`src/assets/db2-parser.ts`), atlas gen (`src/assets/atlas-gen-db2.ts`), and benchmark (`dev/bench-atlas-gen.ts`) are complete. The BLTE stream infrastructure in the Rust asset server is now correct (Salsa20/SIGMA_16, block-index IV XOR, community resource auto-download from wowdev/TACTKeys).
 
-2. **Parse the DB2 binary format** — write a minimal WDC4 parser in `src/assets/db2-parser.ts` (or inline in a new `gen-atlas-db2.ts`) covering only the two table schemas needed. The WDC4 format is documented; the field layouts for these two tables are fixed and small. Key reference: `_reference/wow.export/src/js/db/WDCReader.js`. The main complexity is bitpacked fields and the string table; both tables use simple non-packed integer and string fields so a hand-rolled subset parser is feasible without pulling in the full WDCReader infrastructure.
+**Current blocker:** In retail build 12.0.7.68182, both `UiTextureAtlas.db2` and `UiTextureAtlasMember.db2` require a community resource entry (`0x0599D267A15C719F`) not yet published to wowdev/TACTKeys. The DB2 path silently falls back to wago.tools until this entry appears. Baseline measurement: wago.tools CSV approach takes ~3391 ms (cached, no network), 16,461 entries.
 
-   Alternatively, use an npm DB2 parser such as `@wowserhq/db2` if one becomes available with a compatible license.
+**What unblocks this:** The community resource entry `0x0599D267A15C719F` being added to `wowdev/TACTKeys/WoW.txt`. The server auto-downloads the resource manifest weekly (when CDN enabled), so no code change is needed — the path will auto-unblock.
 
-3. **FileDataID → path join** — unchanged: still uses the community listfile (now at `<cacheRoot>/downloads/listfile.csv`) to resolve FileDataIDs to `Interface/...` paths.
+**Rough plan (remaining steps when unblocked):**
 
-4. **Wire into `ensureAtlasManifest()`** — replace the `shellGenAtlas` spawn path (which calls `gen-atlas.mjs` → wago.tools) with an in-process DB2 parse call. Fall back to the wago.tools download only when `installDir` is not configured or `readCascFile` returns null.
+1. ~~**Read the DB2 files in-memory**~~ — done. `AssetService.readCascFile` returns raw bytes.
+2. ~~**Parse the DB2 binary format**~~ — done. WDC4 parser in `src/assets/db2-parser.ts`.
+3. ~~**FileDataID → path join**~~ — done.
+4. ~~**Wire into `ensureAtlasManifest()`**~~ — done. Falls back to wago.tools when DB2 returns null.
+5. **Run the DB2 benchmark** and update `docs/measurements.md` Q8 with Scenario B results.
 
 **Depends on:** `AssetService.readCascFile` (complete). Having a WoW install configured (`scryer.installDir`) so the server can reach CASC. Falls back to wago.tools download if not.
 
-**Effort:** M (WDC4 parser for two specific schemas: S; wire into ensureAtlasManifest + fallback logic: S; testing across retail/classic builds: S).
+**Effort:** Remaining: XS (run benchmark once key is available, update docs).
 
 ---
 

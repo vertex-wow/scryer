@@ -15,9 +15,6 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use salsa20::Salsa20;
-use salsa20::cipher::{KeyIvInit, StreamCipher};
-
 use crate::error::{CascError, Result};
 
 // ---------------------------------------------------------------------------
@@ -41,15 +38,6 @@ impl TactKeyStore {
         Self {
             keys: HashMap::new(),
         }
-    }
-
-    /// Create a key store pre-populated with community-known WoW TACT keys.
-    pub fn with_known_keys() -> Self {
-        let mut keys = HashMap::new();
-        for (name, value) in known_keys() {
-            keys.insert(name, value);
-        }
-        Self { keys }
     }
 
     /// Load a key store from a text file.
@@ -83,6 +71,82 @@ impl TactKeyStore {
         }
 
         Ok(Self { keys })
+    }
+
+    /// Download the community WoW TACT key list and merge into this store.
+    ///
+    /// `urls` is tried in order; the first successful fetch wins. The result is
+    /// cached at `<output_dir>/.casc-meta/tact-keys.txt`. The cache is invalidated
+    /// when `build_key` changes (new game build) or after 7 days. If all URLs fail
+    /// and no cached file exists, the store remains empty — callers fall back to CSV.
+    pub fn load_community_keys(&mut self, output_dir: &std::path::Path, build_key: &str, urls: &[&str]) {
+        const MAX_AGE_SECS: u64 = 7 * 24 * 60 * 60;
+        const DEFAULT_URL: &str =
+            "https://raw.githubusercontent.com/wowdev/TACTKeys/master/WoW.txt";
+        let default_slice: &[&str] = &[DEFAULT_URL];
+        let urls = if urls.is_empty() { default_slice } else { urls };
+
+        let cache_path = output_dir.join(".casc-meta").join("tact-keys.txt");
+        let build_stamp_path = output_dir.join(".casc-meta").join("tact-keys.build");
+
+        let needs_download = {
+            let stored = std::fs::read_to_string(&build_stamp_path).unwrap_or_default();
+            if stored.trim() != build_key {
+                tracing::info!("tact-keys: build changed, refreshing key cache");
+                true
+            } else {
+                let age = std::fs::metadata(&cache_path)
+                    .and_then(|m| m.modified())
+                    .ok()
+                    .and_then(|t| t.elapsed().ok())
+                    .unwrap_or(std::time::Duration::MAX);
+                age.as_secs() >= MAX_AGE_SECS
+            }
+        };
+
+        if needs_download {
+            if let Some(parent) = cache_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let client = reqwest::blocking::Client::new();
+            let mut fetched = false;
+            for url in urls {
+                match client
+                    .get(*url)
+                    .header("User-Agent", "scryer-asset-server/0.1")
+                    .send()
+                    .and_then(|r| r.text())
+                {
+                    Ok(body) => {
+                        let _ = std::fs::write(&cache_path, &body);
+                        let _ = std::fs::write(&build_stamp_path, build_key);
+                        tracing::info!("tact-keys: downloaded {} bytes from {}", body.len(), url);
+                        fetched = true;
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::warn!("tact-keys: fetch failed for {} ({}); trying next", url, e);
+                    }
+                }
+            }
+            if !fetched {
+                tracing::warn!("tact-keys: all URLs failed; using cached file if present");
+            }
+        }
+
+        match Self::load_keyfile(&cache_path) {
+            Ok(ks) => {
+                let n = ks.len();
+                self.merge(&ks);
+                tracing::info!("tact-keys: loaded {} community keys from cache", n);
+            }
+            Err(e) => tracing::warn!("tact-keys: no usable cache ({}); key store empty", e),
+        }
+    }
+
+    /// Insert a single key by name and value.
+    pub fn insert(&mut self, key_name: u64, key_value: [u8; 16]) {
+        self.keys.insert(key_name, key_value);
     }
 
     /// Merge keys from another store into this one.
@@ -139,6 +203,13 @@ pub struct EncryptionHeader {
 
 /// Parse an encryption header from the data following the `E` mode byte.
 ///
+/// Wire format (matches wow.export / TACTLib):
+///   key_name_size (u8)  — must be 8
+///   key_name      (8 B) — u64 LE TACT key identifier
+///   iv_size       (u8)  — typically 4 or 8
+///   iv            (iv_size B)
+///   enc_type      (u8)  — b'S' Salsa20 / b'A' ARC4
+///
 /// Returns the parsed header and a slice of the remaining encrypted payload.
 pub fn parse_encryption_header(data: &[u8]) -> Result<(EncryptionHeader, &[u8])> {
     if data.is_empty() {
@@ -149,57 +220,36 @@ pub fn parse_encryption_header(data: &[u8]) -> Result<(EncryptionHeader, &[u8])>
 
     let mut pos = 0;
 
-    // key_count (u8)
-    let key_count = data[pos] as usize;
+    // key_name_size (u8)
+    let key_name_size = data[pos] as usize;
     pos += 1;
 
-    if key_count == 0 {
+    if key_name_size != 8 {
+        return Err(CascError::InvalidFormat(format!(
+            "encryption header: expected key_name_size 8, got {}",
+            key_name_size
+        )));
+    }
+
+    // key_name (8 bytes, u64 LE)
+    if pos + 8 > data.len() {
         return Err(CascError::InvalidFormat(
-            "encryption header: key_count is 0".into(),
+            "encryption header: truncated key_name".into(),
         ));
     }
+    let key_name = u64::from_le_bytes(data[pos..pos + 8].try_into().map_err(|_| {
+        CascError::InvalidFormat("encryption header: failed to read key_name".into())
+    })?);
+    pos += 8;
 
-    // We only use the first key but must skip through all of them.
-    let mut key_name: u64 = 0;
-    for i in 0..key_count {
-        if pos >= data.len() {
-            return Err(CascError::InvalidFormat(
-                "encryption header: truncated key_name_size".into(),
-            ));
-        }
-        let key_name_size = data[pos] as usize;
-        pos += 1;
-
-        if pos + key_name_size > data.len() {
-            return Err(CascError::InvalidFormat(
-                "encryption header: truncated key_name".into(),
-            ));
-        }
-
-        if i == 0 {
-            if key_name_size != 8 {
-                return Err(CascError::InvalidFormat(format!(
-                    "encryption header: expected key_name_size 8, got {}",
-                    key_name_size
-                )));
-            }
-            key_name = u64::from_le_bytes(data[pos..pos + 8].try_into().map_err(|_| {
-                CascError::InvalidFormat("encryption header: failed to read key_name".into())
-            })?);
-        }
-        pos += key_name_size;
-    }
-
-    // IV size (u32 LE)
-    if pos + 4 > data.len() {
+    // iv_size (u8)
+    if pos >= data.len() {
         return Err(CascError::InvalidFormat(
             "encryption header: truncated IV size".into(),
         ));
     }
-    let iv_size = u32::from_le_bytes(data[pos..pos + 4].try_into().map_err(|_| {
-        CascError::InvalidFormat("encryption header: failed to read IV size".into())
-    })?) as usize;
-    pos += 4;
+    let iv_size = data[pos] as usize;
+    pos += 1;
 
     // IV bytes
     if pos + iv_size > data.len() {
@@ -284,19 +334,112 @@ impl Arc4 {
 // Salsa20 decryption helper
 // ---------------------------------------------------------------------------
 
-fn decrypt_salsa20(key: &[u8; 16], iv: &[u8], data: &mut [u8]) {
-    // Salsa20 requires a 32-byte key; double the 16-byte TACT key.
-    let mut full_key = [0u8; 32];
-    full_key[..16].copy_from_slice(key);
-    full_key[16..].copy_from_slice(key);
+// "expand 16-byte k" — correct constant for 16-byte TACT keys.
+// The RustCrypto salsa20 crate only exposes "expand 32-byte k", so we
+// implement the required subset inline, exactly as wow.export does.
+const SIGMA16: [u32; 4] = [0x6170_7865, 0x3120_646e, 0x7962_2d36, 0x6b20_6574];
+
+#[inline(always)]
+fn rotl32(v: u32, n: u32) -> u32 {
+    v.rotate_left(n)
+}
+
+fn salsa20_block(key: &[u32; 8], nonce: &[u32; 2], counter: u64) -> [u8; 64] {
+    let ctr_lo = counter as u32;
+    let ctr_hi = (counter >> 32) as u32;
+
+    let (j0, j5, j10, j15) = (SIGMA16[0], SIGMA16[1], SIGMA16[2], SIGMA16[3]);
+    let (j1, j2, j3, j4) = (key[0], key[1], key[2], key[3]);
+    let (j11, j12, j13, j14) = (key[4], key[5], key[6], key[7]);
+    let (j6, j7) = (nonce[0], nonce[1]);
+    let (j8, j9) = (ctr_lo, ctr_hi);
+
+    let (mut x0, mut x1, mut x2, mut x3) = (j0, j1, j2, j3);
+    let (mut x4, mut x5, mut x6, mut x7) = (j4, j5, j6, j7);
+    let (mut x8, mut x9, mut x10, mut x11) = (j8, j9, j10, j11);
+    let (mut x12, mut x13, mut x14, mut x15) = (j12, j13, j14, j15);
+
+    for _ in 0..10 {
+        // column rounds
+        x4  ^= rotl32(x0.wrapping_add(x12), 7);
+        x8  ^= rotl32(x4.wrapping_add(x0),  9);
+        x12 ^= rotl32(x8.wrapping_add(x4),  13);
+        x0  ^= rotl32(x12.wrapping_add(x8), 18);
+        x9  ^= rotl32(x5.wrapping_add(x1),  7);
+        x13 ^= rotl32(x9.wrapping_add(x5),  9);
+        x1  ^= rotl32(x13.wrapping_add(x9), 13);
+        x5  ^= rotl32(x1.wrapping_add(x13), 18);
+        x14 ^= rotl32(x10.wrapping_add(x6), 7);
+        x2  ^= rotl32(x14.wrapping_add(x10),9);
+        x6  ^= rotl32(x2.wrapping_add(x14), 13);
+        x10 ^= rotl32(x6.wrapping_add(x2),  18);
+        x3  ^= rotl32(x15.wrapping_add(x11),7);
+        x7  ^= rotl32(x3.wrapping_add(x15), 9);
+        x11 ^= rotl32(x7.wrapping_add(x3),  13);
+        x15 ^= rotl32(x11.wrapping_add(x7), 18);
+        // row rounds
+        x1  ^= rotl32(x0.wrapping_add(x3),  7);
+        x2  ^= rotl32(x1.wrapping_add(x0),  9);
+        x3  ^= rotl32(x2.wrapping_add(x1),  13);
+        x0  ^= rotl32(x3.wrapping_add(x2),  18);
+        x6  ^= rotl32(x5.wrapping_add(x4),  7);
+        x7  ^= rotl32(x6.wrapping_add(x5),  9);
+        x4  ^= rotl32(x7.wrapping_add(x6),  13);
+        x5  ^= rotl32(x4.wrapping_add(x7),  18);
+        x11 ^= rotl32(x10.wrapping_add(x9), 7);
+        x8  ^= rotl32(x11.wrapping_add(x10),9);
+        x9  ^= rotl32(x8.wrapping_add(x11), 13);
+        x10 ^= rotl32(x9.wrapping_add(x8),  18);
+        x12 ^= rotl32(x15.wrapping_add(x14),7);
+        x13 ^= rotl32(x12.wrapping_add(x15),9);
+        x14 ^= rotl32(x13.wrapping_add(x12),13);
+        x15 ^= rotl32(x14.wrapping_add(x13),18);
+    }
+
+    let words: [u32; 16] = [
+        x0.wrapping_add(j0),   x1.wrapping_add(j1),   x2.wrapping_add(j2),   x3.wrapping_add(j3),
+        x4.wrapping_add(j4),   x5.wrapping_add(j5),   x6.wrapping_add(j6),   x7.wrapping_add(j7),
+        x8.wrapping_add(j8),   x9.wrapping_add(j9),   x10.wrapping_add(j10), x11.wrapping_add(j11),
+        x12.wrapping_add(j12), x13.wrapping_add(j13), x14.wrapping_add(j14), x15.wrapping_add(j15),
+    ];
+
+    let mut out = [0u8; 64];
+    for (i, w) in words.iter().enumerate() {
+        out[i * 4..i * 4 + 4].copy_from_slice(&w.to_le_bytes());
+    }
+    out
+}
+
+pub(crate) fn decrypt_salsa20(key: &[u8; 16], iv: &[u8], data: &mut [u8]) {
+    // Pack 16-byte key into 8 u32 words (doubled: k[0..4] then k[0..4] again).
+    let mut kw = [0u32; 8];
+    for (i, chunk) in key.chunks(4).enumerate() {
+        let w = u32::from_le_bytes(chunk.try_into().unwrap());
+        kw[i] = w;
+        kw[i + 4] = w;
+    }
 
     // Pad IV to 8-byte nonce.
-    let mut nonce = [0u8; 8];
+    let mut nonce_bytes = [0u8; 8];
     let copy_len = iv.len().min(8);
-    nonce[..copy_len].copy_from_slice(&iv[..copy_len]);
+    nonce_bytes[..copy_len].copy_from_slice(&iv[..copy_len]);
+    let nw = [
+        u32::from_le_bytes(nonce_bytes[0..4].try_into().unwrap()),
+        u32::from_le_bytes(nonce_bytes[4..8].try_into().unwrap()),
+    ];
 
-    let mut cipher = Salsa20::new(&full_key.into(), &nonce.into());
-    cipher.apply_keystream(data);
+    let mut counter: u64 = 0;
+    let mut offset = 0;
+    while offset < data.len() {
+        let block = salsa20_block(&kw, &nw, counter);
+        let remaining = data.len() - offset;
+        let n = remaining.min(64);
+        for i in 0..n {
+            data[offset + i] ^= block[i];
+        }
+        offset += n;
+        counter += 1;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -305,19 +448,37 @@ fn decrypt_salsa20(key: &[u8; 16], iv: &[u8], data: &mut [u8]) {
 
 /// Decrypt a BLTE mode-E block.
 ///
-/// `data` is everything after the `E` mode byte. Returns the decrypted
-/// payload whose first byte is the inner compression mode (N, Z, 4, etc.).
-pub fn decrypt_block(data: &[u8], keystore: &TactKeyStore) -> Result<Vec<u8>> {
+/// `data` is everything after the `E` mode byte. `block_index` is the
+/// 0-based index of this block within the BLTE container — the IV is XORed
+/// with the block index bytes before decryption (matches wow.export/TACTLib).
+/// Returns the decrypted payload whose first byte is the inner compression
+/// mode (N, Z, 4, etc.).
+pub fn decrypt_block(data: &[u8], keystore: &TactKeyStore, block_index: u32) -> Result<Vec<u8>> {
     let (header, encrypted) = parse_encryption_header(data)?;
+
+    tracing::debug!(
+        "decrypt_block: key={:016X} iv={} algo={:?} block_index={} encrypted_len={}",
+        header.key_name,
+        hex::encode(&header.iv),
+        header.algorithm,
+        block_index,
+        encrypted.len()
+    );
 
     let key = keystore
         .get(header.key_name)
         .ok_or_else(|| CascError::EncryptionKeyMissing(format!("0x{:016X}", header.key_name)))?;
 
+    // XOR the IV bytes with the block index (LE), as per wow.export BLTE spec.
+    let mut iv = header.iv.clone();
+    for (i, byte) in iv.iter_mut().enumerate().take(4) {
+        *byte ^= ((block_index >> (i * 8)) & 0xFF) as u8;
+    }
+
     let mut output = encrypted.to_vec();
     match header.algorithm {
         EncryptionAlgorithm::Salsa20 => {
-            decrypt_salsa20(key, &header.iv, &mut output);
+            decrypt_salsa20(key, &iv, &mut output);
         }
         EncryptionAlgorithm::ARC4 => {
             let mut cipher = Arc4::new(key);
@@ -329,16 +490,8 @@ pub fn decrypt_block(data: &[u8], keystore: &TactKeyStore) -> Result<Vec<u8>> {
 }
 
 // ---------------------------------------------------------------------------
-// Known TACT keys
+// Key parsing helpers
 // ---------------------------------------------------------------------------
-
-/// Convert a hex string to a 16-byte key. Panics on invalid input.
-fn hex_to_key(hex_str: &str) -> [u8; 16] {
-    let bytes = hex::decode(hex_str).expect("invalid hex in known key");
-    let mut key = [0u8; 16];
-    key.copy_from_slice(&bytes);
-    key
-}
 
 /// Convert a hex string to a 16-byte key, returning an error on failure.
 fn hex_to_key_result(hex_str: &str) -> Result<[u8; 16]> {
@@ -354,79 +507,6 @@ fn hex_to_key_result(hex_str: &str) -> Result<[u8; 16]> {
     let mut key = [0u8; 16];
     key.copy_from_slice(&bytes);
     Ok(key)
-}
-
-fn known_keys() -> Vec<(u64, [u8; 16])> {
-    vec![
-        (
-            0xFA505078126ACB3E,
-            hex_to_key("BDC51862ABED79B2DE48C8E7E66C6200"),
-        ),
-        (
-            0xFF813F7D062AC0BC,
-            hex_to_key("AA0B5C77F088CCC2D39049BD267F066D"),
-        ),
-        (
-            0xD1E9B5EDF9283668,
-            hex_to_key("8E4A2579894E38B4AB9058BA5C7328EE"),
-        ),
-        (
-            0xB76729641141CB34,
-            hex_to_key("9849D1AA7B1FD09819C5C66283A326EC"),
-        ),
-        (
-            0xFFB9469FF16E6BF8,
-            hex_to_key("D514BD1909A9E5DC8703F4B8BB1DFD9A"),
-        ),
-        (
-            0x23C5B5DF837A226C,
-            hex_to_key("1406E2D873B6FC99217A180881DA8D62"),
-        ),
-        (
-            0x3AE403EF40AC3037,
-            hex_to_key("EB31B554C67D603E2F10AA8C4584F1CE"),
-        ),
-        (
-            0xE2854509C471C381,
-            hex_to_key("A970FEF382CE86A53A1674C8F36C8F1B"),
-        ),
-        (
-            0x8EE2CB82178C995A,
-            hex_to_key("5FA43C8E204D2F1BFAF1FB26FFE5A34B"),
-        ),
-        (
-            0x5813810F4EC9B005,
-            hex_to_key("7F3DDA67B4A94DE6D3F3B8D4E45FC076"),
-        ),
-        (
-            0x7F3DDA67B4A94DE6,
-            hex_to_key("13AC5E1474618778916727B21F37B31E"),
-        ),
-        (
-            0x402CD9D8D6BFED98,
-            hex_to_key("AEB0EADFE24A0742C24B8FFC2DC28C69"),
-        ),
-        (
-            0xFB680CB6A8BF81F3,
-            hex_to_key("62D90EFA7F36D71C398AE2F1FE37C5F5"),
-        ),
-        (
-            0xDBD3371554F60306,
-            hex_to_key("34E397ACE6DD30EEFDC98A2AB093CD3C"),
-        ),
-        (
-            0x11A9203C9A2D0DC8,
-            hex_to_key("2E609EA137A31F85DE06A14A9FF04AA1"),
-        ),
-        (
-            0x279C3FFB7E3229BC,
-            hex_to_key("53D25B2053C58F053AA4A6EA4E2D1625"),
-        ),
-        (
-            0xC7459A25DC3B7A4C,
-            hex_to_key("C54CF38B19EA7ABCB17B1D5086423A90"),
-        ),
-    ]
 }
 
 // ===========================================================================
@@ -449,23 +529,8 @@ mod tests {
     }
 
     #[test]
-    fn keystore_with_known_keys_not_empty() {
-        let ks = TactKeyStore::with_known_keys();
-        assert!(!ks.is_empty());
-        assert!(ks.len() >= 10);
-    }
-
-    #[test]
-    fn keystore_get_known_key() {
-        let ks = TactKeyStore::with_known_keys();
-        let key = ks.get(0xFA505078126ACB3E);
-        assert!(key.is_some());
-        assert_eq!(key.unwrap().len(), 16);
-    }
-
-    #[test]
     fn keystore_get_unknown_returns_none() {
-        let ks = TactKeyStore::with_known_keys();
+        let ks = TactKeyStore::new();
         assert!(ks.get(0xDEADBEEFCAFEBABE).is_none());
     }
 
@@ -488,15 +553,15 @@ mod tests {
         let path = dir.join("test.keys");
         let mut f = std::fs::File::create(&path).unwrap();
         writeln!(f, "# Comment line").unwrap();
-        writeln!(f, "FA505078126ACB3E BDC51862ABED79B2DE48C8E7E66C6200").unwrap();
+        writeln!(f, "DEADBEEFCAFEF00D 0102030405060708090A0B0C0D0E0F10").unwrap();
         writeln!(f).unwrap(); // blank line
-        writeln!(f, "FF813F7D062AC0BC AA0B5C77F088CCC2D39049BD267F066D").unwrap();
+        writeln!(f, "BEEFDEAD12345678 1112131415161718191A1B1C1D1E1F20").unwrap();
         drop(f);
 
         let ks = TactKeyStore::load_keyfile(&path).unwrap();
         assert_eq!(ks.len(), 2);
-        assert!(ks.get(0xFA505078126ACB3E).is_some());
-        assert!(ks.get(0xFF813F7D062AC0BC).is_some());
+        assert!(ks.get(0xDEADBEEFCAFEF00D).is_some());
+        assert!(ks.get(0xBEEFDEAD12345678).is_some());
 
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -529,16 +594,15 @@ mod tests {
     #[test]
     fn parse_encryption_header_salsa20() {
         let mut data = Vec::new();
-        data.push(1u8); // key_count = 1
         data.push(8u8); // key_name_size = 8
-        data.extend_from_slice(&0xFA505078126ACB3Eu64.to_le_bytes());
-        data.extend_from_slice(&4u32.to_le_bytes()); // iv_size = 4
+        data.extend_from_slice(&0xDEADBEEFCAFEF00Du64.to_le_bytes());
+        data.push(4u8); // iv_size = 4
         data.extend_from_slice(&[0x01, 0x02, 0x03, 0x04]); // IV
         data.push(b'S'); // Salsa20
         data.extend_from_slice(b"encrypted_payload");
 
         let (header, remaining) = parse_encryption_header(&data).unwrap();
-        assert_eq!(header.key_name, 0xFA505078126ACB3E);
+        assert_eq!(header.key_name, 0xDEADBEEFCAFEF00D);
         assert_eq!(header.iv, vec![0x01, 0x02, 0x03, 0x04]);
         assert_eq!(header.algorithm, EncryptionAlgorithm::Salsa20);
         assert_eq!(remaining, b"encrypted_payload");
@@ -547,10 +611,9 @@ mod tests {
     #[test]
     fn parse_encryption_header_arc4() {
         let mut data = Vec::new();
-        data.push(1u8);
         data.push(8u8);
         data.extend_from_slice(&0xDEADBEEFu64.to_le_bytes());
-        data.extend_from_slice(&4u32.to_le_bytes());
+        data.push(4u8);
         data.extend_from_slice(&[0x0A, 0x0B, 0x0C, 0x0D]);
         data.push(b'A'); // ARC4
         data.extend_from_slice(b"payload");
@@ -569,10 +632,9 @@ mod tests {
     #[test]
     fn parse_encryption_header_unknown_algo_errors() {
         let mut data = Vec::new();
-        data.push(1u8);
         data.push(8u8);
         data.extend_from_slice(&0u64.to_le_bytes());
-        data.extend_from_slice(&4u32.to_le_bytes());
+        data.push(4u8);
         data.extend_from_slice(&[0; 4]);
         data.push(b'X'); // unknown
 
@@ -641,15 +703,14 @@ mod tests {
     fn decrypt_block_missing_key_errors() {
         let ks = TactKeyStore::new(); // empty - no keys
         let mut data = Vec::new();
-        data.push(1u8); // key_count
         data.push(8u8); // key_name_size
         data.extend_from_slice(&0xDEADBEEFu64.to_le_bytes());
-        data.extend_from_slice(&4u32.to_le_bytes());
+        data.push(4u8); // iv_size
         data.extend_from_slice(&[0; 4]);
         data.push(b'S');
         data.extend_from_slice(b"encrypted");
 
-        let result = decrypt_block(&data, &ks);
+        let result = decrypt_block(&data, &ks, 0);
         assert!(result.is_err());
         match result.unwrap_err() {
             CascError::EncryptionKeyMissing(_) => {}
@@ -657,68 +718,64 @@ mod tests {
         }
     }
 
+    fn make_test_keystore() -> (TactKeyStore, u64, [u8; 16]) {
+        let key_name: u64 = 0xDEADBEEFCAFEBABE;
+        let key_value = [0x42u8; 16];
+        let mut ks = TactKeyStore::new();
+        ks.keys.insert(key_name, key_value);
+        (ks, key_name, key_value)
+    }
+
     #[test]
     fn decrypt_block_salsa20_round_trip() {
-        let key_name: u64 = 0xFA505078126ACB3E;
-        let ks = TactKeyStore::with_known_keys();
-        let key = ks.get(key_name).unwrap();
+        let (ks, key_name, key_value) = make_test_keystore();
 
-        // Prepare a "plaintext" that starts with an inner mode byte
         let plaintext = b"Nhello world inner content";
         let iv_bytes = [0x10, 0x20, 0x30, 0x40];
 
-        // Encrypt the plaintext with Salsa20 to build a test encrypted payload
         let mut encrypted_payload = plaintext.to_vec();
-        decrypt_salsa20(key, &iv_bytes, &mut encrypted_payload);
+        decrypt_salsa20(&key_value, &iv_bytes, &mut encrypted_payload);
 
-        // Build the full encrypted block (header + encrypted payload)
         let mut block_data = Vec::new();
-        block_data.push(1u8);
         block_data.push(8u8);
         block_data.extend_from_slice(&key_name.to_le_bytes());
-        block_data.extend_from_slice(&4u32.to_le_bytes());
+        block_data.push(4u8);
         block_data.extend_from_slice(&iv_bytes);
         block_data.push(b'S');
         block_data.extend_from_slice(&encrypted_payload);
 
-        // Decrypt and verify we get the original plaintext back
-        let decrypted = decrypt_block(&block_data, &ks).unwrap();
+        let decrypted = decrypt_block(&block_data, &ks, 0).unwrap();
         assert_eq!(&decrypted[..], &plaintext[..]);
     }
 
     #[test]
     fn decrypt_block_arc4_round_trip() {
-        let key_name: u64 = 0xFA505078126ACB3E;
-        let ks = TactKeyStore::with_known_keys();
-        let key = ks.get(key_name).unwrap();
+        let (ks, key_name, key_value) = make_test_keystore();
 
         let plaintext = b"Zcompressed inner data here";
 
-        // Encrypt with ARC4
         let mut encrypted_payload = plaintext.to_vec();
-        let mut cipher = Arc4::new(key);
+        let mut cipher = Arc4::new(&key_value);
         cipher.process(&mut encrypted_payload);
 
-        // Build header
         let mut block_data = Vec::new();
-        block_data.push(1u8);
         block_data.push(8u8);
         block_data.extend_from_slice(&key_name.to_le_bytes());
-        block_data.extend_from_slice(&4u32.to_le_bytes());
+        block_data.push(4u8);
         block_data.extend_from_slice(&[0x01, 0x02, 0x03, 0x04]);
         block_data.push(b'A');
         block_data.extend_from_slice(&encrypted_payload);
 
-        let decrypted = decrypt_block(&block_data, &ks).unwrap();
+        let decrypted = decrypt_block(&block_data, &ks, 0).unwrap();
         assert_eq!(&decrypted[..], &plaintext[..]);
     }
 
     #[test]
     fn hex_to_key_result_valid() {
-        let key = hex_to_key_result("BDC51862ABED79B2DE48C8E7E66C6200").unwrap();
+        let key = hex_to_key_result("0102030405060708090A0B0C0D0E0F10").unwrap();
         assert_eq!(key.len(), 16);
-        assert_eq!(key[0], 0xBD);
-        assert_eq!(key[15], 0x00);
+        assert_eq!(key[0], 0x01);
+        assert_eq!(key[15], 0x10);
     }
 
     #[test]
@@ -731,13 +788,4 @@ mod tests {
         assert!(hex_to_key_result("AABB").is_err());
     }
 
-    #[test]
-    fn known_keys_all_valid() {
-        let keys = known_keys();
-        assert!(keys.len() >= 15);
-        for (name, value) in &keys {
-            assert_ne!(*name, 0, "key name should not be zero");
-            assert_ne!(*value, [0u8; 16], "key value should not be all zeros");
-        }
-    }
 }

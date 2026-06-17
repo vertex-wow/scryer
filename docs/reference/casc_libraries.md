@@ -54,4 +54,4 @@ Permission to reference this code was granted by Kruithne directly (see `docs/re
 **Language:** Rust  
 **Source:** https://github.com/Xerrion/casc-extractor
 
-Pure Rust CLI and library for WoW CASC archives. Implements BLTE decoding (plain, zlib, LZ4), TACT Salsa20/ARC4 decryption, parallel extraction via rayon, and JSONL/CSV metadata indexing. Crate layout: `casc-lib` (library) and `casc-cli` (CLI). Reference for a clean Rust extraction implementation.
+Pure Rust CLI and library for WoW CASC archives. Implements BLTE decoding (plain, zlib, LZ4), TACT stream handling, parallel extraction via rayon, and JSONL/CSV metadata indexing. Crate layout: `casc-lib` (library) and `casc-cli` (CLI). Reference for a clean Rust extraction implementation.
