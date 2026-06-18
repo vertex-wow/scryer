@@ -50,6 +50,11 @@ let panX = 0;
 let panY = 0;
 let panZoom = 1;
 
+// Drag transforms for root frames (name → "translate(Xpx,Ypx)").
+// Persisted across live-update reloads so tab clicks / OnUpdate ticks don't
+// reset frames the user has moved. Cleared on full "render" messages.
+const savedDragTransforms = new Map<string, string>();
+
 let canvasMode: CanvasMode = DEFAULT_CANVAS_MODE;
 
 const interactBtn = document.getElementById("interact-toggle");
@@ -1246,6 +1251,20 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       try {
         if (msg.defaultFontUri) applyDefaultFont(msg.defaultFontUri);
         failedTextureCount = 0;
+        const isLiveUpdate = (msg as { liveUpdate?: boolean }).liveUpdate ?? false;
+        if (isLiveUpdate) {
+          // Snapshot drag transforms from root frames before destroying the DOM.
+          const lp = document.getElementById("wow-logical-parent");
+          if (lp) {
+            for (const child of Array.from(lp.children)) {
+              const el = child as HTMLElement;
+              const name = el.dataset.name;
+              if (name && el.style.transform) savedDragTransforms.set(name, el.style.transform);
+            }
+          }
+        } else {
+          savedDragTransforms.clear();
+        }
         viewport!.innerHTML = "";
         const root = renderFrames(
           msg.frames,
@@ -1260,9 +1279,21 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
               extra,
             });
           },
-          { respectTopLevelHidden: (msg as { liveUpdate?: boolean }).liveUpdate ?? false },
+          { respectTopLevelHidden: isLiveUpdate },
         );
         viewport!.appendChild(root);
+        // Restore drag transforms so live-update reloads (tab clicks, OnUpdate) don't
+        // snap frames back to their anchor-computed position.
+        if (isLiveUpdate && savedDragTransforms.size > 0) {
+          const lp = document.getElementById("wow-logical-parent");
+          if (lp) {
+            for (const child of Array.from(lp.children)) {
+              const el = child as HTMLElement;
+              const saved = el.dataset.name ? savedDragTransforms.get(el.dataset.name) : undefined;
+              if (saved) el.style.transform = saved;
+            }
+          }
+        }
         currentWowViewport = document.getElementById("wow-viewport");
         lastWorkareaBackground = msg.toolbarState.workareaBackground || "checkerBoard";
         lastCustomBackgroundUri = msg.customBackgroundUri;
