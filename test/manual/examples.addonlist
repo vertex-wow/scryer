@@ -1,0 +1,13 @@
+{
+  "addons": [
+    "ExampleFrameTooltip__Vertex",
+    "ExampleFrameTitleFrame__Vertex",
+    "ExampleFrameTitleModalDialog__Vertex",
+    "ExampleControlBottomTabs__Vertex",
+    "ExampleFrameIconPortrait__Vertex",
+    "ExampleFrameModalDialog__Vertex",
+    "ExampleFrameModalDialogSwap__Vertex",
+    "ExampleFrameModelPortrait__Vertex",
+    "ExampleFrameTitleFrameSwap__Vertex"
+  ]
+}

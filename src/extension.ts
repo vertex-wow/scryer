@@ -245,38 +245,48 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(liveFolderCmd);
 
-  // Addon group: TOC URI selected for adding to a group (VS Code compare-style flow).
-  let addonGroupSelection: vscode.Uri | undefined;
+  // Addon list: TOC URIs selected for pasting into an .addonlist file.
+  // Supports multi-select: VS Code passes all selected Explorer items as allUris.
+  let addonListSelection: vscode.Uri[] | undefined;
 
   const selectForAddonGroupCmd = vscode.commands.registerCommand(
     "scryer.selectForAddonGroup",
-    async (uri?: vscode.Uri) => {
-      let resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
-      if (!resolved) {
-        void vscode.window.showErrorMessage("Scryer: Select a .toc file or addon folder.");
+    async (uri?: vscode.Uri, allUris?: vscode.Uri[]) => {
+      // allUris contains every selected Explorer item when multiple are selected.
+      const candidates = allUris && allUris.length > 0 ? allUris : uri ? [uri] : [];
+      if (candidates.length === 0) {
+        void vscode.window.showErrorMessage("Scryer: Select .toc files or addon folders.");
         return;
       }
 
-      // Folder: resolve to the matching TOC (same logic as openLiveFolder).
-      if (!resolved.fsPath.endsWith(".toc")) {
-        const folderName = resolved.fsPath.split(/[\\/]/).pop()!;
-        const tocUri = vscode.Uri.joinPath(resolved, `${folderName}.toc`);
-        try {
-          await vscode.workspace.fs.stat(tocUri);
-          resolved = tocUri;
-        } catch {
-          void vscode.window.showErrorMessage(
-            `Scryer: No matching TOC file found (${folderName}.toc).`,
-          );
-          return;
+      // Resolve folders to their matching TOC URI; skip folders with no TOC.
+      const resolved: vscode.Uri[] = [];
+      for (const candidate of candidates) {
+        if (candidate.fsPath.endsWith(".toc")) {
+          resolved.push(candidate);
+        } else {
+          const folderName = candidate.fsPath.split(/[\\/]/).pop()!;
+          const tocUri = vscode.Uri.joinPath(candidate, `${folderName}.toc`);
+          try {
+            await vscode.workspace.fs.stat(tocUri);
+            resolved.push(tocUri);
+          } catch {
+            output.warn(`[AddonList] No TOC found for folder "${folderName}" — skipped`);
+          }
         }
       }
 
-      addonGroupSelection = resolved;
-      const addonName = path.basename(path.dirname(resolved.fsPath));
+      if (resolved.length === 0) {
+        void vscode.window.showErrorMessage("Scryer: No valid addon TOC files found in selection.");
+        return;
+      }
+
+      addonListSelection = resolved;
+      const names = resolved.map((u) => path.basename(path.dirname(u.fsPath)));
+      const label = names.length === 1 ? `"${names[0]}"` : `${names.length} addons`;
       void vscode.commands.executeCommand("setContext", "scryer.addonGroupSelectionActive", true);
       void vscode.window.showInformationMessage(
-        `Scryer: "${addonName}" selected. Right-click an .addonlist file and choose "Add Selected Addon to this List".`,
+        `Scryer: ${label} selected. Right-click an .addonlist file and choose "Add Selected Addon(s) to this List".`,
       );
     },
   );
@@ -290,37 +300,56 @@ export function activate(context: vscode.ExtensionContext): void {
         void vscode.window.showErrorMessage("Scryer: Target must be an .addonlist file.");
         return;
       }
-      if (!addonGroupSelection) {
+      if (!addonListSelection || addonListSelection.length === 0) {
         void vscode.window.showErrorMessage(
-          'Scryer: No addon selected. Right-click a .toc file and choose "Select for Addon Group" first.',
+          'Scryer: No addon selected. Right-click a .toc file or folder and choose "Select for Addon List" first.',
         );
         return;
       }
-      const addonName = path.basename(path.dirname(addonGroupSelection.fsPath));
       try {
         const rawBytes = await vscode.workspace.fs.readFile(resolved);
         const raw = Buffer.from(rawBytes).toString("utf-8").trim();
         const parsed = raw ? parseAddonList(raw, resolved.fsPath) : { addons: [] as string[] };
-        if (parsed.addons.includes(addonName)) {
-          void vscode.window.showInformationMessage(
-            `Scryer: "${addonName}" is already in ${path.basename(resolved.fsPath)}.`,
-          );
-          return;
+
+        const added: string[] = [];
+        const skipped: string[] = [];
+        for (const tocUri of addonListSelection) {
+          const addonName = path.basename(path.dirname(tocUri.fsPath));
+          if (parsed.addons.includes(addonName)) {
+            skipped.push(addonName);
+          } else {
+            parsed.addons.push(addonName);
+            added.push(addonName);
+          }
         }
-        parsed.addons.push(addonName);
-        const updated = JSON.stringify(parsed, null, 2) + "\n";
-        await vscode.workspace.fs.writeFile(resolved, Buffer.from(updated, "utf-8"));
-        addonGroupSelection = undefined;
+
+        if (added.length > 0) {
+          const updated = JSON.stringify(parsed, null, 2) + "\n";
+          await vscode.workspace.fs.writeFile(resolved, Buffer.from(updated, "utf-8"));
+        }
+
+        addonListSelection = undefined;
         void vscode.commands.executeCommand(
           "setContext",
           "scryer.addonGroupSelectionActive",
           false,
         );
-        void vscode.window.showInformationMessage(
-          `Scryer: Added "${addonName}" to ${path.basename(resolved.fsPath)}.`,
-        );
+
+        const fileName = path.basename(resolved.fsPath);
+        if (added.length === 0) {
+          void vscode.window.showInformationMessage(
+            `Scryer: All selected addons already in ${fileName}.`,
+          );
+        } else {
+          const addedLabel = added.length === 1 ? `"${added[0]}"` : `${added.length} addons`;
+          const skippedNote =
+            skipped.length > 0 ? ` (${skipped.length} already present, skipped)` : "";
+          void vscode.window.showInformationMessage(
+            `Scryer: Added ${addedLabel} to ${fileName}.${skippedNote}`,
+          );
+        }
       } catch (err) {
-        void vscode.window.showErrorMessage(`Scryer: Failed to update group file: ${String(err)}`);
+        void vscode.window.showErrorMessage(`Scryer: Failed to update list file: ${String(err)}`);
       }
     },
   );
