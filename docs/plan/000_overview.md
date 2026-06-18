@@ -64,6 +64,22 @@ Each milestone has its own section. Completed `↳` rows appear before pending `
 </tr>
 <tr>
   <td>↳</td>
+  <td><a href="todo.md#addon-group-file">Addon group file (.addonlist)</a></td>
+  <td>📋 Pending</td>
+  <td>JSONC file listing addon names to co-load; right-click "Open as Live Group View"; Select/Add context menu flow</td>
+  <td>S–M</td>
+  <td>8</td>
+</tr>
+<tr>
+  <td>↳</td>
+  <td><a href="todo.md#import-addon-group-from-live-game">Import from live game (addon group starting state)</a></td>
+  <td>📋 Pending</td>
+  <td>Read WoW per-character enable/disable list (read-only) to pre-populate a new .addonlist; needs Edit Addon Group GUI first</td>
+  <td>XS–S</td>
+  <td>addon-group-file</td>
+</tr>
+<tr>
+  <td>↳</td>
   <td><a href="todo.md#xml--lua-coupling-in-static-preview">XML + Lua coupling in static preview</a></td>
   <td>📋 Pending</td>
   <td>How much Lua to run for static XML preview; design boundary between static/live modes</td>

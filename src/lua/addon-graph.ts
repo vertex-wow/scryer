@@ -29,6 +29,8 @@ export interface AddonGraphOptions {
   readFile: (absPath: string) => Promise<string>;
   /** Synchronous path existence check — injectable for tests. */
   existsSync?: (path: string) => boolean;
+  /** Addon names (lowercased) already loaded by a prior group member; excluded from loadOrder. */
+  alreadyLoaded?: ReadonlySet<string>;
 }
 
 function findTocPath(
@@ -94,8 +96,12 @@ export async function resolveAddonGraph(opts: AddonGraphOptions): Promise<AddonG
   const state = new Map<string, "visiting" | "done">();
   const loadOrder: AddonNode[] = [];
 
-  // Seed "done" with the main addon so it can never appear as its own dep.
+  // Seed "done" with the main addon and any already-loaded addons so they
+  // don't re-appear in loadOrder.
   state.set(mainAddonName.toLowerCase(), "done");
+  if (opts.alreadyLoaded) {
+    for (const name of opts.alreadyLoaded) state.set(name, "done");
+  }
 
   async function visit(name: string, visiting: readonly string[]): Promise<void> {
     const key = name.toLowerCase();

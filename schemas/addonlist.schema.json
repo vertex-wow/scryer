@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Scryer Addon Group",
+  "description": "A list of WoW addon names to load together in a single Scryer Live Group View.",
+  "type": "object",
+  "required": ["addons"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Display name shown in the Scryer Live Group View panel title."
+    },
+    "addons": {
+      "type": "array",
+      "description": "Addon directory names to load in order (without the .toc extension). Each addon's own ## RequiredDeps are resolved automatically.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    }
+  }
+}

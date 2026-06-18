@@ -34,7 +34,8 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onLanguage:xml"
+    "onLanguage:xml",
+    "onLanguage:jsonc"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -86,6 +87,22 @@
         "title": "Open WoW Live View",
         "category": "Scryer",
         "icon": "$(run)"
+      },
+      {
+        "command": "scryer.openAddonList",
+        "title": "Open WoW Live View",
+        "category": "Scryer",
+        "icon": "$(run)"
+      },
+      {
+        "command": "scryer.selectForAddonGroup",
+        "title": "Select for Addon List",
+        "category": "Scryer"
+      },
+      {
+        "command": "scryer.addSelectedToAddonGroup",
+        "title": "Add Selected Addon to this List",
+        "category": "Scryer"
       }
     ],
     "menus": {
@@ -120,8 +137,28 @@
           "group": "navigation"
         },
         {
+          "command": "scryer.selectForAddonGroup",
+          "when": "resourceExtname == .toc",
+          "group": "navigation"
+        },
+        {
+          "command": "scryer.selectForAddonGroup",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation"
+        },
+        {
           "command": "scryer.openLiveFolder",
           "when": "explorerResourceIsFolder",
+          "group": "navigation"
+        },
+        {
+          "command": "scryer.openAddonList",
+          "when": "resourceExtname == .addonlist",
+          "group": "navigation"
+        },
+        {
+          "command": "scryer.addSelectedToAddonGroup",
+          "when": "resourceExtname == .addonlist && scryer.addonGroupSelectionActive",
           "group": "navigation"
         }
       ]
@@ -150,6 +187,23 @@
         "key": "c",
         "mac": "c",
         "when": "activeWebviewPanelId == 'scryer.live' || activeWebviewPanelId == 'scryer.preview'"
+      }
+    ],
+    "languages": [
+      {
+        "id": "jsonc",
+        "extensions": [
+          ".addonlist"
+        ],
+        "aliases": [
+          "Addon List"
+        ]
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "*.addonlist",
+        "url": "./schemas/addonlist.schema.json"
       }
     ],
     "configuration": {

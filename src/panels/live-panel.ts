@@ -86,6 +86,11 @@ export class ScryerLivePanel {
   private assets: AssetService;
   private toolbar: PanelToolbar;
 
+  /** All TOC URIs to load for this panel (one for single-addon, N for group). */
+  private readonly tocUris: vscode.Uri[];
+  /** Primary URI — used for title, asset fallback dir, and single-addon reload. */
+  private readonly primaryUri: vscode.Uri;
+
   private session: LiveSession | undefined;
   private missingPaths = new Map<string, string>();
   private retryInProgress = false;
@@ -121,13 +126,43 @@ export class ScryerLivePanel {
       },
     );
 
-    return new ScryerLivePanel(panel, context, uri, output, assets);
+    return new ScryerLivePanel(panel, context, [uri], undefined, output, assets);
+  }
+
+  static createFromGroup(
+    context: vscode.ExtensionContext,
+    groupName: string,
+    tocUris: vscode.Uri[],
+    assets: AssetService,
+    output: vscode.LogOutputChannel,
+  ): ScryerLivePanel {
+    const column = vscode.window.activeTextEditor
+      ? vscode.ViewColumn.Beside
+      : vscode.ViewColumn.One;
+
+    const panel = vscode.window.createWebviewPanel(
+      ScryerLivePanel.viewType,
+      `Scryer Group: ${groupName}`,
+      column,
+      {
+        enableScripts: true,
+        localResourceRoots: [
+          vscode.Uri.joinPath(context.extensionUri, "dist"),
+          ...assets.webviewResourceRoots(),
+          ...(vscode.workspace.workspaceFolders ?? []).map((f) => f.uri),
+        ],
+        retainContextWhenHidden: true,
+      },
+    );
+
+    return new ScryerLivePanel(panel, context, tocUris, groupName, output, assets);
   }
 
   private constructor(
     panel: vscode.WebviewPanel,
     context: vscode.ExtensionContext,
-    uri: vscode.Uri,
+    tocUris: vscode.Uri[],
+    groupName: string | undefined,
     output: vscode.LogOutputChannel,
     assets: AssetService,
   ) {
@@ -135,6 +170,8 @@ export class ScryerLivePanel {
     this.context = context;
     this.output = output;
     this.assets = assets;
+    this.tocUris = tocUris;
+    this.primaryUri = tocUris[0]!;
 
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 90);
     this.statusBar.show();
@@ -149,7 +186,7 @@ export class ScryerLivePanel {
       this.toolbar.getSetting<string>("workareaBackground") ?? "checkerBoardAuto";
     const workareaBackgroundPath = this.toolbar.getSetting<string>("workareaBackgroundPath") ?? "";
     this.panel.webview.html = buildPanelHtml({
-      title: `Scryer Live: ${uri.path.split("/").pop() ?? "Preview"}`,
+      title: this.panel.title,
       webview: this.panel.webview,
       extensionUri: this.context.extensionUri,
       flavor,
@@ -160,7 +197,7 @@ export class ScryerLivePanel {
     });
 
     this.panel.webview.onDidReceiveMessage(
-      (message: unknown) => void this.handleWebviewMessage(message, uri),
+      (message: unknown) => void this.handleWebviewMessage(message),
       null,
       this.disposables,
     );
@@ -198,7 +235,7 @@ export class ScryerLivePanel {
           }
         }
         if (needsRender) {
-          void this.runAndRender(uri);
+          void this.runAndRender();
         }
 
         if (
@@ -213,20 +250,20 @@ export class ScryerLivePanel {
       this.disposables,
     );
 
-    // Re-render when any .lua, .xml, or .toc file in the addon directory changes.
-    const addonDir = path.normalize(path.dirname(uri.fsPath));
+    // Re-render when any .lua, .xml, or .toc file in any of the watched addon dirs changes.
+    const watchedDirs = new Set(this.tocUris.map((u) => path.normalize(path.dirname(u.fsPath))));
     vscode.workspace.onDidChangeTextDocument(
       (e) => {
         const docPath = e.document.uri.fsPath;
         const ext = path.extname(docPath).toLowerCase();
         if (
           (ext === ".lua" || ext === ".xml" || ext === ".toc") &&
-          path.normalize(path.dirname(docPath)) === addonDir
+          watchedDirs.has(path.normalize(path.dirname(docPath)))
         ) {
           if (this.renderDebounce !== undefined) clearTimeout(this.renderDebounce);
           this.renderDebounce = setTimeout(() => {
             this.renderDebounce = undefined;
-            void this.runAndRender(uri);
+            void this.runAndRender();
           }, RENDER_DEBOUNCE_MS);
         }
       },
@@ -234,14 +271,17 @@ export class ScryerLivePanel {
       this.disposables,
     );
 
-    // Update panel title once the TOC is parsed (async, best-effort)
-    void this.updateTitle(uri);
+    // For single-addon panels, update the title once the TOC is parsed (async, best-effort).
+    // Group panels already have the correct title from createFromGroup.
+    if (!groupName) void this.updateTitle();
   }
 
-  private async updateTitle(uri: vscode.Uri): Promise<void> {
+  private async updateTitle(): Promise<void> {
     try {
-      const content = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf-8");
-      const toc = parseToc(content, uri.fsPath);
+      const content = Buffer.from(await vscode.workspace.fs.readFile(this.primaryUri)).toString(
+        "utf-8",
+      );
+      const toc = parseToc(content, this.primaryUri.fsPath);
       if (toc.title) {
         this.panel.title = `Scryer: ${stripWowColorCodes(toc.title)}`;
       }
@@ -295,12 +335,12 @@ export class ScryerLivePanel {
 
   // ── Webview message handler ──────────────────────────────────────────────────
 
-  private async handleWebviewMessage(message: unknown, uri: vscode.Uri): Promise<void> {
+  private async handleWebviewMessage(message: unknown): Promise<void> {
     if (typeof message !== "object" || !message) return;
     const msg = message as WebviewMessage;
 
     if (this.toolbar.handleMessage(msg)) {
-      void this.runAndRender(uri);
+      void this.runAndRender();
       return;
     }
 
@@ -311,13 +351,13 @@ export class ScryerLivePanel {
             type: "setStatus",
             state: "extracting",
           } as HostMessage);
-        void this.runAndRender(uri);
+        void this.runAndRender();
         break;
 
       case "requestAsset":
         if (msg.path) {
           this.output.trace(`    requestAsset: ${msg.path}`);
-          void this.resolveAndSendAsset(msg.path, path.dirname(uri.fsPath));
+          void this.resolveAndSendAsset(msg.path, path.dirname(this.primaryUri.fsPath));
         }
         break;
 
@@ -338,7 +378,7 @@ export class ScryerLivePanel {
       }
 
       case "reloadAddon":
-        void this.runAndRender(uri);
+        void this.runAndRender();
         break;
     }
   }
@@ -546,7 +586,7 @@ export class ScryerLivePanel {
 
   // ── Main run-and-render cycle ────────────────────────────────────────────────
 
-  async runAndRender(uri: vscode.Uri): Promise<void> {
+  async runAndRender(): Promise<void> {
     if (this.extractDebounce !== undefined) {
       clearTimeout(this.extractDebounce);
       this.extractDebounce = undefined;
@@ -574,7 +614,8 @@ export class ScryerLivePanel {
       flavorConfig.screenHeight = rh;
       flavorConfig.uiParentWidth = Math.round((flavorConfig.uiParentHeight * rw) / rh);
     }
-    const addonDir = path.dirname(uri.fsPath);
+    // addonDir: primary TOC's directory, used for asset resolution fallback.
+    const addonDir = path.dirname(this.primaryUri.fsPath);
 
     this.customBackgroundUri = undefined;
     this.customBackgroundIsFolder = undefined;
@@ -596,50 +637,70 @@ export class ScryerLivePanel {
     }
 
     try {
-      // Read the TOC file
-      const tocContent = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf-8");
-      const toc = parseToc(tocContent, uri.fsPath);
-      this.warnOnTargetMismatch(toc.interfaceVersions);
+      // ── Phase 1: Parse all TOCs and resolve dep graphs ──────────────────────
+      // Build a unified allTocs map (for getAddonMetadata) and an ordered exec
+      // plan before creating the sandbox. This ensures getAddonMetadata has the
+      // complete picture when registerWowApi is called.
 
-      // Resolve required addon dependencies before building the sandbox so that
-      // getAddonMetadata can answer queries about dep addons during registration.
-      const mainAddonName = path
-        .basename(toc.sourceFile, path.extname(toc.sourceFile))
-        .replace(/_Mainline$|_Classic$|_Vanilla$|_BCC$|_WOTLKC$/i, "");
-      const parentDir = path.dirname(addonDir); // Interface/AddOns/
-      const liveAddonsDir = this.assets.liveAddonsDir;
-      const depSearchPaths = [parentDir, liveAddonsDir].filter(
-        (p, i, arr) => p && arr.indexOf(p) === i,
-      );
-      const depGraph = await resolveAddonGraph({
-        mainToc: toc,
-        mainAddonName,
-        searchPaths: depSearchPaths,
-        tocFamily: flavorTocFamily(flavor),
-        readFile: async (absPath) =>
-          Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(absPath))).toString(
-            "utf-8",
-          ),
-      });
-      if (depGraph.cycles.length > 0) {
-        this.output.warn(
-          `[Live] Circular addon dependencies detected: ${depGraph.cycles.map((c) => c.join(" → ")).join("; ")}`,
+      const allTocs = new Map<string, TocFile>();
+      const execPlan: Array<{ toc: TocFile; addonDir: string }> = [];
+      const loadedAddonNames = new Set<string>();
+
+      const readFile = async (absPath: string): Promise<string> =>
+        Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(absPath))).toString("utf-8");
+
+      for (const tocUri of this.tocUris) {
+        const tocContent = Buffer.from(await vscode.workspace.fs.readFile(tocUri)).toString(
+          "utf-8",
         );
-      }
-      if (depGraph.missing.length > 0) {
-        this.output.warn(
-          `[Live] Required addon dependencies not found: ${depGraph.missing.join(", ")} — some features may not work`,
+        const toc = parseToc(tocContent, tocUri.fsPath);
+
+        const tocAddonDir = path.dirname(tocUri.fsPath);
+        const mainAddonName = path
+          .basename(toc.sourceFile, path.extname(toc.sourceFile))
+          .replace(/_Mainline$|_Classic$|_Vanilla$|_BCC$|_WOTLKC$/i, "");
+
+        if (loadedAddonNames.has(mainAddonName.toLowerCase())) continue;
+
+        this.warnOnTargetMismatch(toc.interfaceVersions);
+
+        const parentDir = path.dirname(tocAddonDir);
+        const liveAddonsDir = this.assets.liveAddonsDir;
+        const depSearchPaths = [parentDir, liveAddonsDir].filter(
+          (p, i, arr) => p && arr.indexOf(p) === i,
         );
+
+        const depGraph = await resolveAddonGraph({
+          mainToc: toc,
+          mainAddonName,
+          searchPaths: depSearchPaths,
+          tocFamily: flavorTocFamily(flavor),
+          readFile,
+          alreadyLoaded: loadedAddonNames,
+        });
+
+        if (depGraph.cycles.length > 0) {
+          this.output.warn(
+            `[Live] Circular addon dependencies detected: ${depGraph.cycles.map((c) => c.join(" → ")).join("; ")}`,
+          );
+        }
+        if (depGraph.missing.length > 0) {
+          this.output.warn(
+            `[Live] Required addon dependencies not found: ${depGraph.missing.join(", ")} — some features may not work`,
+          );
+        }
+
+        for (const depNode of depGraph.loadOrder) {
+          allTocs.set(depNode.name.toLowerCase(), depNode.toc);
+          loadedAddonNames.add(depNode.name.toLowerCase());
+          execPlan.push({ toc: depNode.toc, addonDir: depNode.addonDir });
+        }
+        allTocs.set(mainAddonName.toLowerCase(), toc);
+        loadedAddonNames.add(mainAddonName.toLowerCase());
+        execPlan.push({ toc, addonDir: tocAddonDir });
       }
 
-      // Build a lookup table of all loaded TOC files keyed by addon name (lowercase)
-      // so getAddonMetadata can answer queries for dep addons as well as the main one.
-      const allTocs = new Map<string, TocFile>(
-        depGraph.loadOrder.map((n) => [n.name.toLowerCase(), n.toc]),
-      );
-      allTocs.set(mainAddonName.toLowerCase(), toc);
-
-      // Build a fresh sandbox + registry
+      // ── Phase 2: Build sandbox and register APIs ────────────────────────────
       const wasmPath = vscode.Uri.joinPath(this.context.extensionUri, "dist", "glue.wasm").fsPath;
       const registry = new FrameRegistry(flavorConfig.uiParentWidth, flavorConfig.uiParentHeight);
       const clock = new VirtualClock();
@@ -753,11 +814,11 @@ TROUBLESHOOTING:
         error: (msg: string) => this.output.error(msg),
       };
 
-      // Load required dep addons in topological order before the main addon.
-      for (const depNode of depGraph.loadOrder) {
+      // ── Phase 3: Execute all addons in planned order (deps first per group entry).
+      for (const entry of execPlan) {
         await runTocAddon({
-          toc: depNode.toc,
-          addonDir: depNode.addonDir,
+          toc: entry.toc,
+          addonDir: entry.addonDir,
           sandbox,
           blizzardTemplates,
           blizzardTextureTemplates,
@@ -766,17 +827,6 @@ TROUBLESHOOTING:
           output: tocRunnerOutput,
         });
       }
-
-      await runTocAddon({
-        toc,
-        addonDir,
-        sandbox,
-        blizzardTemplates,
-        blizzardTextureTemplates,
-        timeout: flavorConfig.sandboxTimeout,
-        readFile: readAddonFile,
-        output: tocRunnerOutput,
-      });
 
       // Advance clock one tick to fire any immediate timers
       clock.advance(0.001);
@@ -897,7 +947,7 @@ TROUBLESHOOTING:
       // ─────────────────────────────────────────────────────────────────────
     } catch (err) {
       this.stopSession();
-      this.output.error(`[Live] Error running ${uri.fsPath}: ${String(err)}`);
+      this.output.error(`[Live] Error running ${this.primaryUri.fsPath}: ${String(err)}`);
       this.output.show(true);
     }
   }

@@ -6,6 +6,70 @@ Completed items are in [todo-archive.md](todo-archive.md).
 
 ---
 
+## Addon group file (.addonlist) — load multiple addons in a single live view {#addon-group-file}
+
+**Status: 📋 Pending**
+
+Addon authors often develop suites of addons that need to load together to preview correctly (e.g. a core + UI skin + data layer). This item adds a `.addonlist` JSONC file format that lists addon names to co-load, and context menu commands to create and open these groups in a single Live Group View panel.
+
+**File format (JSONC):**
+
+```jsonc
+{
+  // Optional display name shown in the panel title
+  "name": "My UI Suite",
+  "addons": ["MyAddonCore", "MyAddonSkin", "SharedMedia"],
+}
+```
+
+Addon names are directory names (without `.toc`). Addons are resolved via the same sibling + live-addon-list search paths used for `## RequiredDeps`. Each addon's own dependency graph is resolved independently before running it.
+
+**Commands:**
+
+- `scryer.openAddonList` — right-click `.addonlist` → "Open as Live Group View". Loads all listed addons in order into a single Live panel.
+- `scryer.selectForAddonGroup` — right-click `.toc` → "Select for Addon Group". Marks the addon as selected (VS Code compare-style).
+- `scryer.addSelectedToAddonGroup` — right-click `.addonlist` → "Add [AddonName] to this Group". Adds the previously selected TOC's addon name to the group file.
+
+**UX notes:**
+
+- "Select for Addon Group" stores the selected TOC in extension state and shows a notification with instructions.
+- "Add Selected to this Group" is only shown in the context menu when a TOC is selected.
+- The panel title uses the `.addonlist` `name` field if present, otherwise the file name.
+- File watching covers all addon dirs listed in the group.
+
+**Rough plan:**
+
+1. `src/addon-list/parser.ts` — JSONC parser (comment-strip then `JSON.parse`); type `AddonListFile { name?: string; addons: string[] }`.
+2. `package.json` — contribute `.addonlist` as a JSON language ID, add JSON schema validation, register 3 commands + context menu entries.
+3. Extend `ScryerLivePanel` — `createFromGroup(context, groupUri, tocUris[], assets, output)` static factory; `runAndRender` iterates `tocUris`; file watcher covers all addon dirs.
+4. `extension.ts` — wire the three commands; store selected TOC in a module-level variable; update context menu visibility via `when` clause on a contributed context key.
+
+**Depends on:** M8 (TOC Execution Pipeline) — complete.
+
+**Effort:** S–M
+
+---
+
+## Import from live game (WoW enable/disable list as addon group starting state) {#import-addon-group-from-live-game}
+
+**Status: 📋 Pending**
+
+The in-game addon manager tracks per-character enable/disable lists in `WTF/Account/<account>/<char>/SavedVariables/` (specifically the `SavedVariables` state and the `Interface/AddOns/` directory scan). A "Import from Live Game" button in the Edit Addon Group GUI (future GUI item) could pre-populate a new `.addonlist` by reading the WoW installation's per-character enabled addons list and offering it as a starting state to trim down.
+
+**Scope:** Read-only. Never write to WoW settings files. The result is a new `.addonlist` file in the workspace — the game settings themselves are not touched.
+
+**Implementation notes:**
+
+- WoW tracks disabled addons (enabled is the default). The relevant file is `WTF/Account/<account>/SavedVariables/AddOns.txt` (or similar path — inspect `_live/WTF/` for the real structure).
+- Parse the disabled list, invert it against the full `Interface/AddOns/` directory scan to get the enabled set, surface as a picker to let the author select which to include.
+- Only worth implementing once the Edit Addon Group GUI exists (separate future item).
+
+**Depends on:** [Addon group file](#addon-group-file) — needs the file format and group editing UI first.
+
+**Effort:** XS–S (once the GUI exists to wire it into)
+
+---
+
 ## Replace pngjs encoder with fast-png (BLP→PNG speedup) {#replace-pngjs-encoder-with-fast-png}
 
 **Status: ❌ Cancelled — benchmarked, no improvement**

@@ -4,6 +4,7 @@ import * as vscode from "vscode";
 import { listInstalledFlavors } from "./assets/build-info.js";
 import { AssetService } from "./assets/index.js";
 import { isSvgConverterAvailable, pngToTga, resolveFlipTool, svgToPng } from "./assets/svg.js";
+import { parseAddonList } from "./addon-list/parser.js";
 import { ScryerLivePanel } from "./panels/live-panel.js";
 import { ScryerPanel } from "./panels/panel.js";
 import { ADDON_NAMES, SHARED_ADDON_NAMES } from "./parser/blizzard-registry.js";
@@ -243,6 +244,157 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(liveFolderCmd);
+
+  // Addon group: TOC URI selected for adding to a group (VS Code compare-style flow).
+  let addonGroupSelection: vscode.Uri | undefined;
+
+  const selectForAddonGroupCmd = vscode.commands.registerCommand(
+    "scryer.selectForAddonGroup",
+    async (uri?: vscode.Uri) => {
+      let resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
+      if (!resolved) {
+        void vscode.window.showErrorMessage("Scryer: Select a .toc file or addon folder.");
+        return;
+      }
+
+      // Folder: resolve to the matching TOC (same logic as openLiveFolder).
+      if (!resolved.fsPath.endsWith(".toc")) {
+        const folderName = resolved.fsPath.split(/[\\/]/).pop()!;
+        const tocUri = vscode.Uri.joinPath(resolved, `${folderName}.toc`);
+        try {
+          await vscode.workspace.fs.stat(tocUri);
+          resolved = tocUri;
+        } catch {
+          void vscode.window.showErrorMessage(
+            `Scryer: No matching TOC file found (${folderName}.toc).`,
+          );
+          return;
+        }
+      }
+
+      addonGroupSelection = resolved;
+      const addonName = path.basename(path.dirname(resolved.fsPath));
+      void vscode.commands.executeCommand("setContext", "scryer.addonGroupSelectionActive", true);
+      void vscode.window.showInformationMessage(
+        `Scryer: "${addonName}" selected. Right-click an .addonlist file and choose "Add Selected Addon to this List".`,
+      );
+    },
+  );
+  context.subscriptions.push(selectForAddonGroupCmd);
+
+  const addSelectedToAddonGroupCmd = vscode.commands.registerCommand(
+    "scryer.addSelectedToAddonGroup",
+    async (uri?: vscode.Uri) => {
+      const resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
+      if (!resolved?.fsPath.endsWith(".addonlist")) {
+        void vscode.window.showErrorMessage("Scryer: Target must be an .addonlist file.");
+        return;
+      }
+      if (!addonGroupSelection) {
+        void vscode.window.showErrorMessage(
+          'Scryer: No addon selected. Right-click a .toc file and choose "Select for Addon Group" first.',
+        );
+        return;
+      }
+      const addonName = path.basename(path.dirname(addonGroupSelection.fsPath));
+      try {
+        const rawBytes = await vscode.workspace.fs.readFile(resolved);
+        const raw = Buffer.from(rawBytes).toString("utf-8").trim();
+        const parsed = raw ? parseAddonList(raw, resolved.fsPath) : { addons: [] as string[] };
+        if (parsed.addons.includes(addonName)) {
+          void vscode.window.showInformationMessage(
+            `Scryer: "${addonName}" is already in ${path.basename(resolved.fsPath)}.`,
+          );
+          return;
+        }
+        parsed.addons.push(addonName);
+        const updated = JSON.stringify(parsed, null, 2) + "\n";
+        await vscode.workspace.fs.writeFile(resolved, Buffer.from(updated, "utf-8"));
+        addonGroupSelection = undefined;
+        void vscode.commands.executeCommand(
+          "setContext",
+          "scryer.addonGroupSelectionActive",
+          false,
+        );
+        void vscode.window.showInformationMessage(
+          `Scryer: Added "${addonName}" to ${path.basename(resolved.fsPath)}.`,
+        );
+      } catch (err) {
+        void vscode.window.showErrorMessage(`Scryer: Failed to update group file: ${String(err)}`);
+      }
+    },
+  );
+  context.subscriptions.push(addSelectedToAddonGroupCmd);
+
+  const openAddonListCmd = vscode.commands.registerCommand(
+    "scryer.openAddonList",
+    async (uri?: vscode.Uri) => {
+      const resolved = uri ?? vscode.window.activeTextEditor?.document.uri;
+      if (!resolved?.fsPath.endsWith(".addonlist")) {
+        void vscode.window.showErrorMessage("Scryer: Open an .addonlist file first.");
+        return;
+      }
+      let parsed;
+      try {
+        const raw = Buffer.from(await vscode.workspace.fs.readFile(resolved)).toString("utf-8");
+        parsed = parseAddonList(raw, resolved.fsPath);
+      } catch (err) {
+        void vscode.window.showErrorMessage(
+          `Scryer: Could not parse ${path.basename(resolved.fsPath)}: ${String(err)}`,
+        );
+        return;
+      }
+      if (parsed.addons.length === 0) {
+        void vscode.window.showErrorMessage(
+          `Scryer: ${path.basename(resolved.fsPath)} contains no addons.`,
+        );
+        return;
+      }
+
+      // Resolve each addon name to a TOC URI using sibling dirs and live addons dir.
+      const groupDir = path.dirname(resolved.fsPath);
+      const parentDir = path.dirname(groupDir);
+      const liveAddonsDir = assets.liveAddonsDir;
+      const searchDirs = [parentDir, liveAddonsDir].filter(
+        (p, i, arr) => p && arr.indexOf(p) === i,
+      );
+      const tocUris: vscode.Uri[] = [];
+      const missing: string[] = [];
+
+      for (const addonName of parsed.addons) {
+        let found = false;
+        for (const dir of searchDirs) {
+          const candidate = vscode.Uri.file(path.join(dir, addonName, `${addonName}.toc`));
+          try {
+            await vscode.workspace.fs.stat(candidate);
+            tocUris.push(candidate);
+            found = true;
+            break;
+          } catch {
+            // try next
+          }
+        }
+        if (!found) missing.push(addonName);
+      }
+
+      if (missing.length > 0) {
+        output.warn(`[AddonList] Could not find TOC for: ${missing.join(", ")}`);
+      }
+      if (tocUris.length === 0) {
+        void vscode.window.showErrorMessage(
+          `Scryer: No TOC files found for any addon in ${path.basename(resolved.fsPath)}.`,
+        );
+        return;
+      }
+
+      const groupName = parsed.name ?? path.basename(resolved.fsPath, ".addonlist");
+      output.info(
+        `Opening addon group "${groupName}": ${tocUris.map((u) => path.basename(path.dirname(u.fsPath))).join(", ")}`,
+      );
+      ScryerLivePanel.createFromGroup(context, groupName, tocUris, assets, output);
+    },
+  );
+  context.subscriptions.push(openAddonListCmd);
 
   // Pre-warm template registry and/or texture caches at activation so the first panel
   // open is fast. Deferred past activate() via a resolved promise so activation is
