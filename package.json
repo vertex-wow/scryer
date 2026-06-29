@@ -505,7 +505,7 @@
     "vitest": "^4.1.8"
   },
   "dependencies": {
-    "fast-xml-parser": "^5.9.0",
+    "fast-xml-parser": "^5.9.3",
     "pngjs": "^7.0.0",
     "wasmoon": "^1.16.0"
   },
